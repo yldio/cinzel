@@ -1,0 +1,25 @@
+# Logs
+logs
+*.log
+
+# Windows
+Thumbs.db
+
+# Editor directories and files
+.vscode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea
+.DS_Store
+*.suo
+
+coverage/*
+bin/*
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
