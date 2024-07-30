@@ -5,10 +5,6 @@ import (
 	"github.com/yldio/atos/internal/reader"
 )
 
-type TestingRef struct {
-	Ref string `yaml:"-"`
-}
-
 type TestingTimeoutMinutes struct {
 	TimeoutMinutes uint16 `yaml:"timeout-minutes"`
 }

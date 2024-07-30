@@ -6,24 +6,21 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-type JobConfig struct {
-	Ref            string                `hcl:",label"`
-	TimeoutMinutes *TimeoutMinutesConfig `hcl:"timeout_minutes,attr"`
-	Strategy       *StrategyConfig       `hcl:"strategy,block"`
-	Container      *ContainerConfig      `hcl:"container,block"`
-	Services       *ServicesConfig       `hcl:"services,block"`
+type HclConfig struct {
+	Jobs JobsConfig `hcl:"job,block"`
 }
 
-type StepYaml struct {
-	Ref            string `yaml:"-"`
-	TimeoutMinutes uint16 `yaml:"timeout-minutes,omitempty"`
-	Strategy       any    `yaml:"strategy,omitempty"`
-	Container      any    `yaml:"container,omitempty"`
-	Services       any    `yaml:"services,omitempty"`
-}
+func (config *HclConfig) Parse() (Jobs, error) {
+	if config.Jobs == nil {
+		return Jobs{}, nil
+	}
 
-func (content StepYaml) Convert() ([]byte, error) {
-	return Convert(content)
+	parsedJobs, err := config.Jobs.Parse()
+	if err != nil {
+		return Jobs{}, err
+	}
+
+	return parsedJobs, nil
 }
 
 func Convert(content any) ([]byte, error) {
@@ -38,5 +35,3 @@ func Convert(content any) ([]byte, error) {
 
 	return filteredOut, nil
 }
-
-func ConvertFromHcl() {}

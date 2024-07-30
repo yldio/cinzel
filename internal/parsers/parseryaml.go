@@ -1,6 +1,8 @@
 package parsers
 
 import (
+	"bytes"
+
 	"github.com/goccy/go-yaml"
 	"github.com/yldio/atos/internal/parsers/actions"
 )
@@ -45,4 +47,17 @@ func (parse *YamlParser) Do() error {
 
 func (parse *YamlParser) GetContent() [][]byte {
 	return parse.rawYaml
+}
+
+func Convert(content any) ([]byte, error) {
+	out, err := yaml.Marshal(content)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// Please link to https://github.com/go-yaml/yaml?tab=readme-ov-file#yaml-support-for-the-go-language
+	// `atos` uses `any` so we need this "hack" to clean `"on":` to just `on:`.
+	filteredOut := bytes.Replace(out, []byte("\"on\""), []byte("on"), -1)
+
+	return filteredOut, nil
 }
