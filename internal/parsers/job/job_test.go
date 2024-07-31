@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/yldio/atos/internal/parsers"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestJob(t *testing.T) {
@@ -39,6 +40,34 @@ job "job_2" {
       "/data/my_data",
       "/source/directory:/destination/directory",
     ]
+  }
+}
+
+job "job_3" {
+  container {
+    image = "node:18"
+
+    credentials {
+      username = "$${{ github.actor }}"
+      password = "$${{ secrets.github_token }}"
+    }
+
+    env {
+      variable {
+        name = "NODE_ENV"
+        value = "development"
+      }
+    }
+
+    volumes = [
+      "my_docker_volume:/volume_mount",
+      "/data/my_data",
+      "/source/directory:/destination/directory",
+    ]
+    
+    ports = [80]
+
+    options = "--cpus 1"
   }
 }
 `
@@ -83,6 +112,31 @@ job "job_2" {
 						},
 					},
 				},
+				{
+					Id: "job_3",
+					Container: ContainerConfig{
+						Image: "node:18",
+						Credentials: CredentialsConfig{
+							Username: "${{ github.actor }}",
+							Password: "${{ secrets.github_token }}",
+						},
+						Env: EnvConfig{
+							Variable: []VariableConfig{
+								{
+									Name:  "NODE_ENV",
+									Value: cty.StringVal("development"),
+								},
+							},
+						},
+						Ports: []int16{80},
+						Volumes: []string{
+							"my_docker_volume:/volume_mount",
+							"/data/my_data",
+							"/source/directory:/destination/directory",
+						},
+						Options: "--cpus 1",
+					},
+				},
 			},
 		}
 
@@ -124,6 +178,26 @@ job "job_2" {
 					},
 				},
 			},
+			"job_3": Job{
+				Id: "job_3",
+				Container: Container{
+					Image: "node:18",
+					Credentials: Credentials{
+						Username: "${{ github.actor }}",
+						Password: "${{ secrets.github_token }}",
+					},
+					Env: Env{
+						"NODE_ENV": "development",
+					},
+					Ports: []int16{80},
+					Volumes: []string{
+						"my_docker_volume:/volume_mount",
+						"/data/my_data",
+						"/source/directory:/destination/directory",
+					},
+					Options: "--cpus 1",
+				},
+			},
 		}
 
 		if !reflect.DeepEqual(got_parsed, expected_parsed) {
@@ -152,6 +226,21 @@ job_2:
       - my_docker_volume:/volume_mount
       - /data/my_data
       - /source/directory:/destination/directory
+job_3:
+  container:
+    image: node:18
+    credentials:
+      username: ${{ github.actor }}
+      password: ${{ secrets.github_token }}
+    env:
+      NODE_ENV: development
+    ports:
+    - 80
+    volumes:
+    - my_docker_volume:/volume_mount
+    - /data/my_data
+    - /source/directory:/destination/directory
+    options: --cpus 1
 `
 
 		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {

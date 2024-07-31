@@ -1,26 +1,20 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
 	"reflect"
 	"testing"
 
+	"github.com/yldio/atos/internal/parsers"
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestParseContainer(t *testing.T) {
+func TestJobOnlyWithContainer(t *testing.T) {
 
-	image := "node:18"
-	port := int16(80)
-	ports := []int16{80}
-	volumes := []string{
-		"my_docker_volume:/volume_mount",
-		"/data/my_data",
-		"/source/directory:/destination/directory",
-	}
-	options := "--cpus 1"
-
-	t.Run("convert from hcl: container", func(t *testing.T) {
-		have := []byte(`job {
+	t.Run("convert from hcl to yaml", func(t *testing.T) {
+		have_hcl := `job "job_1" {
   container {
     image = "node:18"
 
@@ -44,144 +38,106 @@ func TestParseContainer(t *testing.T) {
     
     ports = [80]
 
-	options = "--cpus 1"
+    options = "--cpus 1"
   }
 }
-`,
-		)
+`
 
-		var hclConfig struct {
-			Jobs []struct {
-				Container *ContainerConfig `hcl:"container,block"`
-			} `hcl:"job,block"`
-		}
+		var got_hcl HclConfig
 
-		if err := HelperConvertHcl(have, &hclConfig); err != nil {
+		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.FailNow()
 		}
 
-		got := *hclConfig.Jobs[0].Container
-
-		expected := ContainerConfig{
-			Image: &image,
-			Credentials: &CredentialsConfig{
-				Username: "${{ github.actor }}",
-				Password: "${{ secrets.github_token }}",
-			},
-			Env: &EnvConfig{
-				Variable: []VariableConfig{
-					{
-						Name:  "NODE_ENV",
-						Value: cty.StringVal("development"),
+		expected_hcl := HclConfig{
+			Jobs: JobsConfig{
+				{
+					Id: "job_1",
+					Container: ContainerConfig{
+						Image: "node:18",
+						Credentials: CredentialsConfig{
+							Username: "${{ github.actor }}",
+							Password: "${{ secrets.github_token }}",
+						},
+						Env: EnvConfig{
+							Variable: []VariableConfig{
+								{
+									Name:  "NODE_ENV",
+									Value: cty.StringVal("development"),
+								},
+							},
+						},
+						Ports: []int16{80},
+						Volumes: []string{
+							"my_docker_volume:/volume_mount",
+							"/data/my_data",
+							"/source/directory:/destination/directory",
+						},
+						Options: "--cpus 1",
 					},
 				},
 			},
-			Ports:   &ports,
-			Volumes: &volumes,
-			Options: &options,
 		}
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_hcl, expected_hcl) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("parse from hcl: container", func(t *testing.T) {
-		have := ContainerConfig{
-			Image: &image,
-			Credentials: &CredentialsConfig{
-				Username: "${{ github.actor }}",
-				Password: "${{ secrets.github_token }}",
-			},
-			Env: &EnvConfig{
-				Variable: []VariableConfig{
-					{
-						Name:  "NODE_ENV",
-						Value: cty.StringVal("development"),
-					},
-				},
-			},
-			Ports:   &ports,
-			Volumes: &volumes,
-			Options: &options,
-		}
-
-		got, err := have.Parse()
+		got_parsed, err := got_hcl.Parse()
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := Container{
-			Image: image,
-			Credentials: Credentials{
-				Username: "${{ github.actor }}",
-				Password: "${{ secrets.github_token }}",
+		expected_parsed := Jobs{
+			"job_1": Job{
+				Id: "job_1",
+				Container: Container{
+					Image: "node:18",
+					Credentials: Credentials{
+						Username: "${{ github.actor }}",
+						Password: "${{ secrets.github_token }}",
+					},
+					Env: Env{
+						"NODE_ENV": "development",
+					},
+					Ports: []int16{80},
+					Volumes: []string{
+						"my_docker_volume:/volume_mount",
+						"/data/my_data",
+						"/source/directory:/destination/directory",
+					},
+					Options: "--cpus 1",
+				},
 			},
-			Env: Env{
-				"NODE_ENV": "development",
-			},
-			Ports: []int16{
-				port,
-			},
-			Volumes: []string{
-				"my_docker_volume:/volume_mount",
-				"/data/my_data",
-				"/source/directory:/destination/directory",
-			},
-			Options: options,
 		}
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_parsed, expected_parsed) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("convert to yaml: container", func(t *testing.T) {
-		have := TestingContainer{
-			Container{
-				Image: image,
-				Credentials: Credentials{
-					Username: "${{ github.actor }}",
-					Password: "${{ secrets.github_token }}",
-				},
-				Env: Env{
-					"NODE_ENV": "development",
-				},
-				Ports: []int16{
-					port,
-				},
-				Volumes: []string{
-					"my_docker_volume:/volume_mount",
-					"/data/my_data",
-					"/source/directory:/destination/directory",
-				},
-				Options: options,
-			},
-		}
-
-		got, err := Convert(have)
+		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := []byte(`container:
-  image: node:18
-  credentials:
-    username: ${{ github.actor }}
-    password: ${{ secrets.github_token }}
-  env:
-    NODE_ENV: development
-  ports:
-  - 80
-  volumes:
-  - my_docker_volume:/volume_mount
-  - /data/my_data
-  - /source/directory:/destination/directory
-  options: --cpus 1
-`,
-		)
+		expected_yaml := `job_1:
+  container:
+    image: node:18
+    credentials:
+      username: ${{ github.actor }}
+      password: ${{ secrets.github_token }}
+    env:
+      NODE_ENV: development
+    ports:
+    - 80
+    volumes:
+    - my_docker_volume:/volume_mount
+    - /data/my_data
+    - /source/directory:/destination/directory
+    options: --cpus 1
+`
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {
 			t.FailNow()
 		}
 	})

@@ -11,21 +11,23 @@ import (
 
 // order of properties matter when converting to Yaml
 type Job struct {
-	Id       string   `yaml:"-"`
-	Services Services `yaml:"services,omitempty"`
-	Secrets  any      `yaml:"secrets,omitempty"`
-	Uses     Uses     `yaml:"uses,omitempty"`
-	With     With     `yaml:"with,omitempty"`
+	Id        string    `yaml:"-"`
+	Container Container `yaml:"container,omitempty"`
+	Services  Services  `yaml:"services,omitempty"`
+	Secrets   any       `yaml:"secrets,omitempty"`
+	Uses      Uses      `yaml:"uses,omitempty"`
+	With      With      `yaml:"with,omitempty"`
 }
 type Jobs map[string]Job
 
 type JobConfig struct {
-	Id       string               `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
-	Services ServicesConfig       `hcl:"service,block"`
-	Secret   SecretsConfig        `hcl:"secret,block"`
-	Secrets  SecretsInheritConfig `hcl:"secrets,attr"`
-	With     WithConfig           `hcl:"with,block"`
-	Uses     UsesConfig           `hcl:"uses,attr"`
+	Id        string               `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
+	Container ContainerConfig      `hcl:"container,block"`
+	Services  ServicesConfig       `hcl:"service,block"`
+	Secret    SecretsConfig        `hcl:"secret,block"`
+	Secrets   SecretsInheritConfig `hcl:"secrets,attr"`
+	With      WithConfig           `hcl:"with,block"`
+	Uses      UsesConfig           `hcl:"uses,attr"`
 }
 
 type JobsConfig []JobConfig
@@ -65,6 +67,13 @@ func (config *JobConfig) Parse() (Job, error) {
 	if len(jobWith) != 0 {
 		job.With = jobWith
 	}
+
+	jobContainer, err := config.Container.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	job.Container = jobContainer
 
 	jobServices, err := config.Services.Parse()
 	if err != nil {

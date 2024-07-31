@@ -1,3 +1,6 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
@@ -20,12 +23,12 @@ type EnvConfig struct {
 }
 
 type ContainerConfig struct {
-	Image       *string            `hcl:"image,attr"`
-	Credentials *CredentialsConfig `hcl:"credentials,block"`
-	Env         *EnvConfig         `hcl:"env,block"`
-	Ports       *[]int16           `hcl:"ports,attr"`
-	Volumes     *[]string          `hcl:"volumes,attr"`
-	Options     *string            `hcl:"options,attr"`
+	Image       string            `hcl:"image,attr"`
+	Credentials CredentialsConfig `hcl:"credentials,block"`
+	Env         EnvConfig         `hcl:"env,block"`
+	Ports       []int16           `hcl:"ports,attr"`
+	Volumes     []string          `hcl:"volumes,attr"`
+	Options     string            `hcl:"options,attr"`
 }
 
 type Credentials struct {
@@ -47,18 +50,18 @@ type Container struct {
 func (config *ContainerConfig) Parse() (Container, error) {
 	container := Container{}
 
-	if config.Image != nil {
-		container.Image = *config.Image
+	if config.Image != "" {
+		container.Image = config.Image
 	}
 
-	if config.Credentials != nil {
+	if config.Credentials != (CredentialsConfig{}) {
 		container.Credentials = Credentials{
 			Username: config.Credentials.Username,
 			Password: config.Credentials.Password,
 		}
 	}
 
-	if config.Env != nil && config.Env.Variable != nil {
+	if config.Env.Variable != nil {
 		envs := make(Env)
 
 		for _, env := range config.Env.Variable {
@@ -97,17 +100,17 @@ func (config *ContainerConfig) Parse() (Container, error) {
 	if config.Ports != nil {
 		ports := []int16{}
 
-		container.Ports = append(ports, *config.Ports...)
+		container.Ports = append(ports, config.Ports...)
 	}
 
 	if config.Volumes != nil {
 		volumes := []string{}
 
-		container.Volumes = append(volumes, *config.Volumes...)
+		container.Volumes = append(volumes, config.Volumes...)
 	}
 
-	if config.Options != nil {
-		container.Options = *config.Options
+	if config.Options != "" {
+		container.Options = config.Options
 	}
 
 	return container, nil
