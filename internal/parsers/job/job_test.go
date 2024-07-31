@@ -10,7 +10,7 @@ import (
 	"github.com/yldio/atos/internal/parsers"
 )
 
-func TestParseJob(t *testing.T) {
+func TestJob(t *testing.T) {
 
 	t.Run("convert from hcl: job", func(t *testing.T) {
 		have_hcl := `job "job_1" {}

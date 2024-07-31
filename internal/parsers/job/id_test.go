@@ -10,37 +10,20 @@ import (
 	"github.com/yldio/atos/internal/parsers"
 )
 
-type MockJobsIdConfig struct {
-	Jobs []IdConfig `hcl:"job,block"`
-}
-
-func (config *MockJobsIdConfig) Parse() (Jobs, error) {
-	jobs := make(Jobs)
-	for _, job := range config.Jobs {
-		parsedJob, err := job.Parse()
-		if err != nil {
-			return Jobs{}, nil
-		}
-
-		jobs[parsedJob.Id] = parsedJob
-	}
-	return jobs, nil
-}
-
 func TestJobOnlyPropId(t *testing.T) {
 
 	t.Run("convert from hcl to yaml", func(t *testing.T) {
 		have_hcl := `job "job_1" {}
 `
 
-		var got_hcl MockJobsIdConfig
+		var got_hcl HclConfig
 
 		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.Fail()
 		}
 
-		expected_hcl := MockJobsIdConfig{
-			Jobs: []IdConfig{
+		expected_hcl := HclConfig{
+			Jobs: JobsConfig{
 				{
 					Id: "job_1",
 				},

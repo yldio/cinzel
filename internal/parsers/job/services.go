@@ -1,3 +1,6 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
@@ -48,7 +51,7 @@ type Service struct {
 
 type Services map[string]Service
 
-func (config *ServicesConfig) Parse() (Services, error) {
+func (config *ServicesConfig) Parse() (Job, error) {
 	services := Services{}
 
 	for _, service := range *config {
@@ -78,7 +81,7 @@ func (config *ServicesConfig) Parse() (Services, error) {
 					var val string
 					err := gocty.FromCtyValue(variable.Value, &val)
 					if err != nil {
-						return Services{}, err
+						return Job{}, err
 					}
 					envs[variable.Name] = val
 				case "number":
@@ -88,7 +91,7 @@ func (config *ServicesConfig) Parse() (Services, error) {
 						var val float32
 						err := gocty.FromCtyValue(variable.Value, &val)
 						if err != nil {
-							return Services{}, err
+							return Job{}, err
 						}
 					}
 					envs[variable.Name] = val
@@ -96,7 +99,7 @@ func (config *ServicesConfig) Parse() (Services, error) {
 					var val bool
 					err := gocty.FromCtyValue(variable.Value, &val)
 					if err != nil {
-						return Services{}, err
+						return Job{}, err
 					}
 					envs[variable.Name] = val
 				}
@@ -124,5 +127,9 @@ func (config *ServicesConfig) Parse() (Services, error) {
 		services[service.Name] = svr
 	}
 
-	return services, nil
+	job := Job{
+		Services: services,
+	}
+
+	return job, nil
 }

@@ -7,7 +7,7 @@ type Job struct {
 	Id       string   `yaml:"-"`
 	Services Services `yaml:"services,omitempty"`
 }
-type Jobs map[string]any
+type Jobs map[string]Job
 
 type JobConfig struct {
 	Id       string         `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
@@ -34,13 +34,13 @@ func (config *JobConfig) Parse() (Job, error) {
 		Id: config.Id,
 	}
 
-	services, err := config.Services.Parse()
+	jobServices, err := config.Services.Parse()
 	if err != nil {
 		return Job{}, err
 	}
 
-	if len(services) != 0 {
-		job.Services = services
+	if len(jobServices.Services) != 0 {
+		job.Services = jobServices.Services
 	}
 
 	return job, nil

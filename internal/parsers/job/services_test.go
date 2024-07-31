@@ -1,23 +1,19 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
 	"reflect"
 	"testing"
 
+	"github.com/yldio/atos/internal/parsers"
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestParseServices(t *testing.T) {
-	ports_1 := []string{"8080:80"}
-	ports_2 := []string{"6379/tcp"}
-	volumes := []string{
-		"my_docker_volume:/volume_mount",
-		"/data/my_data",
-		"/source/directory:/destination/directory",
-	}
-
-	t.Run("convert from hcl: services", func(t *testing.T) {
-		have := []byte(`job {
+func TestJobOnlyPropServices(t *testing.T) {
+	t.Run("convert from hcl to yaml", func(t *testing.T) {
+		have_hcl := `job "job_1" {
   service "nginx" {
     image = "nginx"
     ports = ["8080:80"]
@@ -45,161 +41,124 @@ func TestParseServices(t *testing.T) {
     options = "--cpus 1"
   }
 }
-`,
-		)
+`
 
-		var hclConfig struct {
-			Jobs []struct {
-				Services ServicesConfig `hcl:"service,block"`
-			} `hcl:"job,block"`
-		}
+		var got_hcl HclConfig
 
-		if err := HelperConvertHcl(have, &hclConfig); err != nil {
+		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.Fail()
 		}
 
-		got := hclConfig.Jobs[0].Services
-
-		expected := ServicesConfig{
-			{
-				Name:  "nginx",
-				Image: "nginx",
-				Ports: ports_1,
-				Credentials: ServiceCredentialsConfig{
-					Username: "${{ github.actor }}",
-					Password: "${{ secrets.github_token }}",
-				},
-				Volumes: volumes,
-			},
-			{
-				Name:  "redis",
-				Image: "redis",
-				Ports: ports_2,
-				Env: ServiceEnvConfig{
-					Variable: []ServiceVariableConfig{
+		expected_hcl := HclConfig{
+			Jobs: JobsConfig{
+				{
+					Id: "job_1",
+					Services: ServicesConfig{
 						{
-							Name:  "NODE_ENV",
-							Value: cty.StringVal("development"),
+							Name:  "nginx",
+							Image: "nginx",
+							Ports: []string{"8080:80"},
+							Credentials: ServiceCredentialsConfig{
+								Username: "${{ github.actor }}",
+								Password: "${{ secrets.github_token }}",
+							},
+							Volumes: []string{
+								"my_docker_volume:/volume_mount",
+								"/data/my_data",
+								"/source/directory:/destination/directory",
+							},
+						},
+						{
+							Name:  "redis",
+							Image: "redis",
+							Ports: []string{"6379/tcp"},
+							Env: ServiceEnvConfig{
+								Variable: []ServiceVariableConfig{
+									{
+										Name:  "NODE_ENV",
+										Value: cty.StringVal("development"),
+									},
+								},
+							},
+							Options: "--cpus 1",
 						},
 					},
 				},
-				Options: "--cpus 1",
 			},
 		}
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_hcl, expected_hcl) {
 			t.Fail()
 		}
-	})
 
-	t.Run("parse from hcl: services", func(t *testing.T) {
-		have := ServicesConfig{
-			{
-				Name:  "nginx",
-				Image: "nginx",
-				Ports: ports_1,
-				Credentials: ServiceCredentialsConfig{
-					Username: "${{ github.actor }}",
-					Password: "${{ secrets.github_token }}",
-				},
-				Volumes: volumes,
-			},
-			{
-				Name:  "redis",
-				Image: "redis",
-				Env: ServiceEnvConfig{
-					Variable: []ServiceVariableConfig{
-						{
-							Name:  "NODE_ENV",
-							Value: cty.StringVal("development"),
+		got_parsed, err := got_hcl.Parse()
+		if err != nil {
+			t.FailNow()
+		}
+
+		expected_parsed := Jobs{
+			"job_1": Job{
+				Id: "job_1",
+				Services: Services{
+					"nginx": Service{
+						Name:  "nginx",
+						Image: "nginx",
+						Credentials: ServiceCredentials{
+							Username: "${{ github.actor }}",
+							Password: "${{ secrets.github_token }}",
+						},
+						Ports: []string{"8080:80"},
+						Volumes: []string{
+							"my_docker_volume:/volume_mount",
+							"/data/my_data",
+							"/source/directory:/destination/directory",
 						},
 					},
+					"redis": Service{
+						Name:  "redis",
+						Image: "redis",
+						Env: map[string]any{
+							"NODE_ENV": "development",
+						},
+						Ports:   []string{"6379/tcp"},
+						Options: "--cpus 1",
+					},
 				},
-				Options: "--cpus 1",
 			},
 		}
 
-		got, err := have.Parse()
+		if !reflect.DeepEqual(got_parsed, expected_parsed) {
+			t.FailNow()
+		}
+
+		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
 			t.Fail()
 		}
 
-		expected := Services{
-			"nginx": Service{
-				Name:  "nginx",
-				Image: "nginx",
-				Credentials: ServiceCredentials{
-					Username: "${{ github.actor }}",
-					Password: "${{ secrets.github_token }}",
-				},
-				Ports:   ports_1,
-				Volumes: volumes,
-			},
-			"redis": Service{
-				Name:  "redis",
-				Image: "redis",
-				Env: map[string]any{
-					"NODE_ENV": "development",
-				},
-				Options: "--cpus 1",
-			},
-		}
+		expected_yaml := `job_1:
+  services:
+    nginx:
+      image: nginx
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+      ports:
+      - "8080:80"
+      volumes:
+      - my_docker_volume:/volume_mount
+      - /data/my_data
+      - /source/directory:/destination/directory
+    redis:
+      image: redis
+      env:
+        NODE_ENV: development
+      ports:
+      - 6379/tcp
+      options: --cpus 1
+`
 
-		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
-		}
-	})
-
-	t.Run("convert to yaml: services", func(t *testing.T) {
-		have := TestingServices{
-			Services{
-				"nginx": Service{
-					Name:  "nginx",
-					Image: "nginx",
-					Credentials: ServiceCredentials{
-						Username: "${{ github.actor }}",
-						Password: "${{ secrets.github_token }}",
-					},
-					Ports:   ports_1,
-					Volumes: volumes,
-				},
-				"redis": Service{
-					Name:  "redis",
-					Image: "redis",
-					Env: map[string]any{
-						"NODE_ENV": "development",
-					},
-					Options: "--cpus 1",
-				},
-			},
-		}
-
-		got, err := Convert(have)
-		if err != nil {
-			t.Fail()
-		}
-
-		expected := []byte(`services:
-  nginx:
-    image: nginx
-    credentials:
-      username: ${{ github.actor }}
-      password: ${{ secrets.github_token }}
-    ports:
-    - "8080:80"
-    volumes:
-    - my_docker_volume:/volume_mount
-    - /data/my_data
-    - /source/directory:/destination/directory
-  redis:
-    image: redis
-    env:
-      NODE_ENV: development
-    options: --cpus 1
-`,
-		)
-
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {
 			t.Fail()
 		}
 	})
