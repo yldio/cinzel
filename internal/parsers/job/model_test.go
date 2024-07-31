@@ -23,10 +23,6 @@ type TestingContainer struct {
 	Container any `yaml:"container"`
 }
 
-type TestingUses struct {
-	Uses any `yaml:"uses"`
-}
-
 // TODO: remove in favor of parsers.HelperConvertHcl for now
 func HelperConvertHcl(src []byte, val any) error {
 	atosReader := reader.NewReader("dummy-directory", "dummy-file.hcl", false)

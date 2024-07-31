@@ -14,6 +14,8 @@ func TestJob(t *testing.T) {
 
 	t.Run("convert from hcl: job", func(t *testing.T) {
 		have_hcl := `job "job_1" {
+  uses = "./.github/workflows/workflow-2.yml"
+  
   with {
     input {
       name = "username"
@@ -52,6 +54,7 @@ job "job_2" {
 				{
 					Id:       "job_1",
 					Services: nil,
+					Uses:     UsesConfig("./.github/workflows/workflow-2.yml"),
 					With: WithConfig{
 						[]WithInputConfig{
 							{
@@ -94,7 +97,8 @@ job "job_2" {
 
 		expected_parsed := Jobs{
 			"job_1": Job{
-				Id: "job_1",
+				Id:   "job_1",
+				Uses: Uses("./.github/workflows/workflow-2.yml"),
 				With: With{
 					"username": "mona",
 				},
@@ -132,6 +136,7 @@ job "job_2" {
 		}
 
 		expected_yaml := `job_1:
+  uses: ./.github/workflows/workflow-2.yml
   with:
     username: mona
 job_2:

@@ -3,66 +3,63 @@ package job
 import (
 	"reflect"
 	"testing"
+
+	"github.com/yldio/atos/internal/parsers"
 )
 
 func TestParseUses(t *testing.T) {
 
-	t.Run("convert from hcl: uses", func(t *testing.T) {
-		have := []byte(`job {
-  uses = "octo-org/another-repo/.github/workflows/workflow.yml@v1"
+	t.Run("convert from hcl to yaml", func(t *testing.T) {
+		have_hcl := `job "job_1" {
+  uses = "./.github/workflows/workflow-2.yml"
 }
-`,
-		)
+`
 
-		var hclConfig struct {
-			Jobs []struct {
-				Uses UsesConfig `hcl:"uses,attr"`
-			} `hcl:"job,block"`
-		}
+		var got_hcl HclConfig
 
-		if err := HelperConvertHcl(have, &hclConfig); err != nil {
+		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.FailNow()
 		}
 
-		got := hclConfig.Jobs[0].Uses
+		expected_hcl := HclConfig{
+			Jobs: JobsConfig{
+				{
+					Id:   "job_1",
+					Uses: UsesConfig("./.github/workflows/workflow-2.yml"),
+				},
+			},
+		}
 
-		expected := UsesConfig("octo-org/another-repo/.github/workflows/workflow.yml@v1")
-
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_hcl, expected_hcl) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("parse from hcl: uses", func(t *testing.T) {
-		have := UsesConfig("./.github/workflows/workflow-2.yml")
-
-		got, err := have.Parse()
+		got_parsed, err := got_hcl.Parse()
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := Uses("./.github/workflows/workflow-2.yml")
+		expected_parsed := Jobs{
+			"job_1": Job{
+				Id:   "job_1",
+				Uses: Uses("./.github/workflows/workflow-2.yml"),
+			},
+		}
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_parsed, expected_parsed) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("convert to yaml: uses", func(t *testing.T) {
-		have := TestingUses{
-			Uses("./.github/workflows/workflow-2.yml"),
-		}
-
-		got, err := Convert(have)
+		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := []byte(`uses: ./.github/workflows/workflow-2.yml
-`,
-		)
+		expected_yaml := `job_1:
+  uses: ./.github/workflows/workflow-2.yml
+`
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {
 			t.FailNow()
 		}
 	})
