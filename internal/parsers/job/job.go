@@ -13,6 +13,7 @@ type Job struct {
 	Id       string   `yaml:"-"`
 	Services Services `yaml:"services,omitempty"`
 	Secrets  any      `yaml:"secrets,omitempty"`
+	With     With     `yaml:"with,omitempty"`
 }
 type Jobs map[string]Job
 
@@ -21,6 +22,7 @@ type JobConfig struct {
 	Services ServicesConfig       `hcl:"service,block"`
 	Secret   SecretsConfig        `hcl:"secret,block"`
 	Secrets  SecretsInheritConfig `hcl:"secrets,attr"`
+	With     WithConfig           `hcl:"with,block"`
 }
 
 type JobsConfig []JobConfig
@@ -41,6 +43,15 @@ func (config *JobsConfig) Parse() (Jobs, error) {
 func (config *JobConfig) Parse() (Job, error) {
 	job := Job{
 		Id: config.Id,
+	}
+
+	jobWith, err := config.With.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	if len(jobWith) != 0 {
+		job.With = jobWith
 	}
 
 	jobServices, err := config.Services.Parse()

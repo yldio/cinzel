@@ -13,7 +13,14 @@ import (
 func TestJob(t *testing.T) {
 
 	t.Run("convert from hcl: job", func(t *testing.T) {
-		have_hcl := `job "job_1" {}
+		have_hcl := `job "job_1" {
+  with {
+    input {
+      name = "username"
+      value = "mona"
+    }
+  }
+}
 
 job "job_2" {
   service "nginx" {
@@ -45,6 +52,14 @@ job "job_2" {
 				{
 					Id:       "job_1",
 					Services: nil,
+					With: WithConfig{
+						[]WithInputConfig{
+							{
+								Name:  "username",
+								Value: "mona",
+							},
+						},
+					},
 				},
 				{
 					Id: "job_2",
@@ -80,6 +95,9 @@ job "job_2" {
 		expected_parsed := Jobs{
 			"job_1": Job{
 				Id: "job_1",
+				With: With{
+					"username": "mona",
+				},
 			},
 			"job_2": Job{
 				Id: "job_2",
@@ -113,7 +131,9 @@ job "job_2" {
 			t.FailNow()
 		}
 
-		expected_yaml := `job_1: {}
+		expected_yaml := `job_1:
+  with:
+    username: mona
 job_2:
   services:
     nginx:

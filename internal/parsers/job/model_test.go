@@ -27,10 +27,6 @@ type TestingUses struct {
 	Uses any `yaml:"uses"`
 }
 
-type TestingWith struct {
-	With any `yaml:"with"`
-}
-
 // TODO: remove in favor of parsers.HelperConvertHcl for now
 func HelperConvertHcl(src []byte, val any) error {
 	atosReader := reader.NewReader("dummy-directory", "dummy-file.hcl", false)
