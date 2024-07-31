@@ -23,7 +23,7 @@ func TestConcurrency(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := hclConfig.Workflows[0].Concurrency
@@ -36,7 +36,7 @@ func TestConcurrency(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -50,7 +50,7 @@ func TestConcurrency(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := ConcurrencyConfig{
@@ -59,7 +59,7 @@ func TestConcurrency(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -75,7 +75,7 @@ func TestConcurrency(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`concurrency:
@@ -85,7 +85,7 @@ func TestConcurrency(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

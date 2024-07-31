@@ -20,7 +20,7 @@ func TestParseRun(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Steps[0].Run
@@ -28,7 +28,7 @@ func TestParseRun(t *testing.T) {
 		expected := RunConfig("npm install")
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -49,7 +49,7 @@ EOF
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Steps[0].Run
@@ -60,7 +60,7 @@ npm run build
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -69,13 +69,13 @@ npm run build
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := "npm install"
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -87,7 +87,7 @@ npm run build
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := `npm ci
@@ -95,7 +95,7 @@ npm run build
 `
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -106,7 +106,7 @@ npm run build
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`run: npm install
@@ -114,7 +114,7 @@ npm run build
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -127,7 +127,7 @@ npm run build
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`run: |
@@ -137,7 +137,7 @@ npm run build
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

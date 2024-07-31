@@ -24,7 +24,7 @@ func TestParseOnTypes(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Workflows[0].OnByFilter[0]
@@ -40,7 +40,7 @@ func TestParseOnTypes(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -57,7 +57,7 @@ func TestParseOnTypes(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := map[string]any{
@@ -67,7 +67,7 @@ func TestParseOnTypes(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -82,7 +82,7 @@ func TestParseOnTypes(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`on:
@@ -94,7 +94,7 @@ func TestParseOnTypes(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

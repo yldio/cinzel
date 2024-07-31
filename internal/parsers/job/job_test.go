@@ -37,7 +37,7 @@ job "job_2" {
 		var got_hcl HclConfig
 
 		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_hcl := HclConfig{
@@ -110,7 +110,7 @@ job "job_2" {
 
 		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_yaml := `job_1: {}

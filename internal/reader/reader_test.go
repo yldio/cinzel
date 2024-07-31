@@ -59,7 +59,7 @@ func TestReader(t *testing.T) {
 
 		err := atosReader.Do()
 		if err == nil {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

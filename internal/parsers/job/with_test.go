@@ -31,7 +31,7 @@ func TestParseWith(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := hclConfig.Jobs[0].With
@@ -50,7 +50,7 @@ func TestParseWith(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -70,7 +70,7 @@ func TestParseWith(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := With{
@@ -79,7 +79,7 @@ func TestParseWith(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -93,7 +93,7 @@ func TestParseWith(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`with:
@@ -103,7 +103,7 @@ func TestParseWith(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

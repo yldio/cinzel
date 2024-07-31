@@ -19,7 +19,7 @@ func TestJobOnlyPropId(t *testing.T) {
 		var got_hcl HclConfig
 
 		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_hcl := HclConfig{
@@ -31,12 +31,12 @@ func TestJobOnlyPropId(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got_hcl, expected_hcl) {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got_parsed, err := got_hcl.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_parsed := Jobs{
@@ -46,12 +46,12 @@ func TestJobOnlyPropId(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got_parsed, expected_parsed) {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_yaml := `job_1: {}

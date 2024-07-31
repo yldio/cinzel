@@ -20,7 +20,7 @@ func TestParseId(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Steps[0].Id
@@ -28,7 +28,7 @@ func TestParseId(t *testing.T) {
 		expected := IdConfig("step_1")
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -37,13 +37,13 @@ func TestParseId(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := "step_1"
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -54,7 +54,7 @@ func TestParseId(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`id: step_1
@@ -62,7 +62,7 @@ func TestParseId(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

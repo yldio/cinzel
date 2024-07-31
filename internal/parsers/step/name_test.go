@@ -20,7 +20,7 @@ func TestParseName(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Steps[0].Name
@@ -28,7 +28,7 @@ func TestParseName(t *testing.T) {
 		expected := NameConfig("Print a greeting")
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -37,13 +37,13 @@ func TestParseName(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := "Print a greeting"
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -54,7 +54,7 @@ func TestParseName(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`name: Print a greeting
@@ -62,7 +62,7 @@ func TestParseName(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

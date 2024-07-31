@@ -1,3 +1,5 @@
+// TODO: this is to be removed after moving all tests to the new approach
+
 package job
 
 import (
@@ -21,10 +23,6 @@ type TestingContainer struct {
 	Container any `yaml:"container"`
 }
 
-type TestingServices struct {
-	Services any `yaml:"services"`
-}
-
 type TestingUses struct {
 	Uses any `yaml:"uses"`
 }
@@ -33,10 +31,7 @@ type TestingWith struct {
 	With any `yaml:"with"`
 }
 
-type TestingSecrets struct {
-	Secrets any `yaml:"secrets"`
-}
-
+// TODO: remove in favor of parsers.HelperConvertHcl for now
 func HelperConvertHcl(src []byte, val any) error {
 	atosReader := reader.NewReader("dummy-directory", "dummy-file.hcl", false)
 	body, err := atosReader.ReadHclSrc(src, "dummy-file.hcl")

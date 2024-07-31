@@ -20,7 +20,7 @@ func TestParseOnAsList(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Workflows[0].OnAsList
@@ -28,7 +28,7 @@ func TestParseOnAsList(t *testing.T) {
 		expected := OnAsListConfig{"push", "pull_request"}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -37,13 +37,13 @@ func TestParseOnAsList(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []string{"push", "pull_request"}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -54,7 +54,7 @@ func TestParseOnAsList(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`on:
@@ -64,7 +64,7 @@ func TestParseOnAsList(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

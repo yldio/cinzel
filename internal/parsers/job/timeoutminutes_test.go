@@ -20,7 +20,7 @@ func TestParseTimeoutMinutes(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Jobs[0].TimeoutMinutes
@@ -28,7 +28,7 @@ func TestParseTimeoutMinutes(t *testing.T) {
 		expected := TimeoutMinutesConfig(5)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -37,13 +37,13 @@ func TestParseTimeoutMinutes(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := uint16(5)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -54,7 +54,7 @@ func TestParseTimeoutMinutes(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`timeout-minutes: 5
@@ -62,7 +62,7 @@ func TestParseTimeoutMinutes(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

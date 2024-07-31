@@ -21,7 +21,7 @@ func TestParseUses(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := hclConfig.Jobs[0].Uses
@@ -29,7 +29,7 @@ func TestParseUses(t *testing.T) {
 		expected := UsesConfig("octo-org/another-repo/.github/workflows/workflow.yml@v1")
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -38,13 +38,13 @@ func TestParseUses(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := Uses("./.github/workflows/workflow-2.yml")
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -55,7 +55,7 @@ func TestParseUses(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`uses: ./.github/workflows/workflow-2.yml
@@ -63,7 +63,7 @@ func TestParseUses(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

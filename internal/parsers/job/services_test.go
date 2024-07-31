@@ -11,7 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestJobOnlyPropServices(t *testing.T) {
+func TestJobOnlyWithServices(t *testing.T) {
 	t.Run("convert from hcl to yaml", func(t *testing.T) {
 		have_hcl := `job "job_1" {
   service "nginx" {
@@ -46,7 +46,7 @@ func TestJobOnlyPropServices(t *testing.T) {
 		var got_hcl HclConfig
 
 		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_hcl := HclConfig{
@@ -88,7 +88,7 @@ func TestJobOnlyPropServices(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got_hcl, expected_hcl) {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got_parsed, err := got_hcl.Parse()
@@ -133,7 +133,7 @@ func TestJobOnlyPropServices(t *testing.T) {
 
 		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected_yaml := `job_1:
@@ -159,7 +159,7 @@ func TestJobOnlyPropServices(t *testing.T) {
 `
 
 		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

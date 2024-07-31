@@ -18,7 +18,7 @@ func TestParseRef(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := hclConfig.Steps[0].Ref
@@ -26,7 +26,7 @@ func TestParseRef(t *testing.T) {
 		expected := "step_1"
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -37,7 +37,7 @@ func TestParseRef(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`{}
@@ -45,7 +45,7 @@ func TestParseRef(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

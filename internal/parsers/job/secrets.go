@@ -1,3 +1,6 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 type SecretConfig struct {
@@ -6,11 +9,9 @@ type SecretConfig struct {
 }
 
 type SecretsConfig []SecretConfig
-
 type SecretsInheritConfig string
 
 type Secrets map[string]any
-
 type SecretsInherit string
 
 func (config *SecretsConfig) Parse() (Secrets, error) {

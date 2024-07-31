@@ -3,15 +3,24 @@
 
 package job
 
+import (
+	"errors"
+
+	"github.com/yldio/atos/internal/parsers"
+)
+
 type Job struct {
 	Id       string   `yaml:"-"`
 	Services Services `yaml:"services,omitempty"`
+	Secrets  any      `yaml:"secrets,omitempty"`
 }
 type Jobs map[string]Job
 
 type JobConfig struct {
-	Id       string         `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
-	Services ServicesConfig `hcl:"service,block"`
+	Id       string               `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
+	Services ServicesConfig       `hcl:"service,block"`
+	Secret   SecretsConfig        `hcl:"secret,block"`
+	Secrets  SecretsInheritConfig `hcl:"secrets,attr"`
 }
 
 type JobsConfig []JobConfig
@@ -41,6 +50,30 @@ func (config *JobConfig) Parse() (Job, error) {
 
 	if len(jobServices.Services) != 0 {
 		job.Services = jobServices.Services
+	}
+
+	if config.Secret != nil && config.Secrets != "" {
+		return Job{}, errors.New(parsers.ErrorJobSecretsRestriction)
+	}
+
+	if config.Secrets != "" {
+		secrets, err := config.Secrets.Parse()
+		if err != nil {
+			return Job{}, err
+		}
+
+		if secrets != "" {
+			job.Secrets = secrets
+		}
+	} else if config.Secret != nil {
+		secrets, err := config.Secret.Parse()
+		if err != nil {
+			return Job{}, err
+		}
+
+		if len(secrets) != 0 {
+			job.Secrets = secrets
+		}
 	}
 
 	return job, nil

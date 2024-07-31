@@ -21,7 +21,7 @@ func TestParseRunName(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Workflows[0].RunName
@@ -29,7 +29,7 @@ func TestParseRunName(t *testing.T) {
 		expected := RunNameConfig("Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}")
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -38,13 +38,13 @@ func TestParseRunName(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := "Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}"
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -55,7 +55,7 @@ func TestParseRunName(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`run-name: Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}
@@ -63,7 +63,7 @@ func TestParseRunName(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }

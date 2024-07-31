@@ -57,7 +57,7 @@ func TestParseContainer(t *testing.T) {
 		}
 
 		if err := HelperConvertHcl(have, &hclConfig); err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		got := *hclConfig.Jobs[0].Container
@@ -82,7 +82,7 @@ func TestParseContainer(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -108,7 +108,7 @@ func TestParseContainer(t *testing.T) {
 
 		got, err := have.Parse()
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := Container{
@@ -132,7 +132,7 @@ func TestParseContainer(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 
@@ -161,7 +161,7 @@ func TestParseContainer(t *testing.T) {
 
 		got, err := Convert(have)
 		if err != nil {
-			t.Fail()
+			t.FailNow()
 		}
 
 		expected := []byte(`container:
@@ -182,7 +182,7 @@ func TestParseContainer(t *testing.T) {
 		)
 
 		if !reflect.DeepEqual(got, expected) {
-			t.Fail()
+			t.FailNow()
 		}
 	})
 }
