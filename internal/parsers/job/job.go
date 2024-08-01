@@ -12,6 +12,7 @@ import (
 // order of properties matter when converting to Yaml
 type Job struct {
 	Id              string    `yaml:"-"`
+	Name            string    `yaml:"name,omitempty"`
 	Container       Container `yaml:"container,omitempty"`
 	Services        Services  `yaml:"services,omitempty"`
 	Secrets         any       `yaml:"secrets,omitempty"`
@@ -25,6 +26,7 @@ type Jobs map[string]Job
 
 type JobConfig struct {
 	Id              string                `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
+	Name            NameConfig            `hcl:"name,attr"`
 	Container       ContainerConfig       `hcl:"container,block"`
 	Services        ServicesConfig        `hcl:"service,block"`
 	Secret          SecretsConfig         `hcl:"secret,block"`
@@ -54,6 +56,15 @@ func (config *JobsConfig) Parse() (Jobs, error) {
 func (config *JobConfig) Parse() (Job, error) {
 	job := Job{
 		Id: config.Id,
+	}
+
+	jobName, err := config.Name.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	if jobName != "" {
+		job.Name = jobName
 	}
 
 	jobUses, err := config.Uses.Parse()
