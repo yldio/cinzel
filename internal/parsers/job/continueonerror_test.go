@@ -19,7 +19,7 @@ func TestJobOnlyWithContinueOnError(t *testing.T) {
 
 		var got_hcl HclConfig
 
-		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
+		if err := parsers.HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.FailNow()
 		}
 

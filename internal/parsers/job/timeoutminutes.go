@@ -1,3 +1,6 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 type TimeoutMinutesConfig uint16

@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/yldio/atos/internal/parsers/actions"
+	"github.com/yldio/atos/internal/reader"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -270,4 +271,20 @@ func createContext() *hcl.EvalContext {
 		},
 	}
 	return ctx
+}
+
+// TODO: remove in favor of parsers.HelperConvertHcl for now
+func HelperConvertHcl(src []byte, val any) error {
+	atosReader := reader.NewReader("dummy-directory", "dummy-file.hcl", false)
+	body, err := atosReader.ReadHclSrc(src, "dummy-file.hcl")
+	if err != nil {
+		return err
+	}
+
+	diags := gohcl.DecodeBody(body, nil, val)
+	if diags.HasErrors() {
+		return err
+	}
+
+	return nil
 }

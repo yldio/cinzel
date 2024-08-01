@@ -1,67 +1,67 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/yldio/atos/internal/parsers"
 )
 
-func TestParseTimeoutMinutes(t *testing.T) {
-	t.Run("convert from hcl: timeout-minutes", func(t *testing.T) {
-		have := []byte(`job {
+func TestJobOnlyWithTimeoutMinutes(t *testing.T) {
+	t.Run("convert from hcl to yaml", func(t *testing.T) {
+		have_hcl := `job "job_1" {
   timeout_minutes = 5
 }
-`,
-		)
+`
 
-		var hclConfig struct {
-			Jobs []struct {
-				TimeoutMinutes *TimeoutMinutesConfig `hcl:"timeout_minutes,attr"`
-			} `hcl:"job,block"`
-		}
+		var got_hcl HclConfig
 
-		if err := HelperConvertHcl(have, &hclConfig); err != nil {
+		if err := parsers.HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.FailNow()
 		}
 
-		got := *hclConfig.Jobs[0].TimeoutMinutes
+		expected_hcl := HclConfig{
+			Jobs: JobsConfig{
+				{
+					Id:             "job_1",
+					TimeoutMinutes: TimeoutMinutesConfig(5),
+				},
+			},
+		}
 
-		expected := TimeoutMinutesConfig(5)
-
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_hcl, expected_hcl) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("parse from hcl: timeout-minutes", func(t *testing.T) {
-		have := TimeoutMinutesConfig(5)
-
-		got, err := have.Parse()
+		got_parsed, err := got_hcl.Parse()
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := uint16(5)
+		expected_parsed := Jobs{
+			"job_1": Job{
+				Id:             "job_1",
+				TimeoutMinutes: 5,
+			},
+		}
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_parsed, expected_parsed) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("convert to yaml: timeout-minutes", func(t *testing.T) {
-		have := TestingTimeoutMinutes{
-			TimeoutMinutes: uint16(5),
-		}
-
-		got, err := Convert(have)
+		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := []byte(`timeout-minutes: 5
-`,
-		)
+		expected_yaml := `job_1:
+  timeout-minutes: 5
+`
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {
 			t.FailNow()
 		}
 	})
