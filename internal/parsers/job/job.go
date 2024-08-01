@@ -14,6 +14,7 @@ type Job struct {
 	Id              string    `yaml:"-"`
 	Name            string    `yaml:"name,omitempty"`
 	If              string    `yaml:"if,omitempty"`
+	RunsOn          RunsOn    `yaml:"runs-on,omitempty"`
 	Container       Container `yaml:"container,omitempty"`
 	Services        Services  `yaml:"services,omitempty"`
 	Secrets         any       `yaml:"secrets,omitempty"`
@@ -29,6 +30,7 @@ type JobConfig struct {
 	Id              string                `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
 	Name            NameConfig            `hcl:"name,attr"`
 	If              IfConfig              `hcl:"if,attr"`
+	Runs            RunsConfig            `hcl:"runs,block"`
 	Container       ContainerConfig       `hcl:"container,block"`
 	Services        ServicesConfig        `hcl:"service,block"`
 	Secret          SecretsConfig         `hcl:"secret,block"`
@@ -67,6 +69,15 @@ func (config *JobConfig) Parse() (Job, error) {
 
 	if jobName != "" {
 		job.Name = jobName
+	}
+
+	jobRuns, err := config.Runs.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	if jobRuns != "" {
+		job.RunsOn = jobRuns
 	}
 
 	jobIf, err := config.If.Parse()
