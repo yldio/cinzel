@@ -11,10 +11,6 @@ type TestingTimeoutMinutes struct {
 	TimeoutMinutes uint16 `yaml:"timeout-minutes"`
 }
 
-type TestingStrategy struct {
-	Strategy any `yaml:"strategy"`
-}
-
 type TestingContinueOnError struct {
 	ContinueOnError any `yaml:"continue-on-error"`
 }

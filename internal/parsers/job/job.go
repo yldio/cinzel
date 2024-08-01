@@ -17,6 +17,7 @@ type Job struct {
 	Secrets   any       `yaml:"secrets,omitempty"`
 	Uses      Uses      `yaml:"uses,omitempty"`
 	With      With      `yaml:"with,omitempty"`
+	Strategy  Strategy  `yaml:"strategy,omitempty"`
 }
 type Jobs map[string]Job
 
@@ -28,6 +29,7 @@ type JobConfig struct {
 	Secrets   SecretsInheritConfig `hcl:"secrets,attr"`
 	With      WithConfig           `hcl:"with,block"`
 	Uses      UsesConfig           `hcl:"uses,attr"`
+	Strategy  StrategyConfig       `hcl:"strategy,block"`
 }
 
 type JobsConfig []JobConfig
@@ -74,6 +76,13 @@ func (config *JobConfig) Parse() (Job, error) {
 	}
 
 	job.Container = jobContainer
+
+	jobStrategy, err := config.Strategy.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	job.Strategy = jobStrategy
 
 	jobServices, err := config.Services.Parse()
 	if err != nil {

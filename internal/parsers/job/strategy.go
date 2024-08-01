@@ -1,3 +1,6 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
@@ -7,33 +10,41 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-type IncludeItem struct {
+type IncludeItemConfig struct {
 	Name  string    `hcl:"name,attr"`
 	Value cty.Value `hcl:"value,attr"`
 }
 
-type MatrixProp struct {
-	Name  *string        `hcl:"name,attr"`
-	Value *cty.Value     `hcl:"value,attr"`
-	Item  []*IncludeItem `hcl:"item,block"`
+type MatrixPropConfig struct {
+	Name  string              `hcl:"name,attr"`
+	Value cty.Value           `hcl:"value,attr"`
+	Item  []IncludeItemConfig `hcl:"item,block"`
 }
 
-type Matrix struct {
-	Name    string        `hcl:"name,attr"`
-	Value   []cty.Value   `hcl:"value,attr"`
-	Include []*MatrixProp `hcl:"include,block"`
-	Exclude []*MatrixProp `hcl:"exclude,block"`
+type MatrixConfig struct {
+	Name    string             `hcl:"name,attr"`
+	Value   []cty.Value        `hcl:"value,attr"`
+	Include []MatrixPropConfig `hcl:"include,block"`
+	Exclude []MatrixPropConfig `hcl:"exclude,block"`
 }
 
-type Matrixes []*Matrix
+type MatrixesConfig []MatrixConfig
 
 type StrategyConfig struct {
-	Matrix      Matrixes `hcl:"matrix,block" yaml:"matrix"`
-	FailFast    *bool    `hcl:"fail_fast,attr" yaml:"fail-fast,omitempty"`
-	MaxParallel *uint16  `hcl:"max_parallel,attr" yaml:"max-parallel,omitempty"`
+	Matrix      MatrixesConfig `hcl:"matrix,block"`
+	FailFast    bool           `hcl:"fail_fast,attr"`
+	MaxParallel uint16         `hcl:"max_parallel,attr"`
 }
 
-func (config *Matrix) Parse(matrixes map[string]any) (map[string]any, error) {
+type Matrixes map[string]any
+
+type Strategy struct {
+	Matrix      Matrixes `yaml:"matrix,omitempty"`
+	FailFast    bool     `yaml:"fail-fast,omitempty"`
+	MaxParallel uint16   `yaml:"max-parallel,omitempty"`
+}
+
+func (config *MatrixConfig) Parse(matrixes map[string]any) (map[string]any, error) {
 	if config.Include != nil {
 		if matrixes["include"] == nil {
 			matrixes["include"] = []map[string]any{}
@@ -80,7 +91,7 @@ func (config *Matrix) Parse(matrixes map[string]any) (map[string]any, error) {
 				switch include.Value.Type().FriendlyName() {
 				case "string":
 					var val string
-					err := gocty.FromCtyValue(*include.Value, &val)
+					err := gocty.FromCtyValue(include.Value, &val)
 					if err != nil {
 						return map[string]any{}, err
 					}
@@ -88,7 +99,7 @@ func (config *Matrix) Parse(matrixes map[string]any) (map[string]any, error) {
 					switch includeMap := matrixes["include"].(type) {
 					case []map[string]any:
 						matrixes["include"] = append(includeMap, map[string]any{
-							*include.Name: val,
+							include.Name: val,
 						})
 					default:
 						fmt.Println("something wrong")
@@ -189,7 +200,7 @@ func (config *Matrix) Parse(matrixes map[string]any) (map[string]any, error) {
 	return matrixes, nil
 }
 
-func (config *Matrixes) Parse() (map[string]any, error) {
+func (config *MatrixesConfig) Parse() (Matrixes, error) {
 	matrixes := make(map[string]any)
 	for _, matrix := range *config {
 		accumulator, err := matrix.Parse(matrixes)
@@ -201,10 +212,20 @@ func (config *Matrixes) Parse() (map[string]any, error) {
 	return matrixes, nil
 }
 
-func (config *StrategyConfig) Parse() (map[string]any, error) {
-	content, err := config.Matrix.Parse()
+func (config *StrategyConfig) Parse() (Strategy, error) {
+	matrix, err := config.Matrix.Parse()
 	if err != nil {
-		return map[string]any{}, err
+		return Strategy{}, err
 	}
-	return content, nil
+
+	strategy := Strategy{
+		FailFast:    config.FailFast,
+		MaxParallel: config.MaxParallel,
+	}
+
+	if len(matrix) > 0 {
+		strategy.Matrix = matrix
+	}
+
+	return strategy, nil
 }
