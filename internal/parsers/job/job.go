@@ -13,6 +13,7 @@ import (
 type Job struct {
 	Id              string    `yaml:"-"`
 	Name            string    `yaml:"name,omitempty"`
+	If              string    `yaml:"if,omitempty"`
 	Container       Container `yaml:"container,omitempty"`
 	Services        Services  `yaml:"services,omitempty"`
 	Secrets         any       `yaml:"secrets,omitempty"`
@@ -27,6 +28,7 @@ type Jobs map[string]Job
 type JobConfig struct {
 	Id              string                `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
 	Name            NameConfig            `hcl:"name,attr"`
+	If              IfConfig              `hcl:"if,attr"`
 	Container       ContainerConfig       `hcl:"container,block"`
 	Services        ServicesConfig        `hcl:"service,block"`
 	Secret          SecretsConfig         `hcl:"secret,block"`
@@ -65,6 +67,15 @@ func (config *JobConfig) Parse() (Job, error) {
 
 	if jobName != "" {
 		job.Name = jobName
+	}
+
+	jobIf, err := config.If.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	if jobIf != "" {
+		job.If = jobIf
 	}
 
 	jobUses, err := config.Uses.Parse()
