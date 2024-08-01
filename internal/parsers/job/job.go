@@ -11,19 +11,20 @@ import (
 
 // order of properties matter when converting to Yaml
 type Job struct {
-	Id              string    `yaml:"-"`
-	Name            string    `yaml:"name,omitempty"`
-	If              string    `yaml:"if,omitempty"`
-	RunsOn          RunsOn    `yaml:"runs-on,omitempty"`
-	Env             Env       `yaml:"env,omitempty"`
-	Container       Container `yaml:"container,omitempty"`
-	Services        Services  `yaml:"services,omitempty"`
-	Secrets         any       `yaml:"secrets,omitempty"`
-	Uses            Uses      `yaml:"uses,omitempty"`
-	With            With      `yaml:"with,omitempty"`
-	Strategy        Strategy  `yaml:"strategy,omitempty"`
-	ContinueOnError bool      `yaml:"continue-on-error,omitempty"`
-	TimeoutMinutes  uint16    `yaml:"timeout-minutes,omitempty"`
+	Id              string      `yaml:"-"`
+	Name            string      `yaml:"name,omitempty"`
+	If              string      `yaml:"if,omitempty"`
+	RunsOn          RunsOn      `yaml:"runs-on,omitempty"`
+	Env             Env         `yaml:"env,omitempty"`
+	Environment     Environment `yaml:"environment,omitempty"`
+	Container       Container   `yaml:"container,omitempty"`
+	Services        Services    `yaml:"services,omitempty"`
+	Secrets         any         `yaml:"secrets,omitempty"`
+	Uses            Uses        `yaml:"uses,omitempty"`
+	With            With        `yaml:"with,omitempty"`
+	Strategy        Strategy    `yaml:"strategy,omitempty"`
+	ContinueOnError bool        `yaml:"continue-on-error,omitempty"`
+	TimeoutMinutes  uint16      `yaml:"timeout-minutes,omitempty"`
 }
 type Jobs map[string]Job
 
@@ -33,6 +34,7 @@ type JobConfig struct {
 	If              IfConfig              `hcl:"if,attr"`
 	Runs            RunsConfig            `hcl:"runs,block"`
 	Env             EnvConfig             `hcl:"env,block"`
+	Environment     EnvironmentConfig     `hcl:"environment,block"`
 	Container       ContainerConfig       `hcl:"container,block"`
 	Services        ServicesConfig        `hcl:"service,block"`
 	Secret          SecretsConfig         `hcl:"secret,block"`
@@ -89,6 +91,17 @@ func (config *JobConfig) Parse() (Job, error) {
 
 	if len(jobEnv) != 0 {
 		job.Env = jobEnv
+	}
+
+	if config.Environment != (EnvironmentConfig{}) {
+		jobEnvironment, err := config.Environment.Parse()
+		if err != nil {
+			return Job{}, err
+		}
+
+		if jobEnvironment != nil {
+			job.Environment = jobEnvironment
+		}
 	}
 
 	jobIf, err := config.If.Parse()
