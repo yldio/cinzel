@@ -11,25 +11,27 @@ import (
 
 // order of properties matter when converting to Yaml
 type Job struct {
-	Id        string    `yaml:"-"`
-	Container Container `yaml:"container,omitempty"`
-	Services  Services  `yaml:"services,omitempty"`
-	Secrets   any       `yaml:"secrets,omitempty"`
-	Uses      Uses      `yaml:"uses,omitempty"`
-	With      With      `yaml:"with,omitempty"`
-	Strategy  Strategy  `yaml:"strategy,omitempty"`
+	Id              string    `yaml:"-"`
+	Container       Container `yaml:"container,omitempty"`
+	Services        Services  `yaml:"services,omitempty"`
+	Secrets         any       `yaml:"secrets,omitempty"`
+	Uses            Uses      `yaml:"uses,omitempty"`
+	With            With      `yaml:"with,omitempty"`
+	Strategy        Strategy  `yaml:"strategy,omitempty"`
+	ContinueOnError bool      `yaml:"continue-on-error,omitempty"`
 }
 type Jobs map[string]Job
 
 type JobConfig struct {
-	Id        string               `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
-	Container ContainerConfig      `hcl:"container,block"`
-	Services  ServicesConfig       `hcl:"service,block"`
-	Secret    SecretsConfig        `hcl:"secret,block"`
-	Secrets   SecretsInheritConfig `hcl:"secrets,attr"`
-	With      WithConfig           `hcl:"with,block"`
-	Uses      UsesConfig           `hcl:"uses,attr"`
-	Strategy  StrategyConfig       `hcl:"strategy,block"`
+	Id              string                `hcl:"id,label"` // check IdConfig and [issue](https://github.com/hashicorp/hcl/issues/583)
+	Container       ContainerConfig       `hcl:"container,block"`
+	Services        ServicesConfig        `hcl:"service,block"`
+	Secret          SecretsConfig         `hcl:"secret,block"`
+	Secrets         SecretsInheritConfig  `hcl:"secrets,attr"`
+	With            WithConfig            `hcl:"with,block"`
+	Uses            UsesConfig            `hcl:"uses,attr"`
+	Strategy        StrategyConfig        `hcl:"strategy,block"`
+	ContinueOnError ContinueOnErrorConfig `hcl:"continue_on_error,attr"`
 }
 
 type JobsConfig []JobConfig
@@ -116,6 +118,13 @@ func (config *JobConfig) Parse() (Job, error) {
 			job.Secrets = secrets
 		}
 	}
+
+	jobContinueOnError, err := config.ContinueOnError.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	job.ContinueOnError = jobContinueOnError
 
 	return job, nil
 }

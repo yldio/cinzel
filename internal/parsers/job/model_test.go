@@ -11,10 +11,6 @@ type TestingTimeoutMinutes struct {
 	TimeoutMinutes uint16 `yaml:"timeout-minutes"`
 }
 
-type TestingContinueOnError struct {
-	ContinueOnError any `yaml:"continue-on-error"`
-}
-
 // TODO: remove in favor of parsers.HelperConvertHcl for now
 func HelperConvertHcl(src []byte, val any) error {
 	atosReader := reader.NewReader("dummy-directory", "dummy-file.hcl", false)

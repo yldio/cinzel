@@ -1,67 +1,67 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package job
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/yldio/atos/internal/parsers"
 )
 
-func TestParseContinueOnError(t *testing.T) {
-	t.Run("convert from hcl: continue-on-error", func(t *testing.T) {
-		have := []byte(`job {
+func TestJobOnlyWithContinueOnError(t *testing.T) {
+	t.Run("convert from hcl to yaml", func(t *testing.T) {
+		have_hcl := `job "job_1" {
   continue_on_error = true
 }
-`,
-		)
+`
 
-		var hclConfig struct {
-			Jobs []struct {
-				ContinueOnError *ContinueOnErrorConfig `hcl:"continue_on_error,attr"`
-			} `hcl:"job,block"`
-		}
+		var got_hcl HclConfig
 
-		if err := HelperConvertHcl(have, &hclConfig); err != nil {
+		if err := HelperConvertHcl([]byte(have_hcl), &got_hcl); err != nil {
 			t.FailNow()
 		}
 
-		got := *hclConfig.Jobs[0].ContinueOnError
+		expected_hcl := HclConfig{
+			Jobs: JobsConfig{
+				{
+					Id:              "job_1",
+					ContinueOnError: ContinueOnErrorConfig(true),
+				},
+			},
+		}
 
-		expected := ContinueOnErrorConfig(true)
-
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_hcl, expected_hcl) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("parse from hcl: continue-on-error", func(t *testing.T) {
-		have := ContinueOnErrorConfig(true)
-
-		got, err := have.Parse()
+		got_parsed, err := got_hcl.Parse()
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := true
+		expected_parsed := Jobs{
+			"job_1": Job{
+				Id:              "job_1",
+				ContinueOnError: true,
+			},
+		}
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_parsed, expected_parsed) {
 			t.FailNow()
 		}
-	})
 
-	t.Run("convert to yaml: continue-on-error", func(t *testing.T) {
-		have := TestingContinueOnError{
-			ContinueOnError: true,
-		}
-
-		got, err := Convert(have)
+		got_yaml, err := parsers.Convert(got_parsed)
 		if err != nil {
 			t.FailNow()
 		}
 
-		expected := []byte(`continue-on-error: true
-`,
-		)
+		expected_yaml := `job_1:
+  continue-on-error: true
+`
 
-		if !reflect.DeepEqual(got, expected) {
+		if !reflect.DeepEqual(got_yaml, []byte(expected_yaml)) {
 			t.FailNow()
 		}
 	})
