@@ -15,6 +15,7 @@ type Job struct {
 	Name            string    `yaml:"name,omitempty"`
 	If              string    `yaml:"if,omitempty"`
 	RunsOn          RunsOn    `yaml:"runs-on,omitempty"`
+	Env             Env       `yaml:"env,omitempty"`
 	Container       Container `yaml:"container,omitempty"`
 	Services        Services  `yaml:"services,omitempty"`
 	Secrets         any       `yaml:"secrets,omitempty"`
@@ -31,6 +32,7 @@ type JobConfig struct {
 	Name            NameConfig            `hcl:"name,attr"`
 	If              IfConfig              `hcl:"if,attr"`
 	Runs            RunsConfig            `hcl:"runs,block"`
+	Env             EnvConfig             `hcl:"env,block"`
 	Container       ContainerConfig       `hcl:"container,block"`
 	Services        ServicesConfig        `hcl:"service,block"`
 	Secret          SecretsConfig         `hcl:"secret,block"`
@@ -78,6 +80,15 @@ func (config *JobConfig) Parse() (Job, error) {
 
 	if jobRuns != "" {
 		job.RunsOn = jobRuns
+	}
+
+	jobEnv, err := config.Env.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+
+	if len(jobEnv) != 0 {
+		job.Env = jobEnv
 	}
 
 	jobIf, err := config.If.Parse()

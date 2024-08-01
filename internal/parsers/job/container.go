@@ -5,7 +5,6 @@ package job
 
 import (
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 type CredentialsConfig struct {
@@ -18,9 +17,9 @@ type VariableConfig struct {
 	Value cty.Value `hcl:"value,attr"`
 }
 
-type EnvConfig struct {
-	Variable []VariableConfig `hcl:"variable,block"`
-}
+// type EnvConfig struct {
+// 	Variable []VariableConfig `hcl:"variable,block"`
+// }
 
 type ContainerConfig struct {
 	Image       string            `hcl:"image,attr"`
@@ -36,7 +35,7 @@ type Credentials struct {
 	Password string `yaml:"password,omitempty"`
 }
 
-type Env map[string]any
+// type Env map[string]any
 
 type Container struct {
 	Image       string      `yaml:"image,omitempty"`
@@ -62,36 +61,9 @@ func (config *ContainerConfig) Parse() (Container, error) {
 	}
 
 	if config.Env.Variable != nil {
-		envs := make(Env)
-
-		for _, env := range config.Env.Variable {
-			switch env.Value.Type().FriendlyName() {
-			case "string":
-				var val string
-				err := gocty.FromCtyValue(env.Value, &val)
-				if err != nil {
-					return Container{}, err
-				}
-				envs[env.Name] = val
-			case "number":
-				var val int32
-				err := gocty.FromCtyValue(env.Value, &val)
-				if err != nil {
-					var val float32
-					err := gocty.FromCtyValue(env.Value, &val)
-					if err != nil {
-						return Container{}, err
-					}
-				}
-				envs[env.Name] = val
-			case "bool":
-				var val bool
-				err := gocty.FromCtyValue(env.Value, &val)
-				if err != nil {
-					return Container{}, err
-				}
-				envs[env.Name] = val
-			}
+		envs, err := config.Env.Parse()
+		if err != nil {
+			return Container{}, nil
 		}
 
 		container.Env = envs
