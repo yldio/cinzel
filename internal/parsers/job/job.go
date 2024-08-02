@@ -26,6 +26,7 @@ type Job struct {
 	Strategy        Strategy    `yaml:"strategy,omitempty"`
 	ContinueOnError bool        `yaml:"continue-on-error,omitempty"`
 	TimeoutMinutes  uint16      `yaml:"timeout-minutes,omitempty"`
+	Concurrency     Concurrency `yaml:"concurrency,omitempty"`
 }
 type Jobs map[string]Job
 
@@ -46,6 +47,7 @@ type JobConfig struct {
 	Strategy        StrategyConfig        `hcl:"strategy,block"`
 	ContinueOnError ContinueOnErrorConfig `hcl:"continue_on_error,attr"`
 	TimeoutMinutes  TimeoutMinutesConfig  `hcl:"timeout_minutes,attr"`
+	Concurrency     ConcurrencyConfig     `hcl:"concurrency,block"`
 }
 
 type JobsConfig []JobConfig
@@ -201,6 +203,12 @@ func (config *JobConfig) Parse() (Job, error) {
 		return Job{}, err
 	}
 	job.TimeoutMinutes = jobTimeoutMinutes
+
+	jobConcurrency, err := config.Concurrency.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+	job.Concurrency = jobConcurrency
 
 	return job, nil
 }
