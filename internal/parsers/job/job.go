@@ -28,6 +28,7 @@ type Job struct {
 	TimeoutMinutes  uint16      `yaml:"timeout-minutes,omitempty"`
 	Concurrency     Concurrency `yaml:"concurrency,omitempty"`
 	Permissions     Permissions `yaml:"permissions,omitempty"`
+	Defaults        Defaults    `yaml:"defaults,omitempty"`
 }
 type Jobs map[string]Job
 
@@ -50,6 +51,7 @@ type JobConfig struct {
 	TimeoutMinutes  TimeoutMinutesConfig  `hcl:"timeout_minutes,attr"`
 	Concurrency     ConcurrencyConfig     `hcl:"concurrency,block"`
 	Permissions     PermissionsConfig     `hcl:"permissions,block"`
+	Defaults        DefaultsConfig        `hcl:"defaults,block"`
 }
 
 type JobsConfig []JobConfig
@@ -217,6 +219,12 @@ func (config *JobConfig) Parse() (Job, error) {
 		return Job{}, err
 	}
 	job.Permissions = jobPermissions
+
+	jobDefaults, err := config.Defaults.Parse()
+	if err != nil {
+		return Job{}, err
+	}
+	job.Defaults = jobDefaults
 
 	return job, nil
 }
