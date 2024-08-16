@@ -5,14 +5,14 @@ BINARY=atos
 
 run:
 ifdef file
-	@go run ./cmd/main.go --file=$(file)
+	@go run ./cmd/$(BINARY)/main.go --file=$(file)
 endif
 ifdef dir
-	@go run ./cmd/main.go --dir=$(dir)
+	@go run ./cmd/$(BINARY)/main.go --dir=$(dir)
 endif
 
 build:
-	@go build -ldflags "-s -w" -o ./bin/$(BINARY) ./cmd/main.go
+	@go build -ldflags "-s -w" -o ./bin/$(BINARY) ./cmd/$(BINARY)/main.go
 	@wc -c ./bin/$(BINARY)
 
 fmt:
@@ -33,5 +33,9 @@ update-report: test test-cover
 cover-ui: update-report
 	@open $(COVERAGE_HTML_PATH)
 
-changelog-create:
+docs-ui:
+	@open http://localhost:6060/
+	@godoc -http=:6060
+
+changelog:
 	@git cliff --output CHANGELOG.md

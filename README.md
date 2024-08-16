@@ -13,12 +13,13 @@
   - [Contributors and acknowledgment](#contributors-and-acknowledgment)
   - [License](#license)
   - [Roadmap](#roadmap)
+  - [Wiki](#wiki)
 
 ## About
 
-`atos` (_pronounced **"ah tos"**_) is a portuguese word synonimous for **actions**.
+`atos`, pronounced as "AH-toosh" ([IPA](https://en.wikipedia.org/wiki/International_Phonetic_Alphabet): /ˈa.tuʃ/), is a portuguese word synonimous for **actions**.
 
-`atos` is a tool that converts [HCL](https://github.com/hashicorp/hcl) files to [GitHub Actions](https://github.com/features/actions) workflows' [YAML](http://www.yaml.de) files.
+It's a tool that converts [HCL](https://github.com/hashicorp/hcl) files to [GitHub Actions](https://github.com/features/actions) [YAML](http://www.yaml.de)'s  workflow files.
 
 Made with :heart: by [Yld](https://www.yld.io/).
 ## Installation and usage
@@ -49,3 +50,9 @@ This project is licensed under the [GNU AGPL v3.0](LICENSE).
 ## Roadmap
 
 Check the [Discussions](https://github.com/yldio/atos/discussions) for current state of new features and/or roadmap of `atos`.
+
+## Wiki
+
+- HCL optional blocks, see [issue](https://github.com/hashicorp/hcl/issues/431) for more details;
+- HCL ..., see [issue](https://github.com/hashicorp/hcl/issues/496) for more details;
+- HCL ..., see [issue](https://github.com/hashicorp/hcl/issues/583) for more details.

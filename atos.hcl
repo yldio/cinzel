@@ -1,40 +1,40 @@
-/*
-Check images https://github.com/actions/runner-images?tab=readme-ov-file#available-images
-*/
-
-file_name = "pull-requests"
-single    = true
-
-workflow "pull_requests" {
-  name = "Pull Requests"
-  on   = "pull_request"
-
-  jobs = [
-    job.pull_request
-  ]
-}
-
-job "pull_request" {
-  # ubuntu-20.04 already has GO 1.22.5 
-  runs_on = "ubuntu-20.04"
-
-  steps = [
-    step.checkout,
-    step.tests
-  ]
-}
-
-step "checkout" {
-  name = "Checkout"
-  uses {
-    action  = "actions/checkout"
-    version = "v4"
+workflow "workflow_1" {
+  filename = "dummy-file.yaml"
+  on {
+    event "push" {
+      branches = ["main"]
+      tags = ["v2"]
+    }
   }
+  on {
+    activity "label" {
+      types = ["created"]
+    } 
+  }
+  jobs = [job.job_1, job.job_2]
 }
 
-step "tests" {
-  name = "Tests"
-  run  = <<-EOF
-make test-ci
-EOF
+job "job_1" {
+  name = "job 1"
+  steps = [step.step_1]
+}
+
+job "job_2" {
+  name = "job 2"
+
+  runs {
+    on = "ubuntu-20.04"
+  }
+
+  needs = [job.job_1]
+
+  steps = [step.step_2]
+}
+
+step "step_1" {
+  name = "step 1"
+}
+
+step "step_2" {
+  name = "step 2"
 }
