@@ -6,7 +6,9 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/yldio/atos/service/flag"
 	"github.com/yldio/atos/service/hclparser"
@@ -15,7 +17,15 @@ import (
 )
 
 func do(flags *flag.Flags, outputDir string) error {
-	atosReader := reader.New(flags.Directory, flags.File, flags.Recursive)
+	var path string
+
+	if flags.Directory != "" {
+		path = flags.Directory
+	} else if flags.File != "" {
+		path = flags.File
+	}
+
+	atosReader := reader.New(path, flags.Recursive)
 
 	bodies, err := atosReader.Do()
 	if err != nil {
@@ -39,7 +49,21 @@ func do(flags *flag.Flags, outputDir string) error {
 			return err
 		}
 
-		fileInfo, err := os.Stat(outputDir)
+		curDir, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		var fileInfo fs.FileInfo
+		var fileinfo string
+
+		if filepath.IsAbs(outputDir) {
+			fileinfo = outputDir
+		} else {
+			fileinfo = fmt.Sprintf("%s/%s", curDir, outputDir)
+		}
+
+		fileInfo, err = os.Stat(fileinfo)
 		if err != nil {
 			return err
 		}
@@ -61,8 +85,8 @@ func do(flags *flag.Flags, outputDir string) error {
 }
 
 func main() {
-	flags := flag.NewParseFlags()
-	gitHubDir := "./github/workflows"
+	flags := flag.New()
+	gitHubDir := ".github/workflows"
 
 	if err := do(flags, gitHubDir); err != nil {
 		fmt.Println(err.Error())

@@ -1,6 +1,7 @@
-package action
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
 
-import "fmt"
+package action
 
 type ActivityType string
 
@@ -66,7 +67,7 @@ var (
 		TriggerDiscussionComment:        {ActivityCreated, ActivityEdited, ActivityDeleted},
 		TriggerFork:                     nil,
 		TriggerGollum:                   nil,
-		TriggerIssue_comment:            {ActivityCreated, ActivityEdited, ActivityDeleted},
+		TriggerIssueComment:             {ActivityCreated, ActivityEdited, ActivityDeleted},
 		TriggerIssues:                   {ActivityOpened, ActivityEdited, ActivityDeleted, ActivityTransferred, ActivityPinned, ActivityUnpinned, ActivityClosed, ActivityReopened, ActivityAssigned, ActivityUnassigned, ActivityLabeled, ActivityUnlabeled, ActivityLocked, ActivityUnlocked, ActivityMilestoned, ActivityDemilestoned},
 		TriggerLabel:                    {ActivityCreated, ActivityEdited, ActivityDeleted},
 		TriggerMergeGroup:               {ActivityChecksRequested},
@@ -98,14 +99,10 @@ func (activityType ActivityType) ToString() string {
 	return string(activityType)
 }
 
-func CheckValid(s string) {
-	for _, at := range ActivitiesType[TriggerWorkflowRun] {
-		fmt.Println(at)
-	}
-}
-
 func ValidateActivityType(activityType string) bool {
 	switch activityType {
+	case ActivityTypes.ToString():
+		return true
 	case ActivityAnswered.ToString():
 		return true
 	case ActivityAssigned.ToString():
@@ -196,7 +193,19 @@ func ValidateActivityType(activityType string) bool {
 		return true
 	case ActivityUpdated.ToString():
 		return true
+	default:
+		return false
+	}
+}
+
+func ValidateActivityTypeForEventTrigger(eventTrigger EventTrigger, activityType ActivityType) bool {
+	allowedActivityType := false
+	for _, activity := range ActivitiesType[eventTrigger] {
+		if activity == activityType {
+			allowedActivityType = true
+			break
+		}
 	}
 
-	return false
+	return allowedActivityType
 }

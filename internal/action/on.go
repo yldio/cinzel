@@ -1,7 +1,11 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package action
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -35,8 +39,18 @@ func (config *OnConfig) parseActivity() (On, error) {
 	activities := make(map[string]map[string][]string)
 
 	for _, activity := range config.Activity {
+		if !ValidateEventTrigger(activity.Id) {
+			return nil, fmt.Errorf("invalid event trigger `%s`", activity.Id)
+		}
+
 		if activities[activity.Id] == nil {
 			activities[activity.Id] = make(map[string][]string)
+		}
+
+		for _, activityType := range activity.Types {
+			if !ValidateActivityType(activityType) {
+				return nil, fmt.Errorf("invalid activity type `%s`", activityType)
+			}
 		}
 
 		activities[activity.Id]["types"] = activity.Types
@@ -49,6 +63,10 @@ func (config *OnConfig) parseEvent() (On, error) {
 	events := make(map[string]map[string][]string)
 
 	for _, event := range config.Event {
+		if !ValidateEventTrigger(event.Event) {
+			return nil, fmt.Errorf("invalid event trigger `%s`", event.Event)
+		}
+
 		if events[event.Event] == nil {
 			events[event.Event] = make(map[string][]string)
 		}
@@ -84,6 +102,19 @@ func (config *OnConfig) parseEvents() (On, error) {
 		return nil, err
 	}
 
+	switch event := events.(type) {
+	case string:
+		if !ValidateEventTrigger(event) {
+			return nil, fmt.Errorf("invalid event trigger `%s`", event)
+		}
+	case []string:
+		for _, evt := range event {
+			if !ValidateEventTrigger(evt) {
+				return nil, fmt.Errorf("invalid event trigger `%s`", evt)
+			}
+		}
+	}
+
 	return events, nil
 }
 
@@ -93,7 +124,7 @@ func (config *OnConfig) Parse() (On, error) {
 	}
 
 	if config.Events != nil && config.Event != nil {
-		return nil, errors.New("on can only have Events or Event, not both")
+		return nil, errors.New("on can only have Events or Event")
 	}
 
 	ons := make(map[string]map[string][]string)
@@ -156,7 +187,7 @@ func (config *OnsConfig) Parse() (On, error) {
 				ons[k] = v
 			}
 		default:
-			// return parsedOn, nil
+			return On(""), errors.New("unknown `on` structure")
 		}
 	}
 

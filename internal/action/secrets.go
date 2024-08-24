@@ -7,7 +7,7 @@ type Secrets map[string]any
 type SecretsInherit string
 
 type SecretConfig struct {
-	Name  string `hcl:"name,attr"`
+	Name  string `hcl:"name,label"`
 	Value string `hcl:"value,attr"`
 }
 
@@ -15,24 +15,21 @@ type SecretsConfig []*SecretConfig
 type SecretsInheritConfig string
 
 func (config *SecretsConfig) Parse() (Secrets, error) {
-	if config == nil {
+	if config == nil || len(*config) == 0 {
 		return nil, nil
 	}
+
 	secrets := make(Secrets)
 
 	for _, secret := range *config {
 		secrets[secret.Name] = secret.Value
 	}
 
-	if len(secrets) == 0 {
-		return nil, nil
-	}
-
 	return secrets, nil
 }
 
 func (config *SecretsInheritConfig) Parse() (SecretsInherit, error) {
-	if config == nil {
+	if config == nil || *config == "" {
 		return SecretsInherit(""), nil
 	}
 

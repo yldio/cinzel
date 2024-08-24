@@ -11,7 +11,7 @@ type Flags struct {
 	Recursive bool
 }
 
-func NewParseFlags() *Flags {
+func New() *Flags {
 	directory := flag.String("dir", "", "A `directory` where the atos files exist (sub-directories included) (required if --file is not set)")
 	file := flag.String("file", "", "A `file` that contains atos resources (required if --dir is not set)")
 	recursive := flag.Bool("r", false, "Reads directory recursiveness (valid only if --dir is set)")
@@ -23,4 +23,16 @@ func NewParseFlags() *Flags {
 		File:      *file,
 		Recursive: *recursive,
 	}
+}
+
+func (flags *Flags) SetDirectory(directory string) {
+	flags.Directory = directory
+}
+
+func (flags *Flags) SetFile(file string) {
+	flags.File = file
+}
+
+func (flags *Flags) SetRecursive(recursive bool) {
+	flags.Recursive = recursive
 }

@@ -1,0 +1,30 @@
+name: Pull Request
+on: pull_request
+jobs:
+  pull_request:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - id: checkout
+      name: Checkout
+      uses: actions/checkout@v4.1.7
+    - id: go_setup
+      if: ${{ matrix.os }} != ubuntu-20.04
+      name: Setup Go environment
+      uses: actions/setup-go@v5.0.2
+      with:
+        go-version-file: ./go.mod
+    - id: tests
+      name: Tests
+      run: make test-ci
+    - id: coverage
+      if: ${{ matrix.os }} == ubuntu-20.04
+      name: Coverage
+      uses: gwatts/go-coverage-action@v2.0.0
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        os:
+        - ubuntu-20.04
+        - macos-14
+        - windows-2022

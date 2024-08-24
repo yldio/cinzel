@@ -5,6 +5,7 @@ package job
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/atos/internal/action"
@@ -14,27 +15,27 @@ import (
 type Jobs []Job
 
 type Job struct {
-	Id              string               `yaml:"-"`
-	Name            *string              `yaml:"name,omitempty"`
-	Permissions     *action.Permissions  `yaml:"permissions,omitempty"`
-	Needs           *[]string            `yaml:"needs,omitempty"`
-	If              *string              `yaml:"id,omitempty"`
-	RunsOn          *any                 `yaml:"runs-on,omitempty"`
-	Environment     *any                 `yaml:"environment,omitempty"`
-	Concurrency     *action.Concurrency  `yaml:"concurrency,omitempty"`
-	Outputs         *map[string]any      `yaml:"outputs,omitempty"`
-	Env             *action.Env          `yaml:"env,omitempty"`
-	Defaults        *action.Defaults     `yaml:"defaults,omitempty"`
-	Steps           map[string]step.Step `yaml:"steps"`
-	StepsIds        []string             `yaml:"-"`
-	TimeoutMinutes  *uint16              `yaml:"timeout-minutes,omitempty"`
-	Strategy        *action.Strategy     `yaml:"strategy,omitempty"`
-	ContinueOnError *bool                `yaml:"continue-on-error,omitempty"`
-	Container       *action.Container    `yaml:"container,omitempty"`
-	Services        *action.Services     `yaml:"services,omitempty"`
-	Uses            *string              `yaml:"uses,omitempty"`
-	With            *map[string]any      `yaml:"with,omitempty"`
-	Secrets         *any                 `yaml:"secrets,omitempty"`
+	Id              string              `yaml:"-"`
+	Name            *string             `yaml:"name,omitempty"`
+	Permissions     *action.Permissions `yaml:"permissions,omitempty"`
+	Needs           *[]string           `yaml:"needs,omitempty"`
+	If              *string             `yaml:"id,omitempty"`
+	RunsOn          *any                `yaml:"runs-on,omitempty"`
+	Environment     *any                `yaml:"environment,omitempty"`
+	Concurrency     *action.Concurrency `yaml:"concurrency,omitempty"`
+	Outputs         *map[string]any     `yaml:"outputs,omitempty"`
+	Env             *action.Env         `yaml:"env,omitempty"`
+	Defaults        *action.Defaults    `yaml:"defaults,omitempty"`
+	Steps           step.Steps          `yaml:"steps"`
+	StepsIds        []string            `yaml:"-"`
+	TimeoutMinutes  *uint16             `yaml:"timeout-minutes,omitempty"`
+	Strategy        *action.Strategy    `yaml:"strategy,omitempty"`
+	ContinueOnError *bool               `yaml:"continue-on-error,omitempty"`
+	Container       *action.Container   `yaml:"container,omitempty"`
+	Services        *action.Services    `yaml:"services,omitempty"`
+	Uses            *string             `yaml:"uses,omitempty"`
+	With            *map[string]any     `yaml:"with,omitempty"`
+	Secrets         *any                `yaml:"secrets,omitempty"`
 }
 
 type JobsConfig []JobConfig
@@ -45,7 +46,7 @@ type JobConfig struct {
 	Permissions     *action.PermissionsConfig     `hcl:"permissions,block"`
 	Needs           hcl.Expression                `hcl:"needs,attr"`
 	If              *action.IfConfig              `hcl:"if,attr"`
-	RunsOn          *action.RunsOnConfig          `hcl:"runs,block"`
+	RunsOn          action.RunsOnConfig           `hcl:"runs,block"`
 	Environment     *action.EnvironmentConfig     `hcl:"environment,block"`
 	Concurrency     *action.ConcurrencyConfig     `hcl:"concurrency,block"`
 	Outputs         action.OutputsConfig          `hcl:"output,block"` // action.OutputsConfig -> []*OutputConfig
@@ -424,7 +425,7 @@ func (config *JobConfig) parseSecrets(job *Job) error {
 	secretsNil := secretsList.IsNill()
 
 	if !inheritNil && !secretsNil {
-		return errors.New("only secrets or secret is allowed")
+		return errors.New("only `secrets` blocks or one single `secret` attribute is allowed")
 	}
 
 	if !inheritNil {
@@ -558,23 +559,27 @@ func (jobs *Jobs) PostParseNeeds(parsedJobs Jobs) error {
 
 func (jobs *Jobs) PostParseSteps(parsedSteps step.Steps) error {
 	for idx, job := range *jobs {
+		if len(job.StepsIds) == 0 {
+			return fmt.Errorf("job %s requires at least one step", job.Id)
+		}
+
+		stepsList := step.Steps{}
+
 		for _, stepId := range job.StepsIds {
 			for _, parsedStep := range parsedSteps {
 				if parsedStep.Id != stepId {
 					continue
 				}
 
-				if job.Steps == nil {
-					job.Steps = make(map[string]step.Step)
-				}
-
-				job.Steps[stepId] = parsedStep
+				stepsList = append(stepsList, parsedStep)
 			}
 		}
 
-		if len(job.Steps) == 0 && len(job.StepsIds) > 0 {
+		if len(stepsList) == 0 && len(parsedSteps) > 0 {
 			return errors.New("some steps do not exist")
 		}
+
+		job.Steps = stepsList
 
 		(*jobs)[idx] = job
 	}

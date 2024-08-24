@@ -1,14 +1,17 @@
+// Copyright (c) 2024 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package reader
 
 import (
 	"errors"
-	"flag"
 	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/yldio/atos/service/atoserrors"
 )
 
 const (
@@ -17,16 +20,14 @@ const (
 
 type Reader struct {
 	parser    *hclparse.Parser
-	directory string
-	file      string
+	path      string
 	recursive bool
 }
 
-func New(directory string, file string, recursive bool) *Reader {
+func New(path string, recursive bool) *Reader {
 	return &Reader{
 		parser:    hclparse.NewParser(),
-		directory: directory,
-		file:      file,
+		path:      path,
 		recursive: recursive,
 	}
 }
@@ -62,55 +63,67 @@ func (read *Reader) ReturnHclBodies() []hcl.Body {
 	return bodies
 }
 
+func (read *Reader) readFile() ([]hcl.Body, error) {
+	var emptyBody []hcl.Body
+
+	_, err := os.Stat(read.path)
+	if err != nil {
+		return emptyBody, err
+	}
+
+	if filepath.Ext(read.path) != allowedExtension {
+		return emptyBody, atoserrors.ErrOnlyHclFiles
+	}
+
+	bodyFile, err := read.ReadHclFile(read.path)
+	if err != nil {
+		return emptyBody, err
+	}
+
+	return []hcl.Body{bodyFile}, nil
+}
+
+func (read *Reader) readDirectory() ([]hcl.Body, error) {
+	var emptyBody []hcl.Body
+
+	files, err := os.ReadDir(read.path)
+	if err != nil {
+		return emptyBody, err
+	}
+
+	list, err := readDir(read.path, files, read.recursive)
+	if err != nil {
+		return emptyBody, err
+	}
+
+	var bodies []hcl.Body
+	for _, file := range list {
+		bodyFile, err := read.ReadHclFile(file)
+		if err != nil {
+			return emptyBody, err
+		}
+		bodies = append(bodies, bodyFile)
+	}
+
+	return bodies, nil
+}
+
 func (read *Reader) Do() ([]hcl.Body, error) {
 	var emptyBody []hcl.Body
 
-	if read.file != "" {
-		_, err := os.Stat(read.file)
-		if err != nil {
-			return emptyBody, err
-		}
-
-		if filepath.Ext(read.file) != allowedExtension {
-			return emptyBody, errors.New("only allowed .hcl files")
-		}
-
-		bodyFile, err := read.ReadHclFile(read.file)
-		if err != nil {
-			return emptyBody, err
-		}
-
-		return []hcl.Body{bodyFile}, nil
-	} else if read.directory != "" {
-		files, err := os.ReadDir(read.directory)
-		if err != nil {
-			return emptyBody, err
-		}
-
-		list, err := recurDir(read.directory, files, read.recursive)
-		if err != nil {
-			return emptyBody, err
-		}
-
-		var bodies []hcl.Body
-		for _, file := range list {
-			bodyFile, err := read.ReadHclFile(file)
-			if err != nil {
-				return emptyBody, err
-			}
-			bodies = append(bodies, bodyFile)
-		}
-
-		return bodies, nil
-	} else {
-		flag.Usage()
-		os.Exit(0)
+	info, err := os.Stat(read.path)
+	if err != nil {
+		return emptyBody, err
 	}
 
-	return emptyBody, nil
+	if info.IsDir() {
+		return read.readDirectory()
+	} else {
+		return read.readFile()
+	}
 }
 
-func recurDir(parentDirectory string, files []fs.DirEntry, recursive bool) ([]string, error) {
+func readDir(parentDirectory string, files []fs.DirEntry, recursive bool) ([]string, error) {
 	var listOfFiles []string
 	for _, file := range files {
 		fullpath := filepath.Join(parentDirectory, file.Name())
@@ -133,7 +146,7 @@ func recurDir(parentDirectory string, files []fs.DirEntry, recursive bool) ([]st
 			return []string{}, err
 		}
 
-		listOfSubFiles, err := recurDir(fullpath, subFiles, recursive)
+		listOfSubFiles, err := readDir(fullpath, subFiles, recursive)
 		if err != nil {
 			return []string{}, err
 		}

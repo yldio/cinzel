@@ -6,7 +6,7 @@ package action
 import "github.com/zclconf/go-cty/cty"
 
 type VariableConfig struct {
-	Name  string    `hcl:"name,attr"`
+	Name  string    `hcl:"name,label"`
 	Value cty.Value `hcl:"value,attr"`
 }
 

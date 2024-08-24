@@ -8,7 +8,7 @@ import (
 )
 
 type OutputConfig struct {
-	Name  string    `hcl:"name,attr"`
+	Name  string    `hcl:"name,label"`
 	Value cty.Value `hcl:"value,attr"`
 }
 

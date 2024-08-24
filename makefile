@@ -13,7 +13,6 @@ endif
 
 build:
 	@go build -ldflags "-s -w" -o ./bin/$(BINARY) ./cmd/$(BINARY)/main.go
-	@wc -c ./bin/$(BINARY)
 
 fmt:
 	@go fmt ./...

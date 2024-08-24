@@ -5,10 +5,12 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/atos/internal/action"
 	"github.com/yldio/atos/internal/job"
+	"github.com/yldio/atos/service/atoserrors"
 )
 
 type Workflows []Workflow
@@ -158,6 +160,15 @@ func (config *WorkflowConfig) parseJobs(workflow *Workflow) error {
 		return nil
 	}
 
+	val, diags := config.Jobs.Value(nil)
+	if diags.HasErrors() {
+		// TODO: understand the reason why it has diags
+		// return nil, errors.New(diags[0].Detail)
+	}
+	if val.IsNull() {
+		return nil
+	}
+
 	exprs, diags := hcl.ExprList(config.Jobs)
 	if diags.HasErrors() {
 		return errors.New(diags[0].Detail)
@@ -195,6 +206,10 @@ func (config *WorkflowConfig) parseJobs(workflow *Workflow) error {
 func (config *WorkflowConfig) Parse() (Workflow, error) {
 	if config == nil {
 		return Workflow{}, nil
+	}
+
+	if config.Filename == nil {
+		return Workflow{}, atoserrors.ErrWorkflowFilenameRequired
 	}
 
 	workflow := Workflow{
@@ -258,6 +273,10 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 func (workflows *Workflows) PostParse(parsedJobs job.Jobs) error {
 	for idx, workflow := range *workflows {
 		for _, jobId := range workflow.JobsIds {
+			if len(workflow.JobsIds) == 0 {
+				return fmt.Errorf("workflow %s requires at least one job", workflow.Id)
+			}
+
 			for _, parsedJob := range parsedJobs {
 				if parsedJob.Id != jobId {
 					continue

@@ -6,6 +6,7 @@ package yamlparser
 import (
 	"bytes"
 	"errors"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/yldio/atos/internal/workflow"
@@ -41,7 +42,7 @@ func (config *Yaml) Do() (map[string][]byte, error) {
 		// `atos` uses `any` so we need this "hack" to clean `"on":` to just `on:`.
 		filteredOut := bytes.Replace(out, []byte("\"on\""), []byte("on"), -1)
 
-		yamls[workflow.Filename] = filteredOut
+		yamls[strings.Join([]string{workflow.Filename, "yaml"}, ".")] = filteredOut
 	}
 
 	return yamls, nil

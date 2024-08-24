@@ -38,7 +38,7 @@ func TestWorkflows(t *testing.T) {
 		OpenRange: hcl.Range{},
 	}
 
-	var filename = "dummy-file.yaml"
+	var filename = "dummy-file"
 	var have_1 = WorkflowsConfig{
 		{
 			Id:       "workflow_1",

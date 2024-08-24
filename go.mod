@@ -1,6 +1,7 @@
 module github.com/yldio/atos
 
-go 1.22.5
+// https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+go 1.22.6
 
 require (
 	github.com/goccy/go-yaml v1.12.0

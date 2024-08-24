@@ -33,12 +33,10 @@ func TestEnvironment(t *testing.T) {
 		"url":  "${{ steps.step_id.outputs.url_output }}",
 	}
 
-	// var expect_3 = nil
-
 	var tests = []Test{
 		{"with defined environment", &have_1, expect_1},
 		{"without empty environment", &have_2, expect_2},
-		// {"without undefined environment", nil, expect_3},
+		{"without undefined environment", nil, nil},
 	}
 
 	for _, tt := range tests {

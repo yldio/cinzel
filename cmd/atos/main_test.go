@@ -21,7 +21,8 @@ func TestParseHcl(t *testing.T) {
 	}
 
 	var have_1 = []byte(`workflow "workflow_1" {
-  filename = "dummy-file.yaml"
+  filename = "dummy-file"
+
   on {
     event "push" {
       branches = ["main"]
@@ -39,6 +40,10 @@ func TestParseHcl(t *testing.T) {
 job "job_1" {
   name = "job 1"
   steps = [step.step_1]
+
+  runs {
+    on = "ubuntu-20.04"
+  }
 }
 
 job "job_2" {
@@ -55,10 +60,12 @@ job "job_2" {
 
 step "step_1" {
   name = "step 1"
+  run = "echo \"step 1\""
 }
 
 step "step_2" {
   name = "step 2"
+  run = "echo \"step 2\""
 }
 `)
 
@@ -74,23 +81,24 @@ step "step_2" {
 jobs:
   job_1:
     name: job 1
+    runs-on: ubuntu-20.04
     steps:
-      step_1:
-        id: step_1
-        name: step 1
+    - id: step_1
+      name: step 1
+      run: echo "step 1"
   job_2:
     name: job 2
     needs:
     - job_1
     runs-on: ubuntu-20.04
     steps:
-      step_2:
-        id: step_2
-        name: step 2
+    - id: step_2
+      name: step 2
+      run: echo "step 2"
 `)
 
 	var have_2 = []byte(`workflow "workflow_1" {
-  filename = "dummy-file.yaml"
+  filename = "dummy-file"
   on {
     event "push" {
       branches = ["main"]
@@ -108,6 +116,10 @@ jobs:
 job "job_1" {
   name = "job 1"
   steps = [step.step_1]
+
+  runs {
+    on = "ubuntu-20.04"
+  }
 }
 
 job "job_2" {
@@ -124,10 +136,12 @@ job "job_2" {
 
 step "step_1" {
   name = "step 1"
+  run = "echo \"step 1\""
 }
 
 step "step_2" {
   name = "step 2"
+  run = "echo \"step 2\""
 }`)
 
 	var expect_2 = []byte(`on:
@@ -142,19 +156,20 @@ step "step_2" {
 jobs:
   job_1:
     name: job 1
+    runs-on: ubuntu-20.04
     steps:
-      step_1:
-        id: step_1
-        name: step 1
+    - id: step_1
+      name: step 1
+      run: echo "step 1"
   job_2:
     name: job 2
     needs:
     - job_1
     runs-on: ubuntu-20.04
     steps:
-      step_2:
-        id: step_2
-        name: step 2
+    - id: step_2
+      name: step 2
+      run: echo "step 2"
 `)
 
 	var tests = []ParserTest{
@@ -162,7 +177,7 @@ jobs:
 		{"workflow for atos itself", have_2, expect_2},
 	}
 
-	flags := atosFlag.NewParseFlags()
+	flags := atosFlag.New()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
