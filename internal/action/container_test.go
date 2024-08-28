@@ -17,7 +17,7 @@ func TestContainer(t *testing.T) {
 		expect Container
 	}
 
-	var have_1 = ContainerConfig{
+	var have1 = ContainerConfig{
 		Image: "node:18",
 		Credentials: CredentialsConfig{
 			Username: "${{ github.actor }}",
@@ -39,7 +39,7 @@ func TestContainer(t *testing.T) {
 		},
 		Options: "--cpus 1",
 	}
-	var expect_1 = Container{
+	var expect1 = Container{
 		Image: "node:18",
 		Credentials: Credentials{
 			Username: "${{ github.actor }}",
@@ -58,7 +58,7 @@ func TestContainer(t *testing.T) {
 	}
 
 	var tests = []Test{
-		{"with defined container", &have_1, expect_1},
+		{"with defined container", &have1, expect1},
 	}
 
 	for _, tt := range tests {

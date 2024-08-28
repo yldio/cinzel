@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Initial commit
 - Add Id for job resource (#3)
 - Add-cache-to-go-setup (#6)
+- Improvements and missing functionalities (#23)
 
 ### 🧪 Testing
 

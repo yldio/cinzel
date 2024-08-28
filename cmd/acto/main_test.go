@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"testing"
 
-	atosFlag "github.com/yldio/atos/service/flag"
-	"github.com/yldio/atos/service/writer"
+	actoFlag "github.com/yldio/acto/service/flag"
+	"github.com/yldio/acto/service/writer"
 )
 
 func TestParseHcl(t *testing.T) {
@@ -20,7 +20,7 @@ func TestParseHcl(t *testing.T) {
 		expect []byte
 	}
 
-	var have_1 = []byte(`workflow "workflow_1" {
+	var have1 = []byte(`workflow "workflow1" {
   filename = "dummy-file"
 
   on {
@@ -34,42 +34,42 @@ func TestParseHcl(t *testing.T) {
       types = ["created"]
     } 
   }
-  jobs = [job.job_1, job.job_2]
+  jobs = [job.job1, job.job2]
 }
 
-job "job_1" {
+job "job1" {
   name = "job 1"
-  steps = [step.step_1]
+  steps = [step.step1]
 
   runs {
     on = "ubuntu-20.04"
   }
 }
 
-job "job_2" {
+job "job2" {
   name = "job 2"
 
   runs {
     on = "ubuntu-20.04"
   }
 
-  needs = [job.job_1]
+  needs = [job.job1]
 
-  steps = [step.step_2]
+  steps = [step.step2]
 }
 
-step "step_1" {
+step "step1" {
   name = "step 1"
   run = "echo \"step 1\""
 }
 
-step "step_2" {
+step "step2" {
   name = "step 2"
   run = "echo \"step 2\""
 }
 `)
 
-	var expect_1 = []byte(`on:
+	var expect1 = []byte(`on:
   label:
     types:
     - created
@@ -79,25 +79,25 @@ step "step_2" {
     tags:
     - v2
 jobs:
-  job_1:
+  job1:
     name: job 1
     runs-on: ubuntu-20.04
     steps:
-    - id: step_1
+    - id: step1
       name: step 1
       run: echo "step 1"
-  job_2:
+  job2:
     name: job 2
     needs:
-    - job_1
+    - job1
     runs-on: ubuntu-20.04
     steps:
-    - id: step_2
+    - id: step2
       name: step 2
       run: echo "step 2"
 `)
 
-	var have_2 = []byte(`workflow "workflow_1" {
+	var have2 = []byte(`workflow "workflow1" {
   filename = "dummy-file"
   on {
     event "push" {
@@ -110,41 +110,41 @@ jobs:
       types = ["created"]
     } 
   }
-  jobs = [job.job_1, job.job_2]
+  jobs = [job.job1, job.job2]
 }
 
-job "job_1" {
+job "job1" {
   name = "job 1"
-  steps = [step.step_1]
+  steps = [step.step1]
 
   runs {
     on = "ubuntu-20.04"
   }
 }
 
-job "job_2" {
+job "job2" {
   name = "job 2"
 
   runs {
     on = "ubuntu-20.04"
   }
 
-  needs = [job.job_1]
+  needs = [job.job1]
 
-  steps = [step.step_2]
+  steps = [step.step2]
 }
 
-step "step_1" {
+step "step1" {
   name = "step 1"
   run = "echo \"step 1\""
 }
 
-step "step_2" {
+step "step2" {
   name = "step 2"
   run = "echo \"step 2\""
 }`)
 
-	var expect_2 = []byte(`on:
+	var expect2 = []byte(`on:
   label:
     types:
     - created
@@ -154,30 +154,30 @@ step "step_2" {
     tags:
     - v2
 jobs:
-  job_1:
+  job1:
     name: job 1
     runs-on: ubuntu-20.04
     steps:
-    - id: step_1
+    - id: step1
       name: step 1
       run: echo "step 1"
-  job_2:
+  job2:
     name: job 2
     needs:
-    - job_1
+    - job1
     runs-on: ubuntu-20.04
     steps:
-    - id: step_2
+    - id: step2
       name: step 2
       run: echo "step 2"
 `)
 
 	var tests = []ParserTest{
-		{"workflow event push with a job", have_1, expect_1},
-		{"workflow for atos itself", have_2, expect_2},
+		{"workflow event push with a job", have1, expect1},
+		{"workflow for acto itself", have2, expect2},
 	}
 
-	flags := atosFlag.New()
+	flags := actoFlag.New()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,8 +187,8 @@ jobs:
 			hclFile := fmt.Sprintf("%s/%s.hcl", tempDir, filename)
 			yamlFile := fmt.Sprintf("%s/%s.yaml", tempDir, filename)
 
-			atosWriter := writer.New()
-			if err := atosWriter.Do(hclFile, have_1); err != nil {
+			actoWriter := writer.New()
+			if err := actoWriter.Do(hclFile, have1); err != nil {
 				t.Fatal(err.Error())
 			}
 

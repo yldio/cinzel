@@ -15,17 +15,17 @@ func TestUses(t *testing.T) {
 		expect string
 	}
 
-	var have_1 = UsesConfig{
+	var have1 = UsesConfig{
 		Action:  "actions/checkout",
 		Version: "v4",
 	}
-	var expect_1 = "actions/checkout@v4"
+	var expect1 = "actions/checkout@v4"
 
-	var expect_3 = ""
+	var expect3 = ""
 
 	var tests = []Test{
-		{"with defined uses", &have_1, expect_1},
-		{"without undefined uses", nil, expect_3},
+		{"with defined uses", &have1, expect1},
+		{"without undefined uses", nil, expect3},
 	}
 
 	for _, tt := range tests {

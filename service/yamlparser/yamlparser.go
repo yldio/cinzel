@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/yldio/atos/internal/workflow"
+	"github.com/yldio/acto/internal/workflow"
 )
 
 // tbd...
@@ -39,7 +39,7 @@ func (config *Yaml) Do() (map[string][]byte, error) {
 		}
 
 		// Please link to the documentation [here](https://github.com/go-yaml/yaml?tab=readme-ov-file#yaml-support-for-the-go-language)
-		// `atos` uses `any` so we need this "hack" to clean `"on":` to just `on:`.
+		// `acto` uses `any` so we need this "hack" to clean `"on":` to just `on:`.
 		filteredOut := bytes.Replace(out, []byte("\"on\""), []byte("on"), -1)
 
 		yamls[strings.Join([]string{workflow.Filename, "yaml"}, ".")] = filteredOut

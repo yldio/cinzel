@@ -1,4 +1,4 @@
-module github.com/yldio/atos
+module github.com/yldio/acto
 
 // https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
 go 1.22.6

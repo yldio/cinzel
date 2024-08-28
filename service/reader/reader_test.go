@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yldio/atos/service/atoserrors"
-	"github.com/yldio/atos/service/writer"
+	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/service/writer"
 )
 
 func TestReader(t *testing.T) {
@@ -17,15 +17,15 @@ func TestReader(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-		content := []byte("workflow \"workflow_1\" {}")
+		content := []byte("workflow \"workflow1\" {}")
 
 		if err := writer.New().Do(filePath, content); err != nil {
 			t.Fatal(err.Error())
 		}
 
-		atosReader := New(filePath, false)
+		actoReader := New(filePath, false)
 
-		_, err := atosReader.Do()
+		_, err := actoReader.Do()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -35,15 +35,15 @@ func TestReader(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-		content := []byte("workflow \"workflow_1\" {}")
+		content := []byte("workflow \"workflow1\" {}")
 
 		if err := writer.New().Do(filePath, content); err != nil {
 			t.Fatal(err.Error())
 		}
 
-		atosReader := New(tmpDir, false)
+		actoReader := New(tmpDir, false)
 
-		_, err := atosReader.Do()
+		_, err := actoReader.Do()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -59,14 +59,14 @@ func TestReader(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 
-		atosReader := New(filePath, false)
+		actoReader := New(filePath, false)
 
-		_, err := atosReader.Do()
+		_, err := actoReader.Do()
 		if err == nil {
 			t.Fatal("should fail because it's not an HCL file")
 		}
 
-		if !errors.Is(err, atoserrors.ErrOnlyHclFiles) {
+		if !errors.Is(err, actoerrors.ErrOnlyHclFiles) {
 			t.Fatal("got wrong error message")
 		}
 	})
@@ -81,9 +81,9 @@ func TestReader(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 
-		atosReader := New(filePath, false)
+		actoReader := New(filePath, false)
 
-		_, err := atosReader.Do()
+		_, err := actoReader.Do()
 		if err == nil {
 			t.Fatal("should fail because it's not an HCL syntax")
 		}

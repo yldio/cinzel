@@ -17,18 +17,18 @@ func TestName(t *testing.T) {
 
 	var name = "job_name"
 
-	var have_1 = NameConfig(name)
-	var expect_1 = name
+	var have1 = NameConfig(name)
+	var expect1 = name
 
-	var have_2 = NameConfig("")
-	var expect_2 = ""
+	var have2 = NameConfig("")
+	var expect2 = ""
 
-	var expect_3 = ""
+	var expect3 = ""
 
 	var tests = []Test{
-		{"with defined name", &have_1, expect_1},
-		{"without empty name", &have_2, expect_2},
-		{"without undefined name", nil, expect_3},
+		{"with defined name", &have1, expect1},
+		{"without empty name", &have2, expect2},
+		{"without undefined name", nil, expect3},
 	}
 
 	for _, tt := range tests {

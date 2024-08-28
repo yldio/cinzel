@@ -15,12 +15,12 @@ func TestTimeoutMinutes(t *testing.T) {
 		expect *uint16
 	}
 
-	var have_1 = TimeoutMinutesConfig(5)
-	var number_1 = uint16(5)
-	var expect_1 = &number_1
+	var have1 = TimeoutMinutesConfig(5)
+	var number1 = uint16(5)
+	var expect1 = &number1
 
 	var tests = []Test{
-		{"with defined timeout-minutes", &have_1, expect_1},
+		{"with defined timeout-minutes", &have1, expect1},
 	}
 
 	for _, tt := range tests {

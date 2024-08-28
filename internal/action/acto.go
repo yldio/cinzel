@@ -13,10 +13,10 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-type AtosValue cty.Value
+type actoValue cty.Value
 
-func (atosValue *AtosValue) Parse(allowedTypes []string) (any, error) {
-	value := cty.Value(*atosValue)
+func (actoValue *actoValue) Parse(allowedTypes []string) (any, error) {
+	value := cty.Value(*actoValue)
 
 	valueType := value.Type().FriendlyName()
 
@@ -26,21 +26,21 @@ func (atosValue *AtosValue) Parse(allowedTypes []string) (any, error) {
 
 	switch valueType {
 	case cty.String.FriendlyName():
-		return atosValue.ParseAsString()
+		return actoValue.ParseAsString()
 	case cty.Number.FriendlyName():
-		return atosValue.ParseAsNumber()
+		return actoValue.ParseAsNumber()
 	case cty.Bool.FriendlyName():
-		return atosValue.ParseAsBool()
+		return actoValue.ParseAsBool()
 	case cty.EmptyTuple.FriendlyName():
-		return atosValue.ParseAsTuple()
+		return actoValue.ParseAsTuple()
 	default:
 		return nil, errors.New("missing case found")
 	}
 }
 
-func (atosValue *AtosValue) ParseAsString() (any, error) {
+func (actoValue *actoValue) ParseAsString() (any, error) {
 	var val string
-	value := cty.Value(*atosValue)
+	value := cty.Value(*actoValue)
 
 	if err := gocty.FromCtyValue(value, &val); err != nil {
 		return "", err
@@ -49,9 +49,9 @@ func (atosValue *AtosValue) ParseAsString() (any, error) {
 	return val, nil
 }
 
-func (atosValue *AtosValue) ParseAsNumber() (any, error) {
+func (actoValue *actoValue) ParseAsNumber() (any, error) {
 	var val int32
-	value := cty.Value(*atosValue)
+	value := cty.Value(*actoValue)
 
 	err := gocty.FromCtyValue(value, &val)
 	if err != nil {
@@ -66,9 +66,9 @@ func (atosValue *AtosValue) ParseAsNumber() (any, error) {
 	return val, nil
 }
 
-func (atosValue *AtosValue) ParseAsBool() (any, error) {
+func (actoValue *actoValue) ParseAsBool() (any, error) {
 	var val bool
-	value := cty.Value(*atosValue)
+	value := cty.Value(*actoValue)
 
 	err := gocty.FromCtyValue(value, &val)
 	if err != nil {
@@ -78,9 +78,9 @@ func (atosValue *AtosValue) ParseAsBool() (any, error) {
 	return val, nil
 }
 
-func (atosValue *AtosValue) ParseAsTuple() (any, error) {
+func (actoValue *actoValue) ParseAsTuple() (any, error) {
 	var val []string
-	value := cty.Value(*atosValue)
+	value := cty.Value(*actoValue)
 
 	for _, item := range value.AsValueSlice() {
 		var itemVal string
@@ -97,7 +97,7 @@ func (atosValue *AtosValue) ParseAsTuple() (any, error) {
 }
 
 func ParseCtyValue(value cty.Value, allowedTypes []string) (any, error) {
-	atosValue := AtosValue(value)
+	actoValue := actoValue(value)
 
-	return atosValue.Parse(allowedTypes)
+	return actoValue.Parse(allowedTypes)
 }

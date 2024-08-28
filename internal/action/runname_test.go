@@ -17,18 +17,18 @@ func TestRunName(t *testing.T) {
 
 	var runName = "Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}"
 
-	var have_1 = RunNameConfig(runName)
-	var expect_1 = runName
+	var have1 = RunNameConfig(runName)
+	var expect1 = runName
 
-	var have_2 = RunNameConfig("")
-	var expect_2 = ""
+	var have2 = RunNameConfig("")
+	var expect2 = ""
 
-	var expect_3 = ""
+	var expect3 = ""
 
 	var tests = []Test{
-		{"with defined run-name", &have_1, expect_1},
-		{"without empty run-name", &have_2, expect_2},
-		{"without undefined run-name", nil, expect_3},
+		{"with defined run-name", &have1, expect1},
+		{"without empty run-name", &have2, expect2},
+		{"without undefined run-name", nil, expect3},
 	}
 
 	for _, tt := range tests {

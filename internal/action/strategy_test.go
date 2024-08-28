@@ -21,48 +21,48 @@ func TestStrategy(t *testing.T) {
 	failFast := true
 	maxParallel := uint16(3)
 
-	matrix_name_1 := "os"
-	matrix_value_1_1 := cty.StringVal("ubuntu-latest")
-	matrix_value_1_2 := cty.StringVal("windows-latest")
-	matrix_value_1 := []*cty.Value{
-		&matrix_value_1_1,
-		&matrix_value_1_2,
+	matrix_name1 := "os"
+	matrix_value11 := cty.StringVal("ubuntu-latest")
+	matrix_value12 := cty.StringVal("windows-latest")
+	matrix_value1 := []*cty.Value{
+		&matrix_value11,
+		&matrix_value12,
 	}
 
-	matrix_name_2 := "version"
-	matrix_value_2_1 := cty.NumberVal(new(big.Float).SetPrec(512).SetInt64(10))
-	matrix_value_2_2 := cty.NumberVal(new(big.Float).SetPrec(512).SetInt64(12))
-	matrix_value_2_3 := cty.NumberVal(new(big.Float).SetPrec(512).SetInt64(14))
-	matrix_value_2 := []*cty.Value{
-		&matrix_value_2_1,
-		&matrix_value_2_2,
-		&matrix_value_2_3,
+	matrix_name2 := "version"
+	matrix_value21 := cty.NumberVal(new(big.Float).SetPrec(512).SetInt64(10))
+	matrix_value22 := cty.NumberVal(new(big.Float).SetPrec(512).SetInt64(12))
+	matrix_value23 := cty.NumberVal(new(big.Float).SetPrec(512).SetInt64(14))
+	matrix_value2 := []*cty.Value{
+		&matrix_value21,
+		&matrix_value22,
+		&matrix_value23,
 	}
 
-	matrix_name_3 := "site"
-	matrix_value_3 := cty.StringVal("production")
-	matrix_name_4 := "datacenter"
-	matrix_value_4 := cty.StringVal("site-a")
+	matrix_name3 := "site"
+	matrix_value3 := cty.StringVal("production")
+	matrix_name4 := "datacenter"
+	matrix_value4 := cty.StringVal("site-a")
 
-	var have_1 = StrategyConfig{
+	var have1 = StrategyConfig{
 		Matrix: MatrixesConfig{
 			{
-				Name:  &matrix_name_1,
-				Value: &matrix_value_1,
+				Name:  &matrix_name1,
+				Value: &matrix_value1,
 			},
 			{
-				Name:  &matrix_name_2,
-				Value: &matrix_value_2,
+				Name:  &matrix_name2,
+				Value: &matrix_value2,
 			},
 			{
 				Include: []*MatrixPropConfig{
 					{
-						Name:  &matrix_name_3,
-						Value: &matrix_value_3,
+						Name:  &matrix_name3,
+						Value: &matrix_value3,
 					},
 					{
-						Name:  &matrix_name_4,
-						Value: &matrix_value_4,
+						Name:  &matrix_name4,
+						Value: &matrix_value4,
 					},
 					{
 						Items: []*IncludeItemConfig{
@@ -90,7 +90,7 @@ func TestStrategy(t *testing.T) {
 		FailFast:    &failFast,
 		MaxParallel: &maxParallel,
 	}
-	var expect_1 = Strategy{
+	var expect1 = Strategy{
 		Matrix: Matrixes{
 			"os":      []any{"ubuntu-latest", "windows-latest"},
 			"version": []any{int32(10), int32(12), int32(14)},
@@ -114,7 +114,7 @@ func TestStrategy(t *testing.T) {
 	}
 
 	var tests = []Test{
-		{"with defined strategy", &have_1, expect_1},
+		{"with defined strategy", &have1, expect1},
 	}
 
 	for _, tt := range tests {

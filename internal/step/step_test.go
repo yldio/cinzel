@@ -15,19 +15,19 @@ func TestSteps(t *testing.T) {
 		expect Steps
 	}
 
-	var have_1 = StepsConfig{
+	var have1 = StepsConfig{
 		{
-			Id: "step_1",
+			Id: "step1",
 		},
 	}
-	var expect_1 = Steps{
+	var expect1 = Steps{
 		{
-			Id: "step_1",
+			Id: "step1",
 		},
 	}
 
 	var tests = []Test{
-		{"with defined Id", &have_1, expect_1},
+		{"with defined Id", &have1, expect1},
 	}
 
 	for _, tt := range tests {

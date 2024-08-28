@@ -15,7 +15,7 @@ func TestWith(t *testing.T) {
 		expect map[string]any
 	}
 
-	var have_1 = WithsConfig{
+	var have1 = WithsConfig{
 		{
 			Name:  "first_name",
 			Value: "Mona",
@@ -29,17 +29,17 @@ func TestWith(t *testing.T) {
 			Value: "Octocat",
 		},
 	}
-	var expect_1 = map[string]any{
+	var expect1 = map[string]any{
 		"first_name":  "Mona",
 		"middle_name": "The",
 		"last_name":   "Octocat",
 	}
 
-	var have_2 = WithsConfig{}
+	var have2 = WithsConfig{}
 
 	var tests = []Test{
-		{"with defined working-directory", &have_1, expect_1},
-		{"without empty working-directory", &have_2, nil},
+		{"with defined working-directory", &have1, expect1},
+		{"without empty working-directory", &have2, nil},
 		{"without undefined working-directory", nil, nil},
 	}
 

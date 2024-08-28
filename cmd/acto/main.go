@@ -1,33 +1,46 @@
 // Copyright (c) 2024 YLD Limited
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package atos (pronounced as "AH-toosh" (IPA: /ˈa.tuʃ/))
+// Package acto (pronounced as "AH-toosh" (IPA: /ˈa.tuʃ/))
 package main
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
-	"github.com/yldio/atos/service/flag"
-	"github.com/yldio/atos/service/hclparser"
-	"github.com/yldio/atos/service/reader"
-	"github.com/yldio/atos/service/writer"
+	"github.com/yldio/acto/service/flag"
+	"github.com/yldio/acto/service/hclparser"
+	"github.com/yldio/acto/service/reader"
+	"github.com/yldio/acto/service/writer"
+)
+
+var (
+	version = ""
 )
 
 func do(flags *flag.Flags, outputDir string) error {
 	var path string
 
-	if flags.Directory != "" {
+	if flags.Version {
+		fmt.Printf("Acto version: %s.", version)
+		fmt.Println("\nAny feature or issue please read the README on the official GitHub repo.")
+		os.Exit(0)
+	} else if flags.Help {
+		flags.GetUsage()
+		os.Exit(0)
+	} else if flags.Directory != "" {
 		path = flags.Directory
 	} else if flags.File != "" {
 		path = flags.File
+	} else {
+		flags.GetUsage()
+		os.Exit(0)
 	}
 
-	atosReader := reader.New(path, flags.Recursive)
+	actoReader := reader.New(path, flags.Recursive)
 
-	bodies, err := atosReader.Do()
+	bodies, err := actoReader.Do()
 	if err != nil {
 		return err
 	}
@@ -54,7 +67,6 @@ func do(flags *flag.Flags, outputDir string) error {
 			return err
 		}
 
-		var fileInfo fs.FileInfo
 		var fileinfo string
 
 		if filepath.IsAbs(outputDir) {
@@ -63,7 +75,7 @@ func do(flags *flag.Flags, outputDir string) error {
 			fileinfo = fmt.Sprintf("%s/%s", curDir, outputDir)
 		}
 
-		fileInfo, err = os.Stat(fileinfo)
+		fileInfo, err := os.Stat(fileinfo)
 		if err != nil {
 			return err
 		}
@@ -73,9 +85,9 @@ func do(flags *flag.Flags, outputDir string) error {
 		}
 
 		for file, content := range listOfFiles {
-			atosWriter := writer.New()
+			actoWriter := writer.New()
 			filePath := fmt.Sprintf("%s/%s", outputDir, file)
-			if err := atosWriter.Do(filePath, content); err != nil {
+			if err := actoWriter.Do(filePath, content); err != nil {
 				return err
 			}
 		}

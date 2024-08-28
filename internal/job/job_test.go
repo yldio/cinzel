@@ -15,19 +15,19 @@ func TestJobs(t *testing.T) {
 		expect Jobs
 	}
 
-	var have_1 = JobsConfig{
+	var have1 = JobsConfig{
 		{
-			Id: "job_1",
+			Id: "job1",
 		},
 	}
-	var expect_1 = Jobs{
+	var expect1 = Jobs{
 		{
-			Id: "job_1",
+			Id: "job1",
 		},
 	}
 
 	var tests = []Test{
-		{"with defined job", &have_1, expect_1},
+		{"with defined job", &have1, expect1},
 	}
 
 	for _, tt := range tests {

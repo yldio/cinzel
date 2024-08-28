@@ -17,31 +17,31 @@ func TestRunsOn(t *testing.T) {
 		expect any
 	}
 
-	on_1 := cty.StringVal("ubuntu-latest")
-	on_2 := cty.TupleVal([]cty.Value{cty.StringVal("self-hosted"), cty.StringVal("linux")})
-	on_3 := "ubuntu-runners"
+	on1 := cty.StringVal("ubuntu-latest")
+	on2 := cty.TupleVal([]cty.Value{cty.StringVal("self-hosted"), cty.StringVal("linux")})
+	on3 := "ubuntu-runners"
 
-	var have_1 = RunsOnConfig{
-		On: &on_1,
+	var have1 = RunsOnConfig{
+		On: &on1,
 	}
-	var expect_1 = "ubuntu-latest"
+	var expect1 = "ubuntu-latest"
 
-	var have_2 = RunsOnConfig{
-		On: &on_2,
+	var have2 = RunsOnConfig{
+		On: &on2,
 	}
-	var expect_2 = []string{"self-hosted", "linux"}
+	var expect2 = []string{"self-hosted", "linux"}
 
-	var have_3 = RunsOnConfig{
-		OnGroup: &on_3,
+	var have3 = RunsOnConfig{
+		OnGroup: &on3,
 	}
-	var expect_3 = map[string]any{
+	var expect3 = map[string]any{
 		"group": "ubuntu-runners",
 	}
 
 	var tests = []Test{
-		{"with defined a single runs-on", &have_1, expect_1},
-		{"without empty a multi runs-on", &have_2, expect_2},
-		{"without froup runs-on", &have_3, expect_3},
+		{"with defined a single runs-on", &have1, expect1},
+		{"without empty a multi runs-on", &have2, expect2},
+		{"without froup runs-on", &have3, expect3},
 		{"without runs-on", nil, nil},
 	}
 

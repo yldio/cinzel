@@ -18,45 +18,45 @@ func TestDefaults(t *testing.T) {
 	var shell = "bash"
 	var workingDirectory = "./scripts"
 
-	var have_1 = DefaultsConfig{
+	var have1 = DefaultsConfig{
 		Run: &DefaultsRunConfig{
 			Shell:            &shell,
 			WorkingDirectory: &workingDirectory,
 		},
 	}
-	var expect_1 = Defaults{
+	var expect1 = Defaults{
 		Run: &Run{
 			Shell:            &shell,
 			WorkingDirectory: &workingDirectory,
 		},
 	}
 
-	var have_2 = DefaultsConfig{
+	var have2 = DefaultsConfig{
 		Run: &DefaultsRunConfig{
 			Shell: &shell,
 		},
 	}
-	var expect_2 = Defaults{
+	var expect2 = Defaults{
 		Run: &Run{
 			Shell: &shell,
 		},
 	}
 
-	var have_3 = DefaultsConfig{
+	var have3 = DefaultsConfig{
 		Run: &DefaultsRunConfig{
 			WorkingDirectory: &workingDirectory,
 		},
 	}
-	var expect_3 = Defaults{
+	var expect3 = Defaults{
 		Run: &Run{
 			WorkingDirectory: &workingDirectory,
 		},
 	}
 
 	var tests = []Test{
-		{"with defined defaults, run shell and working-directory", &have_1, expect_1},
-		{"with defined defaults, run shell", &have_2, expect_2},
-		{"with defined defaults and run working-directory", &have_3, expect_3},
+		{"with defined defaults, run shell and working-directory", &have1, expect1},
+		{"with defined defaults, run shell", &have2, expect2},
+		{"with defined defaults and run working-directory", &have3, expect3},
 	}
 
 	for _, tt := range tests {

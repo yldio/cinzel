@@ -8,9 +8,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/yldio/atos/internal/action"
-	"github.com/yldio/atos/internal/job"
-	"github.com/yldio/atos/service/atoserrors"
+	"github.com/yldio/acto/internal/action"
+	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/internal/job"
 )
 
 type Workflows []Workflow
@@ -209,7 +209,7 @@ func (config *WorkflowConfig) Parse() (Workflow, error) {
 	}
 
 	if config.Filename == nil {
-		return Workflow{}, atoserrors.ErrWorkflowFilenameRequired
+		return Workflow{}, actoerrors.ErrWorkflowFilenameRequired
 	}
 
 	workflow := Workflow{

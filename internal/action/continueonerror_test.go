@@ -15,12 +15,12 @@ func TestContinueOnError(t *testing.T) {
 		expect *bool
 	}
 
-	var have_1 = ContinueOnErrorConfig(true)
+	var have1 = ContinueOnErrorConfig(true)
 	var boolean = true
-	var expect_1 = &boolean
+	var expect1 = &boolean
 
 	var tests = []Test{
-		{"with defined continue-on-error", &have_1, expect_1},
+		{"with defined continue-on-error", &have1, expect1},
 	}
 
 	for _, tt := range tests {

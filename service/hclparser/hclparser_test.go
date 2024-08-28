@@ -8,13 +8,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/yldio/atos/internal/action"
-	"github.com/yldio/atos/internal/job"
-	"github.com/yldio/atos/internal/step"
-	"github.com/yldio/atos/internal/workflow"
-	"github.com/yldio/atos/service/atoserrors"
-	"github.com/yldio/atos/service/reader"
-	"github.com/yldio/atos/service/yamlparser"
+	"github.com/yldio/acto/internal/action"
+	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/internal/job"
+	"github.com/yldio/acto/internal/step"
+	"github.com/yldio/acto/internal/workflow"
+	"github.com/yldio/acto/service/reader"
+	"github.com/yldio/acto/service/yamlparser"
 )
 
 func TestParseHcl(t *testing.T) {
@@ -24,55 +24,55 @@ func TestParseHcl(t *testing.T) {
 		expect *yamlparser.Yaml
 	}
 
-	var have_1 = `workflow "workflow_1" {
+	var have1 = `workflow "workflow1" {
   filename = "dummy-file"
   on {
     events = "push"
   }
-  jobs = [job.job_1]
+  jobs = [job.job1]
 }
 
-job "job_1" {
+job "job1" {
   name = "job 1"
 
   runs {
     on = "ubuntu-latest"
   }
 
-  steps = [step.step_1]
+  steps = [step.step1]
 }
 
-step "step_1" {
-  run = "echo \"step_1\""
+step "step1" {
+  run = "echo \"step1\""
 }
 `
-	var job_1 = "job 1"
+	var job1 = "job 1"
 	var runsOn any = "ubuntu-latest"
-	var run_1 = "echo \"step_1\""
-	var expect_1 = yamlparser.New(workflow.Workflows{
+	var run1 = "echo \"step1\""
+	var expect1 = yamlparser.New(workflow.Workflows{
 		{
-			Id:       "workflow_1",
+			Id:       "workflow1",
 			Filename: "dummy-file",
 			On:       action.On("push"),
-			JobsIds:  []string{"job_1"},
+			JobsIds:  []string{"job1"},
 			Jobs: map[string]job.Job{
-				"job_1": {
-					Id:     "job_1",
-					Name:   &job_1,
+				"job1": {
+					Id:     "job1",
+					Name:   &job1,
 					RunsOn: &runsOn,
 					Steps: step.Steps{
 						{
-							Id:  "step_1",
-							Run: &run_1,
+							Id:  "step1",
+							Run: &run1,
 						},
 					},
-					StepsIds: []string{"step_1"},
+					StepsIds: []string{"step1"},
 				},
 			},
 		},
 	})
 
-	var have_2 = `workflow "workflow_2" {
+	var have2 = `workflow "workflow2" {
   filename = "dummy-file"
   on {
     event "push" {
@@ -85,28 +85,28 @@ step "step_1" {
       types = ["created"]
     } 
   }
-  jobs = [job.job_2]
+  jobs = [job.job2]
 }
 
-job "job_2" {
+job "job2" {
   name = "job 2"
 
   runs {
     on = "ubuntu-latest"
   }
 
-  steps = [step.step_2]
+  steps = [step.step2]
 }
 
-step "step_2" {
-  run = "echo \"step_2\""
+step "step2" {
+  run = "echo \"step2\""
 }
 `
-	var job_2 = "job 2"
-	var run_2 = "echo \"step_2\""
-	var expect_2 = yamlparser.New(workflow.Workflows{
+	var job2 = "job 2"
+	var run2 = "echo \"step2\""
+	var expect2 = yamlparser.New(workflow.Workflows{
 		{
-			Id:       "workflow_2",
+			Id:       "workflow2",
 			Filename: "dummy-file",
 			On: action.On(map[string]map[string][]string{
 				"push": {
@@ -117,57 +117,57 @@ step "step_2" {
 					"types": []string{"created"},
 				},
 			}),
-			JobsIds: []string{"job_2"},
+			JobsIds: []string{"job2"},
 			Jobs: map[string]job.Job{
-				"job_2": {
-					Id:     "job_2",
-					Name:   &job_2,
+				"job2": {
+					Id:     "job2",
+					Name:   &job2,
 					RunsOn: &runsOn,
 					Steps: step.Steps{
 						{
-							Id:  "step_2",
-							Run: &run_2,
+							Id:  "step2",
+							Run: &run2,
 						},
 					},
-					StepsIds: []string{"step_2"},
+					StepsIds: []string{"step2"},
 				},
 			},
 		},
 	})
 
-	var have_3 = `workflow "workflow_3" {
+	var have3 = `workflow "workflow3" {
   on {
     events = "push"
   }
-  jobs = [job.job_3]
+  jobs = [job.job3]
 }
 
-job "job_3" {
+job "job3" {
   name = "job 3"
 
   runs {
     on = "ubuntu-latest"
   }
 
-  steps = [step.step_3]
+  steps = [step.step3]
 }
 
-step "step_3" {
-  run = "echo \"step_3\""
+step "step3" {
+  run = "echo \"step3\""
 }
 `
 
 	var tests = []ParserTest{
-		{"workflow event push with a job", have_1, expect_1},
-		{"workflow events push with filters and activity label and with a job", have_2, expect_2},
+		{"workflow event push with a job", have1, expect1},
+		{"workflow events push with filters and activity label and with a job", have2, expect2},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// easier to use atosReader to read HCL than to create an hcl.Body variable to pass to NewHclParse
-			atosReader := reader.New("dummy-file.hcl", false)
+			// easier to use actoReader to read HCL than to create an hcl.Body variable to pass to NewHclParse
+			actoReader := reader.New("dummy-file.hcl", false)
 
-			hclBody, err := atosReader.ReadHclSrc([]byte(tt.have), "dummy-file.hcl")
+			hclBody, err := actoReader.ReadHclSrc([]byte(tt.have), "dummy-file.hcl")
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -190,10 +190,10 @@ step "step_3" {
 	}
 
 	t.Run("workflow fails because no Filename", func(t *testing.T) {
-		// easier to use atosReader to read HCL than to create an hcl.Body variable to pass to NewHclParse
-		atosReader := reader.New("dummy-file.hcl", false)
+		// easier to use actoReader to read HCL than to create an hcl.Body variable to pass to NewHclParse
+		actoReader := reader.New("dummy-file.hcl", false)
 
-		hclBody, err := atosReader.ReadHclSrc([]byte(have_3), "dummy-file.hcl")
+		hclBody, err := actoReader.ReadHclSrc([]byte(have3), "dummy-file.hcl")
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -205,8 +205,8 @@ step "step_3" {
 		}
 
 		_, err = parser.Parse()
-		if !errors.Is(err, atoserrors.ErrWorkflowFilenameRequired) {
-			t.Fatalf("error message should be %s", atoserrors.ErrWorkflowFilenameRequired)
+		if !errors.Is(err, actoerrors.ErrWorkflowFilenameRequired) {
+			t.Fatalf("error message should be %s", actoerrors.ErrWorkflowFilenameRequired)
 		}
 	})
 }

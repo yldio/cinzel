@@ -17,18 +17,18 @@ func TestIf(t *testing.T) {
 
 	var iF = "${{ ! startsWith(github.ref, 'refs/tags/') }}"
 
-	var have_1 = IfConfig(iF)
-	var expect_1 = iF
+	var have1 = IfConfig(iF)
+	var expect1 = iF
 
-	var have_2 = IfConfig("")
-	var expect_2 = ""
+	var have2 = IfConfig("")
+	var expect2 = ""
 
-	var expect_3 = ""
+	var expect3 = ""
 
 	var tests = []Test{
-		{"with defined if", &have_1, expect_1},
-		{"without empty if", &have_2, expect_2},
-		{"without undefined if", nil, expect_3},
+		{"with defined if", &have1, expect1},
+		{"without empty if", &have2, expect2},
+		{"without undefined if", nil, expect3},
 	}
 
 	for _, tt := range tests {

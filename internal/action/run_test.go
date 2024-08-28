@@ -20,18 +20,18 @@ npm ci
 npm run build
 `
 
-	var have_1 = RunConfig(run)
-	var expect_1 = run
+	var have1 = RunConfig(run)
+	var expect1 = run
 
-	var have_2 = RunConfig("")
-	var expect_2 = ""
+	var have2 = RunConfig("")
+	var expect2 = ""
 
-	var expect_3 = ""
+	var expect3 = ""
 
 	var tests = []Test{
-		{"with defined run", &have_1, expect_1},
-		{"without empty run", &have_2, expect_2},
-		{"without undefined run", nil, expect_3},
+		{"with defined run", &have1, expect1},
+		{"without empty run", &have2, expect2},
+		{"without undefined run", nil, expect3},
 	}
 
 	for _, tt := range tests {

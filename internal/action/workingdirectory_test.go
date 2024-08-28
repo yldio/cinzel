@@ -17,18 +17,18 @@ func TestWorkingDirectory(t *testing.T) {
 
 	var workingDirectory = "./temp"
 
-	var have_1 = WorkingDirectoryConfig(workingDirectory)
-	var expect_1 = workingDirectory
+	var have1 = WorkingDirectoryConfig(workingDirectory)
+	var expect1 = workingDirectory
 
-	var have_2 = WorkingDirectoryConfig("")
-	var expect_2 = ""
+	var have2 = WorkingDirectoryConfig("")
+	var expect2 = ""
 
-	var expect_3 = ""
+	var expect3 = ""
 
 	var tests = []Test{
-		{"with defined working-directory", &have_1, expect_1},
-		{"without empty working-directory", &have_2, expect_2},
-		{"without undefined working-directory", nil, expect_3},
+		{"with defined working-directory", &have1, expect1},
+		{"without empty working-directory", &have2, expect2},
+		{"without undefined working-directory", nil, expect3},
 	}
 
 	for _, tt := range tests {

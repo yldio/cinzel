@@ -17,38 +17,38 @@ func TestServices(t *testing.T) {
 		expect Services
 	}
 
-	name_1 := "nginx"
-	image_1 := "nginx"
-	port_1_1 := "8080:80"
-	ports_1 := []string{port_1_1}
-	volume_1_1 := "my_docker_volume:/volume_mount"
-	volume_1_2 := "/data/my_data"
-	volume_1_3 := "/source/directory:/destination/directory"
-	volumes_1 := []string{
-		volume_1_1,
-		volume_1_2,
-		volume_1_3,
+	name1 := "nginx"
+	image1 := "nginx"
+	port11 := "8080:80"
+	ports1 := []string{port11}
+	volume11 := "my_docker_volume:/volume_mount"
+	volume12 := "/data/my_data"
+	volume13 := "/source/directory:/destination/directory"
+	volumes1 := []string{
+		volume11,
+		volume12,
+		volume13,
 	}
-	name_2 := "redis"
-	image_2 := "redis"
-	port_2_1 := "6379/tcp"
-	ports_2 := []string{port_2_1}
-	options_2 := "--cpus 1"
+	name2 := "redis"
+	image2 := "redis"
+	port21 := "6379/tcp"
+	ports2 := []string{port21}
+	options2 := "--cpus 1"
 
-	var have_1 = ServicesConfig{
+	var have1 = ServicesConfig{
 		{
-			Name:  name_1,
-			Image: &image_1,
-			Ports: &ports_1,
+			Name:  name1,
+			Image: &image1,
+			Ports: &ports1,
 			Credentials: &CredentialsConfig{
 				Username: "${{ github.actor }}",
 				Password: "${{ secrets.github_token }}",
 			},
-			Volumes: &volumes_1,
+			Volumes: &volumes1,
 		},
 		{
-			Name:  name_2,
-			Image: &image_2,
+			Name:  name2,
+			Image: &image2,
 			Env: &EnvConfig{
 				Variable: []VariableConfig{
 					{
@@ -57,11 +57,11 @@ func TestServices(t *testing.T) {
 					},
 				},
 			},
-			Ports:   &ports_2,
-			Options: &options_2,
+			Ports:   &ports2,
+			Options: &options2,
 		},
 	}
-	var expect_1 = Services{
+	var expect1 = Services{
 		"nginx": Service{
 			Name:  "nginx",
 			Image: "nginx",
@@ -88,7 +88,7 @@ func TestServices(t *testing.T) {
 	}
 
 	var tests = []Test{
-		{"with defined services", &have_1, expect_1},
+		{"with defined services", &have1, expect1},
 		{"without service", nil, nil},
 	}
 

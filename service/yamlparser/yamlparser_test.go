@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/yldio/atos/internal/action"
-	"github.com/yldio/atos/internal/job"
-	"github.com/yldio/atos/internal/step"
-	"github.com/yldio/atos/internal/workflow"
+	"github.com/yldio/acto/internal/action"
+	"github.com/yldio/acto/internal/job"
+	"github.com/yldio/acto/internal/step"
+	"github.com/yldio/acto/internal/workflow"
 )
 
 func TestParseYaml(t *testing.T) {
@@ -20,60 +20,60 @@ func TestParseYaml(t *testing.T) {
 		expect map[string][]byte
 	}
 
-	var job_1 = "job 1"
-	var step_1 = "step 1"
-	var have_1 = New(workflow.Workflows{
+	var job1 = "job 1"
+	var step1 = "step 1"
+	var have1 = New(workflow.Workflows{
 		{
-			Id:       "workflow_1",
+			Id:       "workflow1",
 			Filename: "dummy-file",
 			On:       action.On("push"),
 			Jobs: map[string]job.Job{
-				"job_1": {
-					Id:       "job_1",
-					Name:     &job_1,
-					Needs:    &[]string{"job_2"},
-					StepsIds: []string{"step_1"},
+				"job1": {
+					Id:       "job1",
+					Name:     &job1,
+					Needs:    &[]string{"job2"},
+					StepsIds: []string{"step1"},
 					Steps: step.Steps{
 						{
-							Id:   "step_1",
-							Name: &step_1,
+							Id:   "step1",
+							Name: &step1,
 						},
 					},
 				},
-				"job_2": {
-					Id:       "job_2",
-					StepsIds: []string{"step_1"},
+				"job2": {
+					Id:       "job2",
+					StepsIds: []string{"step1"},
 					Steps: step.Steps{
 						{
-							Id:   "step_1",
-							Name: &step_1,
+							Id:   "step1",
+							Name: &step1,
 						},
 					},
 				},
 			},
 		},
 	})
-	var expect_1 = map[string][]byte{
+	var expect1 = map[string][]byte{
 		"dummy-file.yaml": []byte(`on: push
 jobs:
-  job_1:
+  job1:
     name: job 1
     needs:
-    - job_2
+    - job2
     steps:
-    - id: step_1
+    - id: step1
       name: step 1
-  job_2:
+  job2:
     steps:
-    - id: step_1
+    - id: step1
       name: step 1
 `),
 	}
 
-	var job_2 = "job 2"
-	var have_2 = New(workflow.Workflows{
+	var job2 = "job 2"
+	var have2 = New(workflow.Workflows{
 		{
-			Id:       "workflow_2",
+			Id:       "workflow2",
 			Filename: "dummy-file",
 			On: action.On(map[string]map[string][]string{
 				"push": {
@@ -84,23 +84,23 @@ jobs:
 					"types": []string{"created"},
 				},
 			}),
-			JobsIds: []string{"job_2"},
+			JobsIds: []string{"job2"},
 			Jobs: map[string]job.Job{
-				"job_2": {
-					Id:       "job_2",
-					Name:     &job_2,
-					StepsIds: []string{"step_1"},
+				"job2": {
+					Id:       "job2",
+					Name:     &job2,
+					StepsIds: []string{"step1"},
 					Steps: step.Steps{
 						{
-							Id:   "step_1",
-							Name: &step_1,
+							Id:   "step1",
+							Name: &step1,
 						},
 					},
 				},
 			},
 		},
 	})
-	var expect_2 = map[string][]byte{
+	var expect2 = map[string][]byte{
 		"dummy-file.yaml": []byte(`on:
   label:
     types:
@@ -111,17 +111,17 @@ jobs:
     tags:
     - v2
 jobs:
-  job_2:
+  job2:
     name: job 2
     steps:
-    - id: step_1
+    - id: step1
       name: step 1
 `),
 	}
 
 	var tests = []ParserTest{
-		{"a workflow with on push", have_1, expect_1},
-		{"a workflow with on push with branches and tags", have_2, expect_2},
+		{"a workflow with on push", have1, expect1},
+		{"a workflow with on push with branches and tags", have2, expect2},
 	}
 
 	for _, tt := range tests {

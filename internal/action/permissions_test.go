@@ -15,26 +15,26 @@ func TestPermissions(t *testing.T) {
 		expect Permissions
 	}
 
-	var action_1 = Read
-	var action_2 = Write
-	var action_3 = None
+	var action1 = Read
+	var action2 = Write
+	var action3 = None
 
-	var have_1 = PermissionsConfig{
-		Actions:      &action_1,
-		Issues:       &action_2,
-		PullRequests: &action_3,
+	var have1 = PermissionsConfig{
+		Actions:      &action1,
+		Issues:       &action2,
+		PullRequests: &action3,
 	}
-	var expect_1 = Permissions{
-		Actions:      &action_1,
-		Issues:       &action_2,
-		PullRequests: &action_3,
+	var expect1 = Permissions{
+		Actions:      &action1,
+		Issues:       &action2,
+		PullRequests: &action3,
 	}
 
-	var expect_2 Permissions
+	var expect2 Permissions
 
 	var tests = []Test{
-		{"with defined permissions", &have_1, expect_1},
-		{"without undefined permissions", nil, expect_2},
+		{"with defined permissions", &have1, expect1},
+		{"without undefined permissions", nil, expect2},
 	}
 
 	for _, tt := range tests {

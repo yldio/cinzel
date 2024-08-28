@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/yldio/atos/service/atoserrors"
+	"github.com/yldio/acto/internal/actoerrors"
 )
 
 const (
@@ -72,7 +72,7 @@ func (read *Reader) readFile() ([]hcl.Body, error) {
 	}
 
 	if filepath.Ext(read.path) != allowedExtension {
-		return emptyBody, atoserrors.ErrOnlyHclFiles
+		return emptyBody, actoerrors.ErrOnlyHclFiles
 	}
 
 	bodyFile, err := read.ReadHclFile(read.path)

@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/yldio/atos/internal/action"
+	"github.com/yldio/acto/internal/action"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -20,7 +20,7 @@ func TestWorkflows(t *testing.T) {
 		expect Workflows
 	}
 
-	var event_1 = cty.StringVal("push")
+	var event1 = cty.StringVal("push")
 	var exprList = hclsyntax.TupleConsExpr{
 		Exprs: []hclsyntax.Expression{
 			&hclsyntax.ScopeTraversalExpr{
@@ -29,7 +29,7 @@ func TestWorkflows(t *testing.T) {
 						Name: "job",
 					},
 					hcl.TraverseAttr{
-						Name: "job_1",
+						Name: "job1",
 					},
 				},
 			},
@@ -39,32 +39,32 @@ func TestWorkflows(t *testing.T) {
 	}
 
 	var filename = "dummy-file"
-	var have_1 = WorkflowsConfig{
+	var have1 = WorkflowsConfig{
 		{
-			Id:       "workflow_1",
+			Id:       "workflow1",
 			Filename: &filename,
 			On: action.OnsConfig{
 				{
-					Events: &event_1,
+					Events: &event1,
 				},
 			},
 			Jobs: &exprList,
 		},
 	}
-	var expect_1 = Workflows{
+	var expect1 = Workflows{
 		{
-			Id:       "workflow_1",
+			Id:       "workflow1",
 			Filename: filename,
 			On:       action.On("push"),
 			JobsIds: []string{
-				"job_1",
+				"job1",
 			},
 		},
 	}
 
 	var tests = []Test{
-		{"with defined Id", &have_1, expect_1},
-		{"with defined Id, on and jobs", &have_1, expect_1},
+		{"with defined Id", &have1, expect1},
+		{"with defined Id, on and jobs", &have1, expect1},
 	}
 
 	for _, tt := range tests {

@@ -15,27 +15,27 @@ func TestEnvironment(t *testing.T) {
 		expect any
 	}
 
-	var name_1 = "staging_environment"
-	var name_2 = "production_environment"
-	var url_2 = "${{ steps.step_id.outputs.url_output }}"
+	var name1 = "staging_environment"
+	var name2 = "production_environment"
+	var url2 = "${{ steps.step_id.outputs.url_output }}"
 
-	var have_1 = EnvironmentConfig{
-		Name: &name_1,
+	var have1 = EnvironmentConfig{
+		Name: &name1,
 	}
-	var expect_1 = name_1
+	var expect1 = name1
 
-	var have_2 = EnvironmentConfig{
-		Name: &name_2,
-		Url:  &url_2,
+	var have2 = EnvironmentConfig{
+		Name: &name2,
+		Url:  &url2,
 	}
-	var expect_2 = map[string]any{
+	var expect2 = map[string]any{
 		"name": "production_environment",
 		"url":  "${{ steps.step_id.outputs.url_output }}",
 	}
 
 	var tests = []Test{
-		{"with defined environment", &have_1, expect_1},
-		{"without empty environment", &have_2, expect_2},
+		{"with defined environment", &have1, expect1},
+		{"without empty environment", &have2, expect2},
 		{"without undefined environment", nil, nil},
 	}
 

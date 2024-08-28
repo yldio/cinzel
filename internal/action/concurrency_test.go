@@ -15,29 +15,29 @@ func TestConcurrency(t *testing.T) {
 		expect Concurrency
 	}
 
-	var group_1 = "${{ github.workflow }}-${{ github.ref }}"
-	var cancelInProgress_1 = true
-	var group_2 = "${{ github.workflow }}-${{ github.ref }}"
+	var group1 = "${{ github.workflow }}-${{ github.ref }}"
+	var cancelInProgress1 = true
+	var group2 = "${{ github.workflow }}-${{ github.ref }}"
 
-	var have_1 = ConcurrencyConfig{
-		Group:            &group_1,
-		CancelInProgress: &cancelInProgress_1,
+	var have1 = ConcurrencyConfig{
+		Group:            &group1,
+		CancelInProgress: &cancelInProgress1,
 	}
-	var expect_1 = Concurrency{
-		Group:            &group_1,
-		CancelInProgress: &cancelInProgress_1,
+	var expect1 = Concurrency{
+		Group:            &group1,
+		CancelInProgress: &cancelInProgress1,
 	}
 
-	var have_2 = ConcurrencyConfig{
-		Group: &group_2,
+	var have2 = ConcurrencyConfig{
+		Group: &group2,
 	}
-	var expect_2 = Concurrency{
-		Group: &group_2,
+	var expect2 = Concurrency{
+		Group: &group2,
 	}
 
 	var tests = []Test{
-		{"with defined concurrency, group and Cancel-in-progress", &have_1, expect_1},
-		{"with defined concurrency and group", &have_2, expect_2},
+		{"with defined concurrency, group and Cancel-in-progress", &have1, expect1},
+		{"with defined concurrency and group", &have2, expect2},
 	}
 
 	for _, tt := range tests {

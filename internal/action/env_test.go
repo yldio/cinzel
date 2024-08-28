@@ -17,7 +17,7 @@ func TestEnv(t *testing.T) {
 		expect Env
 	}
 
-	var have_1 = EnvConfig{
+	var have1 = EnvConfig{
 		Variable: []VariableConfig{
 			{
 				Name:  "NODE_ENV",
@@ -29,13 +29,13 @@ func TestEnv(t *testing.T) {
 			},
 		},
 	}
-	var expect_1 = Env{
+	var expect1 = Env{
 		"NODE_ENV": "development",
 		"TOKEN":    "${{ secrets.token }}",
 	}
 
 	var tests = []Test{
-		{"with defined env", &have_1, expect_1},
+		{"with defined env", &have1, expect1},
 	}
 
 	for _, tt := range tests {

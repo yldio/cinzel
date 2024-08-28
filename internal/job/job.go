@@ -8,8 +8,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/yldio/atos/internal/action"
-	"github.com/yldio/atos/internal/step"
+	"github.com/yldio/acto/internal/action"
+	"github.com/yldio/acto/internal/step"
 )
 
 type Jobs []Job

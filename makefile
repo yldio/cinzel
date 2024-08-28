@@ -1,7 +1,7 @@
 COVERAGE_PATH=./coverage
 COVERAGE_REPORT_PATH=$(COVERAGE_PATH)/coverage.out
 COVERAGE_HTML_PATH=$(COVERAGE_PATH)/coverage.html
-BINARY=atos
+BINARY=acto
 
 run:
 ifdef file
@@ -12,7 +12,8 @@ ifdef dir
 endif
 
 build:
-	@go build -ldflags "-s -w" -o ./bin/$(BINARY) ./cmd/$(BINARY)/main.go
+	@rm -rf ./dist
+	@goreleaser release --snapshot --skip=publish
 
 fmt:
 	@go fmt ./...

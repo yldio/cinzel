@@ -8,10 +8,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/yldio/atos/internal/job"
-	"github.com/yldio/atos/internal/step"
-	"github.com/yldio/atos/internal/workflow"
-	"github.com/yldio/atos/service/yamlparser"
+	"github.com/yldio/acto/internal/job"
+	"github.com/yldio/acto/internal/step"
+	"github.com/yldio/acto/internal/workflow"
+	"github.com/yldio/acto/service/yamlparser"
 )
 
 type HclConfig struct {
