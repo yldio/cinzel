@@ -85,7 +85,7 @@ func (config *WorkflowConfig) parseRunName(workflow *Workflow) error {
 }
 
 func (config *WorkflowConfig) parseOn(workflow *Workflow) error {
-	on, err := config.On.Parse()
+	on, err := config.On.Parse(workflow.Id)
 	if err != nil {
 		return err
 	}
@@ -166,12 +166,12 @@ func (config *WorkflowConfig) parseJobs(workflow *Workflow) error {
 		// return nil, errors.New(diags[0].Detail)
 	}
 	if val.IsNull() {
-		return nil
+		return actoerrors.ErrWorkflowEmptyJobs(workflow.Id)
 	}
 
 	exprs, diags := hcl.ExprList(config.Jobs)
 	if diags.HasErrors() {
-		return errors.New(diags[0].Detail)
+		return actoerrors.ProcessHCLDiags(diags)
 	}
 
 	jobsIds := []string{}
@@ -179,7 +179,7 @@ func (config *WorkflowConfig) parseJobs(workflow *Workflow) error {
 	for _, expr := range exprs {
 		traversal, diags := hcl.AbsTraversalForExpr(expr)
 		if diags.HasErrors() {
-			return errors.New(diags[0].Detail)
+			return actoerrors.ProcessHCLDiags(diags)
 		}
 
 		for _, traverser := range traversal {

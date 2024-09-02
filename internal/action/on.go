@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -169,8 +170,9 @@ func (config *OnConfig) Parse() (On, error) {
 	return ons, nil
 }
 
-func (config *OnsConfig) Parse() (On, error) {
+func (config *OnsConfig) Parse(workflowId string) (On, error) {
 	ons := make(map[string]map[string][]string)
+
 	for _, on := range *config {
 		parsedOn, err := on.Parse()
 		if err != nil {
@@ -189,6 +191,10 @@ func (config *OnsConfig) Parse() (On, error) {
 		default:
 			return On(""), errors.New("unknown `on` structure")
 		}
+	}
+
+	if len(ons) == 0 {
+		return On(""), actoerrors.ErrWorkflowEmptyOn(workflowId)
 	}
 
 	return ons, nil

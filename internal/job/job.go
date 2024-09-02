@@ -5,10 +5,10 @@ package job
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/acto/internal/action"
+	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/step"
 )
 
@@ -119,7 +119,7 @@ func (config *JobConfig) parseNeeds(job *Job) error {
 
 	exprs, diags := hcl.ExprList(config.Needs)
 	if diags.HasErrors() {
-		return errors.New(diags[0].Detail)
+		return actoerrors.ProcessHCLDiags(diags)
 	}
 
 	jobsIds := []string{}
@@ -127,7 +127,7 @@ func (config *JobConfig) parseNeeds(job *Job) error {
 	for _, expr := range exprs {
 		traversal, diags := hcl.AbsTraversalForExpr(expr)
 		if diags.HasErrors() {
-			return errors.New(diags[0].Detail)
+			return actoerrors.ProcessHCLDiags(diags)
 		}
 
 		for _, traverser := range traversal {
@@ -271,7 +271,7 @@ func (config *JobConfig) parseSteps(job *Job) error {
 
 	exprs, diags := hcl.ExprList(config.Steps)
 	if diags.HasErrors() {
-		return errors.New(diags[0].Detail)
+		return actoerrors.ProcessHCLDiags(diags)
 	}
 
 	stepsIds := []string{}
@@ -279,7 +279,7 @@ func (config *JobConfig) parseSteps(job *Job) error {
 	for _, expr := range exprs {
 		traversal, diags := hcl.AbsTraversalForExpr(expr)
 		if diags.HasErrors() {
-			return errors.New(diags[0].Detail)
+			return actoerrors.ProcessHCLDiags(diags)
 		}
 
 		for _, traverser := range traversal {
@@ -295,7 +295,7 @@ func (config *JobConfig) parseSteps(job *Job) error {
 	}
 
 	if len(stepsIds) == 0 {
-		return errors.New("requires at least one step")
+		return actoerrors.ErrJobEmptySteps(job.Id)
 	}
 
 	job.StepsIds = stepsIds
@@ -560,7 +560,7 @@ func (jobs *Jobs) PostParseNeeds(parsedJobs Jobs) error {
 func (jobs *Jobs) PostParseSteps(parsedSteps step.Steps) error {
 	for idx, job := range *jobs {
 		if len(job.StepsIds) == 0 {
-			return fmt.Errorf("job %s requires at least one step", job.Id)
+			return actoerrors.ErrJobEmptySteps(job.Id)
 		}
 
 		stepsList := step.Steps{}

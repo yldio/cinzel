@@ -126,4 +126,3 @@ func ValidateEventTrigger(eventTrigger string) bool {
 		return false
 	}
 }
-

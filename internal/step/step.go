@@ -3,7 +3,9 @@
 
 package step
 
-import "github.com/yldio/acto/internal/action"
+import (
+	"github.com/yldio/acto/internal/action"
+)
 
 type Steps []Step
 

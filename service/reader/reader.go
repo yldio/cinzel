@@ -4,7 +4,6 @@
 package reader
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func (read *Reader) ReadHclSrc(src []byte, filename string) (hcl.Body, error) {
 	hclFile, diags := read.parser.ParseHCL(src, filename)
 	if diags.HasErrors() {
 		var body hcl.Body
-		return body, errors.New(diags.Error())
+		return body, actoerrors.ProcessHCLDiags(diags)
 	}
 
 	return hclFile.Body, nil
@@ -46,7 +45,7 @@ func (read *Reader) ReadHclFile(filename string) (hcl.Body, error) {
 	file, diags := read.parser.ParseHCLFile(filename)
 	if diags.HasErrors() {
 		var body hcl.Body
-		return body, errors.New(diags.Error())
+		return body, actoerrors.ProcessHCLDiags(diags)
 	}
 
 	return file.Body, nil
