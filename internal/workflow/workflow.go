@@ -22,7 +22,7 @@ type Workflow struct {
 	Filename    string              `yaml:"-"`
 	Name        string              `yaml:"name,omitempty"`
 	RunName     string              `yaml:"run-name,omitempty"`
-	On          action.On           `yaml:"on"`
+	On          *action.On          `yaml:"on"`
 	Permissions *action.Permissions `yaml:"permissions,omitempty"`
 	Env         *action.Envs        `yaml:"env,omitempty"`
 	Defaults    *action.Defaults    `yaml:"defaults,omitempty"`
@@ -145,10 +145,10 @@ func (config *WorkflowConfig) parseRunName() (*string, error) {
 	return value, nil
 }
 
-func (config *WorkflowConfig) parseOn() (action.On, error) {
+func (config *WorkflowConfig) parseOn() (*action.On, error) {
 	on, err := config.On.Parse()
 	if err != nil {
-		return action.On{}, err
+		return nil, err
 	}
 
 	return on, nil

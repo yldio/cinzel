@@ -170,15 +170,15 @@ func errEventTriggerUnknown() error {
 }
 
 func (config *EventConfig) hasInputs() (bool, error) {
-	return len(config.Inputs) == 0, nil
+	return len(config.Inputs) > 0, nil
 }
 
 func (config *EventConfig) hasOutputs() (bool, error) {
-	return len(config.Outputs) == 0, nil
+	return len(config.Outputs) > 0, nil
 }
 
 func (config *EventConfig) hasSecrets() (bool, error) {
-	return len(config.Secrets) == 0, nil
+	return len(config.Secrets) > 0, nil
 }
 
 func (config *EventConfig) hasPaths() (bool, error) {
@@ -195,7 +195,6 @@ func (config *EventConfig) hasPathsIgnore() (bool, error) {
 	val, diags := config.PathsIgnore.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -205,7 +204,6 @@ func (config *EventConfig) hasTags() (bool, error) {
 	val, diags := config.Tags.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -215,7 +213,6 @@ func (config *EventConfig) hasTagsIgnore() (bool, error) {
 	val, diags := config.TagsIgnore.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -225,7 +222,6 @@ func (config *EventConfig) hasBranches() (bool, error) {
 	val, diags := config.Branches.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -235,7 +231,6 @@ func (config *EventConfig) hasBranchesIgnore() (bool, error) {
 	val, diags := config.BranchesIgnore.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -245,7 +240,6 @@ func (config *EventConfig) hasCron() (bool, error) {
 	val, diags := config.Cron.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -255,7 +249,6 @@ func (config *EventConfig) hasWorkflows() (bool, error) {
 	val, diags := config.Workflows.Value(nil)
 
 	if diags.HasErrors() {
-		// return false, diags
 	}
 
 	return !val.IsNull(), nil
@@ -1294,197 +1287,68 @@ func (config *EventConfig) parseTypes() ([]*string, error) {
 	return value, nil
 }
 
-func (config *EventConfig) parsePullRequest() (Event, error) {
-	if config.Tags != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'tags' is not allowed")
-	}
-
-	if config.TagsIgnore != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'tags_ignore' is not allowed")
-	}
-
-	if config.Cron != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'cron' is not allowed")
-	}
-
-	if config.Workflows != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'workflows' is not allowed")
-	}
-
-	if config.Inputs != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'cron' is not allowed")
-	}
-
-	if config.Outputs != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'cron' is not allowed")
-	}
-
-	if config.Secrets != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': attribute 'cron' is not allowed")
-	}
-
-	event := Event{
-		Name: config.Identifier,
-	}
-
-	types, err := config.parseTypes()
+func (config *EventConfig) parsePullRequest() (*Event, error) {
+	hasTags, err := config.hasTags()
 	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': %w", err)
+		return nil, err
 	}
 
-	if types != nil {
-		event.Types = types
+	if hasTags {
+		return nil, fmt.Errorf("attribute 'tags' is not allowed")
 	}
 
-	branches, err := config.parseBranches()
+	hasTagsIgnore, err := config.hasTagsIgnore()
 	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': %w", err)
+		return nil, err
 	}
 
-	if branches != nil {
-		event.Branches = branches
+	if hasTagsIgnore {
+		return nil, fmt.Errorf("attribute 'tags_ignore' is not allowed")
 	}
 
-	branchesIgnore, err := config.parseBranchesIgnore()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': %w", err)
-	}
-
-	if branchesIgnore != nil {
-		event.BranchesIgnore = branchesIgnore
-	}
-
-	paths, err := config.parsePaths()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': %w", err)
-	}
-
-	if paths != nil {
-		event.Paths = paths
-	}
-
-	pathsIgnore, err := config.parsePathsIgnore()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request': %w", err)
-	}
-
-	if pathsIgnore != nil {
-		event.PathsIgnore = pathsIgnore
-	}
-
-	return event, nil
-}
-
-func (config *EventConfig) parsePullRequestTarget() (Event, error) {
-	if config.Tags != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'tags' is not allowed")
-	}
-
-	if config.TagsIgnore != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'tags_ignore' is not allowed")
-	}
-
-	if config.Cron != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'cron' is not allowed")
-	}
-
-	if config.Workflows != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'workflows' is not allowed")
-	}
-
-	if config.Inputs != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'cron' is not allowed")
-	}
-
-	if config.Outputs != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'cron' is not allowed")
-	}
-
-	if config.Secrets != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': attribute 'cron' is not allowed")
-	}
-
-	event := Event{
-		Name: config.Identifier,
-	}
-
-	types, err := config.parseTypes()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': %w", err)
-	}
-
-	if types != nil {
-		event.Types = types
-	}
-
-	branches, err := config.parseBranches()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': %w", err)
-	}
-
-	if branches != nil {
-		event.Branches = branches
-	}
-
-	branchesIgnore, err := config.parseBranchesIgnore()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': %w", err)
-	}
-
-	if branchesIgnore != nil {
-		event.BranchesIgnore = branchesIgnore
-	}
-
-	paths, err := config.parsePaths()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': %w", err)
-	}
-
-	if paths != nil {
-		event.Paths = paths
-	}
-
-	pathsIgnore, err := config.parsePathsIgnore()
-	if err != nil {
-		return Event{}, fmt.Errorf("in event 'pull_request_target': %w", err)
-	}
-
-	if pathsIgnore != nil {
-		event.PathsIgnore = pathsIgnore
-	}
-
-	return event, nil
-}
-
-func (config *EventConfig) parsePush() (Event, error) {
 	hasCron, err := config.hasCron()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasCron {
-		return Event{}, fmt.Errorf("attribute 'cron' is not allowed")
+		return nil, fmt.Errorf("attribute 'cron' is not allowed")
 	}
 
 	hasWorkflows, err := config.hasWorkflows()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasWorkflows {
-		return Event{}, fmt.Errorf("attribute 'workflows' is not allowed")
+		return nil, fmt.Errorf("attribute 'workflows' is not allowed")
 	}
 
-	if config.Inputs != nil {
-		return Event{}, fmt.Errorf("attribute 'inputs' is not allowed")
+	hasInputs, err := config.hasInputs()
+	if err != nil {
+		return nil, err
 	}
 
-	if config.Outputs != nil {
-		return Event{}, fmt.Errorf("attribute 'outputs' is not allowed")
+	if hasInputs {
+		return nil, fmt.Errorf("attribute 'inputs' is not allowed")
 	}
 
-	if config.Secrets != nil {
-		return Event{}, fmt.Errorf("attribute 'secrets' is not allowed")
+	hasOutputs, err := config.hasOutputs()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasOutputs {
+		return nil, fmt.Errorf("attribute 'outputs' is not allowed")
+	}
+
+	hasSecrets, err := config.hasSecrets()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasSecrets {
+		return nil, fmt.Errorf("attribute 'secrets' is not allowed")
 	}
 
 	event := Event{
@@ -1493,7 +1357,7 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	types, err := config.parseTypes()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if types != nil {
@@ -1502,7 +1366,7 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	branches, err := config.parseBranches()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if branches != nil {
@@ -1511,7 +1375,206 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	branchesIgnore, err := config.parseBranchesIgnore()
 	if err != nil {
-		return Event{}, err
+		return nil, err
+	}
+
+	if branchesIgnore != nil {
+		event.BranchesIgnore = branchesIgnore
+	}
+
+	paths, err := config.parsePaths()
+	if err != nil {
+		return nil, err
+	}
+
+	if paths != nil {
+		event.Paths = paths
+	}
+
+	pathsIgnore, err := config.parsePathsIgnore()
+	if err != nil {
+		return nil, err
+	}
+
+	if pathsIgnore != nil {
+		event.PathsIgnore = pathsIgnore
+	}
+
+	return &event, nil
+}
+
+func (config *EventConfig) parsePullRequestTarget() (*Event, error) {
+	hasTags, err := config.hasTags()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasTags {
+		return nil, fmt.Errorf("attribute 'tags' is not allowed")
+	}
+
+	hasTagsIgnore, err := config.hasTagsIgnore()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasTagsIgnore {
+		return nil, fmt.Errorf("attribute 'tags_ignore' is not allowed")
+	}
+
+	hasCron, err := config.hasCron()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasCron {
+		return nil, fmt.Errorf("attribute 'cron' is not allowed")
+	}
+
+	hasWorkflows, err := config.hasWorkflows()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasWorkflows {
+		return nil, fmt.Errorf("attribute 'workflows' is not allowed")
+	}
+
+	hasInputs, err := config.hasInputs()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasInputs {
+		return nil, fmt.Errorf("attribute 'inputs' is not allowed")
+	}
+
+	hasOutputs, err := config.hasOutputs()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasOutputs {
+		return nil, fmt.Errorf("attribute 'outputs' is not allowed")
+	}
+
+	hasSecrets, err := config.hasSecrets()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasSecrets {
+		return nil, fmt.Errorf("attribute 'secrets' is not allowed")
+	}
+
+	event := Event{
+		Name: config.Identifier,
+	}
+
+	types, err := config.parseTypes()
+	if err != nil {
+		return nil, fmt.Errorf("in event 'pull_request_target': %w", err)
+	}
+
+	if types != nil {
+		event.Types = types
+	}
+
+	branches, err := config.parseBranches()
+	if err != nil {
+		return nil, fmt.Errorf("in event 'pull_request_target': %w", err)
+	}
+
+	if branches != nil {
+		event.Branches = branches
+	}
+
+	branchesIgnore, err := config.parseBranchesIgnore()
+	if err != nil {
+		return nil, fmt.Errorf("in event 'pull_request_target': %w", err)
+	}
+
+	if branchesIgnore != nil {
+		event.BranchesIgnore = branchesIgnore
+	}
+
+	paths, err := config.parsePaths()
+	if err != nil {
+		return nil, fmt.Errorf("in event 'pull_request_target': %w", err)
+	}
+
+	if paths != nil {
+		event.Paths = paths
+	}
+
+	pathsIgnore, err := config.parsePathsIgnore()
+	if err != nil {
+		return nil, fmt.Errorf("in event 'pull_request_target': %w", err)
+	}
+
+	if pathsIgnore != nil {
+		event.PathsIgnore = pathsIgnore
+	}
+
+	return &event, nil
+}
+
+func (config *EventConfig) parsePush() (*Event, error) {
+	hasCron, err := config.hasCron()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasCron {
+		return nil, fmt.Errorf("attribute 'cron' is not allowed")
+	}
+
+	hasWorkflows, err := config.hasWorkflows()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasWorkflows {
+		return nil, fmt.Errorf("attribute 'workflows' is not allowed")
+	}
+
+	if config.Inputs != nil {
+		return nil, fmt.Errorf("attribute 'inputs' is not allowed")
+	}
+
+	if config.Outputs != nil {
+		return nil, fmt.Errorf("attribute 'outputs' is not allowed")
+	}
+
+	if config.Secrets != nil {
+		return nil, fmt.Errorf("attribute 'secrets' is not allowed")
+	}
+
+	event := Event{
+		Name: config.Identifier,
+	}
+
+	types, err := config.parseTypes()
+	if err != nil {
+		return nil, err
+	}
+
+	if types != nil {
+		event.Types = types
+	}
+
+	branches, err := config.parseBranches()
+	if err != nil {
+		return nil, err
+	}
+
+	if branches != nil {
+		event.Branches = branches
+	}
+
+	branchesIgnore, err := config.parseBranchesIgnore()
+	if err != nil {
+		return nil, err
 	}
 
 	if branchesIgnore != nil {
@@ -1520,7 +1583,7 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	tags, err := config.parseTags()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if tags != nil {
@@ -1529,7 +1592,7 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	tagsIgnore, err := config.parseTagsIgnore()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if tagsIgnore != nil {
@@ -1538,7 +1601,7 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	paths, err := config.parsePaths()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if paths != nil {
@@ -1547,165 +1610,165 @@ func (config *EventConfig) parsePush() (Event, error) {
 
 	pathsIgnore, err := config.parsePathsIgnore()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if pathsIgnore != nil {
 		event.PathsIgnore = pathsIgnore
 	}
 
-	return event, nil
+	return &event, nil
 }
 
-func (config *EventConfig) parseSchedule() (EventSchedule, error) {
+func (config *EventConfig) parseSchedule() (*EventSchedule, error) {
 	hasBranches, err := config.hasBranches()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasBranches {
-		return EventSchedule{}, fmt.Errorf("attribute 'branches' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches' is not allowed")
 	}
 
 	hasBranchesIgnore, err := config.hasBranchesIgnore()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasBranchesIgnore {
-		return EventSchedule{}, fmt.Errorf("attribute 'branches_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches_ignore' is not allowed")
 	}
 
 	hasTags, err := config.hasTags()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasTags {
-		return EventSchedule{}, fmt.Errorf("attribute 'tags' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags' is not allowed")
 	}
 
 	hasTagsIgnore, err := config.hasTagsIgnore()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasTagsIgnore {
-		return EventSchedule{}, fmt.Errorf("attribute 'tags_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags_ignore' is not allowed")
 	}
 
 	hasPaths, err := config.hasPaths()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasPaths {
-		return EventSchedule{}, fmt.Errorf("attribute 'paths' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths' is not allowed")
 	}
 
 	hasPathsIgnore, err := config.hasPathsIgnore()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasPathsIgnore {
-		return EventSchedule{}, fmt.Errorf("attribute 'paths_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths_ignore' is not allowed")
 	}
 
 	hasWorkflows, err := config.hasWorkflows()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if hasWorkflows {
-		return EventSchedule{}, fmt.Errorf("attribute 'workflows' is not allowed")
+		return nil, fmt.Errorf("attribute 'workflows' is not allowed")
 	}
 
 	event := EventSchedule{}
 
 	cron, err := config.parseCron()
 	if err != nil {
-		return EventSchedule{}, err
+		return nil, err
 	}
 
 	if cron != nil {
 		event = append(event, *cron...)
 	}
 
-	return event, nil
+	return &event, nil
 }
 
-func (config *EventConfig) parseWorkflowDispatch() (EventWorkflowDispatch, error) {
+func (config *EventConfig) parseWorkflowDispatch() (*EventWorkflowDispatch, error) {
 	hasBranches, err := config.hasBranches()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasBranches {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'branches' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches' is not allowed")
 	}
 
 	hasBranchesIgnore, err := config.hasBranchesIgnore()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasBranchesIgnore {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'branches_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches_ignore' is not allowed")
 	}
 
 	hasTags, err := config.hasTags()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasTags {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'tags' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags' is not allowed")
 	}
 
 	hasTagsIgnore, err := config.hasTagsIgnore()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasTagsIgnore {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'tags_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags_ignore' is not allowed")
 	}
 
 	hasPaths, err := config.hasPaths()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasPaths {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'paths' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths' is not allowed")
 	}
 
 	hasPathsIgnore, err := config.hasPathsIgnore()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasPathsIgnore {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'paths_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths_ignore' is not allowed")
 	}
 
 	hasCron, err := config.hasCron()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasCron {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'cron' is not allowed")
+		return nil, fmt.Errorf("attribute 'cron' is not allowed")
 	}
 
 	hasWorkflows, err := config.hasWorkflows()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if hasWorkflows {
-		return EventWorkflowDispatch{}, fmt.Errorf("attribute 'workflows' is not allowed")
+		return nil, fmt.Errorf("attribute 'workflows' is not allowed")
 	}
 
 	event := EventWorkflowDispatch{
@@ -1714,105 +1777,105 @@ func (config *EventConfig) parseWorkflowDispatch() (EventWorkflowDispatch, error
 
 	inputs, err := config.parseWorkflowDispatchInputs()
 	if err != nil {
-		return EventWorkflowDispatch{}, err
+		return nil, err
 	}
 
 	if inputs != nil {
 		event.Inputs = inputs
 	}
 
-	return event, nil
+	return &event, nil
 }
 
-func (config *EventConfig) parseWorkflowRun() (EventWorkflowRun, error) {
+func (config *EventConfig) parseWorkflowRun() (*EventWorkflowRun, error) {
 	hasBranches, err := config.hasBranches()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasBranches {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'branches' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches' is not allowed")
 	}
 
 	hasBranchesIgnore, err := config.hasBranchesIgnore()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasBranchesIgnore {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'branches_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches_ignore' is not allowed")
 	}
 
 	hasTags, err := config.hasTags()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasTags {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'tags' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags' is not allowed")
 	}
 
 	hasTagsIgnore, err := config.hasTagsIgnore()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasTagsIgnore {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'tags_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags_ignore' is not allowed")
 	}
 
 	hasPaths, err := config.hasPaths()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasPaths {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'paths' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths' is not allowed")
 	}
 
 	hasPathsIgnore, err := config.hasPathsIgnore()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasPathsIgnore {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'paths_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths_ignore' is not allowed")
 	}
 
 	hasCron, err := config.hasCron()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasCron {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'cron' is not allowed")
+		return nil, fmt.Errorf("attribute 'cron' is not allowed")
 	}
 
 	hasInputs, err := config.hasInputs()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasInputs {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'inputs' is not allowed")
+		return nil, fmt.Errorf("attribute 'inputs' is not allowed")
 	}
 
 	hasOutputs, err := config.hasOutputs()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasOutputs {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'outputs' is not allowed")
+		return nil, fmt.Errorf("attribute 'outputs' is not allowed")
 	}
 
 	hasSecrets, err := config.hasSecrets()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if hasSecrets {
-		return EventWorkflowRun{}, fmt.Errorf("attribute 'secrets' is not allowed")
+		return nil, fmt.Errorf("attribute 'secrets' is not allowed")
 	}
 
 	event := EventWorkflowRun{
@@ -1821,7 +1884,7 @@ func (config *EventConfig) parseWorkflowRun() (EventWorkflowRun, error) {
 
 	workflows, err := config.parseWorkflows()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if workflows != nil {
@@ -1830,7 +1893,7 @@ func (config *EventConfig) parseWorkflowRun() (EventWorkflowRun, error) {
 
 	types, err := config.parseTypes()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if types != nil {
@@ -1839,7 +1902,7 @@ func (config *EventConfig) parseWorkflowRun() (EventWorkflowRun, error) {
 
 	branches, err := config.parseBranches()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if branches != nil {
@@ -1848,87 +1911,87 @@ func (config *EventConfig) parseWorkflowRun() (EventWorkflowRun, error) {
 
 	branchesIgnore, err := config.parseBranchesIgnore()
 	if err != nil {
-		return EventWorkflowRun{}, err
+		return nil, err
 	}
 
 	if branchesIgnore != nil {
 		event.BranchesIgnore = branchesIgnore
 	}
 
-	return event, nil
+	return &event, nil
 }
 
-func (config *EventConfig) parseWorkflowCall() (EventWorkflowCall, error) {
+func (config *EventConfig) parseWorkflowCall() (*EventWorkflowCall, error) {
 	hasBranches, err := config.hasBranches()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasBranches {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'branches' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches' is not allowed")
 	}
 
 	hasBranchesIgnore, err := config.hasBranchesIgnore()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasBranchesIgnore {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'branches_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'branches_ignore' is not allowed")
 	}
 
 	hasTags, err := config.hasTags()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasTags {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'tags' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags' is not allowed")
 	}
 
 	hasTagsIgnore, err := config.hasTagsIgnore()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasTagsIgnore {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'tags_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'tags_ignore' is not allowed")
 	}
 
 	hasPaths, err := config.hasPaths()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasPaths {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'paths' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths' is not allowed")
 	}
 
 	hasPathsIgnore, err := config.hasPathsIgnore()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasPathsIgnore {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'paths_ignore' is not allowed")
+		return nil, fmt.Errorf("attribute 'paths_ignore' is not allowed")
 	}
 
 	hasCron, err := config.hasCron()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasCron {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'cron' is not allowed")
+		return nil, fmt.Errorf("attribute 'cron' is not allowed")
 	}
 
 	hasWorkflows, err := config.hasWorkflows()
 	if err != nil {
-		return EventWorkflowCall{}, err
+		return nil, err
 	}
 
 	if hasWorkflows {
-		return EventWorkflowCall{}, fmt.Errorf("attribute 'workflows' is not allowed")
+		return nil, fmt.Errorf("attribute 'workflows' is not allowed")
 	}
 
 	event := EventWorkflowCall{
@@ -1937,7 +2000,7 @@ func (config *EventConfig) parseWorkflowCall() (EventWorkflowCall, error) {
 
 	inputs, err := config.parseWorkflowCallInputs()
 	if err != nil {
-		return EventWorkflowCall{}, fmt.Errorf("in event 'workflow_call': %w", err)
+		return nil, fmt.Errorf("in event 'workflow_call': %w", err)
 	}
 
 	if inputs != nil {
@@ -1946,7 +2009,7 @@ func (config *EventConfig) parseWorkflowCall() (EventWorkflowCall, error) {
 
 	outputs, err := config.parseOutputs()
 	if err != nil {
-		return EventWorkflowCall{}, fmt.Errorf("in event 'workflow_call': %w", err)
+		return nil, fmt.Errorf("in event 'workflow_call': %w", err)
 	}
 
 	if outputs != nil {
@@ -1955,87 +2018,87 @@ func (config *EventConfig) parseWorkflowCall() (EventWorkflowCall, error) {
 
 	secrets, err := config.parseSecrets()
 	if err != nil {
-		return EventWorkflowCall{}, fmt.Errorf("in event 'workflow_call': %w", err)
+		return nil, fmt.Errorf("in event 'workflow_call': %w", err)
 	}
 
 	if secrets != nil {
 		event.Secrets = secrets
 	}
 
-	return event, nil
+	return &event, nil
 }
 
-func (config *EventConfig) parseEventTrigger() (Event, error) {
+func (config *EventConfig) parseEventTrigger() (*Event, error) {
 	hasBranches, err := config.hasBranches()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasBranches {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'branches' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'branches' is not allowed", config.Identifier)
 	}
 
 	hasBranchesIgnore, err := config.hasBranchesIgnore()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasBranchesIgnore {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'branches_ignore' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'branches_ignore' is not allowed", config.Identifier)
 	}
 
 	hasTags, err := config.hasTags()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasTags {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'tags' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'tags' is not allowed", config.Identifier)
 	}
 
 	hasTagsIgnore, err := config.hasTagsIgnore()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasTagsIgnore {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'tags_ignore' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'tags_ignore' is not allowed", config.Identifier)
 	}
 
 	hasPaths, err := config.hasPaths()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasPaths {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'paths' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'paths' is not allowed", config.Identifier)
 	}
 
 	hasPathsIgnore, err := config.hasPathsIgnore()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasPathsIgnore {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'paths_ignore' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'paths_ignore' is not allowed", config.Identifier)
 	}
 
 	hasCron, err := config.hasCron()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasCron {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'cron' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'cron' is not allowed", config.Identifier)
 	}
 
 	hasWorkflows, err := config.hasWorkflows()
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	if hasWorkflows {
-		return Event{}, fmt.Errorf("in event '%s': attribute 'workflows' is not allowed", config.Identifier)
+		return nil, fmt.Errorf("in event '%s': attribute 'workflows' is not allowed", config.Identifier)
 	}
 
 	event := Event{
@@ -2044,17 +2107,17 @@ func (config *EventConfig) parseEventTrigger() (Event, error) {
 
 	types, err := config.parseTypes()
 	if err != nil {
-		return Event{}, fmt.Errorf("in event '%s': %w", config.Identifier, err)
+		return nil, fmt.Errorf("in event '%s': %w", config.Identifier, err)
 	}
 
 	if types != nil {
 		event.Types = types
 	}
 
-	return event, nil
+	return &event, nil
 }
 
-func (config *EventsConfig) Parse() (On, error) {
+func (config *EventsConfig) Parse() (*On, error) {
 	if len(*config) == 0 {
 		return nil, actoerrors.ErrWorkflowEmptyOn
 	}
@@ -2072,109 +2135,101 @@ func (config *EventsConfig) Parse() (On, error) {
 
 		switch o.Identifier {
 		case TriggerPullRequest.ToString():
-			// if !reflect.DeepEqual(on[TriggerPullRequest], Event{}) {
 			if on[TriggerPullRequest] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequest, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequest, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parsePullRequest()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequest, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequest, err)
 			}
 
 			on[TriggerPullRequest] = event
 		case TriggerPullRequestTarget.ToString():
-			// if !reflect.DeepEqual(on[TriggerPullRequestTarget], Event{}) {
 			if on[TriggerPullRequestTarget] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequestTarget, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequestTarget, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parsePullRequestTarget()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequestTarget, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerPullRequestTarget, err)
 			}
 
 			on[TriggerPullRequestTarget] = event
 		case TriggerPush.ToString():
-			// if !reflect.DeepEqual(on[TriggerPush], Event{}) {
 			if on[TriggerPush] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerPush, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerPush, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parsePush()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerPush, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerPush, err)
 			}
 
 			on[TriggerPush] = event
 		case TriggerSchedule.ToString():
-			// if !reflect.DeepEqual(on[TriggerSchedule], EventSchedule{}) {
 			if on[TriggerSchedule] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerSchedule, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerSchedule, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parseSchedule()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerSchedule, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerSchedule, err)
 			}
 
 			on[TriggerSchedule] = event
 		case TriggerWorkflowCall.ToString():
-			// if !reflect.DeepEqual(on[TriggerWorkflowCall], Event{}) {
 			if on[TriggerWorkflowCall] != nil {
-				return On{}, fmt.Errorf("in block 'on23': event '%s': %w", TriggerWorkflowCall, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on23': event '%s': %w", TriggerWorkflowCall, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parseWorkflowCall()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowCall, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowCall, err)
 			}
 
 			on[TriggerWorkflowCall] = event
 		case TriggerWorkflowRun.ToString():
-			// if !reflect.DeepEqual(on[TriggerWorkflowRun], Event{}) {
 			if on[TriggerWorkflowRun] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowRun, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowRun, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parseWorkflowRun()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowRun, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowRun, err)
 			}
 
 			on[TriggerWorkflowRun] = event
 		case TriggerWorkflowDispatch.ToString():
-			// if !reflect.DeepEqual(on[TriggerWorkflowDispatch], Event{}) {
 			if on[TriggerWorkflowDispatch] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowDispatch, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowDispatch, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parseWorkflowDispatch()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowDispatch, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", TriggerWorkflowDispatch, err)
 			}
 
 			on[TriggerWorkflowDispatch] = event
 		default:
 			if !ValidateEventTrigger(o.Identifier) {
-				return On{}, fmt.Errorf("in block 'on': event '%s', %w", o.Identifier, ErrEventTriggerUnknown)
+				return nil, fmt.Errorf("in block 'on': event '%s', %w", o.Identifier, ErrEventTriggerUnknown)
 			}
 
 			eventTrigger := EventTrigger(o.Identifier)
 
-			// if !reflect.DeepEqual(on[eventTrigger], Event{}) {
 			if on[eventTrigger] != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", eventTrigger, ErrEventTriggerNoMoreThanOne)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", eventTrigger, ErrEventTriggerNoMoreThanOne)
 			}
 
 			event, err := o.parseEventTrigger()
 			if err != nil {
-				return On{}, fmt.Errorf("in block 'on': event '%s': %w", eventTrigger, err)
+				return nil, fmt.Errorf("in block 'on': event '%s': %w", eventTrigger, err)
 			}
 
 			on[eventTrigger] = event
 		}
 	}
 
-	return on, nil
+	return &on, nil
 }
