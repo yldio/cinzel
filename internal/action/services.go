@@ -1,113 +1,266 @@
+// SPDX-License-Identifier: MIT
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
 
 package action
 
 import (
-	"github.com/zclconf/go-cty/cty"
+	"errors"
+	"fmt"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/yldio/acto/internal/actoparser"
+	"github.com/yldio/acto/internal/variables"
 )
 
+type Services map[string]*Service
+
 type Service struct {
-	Name        string         `yaml:"-"`
-	Image       string         `yaml:"image"`
-	Credentials Credentials    `yaml:"credentials,omitempty"`
-	Env         map[string]any `yaml:"env,omitempty"`
-	Ports       []string       `yaml:"ports,omitempty"`
-	Volumes     []string       `yaml:"volumes,omitempty"`
-	Options     string         `yaml:"options,omitempty"`
-}
-
-type Services map[string]Service
-
-type ServiceConfig struct {
-	Name        string             `hcl:"name,label"`
-	Image       *string            `hcl:"image,attr"`
-	Credentials *CredentialsConfig `hcl:"credentials,block"`
-	Env         *EnvConfig         `hcl:"env,block"`
-	Ports       *[]string          `hcl:"ports,attr"`
-	Volumes     *[]string          `hcl:"volumes,attr"`
-	Options     *string            `hcl:"options,attr"`
+	Name        string       `yaml:"-"`
+	Image       string       `yaml:"image,omitempty"`
+	Credentials *Credentials `yaml:"credentials,omitempty"`
+	Env         *Envs        `yaml:"env,omitempty"`
+	Ports       []*string    `yaml:"ports,omitempty"`
+	Volumes     []*string    `yaml:"volumes,omitempty"`
+	Options     *string      `yaml:"options,omitempty"`
 }
 
 type ServicesConfig []*ServiceConfig
+type ServiceConfig struct {
+	Identifier  string             `hcl:"_,label"`
+	Image       hcl.Expression     `hcl:"image,attr"`
+	Credentials *CredentialsConfig `hcl:"credentials,block"`
+	Env         EnvsConfig         `hcl:"env,block"`
+	Ports       hcl.Expression     `hcl:"ports,attr"`
+	Volumes     hcl.Expression     `hcl:"volumes,attr"`
+	Options     hcl.Expression     `hcl:"options,attr"`
+}
 
-func (config *ServicesConfig) Parse() (Services, error) {
+func (config *ServiceConfig) unwrapOptions(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapOptions(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'options' must be a string")
+	}
+}
+
+func (config *ServiceConfig) parseOptions() (*string, error) {
+	acto := actoparser.NewActo(config.Options)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapOptions(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *ServiceConfig) unwrapVolumes(acto *actoparser.Acto) ([]*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case []string:
+		list := []*string{}
+
+		for _, val := range resultValue {
+			list = append(list, &val)
+		}
+
+		return list, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapVolumes(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'volumes' must be a list of strings")
+	}
+}
+
+func (config *ServiceConfig) parseVolumes() ([]*string, error) {
+	acto := actoparser.NewActo(config.Volumes)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapVolumes(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *ServiceConfig) unwrapPorts(acto *actoparser.Acto) ([]*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case []string:
+		list := []*string{}
+
+		for _, val := range resultValue {
+			list = append(list, &val)
+		}
+
+		return list, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapPorts(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'ports' must be a list of strings")
+	}
+}
+
+func (config *ServiceConfig) parsePorts() ([]*string, error) {
+	acto := actoparser.NewActo(config.Ports)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapPorts(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *ServiceConfig) parseEnvs() (*Envs, error) {
+	env, err := config.Env.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return env, nil
+}
+
+func (config *ServiceConfig) parseCredentials() (*Credentials, error) {
+	value, err := config.Credentials.Parse()
+	if err != nil {
+		return nil, fmt.Errorf("error in credentials: %w", err)
+	}
+
+	return value, nil
+}
+
+func (config *ServiceConfig) unwrapImage(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, errors.New("attribute 'image' must be a string")
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapImage(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'image' must be a string")
+	}
+}
+
+func (config *ServiceConfig) parseImage() (*string, error) {
+	acto := actoparser.NewActo(config.Image)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapImage(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *ServiceConfig) Parse() (*Service, error) {
 	if config == nil {
 		return nil, nil
 	}
 
-	services := Services{}
-
-	for _, service := range *config {
-
-		services[service.Name] = Service{
-			Name:  service.Name,
-			Image: *service.Image,
-		}
-
-		svr := services[service.Name]
-
-		if service.Credentials != nil {
-			credentials := Credentials{
-				Username: service.Credentials.Username,
-				Password: service.Credentials.Password,
-			}
-
-			svr.Credentials = credentials
-		}
-
-		if service.Env != nil && len(service.Env.Variable) != 0 {
-			envs := make(map[string]any)
-
-			for _, variable := range service.Env.Variable {
-				val, err := ParseCtyValue(variable.Value, []string{
-					cty.String.FriendlyName(),
-					cty.Number.FriendlyName(),
-					cty.Bool.FriendlyName(),
-				})
-				if err != nil {
-					return nil, err
-				}
-				envs[variable.Name] = val
-			}
-
-			svr.Env = envs
-		}
-
-		if service.Ports != nil && len(*service.Ports) != 0 {
-			ports := []string{}
-
-			ports = append(ports, *service.Ports...)
-
-			svr.Ports = ports
-		}
-
-		if service.Volumes != nil && len(*service.Volumes) != 0 {
-			volumes := []string{}
-
-			volumes = append(volumes, *service.Volumes...)
-
-			svr.Volumes = volumes
-		}
-
-		if service.Options != nil {
-			svr.Options = *service.Options
-		}
-
-		services[service.Name] = svr
+	if config.Identifier == "" {
+		return nil, errors.New("error in 'service': missing 'identifier'")
 	}
 
-	return services, nil
-}
-
-func (services *Services) IsNill() bool {
-	isNill := true
-
-	for _, service := range *services {
-		if service.Credentials != (Credentials{}) {
-			isNill = false
-		}
+	service := Service{
+		Name: config.Identifier,
 	}
 
-	return isNill
+	image, err := config.parseImage()
+	if err != nil {
+		return nil, fmt.Errorf("error in 'service': %w", err)
+	}
+
+	service.Image = *image
+
+	credentials, err := config.parseCredentials()
+	if err != nil {
+		return nil, fmt.Errorf("error in 'service': %w", err)
+	}
+
+	if credentials != nil {
+		service.Credentials = credentials
+	}
+
+	env, err := config.parseEnvs()
+	if err != nil {
+		return nil, fmt.Errorf("error in 'service': %w", err)
+	}
+
+	if env != nil {
+		service.Env = env
+	}
+
+	ports, err := config.parsePorts()
+	if err != nil {
+		return nil, fmt.Errorf("error in 'service': %w", err)
+	}
+
+	if ports != nil {
+		service.Ports = ports
+	}
+
+	volumes, err := config.parseVolumes()
+	if err != nil {
+		return nil, fmt.Errorf("error in 'Service': %w", err)
+	}
+
+	if volumes != nil {
+		service.Volumes = volumes
+	}
+
+	options, err := config.parseOptions()
+	if err != nil {
+		return nil, fmt.Errorf("error in 'Service': %w", err)
+	}
+
+	if options != nil {
+		service.Options = options
+	}
+
+	return &service, nil
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
-package reader
+package filereader
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/yldio/acto/internal/actoerrors"
-	"github.com/yldio/acto/service/writer"
+	"github.com/yldio/acto/service/filewriter"
 )
 
 func TestReader(t *testing.T) {
@@ -19,7 +19,7 @@ func TestReader(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "dummy-file.hcl")
 		content := []byte("workflow \"workflow1\" {}")
 
-		if err := writer.New().Do(filePath, content); err != nil {
+		if err := filewriter.New().Do(filePath, content); err != nil {
 			t.Fatal(err.Error())
 		}
 
@@ -37,7 +37,7 @@ func TestReader(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "dummy-file.hcl")
 		content := []byte("workflow \"workflow1\" {}")
 
-		if err := writer.New().Do(filePath, content); err != nil {
+		if err := filewriter.New().Do(filePath, content); err != nil {
 			t.Fatal(err.Error())
 		}
 
@@ -55,7 +55,7 @@ func TestReader(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "dummy-file.yaml")
 		content := []byte("abc")
 
-		if err := writer.New().Do(filePath, content); err != nil {
+		if err := filewriter.New().Do(filePath, content); err != nil {
 			t.Fatal(err.Error())
 		}
 
@@ -77,7 +77,7 @@ func TestReader(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "dummy-file.hcl")
 		content := []byte("abc")
 
-		if err := writer.New().Do(filePath, content); err != nil {
+		if err := filewriter.New().Do(filePath, content); err != nil {
 			t.Fatal(err.Error())
 		}
 

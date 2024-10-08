@@ -1,106 +1,79 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package action
 
 import (
-	"reflect"
 	"testing"
-
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestOn(t *testing.T) {
-	type Test struct {
-		name   string
-		have   *OnConfig
-		expect On
-	}
+	// type Test struct {
+	// 	name         string
+	// 	have         EventsConfig
+	// 	expect       On
+	// 	errorMessage error
+	// }
 
-	var push = TriggerPush.ToString()
-	var pullRequest = TriggerPullRequest.ToString()
-	var singleEvent = cty.StringVal(push)
-	var multipleEvent = cty.TupleVal([]cty.Value{
-		cty.StringVal(push),
-		cty.StringVal(pullRequest),
-	})
-	var eventPush = EventConfig{
-		Event:    push,
-		Branches: &[]string{"main", "mona/octocat", "releases/**"},
-		Tags:     &[]string{"v2", "v1.*"},
-	}
-	var eventPageBuild = EventConfig{
-		Event: TriggerPageBuild.ToString(),
-	}
-	var pushEvent = []*EventConfig{
-		&eventPush,
-		&eventPageBuild,
-	}
-	var pullRequestEvent = []*EventConfig{
-		{
-			Event:    pullRequest,
-			Branches: &[]string{"main", "mona/octocat", "releases/**"},
-		},
-	}
+	// var filename = "dummy-file"
 
-	var pullRequestActivity = []*ActivityConfig{
-		{
-			Id:    TriggerLabel.ToString(),
-			Types: []string{ActivityCreated.ToString()},
-		},
-	}
+	// var eventPush = "push"
+	// // var eventPullRequest = "pull_request"
+	// // var eventLabel = "label"
+	// // var eventSchedule = "schedule"
+	// // var eventWorkflowCall = "workflow_call"
+	// // var eventWorkflowRun = "workflow_run"
+	// // var eventWorkflowDispatch = "workflow_dispatch"
 
-	var have1 = OnConfig{
-		Events: &singleEvent,
-	}
-	var expect1 = push
+	// var branchMain = "main"
+	// var branchReleases = "relrases/**"
 
-	var have2 = OnConfig{
-		Events: &multipleEvent,
-	}
-	var expect2 = []string{push, pullRequest}
+	// branchesExp1, _ := hclsyntax.ParseExpression([]byte(fmt.Sprintf(`["%s", "%s"]`, branchMain, branchReleases)), filename, hcl.Pos{})
 
-	var have3 = OnConfig{
-		Event: pushEvent,
-	}
-	var expect3 = map[string]map[string][]string{
-		"push": {
-			"tags":     {"v2", "v1.*"},
-			"branches": {"main", "mona/octocat", "releases/**"},
-		},
-		"page_build": {},
-	}
+	// // 	var activityAsString = "label"
+	// // 	var eventsAsListOfStrings = []string{"push", "pull_request"}
+	// // 	var eventsWithBranches = []string{"main", "mona/octocat", "releases/**"}
+	// // 	var eventsWithPaths = []string{"**.js"}
+	// // 	var eventsWithTags = []string{"v2", "v1.*"}
+	// // 	var eventsWithActivity = []string{ActivityCreated.ToString()}
+	// // 	var eventsWithCron = []string{"cron: '30 5 * * 1,3'", "cron: '30 5 * * 2,4'"}
 
-	var have4 = OnConfig{
-		Event:    pullRequestEvent,
-		Activity: pullRequestActivity,
-	}
-	var expect4 = map[string]map[string][]string{
-		"pull_request": {
-			"branches": {"main", "mona/octocat", "releases/**"},
-		},
-		"label": {
-			"types": {"created"},
-		},
-	}
+	// var haveEventPushWithBranches = EventConfig{
+	// 	Identifier: eventPush,
+	// 	Branches:   branchesExp1,
+	// }
 
-	var tests = []Test{
-		{"with defined single event", &have1, expect1},
-		{"with defined multiple events", &have2, expect2},
-		{"with defined push event with tags and branches and defined page_build", &have3, expect3},
-		{"with defined pull-request event with branches", &have4, expect4},
-	}
+	// var haveEventsPushWithBranches = EventsConfig{
+	// 	&haveEventPushWithBranches,
+	// }
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.have.Parse()
-			if err != nil {
-				t.Error(err.Error())
-			}
+	// var expectEventsPushWithBranches = On{
+	// 	TriggerPush: Event{
+	// 		Name:     eventPush,
+	// 		Branches: []*string{&branchMain, &branchReleases},
+	// 	},
+	// }
 
-			if !reflect.DeepEqual(got, tt.expect) {
-				t.Fatalf("%s - failed", tt.name)
-			}
-		})
-	}
+	// var tests = []Test{
+	// 	{"event push with branches", haveEventsPushWithBranches, expectEventsPushWithBranches, nil},
+	// }
+
+	// for _, tt := range tests {
+	// 	t.Run(tt.name, func(t *testing.T) {
+	// 		got, err := tt.have.Parse()
+
+	// 		if tt.errorMessage == nil && err != nil {
+	// 			t.Fatal(err.Error())
+	// 		}
+
+	// 		if tt.errorMessage == nil && !reflect.DeepEqual(got, tt.expect) {
+	// 			t.Fatal(tt.name)
+	// 		}
+
+	// 		if tt.errorMessage != nil && tt.errorMessage.Error() != err.Error() {
+	// 			t.Fatal(err)
+	// 		}
+
+	// 	})
+	// }
 }

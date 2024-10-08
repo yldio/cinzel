@@ -1,330 +1,346 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package action
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/zclconf/go-cty/cty"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/internal/actoparser"
+	"github.com/yldio/acto/internal/variables"
 )
 
-type IncludeItemConfig struct {
-	Name  string    `hcl:"name,attr"`
-	Value cty.Value `hcl:"value,attr"`
+type MatrixVariable struct {
+	Name  string
+	Value any
 }
 
-type MatrixPropConfig struct {
-	Name  *string              `hcl:"name,attr"`
-	Value *cty.Value           `hcl:"value,attr"`
-	Items []*IncludeItemConfig `hcl:"item,block"`
+type MatrixVariableConfig struct {
+	Name  hcl.Expression `hcl:"name,attr"`
+	Value hcl.Expression `hcl:"value,attr"`
 }
+
+type MatrixVariablesConfig []MatrixVariableConfig
 
 type MatrixConfig struct {
-	Name    *string             `hcl:"name,attr"`
-	Value   *[]*cty.Value       `hcl:"value,attr"`
-	Include []*MatrixPropConfig `hcl:"include,block"`
-	Exclude []*MatrixPropConfig `hcl:"exclude,block"`
+	Variables MatrixVariablesConfig `hcl:"variable,block"`
+	Include   hcl.Expression        `hcl:"include,attr"`
+	Exclude   hcl.Expression        `hcl:"exclude,attr"`
 }
-
-type MatrixesConfig []MatrixConfig
 
 type StrategyConfig struct {
-	Matrix      MatrixesConfig `hcl:"matrix,block"`
-	FailFast    *bool          `hcl:"fail_fast,attr"`
-	MaxParallel *uint16        `hcl:"max_parallel,attr"`
+	Matrix      MatrixConfig   `hcl:"matrix,block"`
+	FailFast    hcl.Expression `hcl:"fail_fast,attr"`
+	MaxParallel hcl.Expression `hcl:"max_parallel,attr"`
 }
 
-type Matrixes map[string]any
+type Matrix map[string]any
 
 type Strategy struct {
-	Matrix      Matrixes `yaml:"matrix,omitempty"`
-	FailFast    bool     `yaml:"fail-fast,omitempty"`
-	MaxParallel uint16   `yaml:"max-parallel,omitempty"`
+	Matrix      *Matrix `yaml:"matrix"`
+	FailFast    *bool   `yaml:"fail-fast,omitempty"`
+	MaxParallel *uint64 `yaml:"max-parallel,omitempty"`
 }
 
-func (config *MatrixConfig) Parse(matrixes map[string]any) (map[string]any, error) {
-	// if config.Include != nil {
-	// 	if matrixes["include"] == nil {
-	// 		matrixes["include"] = []map[string]any{}
-	// 	}
-
-	// 	for _, include := range config.Include {
-	// 		if include.Item != nil {
-	// 			items := map[string]any{}
-	// 			for _, item := range include.Item {
-	// 				switch item.Value.Type().FriendlyName() {
-	// 				case "string":
-	// 					var val string
-	// 					err := gocty.FromCtyValue(item.Value, &val)
-	// 					if err != nil {
-	// 						return map[string]any{}, err
-	// 					}
-	// 					items[item.Name] = val
-	// 				case "number":
-	// 					var val int32
-	// 					err := gocty.FromCtyValue(item.Value, &val)
-	// 					if err != nil {
-	// 						var val float32
-	// 						err := gocty.FromCtyValue(item.Value, &val)
-	// 						if err != nil {
-	// 							return map[string]any{}, err
-	// 						}
-	// 					}
-	// 					items[item.Name] = val
-	// 				case "bool":
-	// 					var val bool
-	// 					err := gocty.FromCtyValue(item.Value, &val)
-	// 					if err != nil {
-	// 						return map[string]any{}, err
-	// 					}
-	// 					items[item.Name] = val
-	// 				}
-	// 			}
-
-	// 			switch list := matrixes["include"].(type) {
-	// 			case []map[string]any:
-	// 				matrixes["include"] = append(list, items)
-	// 			}
-	// 		} else {
-	// 			switch include.Value.Type().FriendlyName() {
-	// 			case "string":
-	// 				var val string
-	// 				err := gocty.FromCtyValue(include.Value, &val)
-	// 				if err != nil {
-	// 					return map[string]any{}, err
-	// 				}
-
-	// 				switch includeMap := matrixes["include"].(type) {
-	// 				case []map[string]any:
-	// 					matrixes["include"] = append(includeMap, map[string]any{
-	// 						include.Name: val,
-	// 					})
-	// 				default:
-	// 					fmt.Println("something wrong")
-	// 				}
-
-	// 			default:
-	// 				fmt.Println("something wrong")
-
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// if config.Exclude != nil {
-	// 	for _, exclude := range config.Exclude {
-	// 		fmt.Println(exclude.Name, exclude.Value)
-	// 	}
-	// }
-
-	// for _, value := range config.Value {
-	// 	ctyValue := cty.Value(value)
-
-	// 	switch ctyValue.Type().FriendlyName() {
-	// 	case "string":
-	// 		var val string
-
-	// 		err := gocty.FromCtyValue(ctyValue, &val)
-	// 		if err != nil {
-	// 			return map[string]any{}, err
-	// 		}
-
-	// 		if matrixes[config.Name] == nil {
-	// 			matrixes[config.Name] = []string{}
-	// 		}
-
-	// 		switch v := matrixes[config.Name].(type) {
-	// 		case []string:
-	// 			matrixes[config.Name] = append(v, val)
-	// 		default:
-	// 			return map[string]any{}, fmt.Errorf("type must be a string")
-	// 		}
-	// 	case "bool":
-	// 		var val bool
-
-	// 		err := gocty.FromCtyValue(ctyValue, &val)
-	// 		if err != nil {
-	// 			return map[string]any{}, err
-	// 		}
-
-	// 		if matrixes[config.Name] == nil {
-	// 			matrixes[config.Name] = []bool{}
-	// 		}
-
-	// 		switch v := matrixes[config.Name].(type) {
-	// 		case []bool:
-	// 			matrixes[config.Name] = append(v, val)
-	// 		default:
-	// 			return map[string]any{}, fmt.Errorf("type must be a boolean")
-	// 		}
-	// 	case "number":
-	// 		var val int32
-
-	// 		err := gocty.FromCtyValue(ctyValue, &val)
-	// 		if err != nil {
-	// 			var val float32
-
-	// 			err := gocty.FromCtyValue(ctyValue, &val)
-	// 			if err != nil {
-	// 				return map[string]any{}, err
-	// 			}
-
-	// 			if matrixes[config.Name] == nil {
-	// 				matrixes[config.Name] = []any{}
-	// 			}
-
-	// 			switch v := matrixes[config.Name].(type) {
-	// 			case []float32:
-	// 				matrixes[config.Name] = append(v, val)
-	// 			default:
-	// 				return map[string]any{}, fmt.Errorf("type must be a float")
-	// 			}
-	// 		} else {
-	// 			if matrixes[config.Name] == nil {
-	// 				matrixes[config.Name] = []int32{}
-	// 			}
-
-	// 			switch v := matrixes[config.Name].(type) {
-	// 			case []int32:
-	// 				matrixes[config.Name] = append(v, val)
-	// 			default:
-	// 				return map[string]any{}, fmt.Errorf("type must be an integer")
-	// 			}
-	// 		}
-	// 	default:
-	// 		fmt.Println("don't know")
-	// 	}
-	// }
-	return matrixes, nil
-}
-
-func (config *MatrixConfig) parseInclude(matrixes *Matrixes) error {
-	list := []map[string]any{}
-
-	for _, include := range config.Include {
-		if include.Items != nil {
-			if len(include.Items) == 0 {
-				return errors.New("include items should not be empty")
-			}
-
-			ojb := make(map[string]any)
-
-			for _, item := range include.Items {
-				val, err := ParseCtyValue(item.Value, []string{
-					cty.String.FriendlyName(),
-					cty.Number.FriendlyName(),
-					cty.Bool.FriendlyName(),
-				})
-				if err != nil {
-					return err
-				}
-
-				ojb[item.Name] = val
-			}
-
-			list = append(list, ojb)
-		} else if include.Name != nil && include.Value != nil {
-			val, err := ParseCtyValue(*include.Value, []string{
-				cty.String.FriendlyName(),
-				cty.Number.FriendlyName(),
-				cty.Bool.FriendlyName(),
-			})
-			if err != nil {
-				return err
-			}
-
-			ojb := make(map[string]any)
-
-			ojb[*include.Name] = val
-
-			list = append(list, ojb)
-		} else {
-			return errors.New("not a valid matrix block")
+func (config *StrategyConfig) unwrapMaxParallel(acto *actoparser.Acto) (*uint64, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case int64:
+		if resultValue < 0 {
+			return nil, errors.New("attribute 'max_parallel' must be a positive number")
 		}
-	}
 
-	(*matrixes)["include"] = list
-
-	return nil
-}
-
-func (config *MatrixConfig) parseExclude() error {
-	return nil
-}
-
-func (config *MatrixConfig) parseNameValue(matrixes *Matrixes) error {
-	list := []any{}
-
-	for _, keyVal := range *config.Value {
-		val, err := ParseCtyValue(*keyVal, []string{
-			cty.String.FriendlyName(),
-			cty.Number.FriendlyName(),
-			cty.Bool.FriendlyName(),
-		})
+		val := uint64(resultValue)
+		return &val, nil
+	case uint64:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		list = append(list, val)
+		return config.unwrapMaxParallel(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'max_parallel' must be a positive number")
 	}
-
-	(*matrixes)[*config.Name] = list
-
-	return nil
 }
 
-func (config *MatrixesConfig) Parse() (Matrixes, error) {
+func (config *StrategyConfig) parseMaxParallel() (*uint64, error) {
+	acto := actoparser.NewActo(config.MaxParallel)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapMaxParallel(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *StrategyConfig) unwrapFailFast(acto *actoparser.Acto) (*bool, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case bool:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapFailFast(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'fail_fast' must be a boolean")
+	}
+}
+
+func (config *StrategyConfig) parseFailFast() (*bool, error) {
+	acto := actoparser.NewActo(config.FailFast)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapFailFast(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *MatrixConfig) unwrapMatrixExclude(acto *actoparser.Acto) (any, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case []map[string]any:
+		return resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapMatrixExclude(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'exclude' must be a list objects")
+	}
+}
+
+func (config *MatrixConfig) unwrapMatrixInclude(acto *actoparser.Acto) (any, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case []map[string]any:
+		return resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapMatrixInclude(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'include' must be a list objects")
+	}
+}
+
+func (config *MatrixVariableConfig) unwrapMatrixValue(acto *actoparser.Acto) (any, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, errors.New("attribute 'value' must be a list of strings, numbers, boleans or objects")
+	case []string:
+		return resultValue, nil
+	case []bool:
+		return resultValue, nil
+	case []int64:
+		return resultValue, nil
+	case []uint64:
+		return resultValue, nil
+	case []float64:
+		return resultValue, nil
+	case []map[string]any:
+		return resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapMatrixValue(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'value' must be a list of strings, numbers, boleans or objects")
+	}
+}
+
+func (config *MatrixVariableConfig) parseMatrixValue() (any, error) {
+	acto := actoparser.NewActo(config.Value)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapMatrixValue(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *MatrixVariableConfig) unwrapName(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, errors.New("attribute 'name' must be a string")
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapName(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'name' must be a string")
+	}
+}
+
+func (config *MatrixVariableConfig) parseMatrixName() (*string, error) {
+	acto := actoparser.NewActo(config.Name)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapName(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *MatrixConfig) parseMatrixInclude() (any, error) {
+	acto := actoparser.NewActo(config.Include)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapMatrixInclude(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *MatrixConfig) parseMatrixExclude() (any, error) {
+	acto := actoparser.NewActo(config.Exclude)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapMatrixExclude(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *MatrixVariableConfig) parseMatrixVariable() (*MatrixVariable, error) {
+	name, err := config.parseMatrixName()
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := config.parseMatrixValue()
+	if err != nil {
+		return nil, err
+	}
+
+	variable := MatrixVariable{
+		Name:  *name,
+		Value: value,
+	}
+
+	return &variable, nil
+}
+
+func (config *StrategyConfig) parseMatrix() (*Matrix, error) {
+	matrix := make(Matrix)
+
+	for _, matrixVariable := range config.Matrix.Variables {
+		variable, err := matrixVariable.parseMatrixVariable()
+		if err != nil {
+			return nil, err
+		}
+
+		matrix[variable.Name] = variable.Value
+	}
+
+	include, err := config.Matrix.parseMatrixInclude()
+	if err != nil {
+	}
+
+	if include != nil {
+		matrix["include"] = include
+	}
+
+	exclude, err := config.Matrix.parseMatrixExclude()
+	if err != nil {
+	}
+
+	if exclude != nil {
+		matrix["exclude"] = exclude
+	}
+
+	return &matrix, nil
+}
+
+func (config *StrategyConfig) Parse() (*Strategy, error) {
 	if config == nil {
 		return nil, nil
 	}
-	matrixes := make(Matrixes)
 
-	for _, matrix := range *config {
-		if matrix.Include != nil {
-			if err := matrix.parseInclude(&matrixes); err != nil {
-				return nil, err
-			}
-		} else if matrix.Exclude != nil {
-			if err := matrix.parseExclude(); err != nil {
-				return nil, err
-			}
-		} else if matrix.Name != nil && matrix.Value != nil {
-			if err := matrix.parseNameValue(&matrixes); err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, errors.New("invalid matrix")
-		}
-	}
-	return matrixes, nil
-}
+	strategy := Strategy{}
 
-func (config *StrategyConfig) Parse() (Strategy, error) {
-	if config == nil {
-		return Strategy{}, nil
-	}
-
-	matrix, err := config.Matrix.Parse()
+	matrix, err := config.parseMatrix()
 	if err != nil {
-		return Strategy{}, err
+		return nil, fmt.Errorf("error in strategy: %w, %w", err, actoerrors.ErrOpenIssue)
 	}
 
-	if len(matrix) == 0 {
-		return Strategy{}, errors.New("strategy matrix cannot be empty")
+	strategy.Matrix = matrix
+
+	failFast, err := config.parseFailFast()
+	if err != nil {
+		return nil, fmt.Errorf("error in strategy: %w", err)
 	}
 
-	strategy := Strategy{
-		Matrix: matrix,
+	if failFast != nil {
+		strategy.FailFast = failFast
 	}
 
-	if config.FailFast != nil {
-		strategy.FailFast = *config.FailFast
+	maxParallel, err := config.parseMaxParallel()
+	if err != nil {
+		return nil, fmt.Errorf("error in strategy: %w", err)
 	}
 
-	if config.MaxParallel != nil {
-		strategy.MaxParallel = *config.MaxParallel
+	if maxParallel != nil {
+		strategy.MaxParallel = maxParallel
 	}
 
-	return strategy, nil
+	return &strategy, nil
 }

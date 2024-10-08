@@ -1,11 +1,17 @@
+variable "list_os" {
+  value = [
+    "ubuntu-20.04",
+    "macos-14",
+    "windows-2022"
+  ]
+}
+
 workflow "pull_request" {
   filename = "pull-request"
 
   name = "Pull Request"
 
-  on {
-    events = "pull_request"
-  }
+  on "pull_request" {}
 
   jobs = [
     job.pull_request,
@@ -17,17 +23,15 @@ job "pull_request" {
 
   strategy {
     matrix {
-      name = "os"
-      value = [
-        "ubuntu-20.04",
-        "macos-14",
-        "windows-2022"
-      ]
+      variable {
+        name  = "os"
+        value = variable.list_os
+      }
     }
   }
 
-  runs {
-    on = "$${{ matrix.os }}"
+  runs_on {
+    runners = "$${{ matrix.os }}"
   }
 
   timeout_minutes = 5

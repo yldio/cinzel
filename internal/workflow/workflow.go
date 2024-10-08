@@ -1,5 +1,5 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package workflow
 
@@ -10,22 +10,24 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/acto/internal/action"
 	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/job"
+	"github.com/yldio/acto/internal/variables"
 )
 
-type Workflows []Workflow
+type Workflows []*Workflow
 
 type Workflow struct {
 	Id          string              `yaml:"-"`
 	Filename    string              `yaml:"-"`
-	Name        *string             `yaml:"name,omitempty"`
-	RunName     *string             `yaml:"run-name,omitempty"`
+	Name        string              `yaml:"name,omitempty"`
+	RunName     string              `yaml:"run-name,omitempty"`
 	On          action.On           `yaml:"on"`
 	Permissions *action.Permissions `yaml:"permissions,omitempty"`
-	Env         *action.Env         `yaml:"env,omitempty"`
+	Env         *action.Envs        `yaml:"env,omitempty"`
 	Defaults    *action.Defaults    `yaml:"defaults,omitempty"`
 	Concurrency *action.Concurrency `yaml:"concurrency,omitempty"`
-	Jobs        map[string]job.Job  `yaml:"jobs"`
+	Jobs        job.Jobs            `yaml:"jobs"`
 	JobsIds     []string            `yaml:"-"`
 }
 
@@ -33,226 +35,293 @@ type WorkflowsConfig []WorkflowConfig
 
 type WorkflowConfig struct {
 	Id          string                    `hcl:"id,label"`
-	Filename    *string                   `hcl:"filename,attr"`
-	Name        *action.NameConfig        `hcl:"name,attr"`
-	RunName     *action.RunNameConfig     `hcl:"run_name,attr"`
-	On          action.OnsConfig          `hcl:"on,block"`
+	Filename    hcl.Expression            `hcl:"filename,attr"`
+	Name        hcl.Expression            `hcl:"name,attr"`
+	RunName     hcl.Expression            `hcl:"run_name,attr"`
+	On          action.EventsConfig       `hcl:"on,block"`
 	Permissions *action.PermissionsConfig `hcl:"permissions,block"`
-	Env         *action.EnvConfig         `hcl:"env,block"`
+	Env         action.EnvsConfig         `hcl:"env,block"`
 	Defaults    *action.DefaultsConfig    `hcl:"defaults,block"`
 	Concurrency *action.ConcurrencyConfig `hcl:"concurrency,block"`
 	Jobs        hcl.Expression            `hcl:"jobs,attr"`
 }
 
-func (config *WorkflowConfig) parseId(workflow *Workflow) error {
+func (config *WorkflowConfig) unwrapFilename(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, errors.New("attribute 'filename' must be a string")
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapFilename(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'filename' must be a string")
+	}
+}
+
+func (config *WorkflowConfig) parseFilename() (*string, error) {
+	acto := actoparser.NewActo(config.Filename)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapFilename(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *WorkflowConfig) unwrapName(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapName(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'name' must be a string")
+	}
+}
+
+func (config *WorkflowConfig) parseName() (*string, error) {
+	acto := actoparser.NewActo(config.Name)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapName(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *WorkflowConfig) unwrapRunName(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapRunName(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'run_name' must be a string")
+	}
+}
+
+func (config *WorkflowConfig) parseRunName() (*string, error) {
+	acto := actoparser.NewActo(config.RunName)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapName(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *WorkflowConfig) parseOn() (action.On, error) {
+	on, err := config.On.Parse()
+	if err != nil {
+		return action.On{}, err
+	}
+
+	return on, nil
+}
+
+func (config *WorkflowConfig) parsePermissions() (*action.Permissions, error) {
+	permissions, err := config.Permissions.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+func (config *WorkflowConfig) parseEnvs() (*action.Envs, error) {
+	env, err := config.Env.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return env, nil
+}
+
+func (config *WorkflowConfig) parseDefaults() (*action.Defaults, error) {
+	defaults, err := config.Defaults.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return defaults, nil
+}
+
+func (config *WorkflowConfig) parseConcurrency() (*action.Concurrency, error) {
+	concurrency, err := config.Concurrency.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	if concurrency == nil {
+		return nil, nil
+	}
+
+	return concurrency, nil
+}
+
+func (config *WorkflowConfig) unwrapJobsIds(acto *actoparser.Acto) (*[]string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, errors.New("attribute 'jobs' must be a list of jobs relation")
+	case []actoparser.ActoVariableRef:
+		list := []string{}
+		for _, jobRef := range resultValue {
+			if jobRef.Name != "job" {
+				return nil, errors.New("invalid job reference, should be job.<job-identifier>")
+			}
+
+			list = append(list, jobRef.Attr)
+		}
+
+		return &list, nil
+	default:
+		return nil, errors.New("attribute 'jobs' must be a list of jobs relation")
+	}
+}
+
+func (config *WorkflowConfig) parseJobsIds() (*[]string, error) {
+	acto := actoparser.NewActo(config.Jobs)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	jobsIds, err := config.unwrapJobsIds(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(*jobsIds) == 0 {
+		return nil, errors.New("attribute 'jobs' cannot be empty")
+	}
+
+	return jobsIds, nil
+}
+
+func (config *WorkflowConfig) Parse() (*Workflow, error) {
+	if config == nil {
+		return nil, nil
+	}
+
 	if config.Id == "" {
-		return nil
+		return nil, errors.New("a workflow needs to have an id")
 	}
 
-	workflow.Id = config.Id
+	workflow := Workflow{
+		Id: config.Id,
+	}
 
-	return nil
-}
-
-func (config *WorkflowConfig) parseName(workflow *Workflow) error {
-	name, err := config.Name.Parse()
+	filename, err := config.parseFilename()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if name == "" {
-		return nil
-	}
+	workflow.Filename = *filename
 
-	workflow.Name = &name
-
-	return nil
-}
-
-func (config *WorkflowConfig) parseRunName(workflow *Workflow) error {
-	runName, err := config.RunName.Parse()
+	name, err := config.parseName()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if runName == "" {
-		return nil
+	if name != nil {
+		workflow.Name = *name
 	}
 
-	workflow.RunName = &runName
-
-	return nil
-}
-
-func (config *WorkflowConfig) parseOn(workflow *Workflow) error {
-	on, err := config.On.Parse(workflow.Id)
+	runName, err := config.parseRunName()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if runName != nil {
+		workflow.RunName = *runName
+	}
+
+	on, err := config.parseOn()
+	if err != nil {
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
 	workflow.On = on
 
-	return nil
-}
-
-func (config *WorkflowConfig) parsePermissions(workflow *Workflow) error {
-	permissions, err := config.Permissions.Parse()
+	permissions, err := config.parsePermissions()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if permissions == (action.Permissions{}) {
-		return nil
+	if permissions != nil {
+		workflow.Permissions = permissions
 	}
 
-	workflow.Permissions = &permissions
-
-	return nil
-}
-
-func (config *WorkflowConfig) parseEnv(workflow *Workflow) error {
-	env, err := config.Env.Parse()
+	envs, err := config.parseEnvs()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if env == nil {
-		return nil
+	if envs != nil {
+		workflow.Env = envs
 	}
 
-	workflow.Env = &env
-
-	return nil
-}
-
-func (config *WorkflowConfig) parseDefaults(workflow *Workflow) error {
-	defaults, err := config.Defaults.Parse()
+	defaults, err := config.parseDefaults()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if defaults == (action.Defaults{}) {
-		return nil
+	if defaults != nil {
+		workflow.Defaults = defaults
 	}
 
-	workflow.Defaults = &defaults
-
-	return nil
-}
-
-func (config *WorkflowConfig) parseConcurrency(workflow *Workflow) error {
-	concurrency, err := config.Concurrency.Parse()
+	concurrency, err := config.parseConcurrency()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if concurrency == (action.Concurrency{}) {
-		return nil
+	if concurrency != nil {
+		workflow.Concurrency = concurrency
 	}
 
-	workflow.Concurrency = &concurrency
-
-	return nil
-}
-
-func (config *WorkflowConfig) parseJobs(workflow *Workflow) error {
-	if config.Jobs == nil {
-		return nil
+	jobsIds, err := config.parseJobsIds()
+	if err != nil {
+		return nil, fmt.Errorf("error in workflow '%s': %w, %w", workflow.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	val, diags := config.Jobs.Value(nil)
-	if diags.HasErrors() {
-		// TODO: understand the reason why it has diags
-		// return nil, errors.New(diags[0].Detail)
-	}
-	if val.IsNull() {
-		return actoerrors.ErrWorkflowEmptyJobs(workflow.Id)
-	}
+	workflow.JobsIds = *jobsIds
 
-	exprs, diags := hcl.ExprList(config.Jobs)
-	if diags.HasErrors() {
-		return actoerrors.ProcessHCLDiags(diags)
-	}
-
-	jobsIds := []string{}
-
-	for _, expr := range exprs {
-		traversal, diags := hcl.AbsTraversalForExpr(expr)
-		if diags.HasErrors() {
-			return actoerrors.ProcessHCLDiags(diags)
-		}
-
-		for _, traverser := range traversal {
-			switch tJob := traverser.(type) {
-			case hcl.TraverseRoot:
-				if tJob.Name != "job" {
-					return errors.New("jobs require a job relationship only")
-				}
-			case hcl.TraverseAttr:
-				jobsIds = append(jobsIds, tJob.Name)
-			}
-		}
-	}
-
-	if len(jobsIds) == 0 {
-		return errors.New("requires at least one job")
-	}
-
-	workflow.JobsIds = jobsIds
-
-	return nil
-}
-
-func (config *WorkflowConfig) Parse() (Workflow, error) {
-	if config == nil {
-		return Workflow{}, nil
-	}
-
-	if config.Filename == nil {
-		return Workflow{}, actoerrors.ErrWorkflowFilenameRequired
-	}
-
-	workflow := Workflow{
-		Filename: *config.Filename,
-	}
-
-	if err := config.parseId(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseName(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseRunName(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseOn(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parsePermissions(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseEnv(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseDefaults(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseConcurrency(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	if err := config.parseJobs(&workflow); err != nil {
-		return Workflow{}, err
-	}
-
-	return workflow, nil
+	return &workflow, nil
 }
 
 func (config *WorkflowsConfig) Parse() (Workflows, error) {
@@ -268,33 +337,4 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 	}
 
 	return workflows, nil
-}
-
-func (workflows *Workflows) PostParse(parsedJobs job.Jobs) error {
-	for idx, workflow := range *workflows {
-		for _, jobId := range workflow.JobsIds {
-			if len(workflow.JobsIds) == 0 {
-				return fmt.Errorf("workflow %s requires at least one job", workflow.Id)
-			}
-
-			for _, parsedJob := range parsedJobs {
-				if parsedJob.Id != jobId {
-					continue
-				}
-
-				if workflow.Jobs == nil {
-					workflow.Jobs = make(map[string]job.Job)
-				}
-
-				workflow.Jobs[jobId] = parsedJob
-			}
-		}
-
-		if len(workflow.Jobs) == 0 && len(workflow.JobsIds) > 0 {
-			return errors.New("some jobs do not exist")
-		}
-
-		(*workflows)[idx] = workflow
-	}
-	return nil
 }

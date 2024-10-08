@@ -1,588 +1,686 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package job
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/acto/internal/action"
 	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/step"
+	"github.com/yldio/acto/internal/variables"
 )
 
-type Jobs []Job
+type Jobs map[string]*Job
 
 type Job struct {
 	Id              string              `yaml:"-"`
 	Name            *string             `yaml:"name,omitempty"`
 	Permissions     *action.Permissions `yaml:"permissions,omitempty"`
 	Needs           *[]string           `yaml:"needs,omitempty"`
-	If              *string             `yaml:"id,omitempty"`
-	RunsOn          *any                `yaml:"runs-on,omitempty"`
-	Environment     *any                `yaml:"environment,omitempty"`
+	If              *string             `yaml:"if,omitempty"`
+	RunsOn          any                 `yaml:"runs-on,omitempty"`
+	Environment     any                 `yaml:"environment,omitempty"`
 	Concurrency     *action.Concurrency `yaml:"concurrency,omitempty"`
-	Outputs         *map[string]any     `yaml:"outputs,omitempty"`
-	Env             *action.Env         `yaml:"env,omitempty"`
+	Outputs         *action.Outputs     `yaml:"outputs,omitempty"`
+	Env             *action.Envs        `yaml:"env,omitempty"`
 	Defaults        *action.Defaults    `yaml:"defaults,omitempty"`
-	Steps           step.Steps          `yaml:"steps"`
+	Steps           []*step.Step        `yaml:"steps,omitempty"`
 	StepsIds        []string            `yaml:"-"`
-	TimeoutMinutes  *uint16             `yaml:"timeout-minutes,omitempty"`
+	TimeoutMinutes  *uint64             `yaml:"timeout-minutes,omitempty"`
 	Strategy        *action.Strategy    `yaml:"strategy,omitempty"`
-	ContinueOnError *bool               `yaml:"continue-on-error,omitempty"`
+	ContinueOnError any                 `yaml:"continue-on-error,omitempty"`
 	Container       *action.Container   `yaml:"container,omitempty"`
 	Services        *action.Services    `yaml:"services,omitempty"`
 	Uses            *string             `yaml:"uses,omitempty"`
 	With            *map[string]any     `yaml:"with,omitempty"`
-	Secrets         *any                `yaml:"secrets,omitempty"`
+	Secrets         any                 `yaml:"secrets,omitempty"`
 }
 
 type JobsConfig []JobConfig
 
 type JobConfig struct {
-	Id              string                        `hcl:"id,label"`
-	Name            *action.NameConfig            `hcl:"name,attr"`
-	Permissions     *action.PermissionsConfig     `hcl:"permissions,block"`
-	Needs           hcl.Expression                `hcl:"needs,attr"`
-	If              *action.IfConfig              `hcl:"if,attr"`
-	RunsOn          action.RunsOnConfig           `hcl:"runs,block"`
-	Environment     *action.EnvironmentConfig     `hcl:"environment,block"`
-	Concurrency     *action.ConcurrencyConfig     `hcl:"concurrency,block"`
-	Outputs         action.OutputsConfig          `hcl:"output,block"` // action.OutputsConfig -> []*OutputConfig
-	Env             *action.EnvConfig             `hcl:"env,block"`
-	Defaults        *action.DefaultsConfig        `hcl:"defaults,block"`
-	Steps           hcl.Expression                `hcl:"steps,attr"`
-	TimeoutMinutes  *action.TimeoutMinutesConfig  `hcl:"timeout_minutes,attr"`
-	Strategy        *action.StrategyConfig        `hcl:"strategy,block"`
-	ContinueOnError *action.ContinueOnErrorConfig `hcl:"continue_on_error,attr"`
-	Container       *action.ContainerConfig       `hcl:"container,block"`
-	Services        action.ServicesConfig         `hcl:"service,block"` // action.ServicesConfig -> []*ServiceConfig
-	Uses            *action.UsesConfig            `hcl:"uses,attr"`
-	With            action.WithsConfig            `hcl:"with,block"` // action.WithsConfig -> []*WithConfig
-	Secrets         *action.SecretsInheritConfig  `hcl:"secrets,attr"`
-	Secret          action.SecretsConfig          `hcl:"secret,block"` // action.SecretsConfig -> []*SecretConfig
+	Identifier      string                    `hcl:"id,label"`
+	Name            hcl.Expression            `hcl:"name,attr"`
+	Permissions     *action.PermissionsConfig `hcl:"permissions,block"`
+	Needs           hcl.Expression            `hcl:"needs,attr"`
+	If              hcl.Expression            `hcl:"if,attr"`
+	RunsOn          *action.RunsOnConfig      `hcl:"runs_on,block"`
+	Environment     *action.EnvironmentConfig `hcl:"environment,block"`
+	Concurrency     *action.ConcurrencyConfig `hcl:"concurrency,block"`
+	Outputs         action.OutputsConfig      `hcl:"output,block"`
+	Env             action.EnvsConfig         `hcl:"env,block"`
+	Defaults        *action.DefaultsConfig    `hcl:"defaults,block"`
+	Steps           hcl.Expression            `hcl:"steps,attr"`
+	TimeoutMinutes  hcl.Expression            `hcl:"timeout_minutes,attr"`
+	Strategy        *action.StrategyConfig    `hcl:"strategy,block"`
+	ContinueOnError hcl.Expression            `hcl:"continue_on_error,attr"`
+	Container       *action.ContainerConfig   `hcl:"container,block"`
+	Services        action.ServicesConfig     `hcl:"service,block"`
+	Uses            *action.UsesConfig        `hcl:"uses,block"`
+	With            action.WithsConfig        `hcl:"with,block"`
+	Secrets         action.SecretsConfig      `hcl:"secret,block"`
+	SecretsInherit  hcl.Expression            `hcl:"secrets,attr"`
 }
 
-func (config *JobConfig) parseId(job *Job) error {
-	if config.Id == "" {
-		return nil
-	}
+const Inherit = "inherit"
 
-	job.Id = config.Id
-
-	return nil
-}
-
-func (config *JobConfig) parseName(job *Job) error {
-	if config.Name == nil {
-		return nil
-	}
-
-	if *config.Name == "" {
-		return errors.New("name must be a non empty string")
-	}
-	name := string(*config.Name)
-
-	job.Name = &name
-
-	return nil
-}
-
-func (config *JobConfig) parsePermissions(job *Job) error {
-	permissions, err := config.Permissions.Parse()
-	if err != nil {
-		return err
-	}
-
-	if permissions == (action.Permissions{}) {
-		return nil
-	}
-
-	job.Permissions = &permissions
-
-	return nil
-}
-
-func (config *JobConfig) parseNeeds(job *Job) error {
-	if config.Needs == nil {
-		return nil
-	}
-
-	val, diags := config.Needs.Value(nil)
-	if diags.HasErrors() {
-		// return errors.New(diags[0].Detail)
-	}
-	if val.IsNull() {
-		return nil
-	}
-
-	exprs, diags := hcl.ExprList(config.Needs)
-	if diags.HasErrors() {
-		return actoerrors.ProcessHCLDiags(diags)
-	}
-
-	jobsIds := []string{}
-
-	for _, expr := range exprs {
-		traversal, diags := hcl.AbsTraversalForExpr(expr)
-		if diags.HasErrors() {
-			return actoerrors.ProcessHCLDiags(diags)
+func (config *JobConfig) unwrapSecretsInherit(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		if resultValue != Inherit {
+			return nil, fmt.Errorf("attribute 'secrets' must be the hardcoded string '%s'", Inherit)
+		}
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, traverser := range traversal {
-			switch tJob := traverser.(type) {
-			case hcl.TraverseRoot:
-				if tJob.Name != "job" {
-					return errors.New("needs require a job relationship only")
-				}
-			case hcl.TraverseAttr:
-				jobsIds = append(jobsIds, tJob.Name)
-			}
-		}
+		return config.unwrapSecretsInherit(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, fmt.Errorf("attribute 'secrets' must be the hardcoded string '%s'", Inherit)
 	}
-
-	if len(jobsIds) == 0 {
-		return nil
-	}
-
-	job.Needs = &jobsIds
-
-	return nil
 }
 
-func (config *JobConfig) parseIf(job *Job) error {
-	iF, err := config.If.Parse()
+func (config *JobConfig) parseSecrets() (any, error) {
+	acto := actoparser.NewActo(config.SecretsInherit)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	secretsInherit, err := config.unwrapSecretsInherit(acto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if iF == "" {
-		return nil
-	}
-
-	job.If = &iF
-
-	return nil
-}
-
-func (config *JobConfig) parseRunsOn(job *Job) error {
-	runsOn, err := config.RunsOn.Parse()
+	secrets, err := config.Secrets.Parse()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in secrets: %w", err)
 	}
 
-	if runsOn == nil || runsOn == "" {
-		return nil
+	if secrets != nil && len(*secrets) > 0 && secretsInherit != nil {
+		return nil, fmt.Errorf("error in secrets: can only have 'secrets' inherit or a set of secrets")
 	}
 
-	job.RunsOn = &runsOn
+	if secretsInherit != nil {
+		return secretsInherit, nil
+	}
 
-	return nil
+	if secrets == nil {
+		return nil, nil
+	}
+
+	return secrets, nil
 }
 
-func (config *JobConfig) parseEnvironment(job *Job) error {
-	environment, err := config.Environment.Parse()
+func (config *JobConfig) parseWith() (*map[string]any, error) {
+	value, err := config.With.Parse()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in with: %w", err)
 	}
 
-	if environment == nil {
-		return nil
-	}
-
-	job.Environment = &environment
-
-	return nil
+	return value, nil
 }
 
-func (config *JobConfig) parseConcurrency(job *Job) error {
-	concurrency, err := config.Concurrency.Parse()
+func (config *JobConfig) parseUses() (*string, error) {
+	value, err := config.Uses.Parse()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in uses: %w", err)
 	}
 
-	if concurrency == (action.Concurrency{}) {
-		return nil
-	}
-
-	job.Concurrency = &concurrency
-
-	return nil
+	return value, nil
 }
 
-func (config *JobConfig) parseOutputs(job *Job) error {
-	outputs, err := config.Outputs.Parse()
-	if err != nil {
-		return err
-	}
+func (config *JobConfig) parseServices() (*action.Services, error) {
+	services := make(action.Services)
 
-	if outputs == nil {
-		return nil
-	}
-
-	job.Outputs = &outputs
-
-	return nil
-}
-
-func (config *JobConfig) parseEnv(job *Job) error {
-	env, err := config.Env.Parse()
-	if err != nil {
-		return err
-	}
-
-	if env == nil {
-		return nil
-	}
-
-	job.Env = &env
-
-	return nil
-}
-
-func (config *JobConfig) parseDefaults(job *Job) error {
-	defaults, err := config.Defaults.Parse()
-	if err != nil {
-		return err
-	}
-
-	if defaults == (action.Defaults{}) {
-		return nil
-	}
-
-	job.Defaults = &defaults
-
-	return nil
-}
-
-func (config *JobConfig) parseSteps(job *Job) error {
-	if config.Steps == nil {
-		return nil
-	}
-
-	val, diags := config.Steps.Value(nil)
-	if diags.HasErrors() {
-		// return errors.New(diags[0].Detail)
-	}
-	if val.IsNull() {
-		return nil
-	}
-
-	exprs, diags := hcl.ExprList(config.Steps)
-	if diags.HasErrors() {
-		return actoerrors.ProcessHCLDiags(diags)
-	}
-
-	stepsIds := []string{}
-
-	for _, expr := range exprs {
-		traversal, diags := hcl.AbsTraversalForExpr(expr)
-		if diags.HasErrors() {
-			return actoerrors.ProcessHCLDiags(diags)
+	for _, service := range config.Services {
+		svc, err := service.Parse()
+		if err != nil {
+			return nil, fmt.Errorf("error in service: %w", err)
 		}
 
-		for _, traverser := range traversal {
-			switch tStep := traverser.(type) {
-			case hcl.TraverseRoot:
-				if tStep.Name != "step" {
-					return errors.New("steps require a step relationship only")
-				}
-			case hcl.TraverseAttr:
-				stepsIds = append(stepsIds, tStep.Name)
-			}
+		if services[svc.Name] != nil {
+			return nil, fmt.Errorf("error in service: '%s' already defined ", svc.Name)
 		}
+
+		services[svc.Name] = svc
 	}
 
-	if len(stepsIds) == 0 {
-		return actoerrors.ErrJobEmptySteps(job.Id)
+	if len(services) == 0 {
+		return nil, nil
 	}
 
-	job.StepsIds = stepsIds
-
-	return nil
+	return &services, nil
 }
 
-func (config *JobConfig) parseTimeoutMinutes(job *Job) error {
-	timeoutMinutes, err := config.TimeoutMinutes.Parse()
-	if err != nil {
-		return err
-	}
-
-	if timeoutMinutes == nil {
-		return nil
-	}
-
-	job.TimeoutMinutes = timeoutMinutes
-
-	return nil
-}
-
-func (config *JobConfig) parseContainer(job *Job) error {
+func (config *JobConfig) parseContainer() (*action.Container, error) {
 	container, err := config.Container.Parse()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in container: %w", err)
 	}
 
-	if container.IsNill() {
-		return nil
-	}
-
-	job.Container = &container
-
-	return nil
+	return container, nil
 }
 
-func (config *JobConfig) parseStrategy(job *Job) error {
+func (config *JobConfig) unwrapContinueOnError(acto *actoparser.Acto) (any, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case bool:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapContinueOnError(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'continue_on_error' must be a string or a boolean")
+	}
+}
+
+func (config *JobConfig) parseContinueOnError() (any, error) {
+	acto := actoparser.NewActo(config.ContinueOnError)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapContinueOnError(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *JobConfig) parseStrategy() (*action.Strategy, error) {
 	strategy, err := config.Strategy.Parse()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if strategy.Matrix == nil {
-		return nil
-	}
-
-	job.Strategy = &strategy
-
-	return nil
+	return strategy, nil
 }
 
-func (config *JobConfig) parseContinueOnError(job *Job) error {
-	continueOnError, err := config.ContinueOnError.Parse()
-	if err != nil {
-		return err
+func (config *JobConfig) unwrapTimeoutMinutes(acto *actoparser.Acto) (*uint64, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case int64:
+		if resultValue < 0 {
+			return nil, errors.New("attribute 'timeout_minutes' must be a positive number")
+		}
+
+		val := uint64(resultValue)
+		return &val, nil
+	case uint64:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapTimeoutMinutes(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'timeout_minutes' must be a positive number")
 	}
-
-	if continueOnError == nil {
-		return nil
-	}
-
-	job.ContinueOnError = continueOnError
-
-	return nil
 }
 
-func (config *JobConfig) parseServices(job *Job) error {
-	services, err := config.Services.Parse()
+func (config *JobConfig) parseTimeoutMinutes() (*uint64, error) {
+	acto := actoparser.NewActo(config.TimeoutMinutes)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapTimeoutMinutes(acto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if services.IsNill() {
-		return nil
-	}
-
-	job.Services = &services
-
-	return nil
+	return value, nil
 }
 
-func (config *JobConfig) parseUses(job *Job) error {
-	uses, err := config.Uses.Parse()
-	if err != nil {
-		return err
+func (config *JobConfig) unwrapStepsIds(acto *actoparser.Acto) (*[]string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case []actoparser.ActoVariableRef:
+		list := []string{}
+		for _, stepRef := range resultValue {
+			if stepRef.Name != "step" {
+				return nil, errors.New("invalid step reference, should be step.<step-identifier>")
+			}
+
+			list = append(list, stepRef.Attr)
+		}
+
+		return &list, nil
+	default:
+		return nil, errors.New("attribute 'Steps' must be a list of steps relation")
 	}
-
-	if uses == "" {
-		return nil
-	}
-
-	job.Uses = &uses
-
-	return nil
 }
 
-func (config *JobConfig) parseWith(job *Job) error {
-	with, err := config.With.Parse()
+func (config *JobConfig) parseStepsIds() (*[]string, error) {
+	acto := actoparser.NewActo(config.Steps)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	stepsIds, err := config.unwrapStepsIds(acto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if with == nil {
-		return nil
+	if stepsIds != nil && len(*stepsIds) == 0 {
+		return nil, errors.New("attribute 'steps' cannot be empty")
 	}
 
-	job.With = &with
-
-	return nil
+	return stepsIds, nil
 }
 
-func (config *JobConfig) parseSecrets(job *Job) error {
-	secretsInherit, err := config.Secrets.Parse()
+func (config *JobConfig) parseDefaults() (*action.Defaults, error) {
+	defaults, err := config.Defaults.Parse()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	secretsList, err := config.Secret.Parse()
-	if err != nil {
-		return err
-	}
-
-	var secrets any
-
-	inheritNil := secretsInherit.IsNill()
-	secretsNil := secretsList.IsNill()
-
-	if !inheritNil && !secretsNil {
-		return errors.New("only `secrets` blocks or one single `secret` attribute is allowed")
-	}
-
-	if !inheritNil {
-		secrets = &secretsInherit
-	} else if !secretsNil {
-		secrets = &secretsList
-	}
-
-	if secrets != nil {
-		job.Secrets = &secrets
-	}
-
-	return nil
+	return defaults, nil
 }
 
-func (config *JobConfig) Parse() (Job, error) {
+func (config *JobConfig) parseEnvs() (*action.Envs, error) {
+	env, err := config.Env.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return env, nil
+}
+
+func (config *JobConfig) parseOutputs() (*action.Outputs, error) {
+	outputs, err := config.Outputs.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	if outputs == nil || len(*outputs) == 0 {
+		return nil, nil
+	}
+
+	return outputs, nil
+}
+
+func (config *JobConfig) parseConcurrency() (*action.Concurrency, error) {
+	concurrency, err := config.Concurrency.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	if concurrency == nil {
+		return nil, nil
+	}
+
+	return concurrency, nil
+}
+
+func (config *JobConfig) parseEnvironment() (any, error) {
+	environment, err := config.Environment.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return environment, nil
+}
+
+func (config *JobConfig) unwrapIf(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapIf(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'if' must be a string or bool")
+	}
+}
+
+func (config *JobConfig) unwrapNeeds(acto *actoparser.Acto) (*[]string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case []actoparser.ActoVariableRef:
+		list := []string{}
+		for _, jobRef := range resultValue {
+			if jobRef.Name != "job" {
+				return nil, errors.New("invalid job reference, should be job.<job-identifier>")
+			}
+
+			list = append(list, jobRef.Attr)
+		}
+
+		return &list, nil
+	default:
+		return nil, errors.New("attribute 'needs' must be a list of jobs relation")
+	}
+}
+
+func (config *JobConfig) unwrapName(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapName(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'name' must be a string")
+	}
+}
+
+func (config *JobConfig) parseName() (*string, error) {
+	acto := actoparser.NewActo(config.Name)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapName(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *JobConfig) parsePermissions() (*action.Permissions, error) {
+	permissions, err := config.Permissions.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+func (config *JobConfig) parseNeeds() (*[]string, error) {
+	acto := actoparser.NewActo(config.Needs)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapNeeds(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *JobConfig) parseIf() (*string, error) {
+	acto := actoparser.NewActo(config.If)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapIf(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *JobConfig) parseRunsOn() (any, error) {
+	runsOn, err := config.RunsOn.Parse()
+	if err != nil {
+		return nil, err
+	}
+
+	return runsOn, nil
+}
+
+func (config *JobConfig) Parse() (*Job, error) {
 	if config == nil {
-		return Job{}, nil
+		return nil, nil
+	}
+
+	if config.Identifier == "" {
+		return nil, fmt.Errorf("error in job: no identifier, %w", actoerrors.ErrOpenIssue)
 	}
 
 	job := Job{
-		Id: config.Id,
+		Id: config.Identifier,
 	}
 
-	if err := config.parseId(&job); err != nil {
-		return Job{}, err
+	name, err := config.parseName()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseName(&job); err != nil {
-		return Job{}, err
+	if name != nil {
+		job.Name = name
 	}
 
-	if err := config.parsePermissions(&job); err != nil {
-		return Job{}, err
+	permissions, err := config.parsePermissions()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseNeeds(&job); err != nil {
-		return Job{}, err
+	if permissions != nil {
+		job.Permissions = permissions
 	}
 
-	if err := config.parseIf(&job); err != nil {
-		return Job{}, err
+	needs, err := config.parseNeeds()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseRunsOn(&job); err != nil {
-		return Job{}, err
+	if needs != nil {
+		job.Needs = needs
 	}
 
-	if err := config.parseEnvironment(&job); err != nil {
-		return Job{}, err
+	ifVal, err := config.parseIf()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseConcurrency(&job); err != nil {
-		return Job{}, err
+	if ifVal != nil {
+		job.If = ifVal
 	}
 
-	if err := config.parseOutputs(&job); err != nil {
-		return Job{}, err
+	runsOn, err := config.parseRunsOn()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseEnv(&job); err != nil {
-		return Job{}, err
+	if runsOn != nil {
+		job.RunsOn = runsOn
 	}
 
-	if err := config.parseDefaults(&job); err != nil {
-		return Job{}, err
+	environment, err := config.parseEnvironment()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseSteps(&job); err != nil {
-		return Job{}, err
+	if environment != nil {
+		job.Environment = environment
 	}
 
-	if err := config.parseTimeoutMinutes(&job); err != nil {
-		return Job{}, err
+	concurrency, err := config.parseConcurrency()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseStrategy(&job); err != nil {
-		return Job{}, err
+	if concurrency != nil {
+		job.Concurrency = concurrency
 	}
 
-	if err := config.parseContinueOnError(&job); err != nil {
-		return Job{}, err
+	outputs, err := config.parseOutputs()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseContainer(&job); err != nil {
-		return Job{}, err
+	if outputs != nil {
+		job.Outputs = outputs
 	}
 
-	if err := config.parseServices(&job); err != nil {
-		return Job{}, err
+	envs, err := config.parseEnvs()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseUses(&job); err != nil {
-		return Job{}, err
+	if envs != nil {
+		job.Env = envs
 	}
 
-	if err := config.parseUses(&job); err != nil {
-		return Job{}, err
+	defaults, err := config.parseDefaults()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseWith(&job); err != nil {
-		return Job{}, err
+	if defaults != nil {
+		job.Defaults = defaults
 	}
 
-	if err := config.parseSecrets(&job); err != nil {
-		return Job{}, err
+	stepsIds, err := config.parseStepsIds()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
 	}
 
-	return job, nil
+	if stepsIds != nil {
+		job.StepsIds = *stepsIds
+	}
+
+	timeoutMinutes, err := config.parseTimeoutMinutes()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if timeoutMinutes != nil {
+		job.TimeoutMinutes = timeoutMinutes
+	}
+
+	strategy, err := config.parseStrategy()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if strategy != nil {
+		job.Strategy = strategy
+	}
+
+	continueOnError, err := config.parseContinueOnError()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if continueOnError != nil {
+		job.ContinueOnError = continueOnError
+	}
+
+	container, err := config.parseContainer()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if container != nil {
+		job.Container = container
+	}
+
+	services, err := config.parseServices()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if services != nil {
+		job.Services = services
+	}
+
+	uses, err := config.parseUses()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if uses != nil {
+		job.Uses = uses
+	}
+
+	if runsOn != nil && uses != nil {
+		return nil, fmt.Errorf("error in job '%s': can only have 'runs_on' or 'uses', not both, %w", job.Id, actoerrors.ErrOpenIssue)
+	}
+
+	withs, err := config.parseWith()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if withs != nil {
+		job.With = withs
+	}
+
+	if withs != nil && uses == nil {
+		return nil, fmt.Errorf("error in job '%s': can only have 'with' when 'uses' is set, %w", job.Id, actoerrors.ErrOpenIssue)
+	}
+
+	secrets, err := config.parseSecrets()
+	if err != nil {
+		return nil, fmt.Errorf("error in job '%s': %w, %w", job.Id, err, actoerrors.ErrOpenIssue)
+	}
+
+	if secrets != nil {
+		job.Secrets = secrets
+	}
+
+	if secrets != nil && uses == nil {
+		return nil, fmt.Errorf("error in job '%s': can only have 'secret' when 'uses' is set, %w", job.Id, actoerrors.ErrOpenIssue)
+	}
+
+	return &job, nil
 }
 
 func (config *JobsConfig) Parse() (Jobs, error) {
 	jobs := Jobs{}
 
 	for _, job := range *config {
-		parsedjob, err := job.Parse()
+		parsedJob, err := job.Parse()
 		if err != nil {
 			return Jobs{}, err
 		}
 
-		jobs = append(jobs, parsedjob)
+		if jobs[parsedJob.Id] != nil {
+			return Jobs{}, fmt.Errorf("error in job '%s': already defined, %w", parsedJob.Id, actoerrors.ErrOpenIssue)
+		}
+
+		jobs[parsedJob.Id] = parsedJob
 	}
 
 	return jobs, nil
-}
-
-func (jobs *Jobs) PostParseNeeds(parsedJobs Jobs) error {
-	// TODO: validate job_1 exists
-	return nil
-}
-
-func (jobs *Jobs) PostParseSteps(parsedSteps step.Steps) error {
-	for idx, job := range *jobs {
-		if len(job.StepsIds) == 0 {
-			return actoerrors.ErrJobEmptySteps(job.Id)
-		}
-
-		stepsList := step.Steps{}
-
-		for _, stepId := range job.StepsIds {
-			for _, parsedStep := range parsedSteps {
-				if parsedStep.Id != stepId {
-					continue
-				}
-
-				stepsList = append(stepsList, parsedStep)
-			}
-		}
-
-		if len(stepsList) == 0 && len(parsedSteps) > 0 {
-			return errors.New("some steps do not exist")
-		}
-
-		job.Steps = stepsList
-
-		(*jobs)[idx] = job
-	}
-
-	return nil
 }

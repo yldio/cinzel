@@ -61,7 +61,7 @@ Please make sure to update tests as appropriate.
 
 ## License
 
-This project is licensed under the [GNU AGPL v3.0](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
 
 ## Roadmap
 

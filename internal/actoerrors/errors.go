@@ -1,5 +1,5 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package actoerrors
 
@@ -15,6 +15,8 @@ var (
 	ErrOnlyHclFiles             = errOnlyHclFiles()
 	ErrOnRestriction            = errOnRestriction()
 	ErrSecretsRestriction       = errSecretsRestriction()
+	ErrWorkflowEmptyOn          = errWorkflowEmptyOn()
+	ErrOpenIssue                = errOpenIssue()
 )
 
 func errWorkflowFilenameRequired() error { return errors.New("`workflow` requires a filename") }
@@ -31,8 +33,8 @@ func ErrWorkflowEmptyJobs(workflowId string) error {
 	return fmt.Errorf("workflow `%s` requires at least one job", workflowId)
 }
 
-func ErrWorkflowEmptyOn(workflowId string) error {
-	return fmt.Errorf("workflow `%s` requires at least one `on` event", workflowId)
+func errWorkflowEmptyOn() error {
+	return errors.New("has to have at leat one `on` event")
 }
 
 func ErrJobEmptySteps(jobId string) error {
@@ -40,12 +42,15 @@ func ErrJobEmptySteps(jobId string) error {
 }
 
 func ProcessHCLDiags(diags hcl.Diagnostics) error {
-	var errorsList []error
+	var err error
 
 	for _, diag := range diags {
-		err := fmt.Errorf("%s on %s", diag.Summary, diag.Subject)
-		errorsList = append(errorsList, err)
+		err = fmt.Errorf("%s", diag.Summary)
 	}
 
-	return errors.Join(errorsList...)
+	return fmt.Errorf("%w, %w", err, ErrOpenIssue)
+}
+
+func errOpenIssue() error {
+	return errors.New("if you think this is incorrect, consider opening an issue in https://www.github.com/yldio/acto/issues")
 }

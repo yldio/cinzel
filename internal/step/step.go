@@ -1,16 +1,24 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package step
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/acto/internal/action"
+	"github.com/yldio/acto/internal/actoerrors"
+	"github.com/yldio/acto/internal/actoparser"
+	"github.com/yldio/acto/internal/variables"
 )
 
-type Steps []Step
+type Steps map[string]*Step
 
 type Step struct {
-	Id               string          `yaml:"id,omitempty"`
+	Identifier       string          `yaml:"-"`
+	Id               *string         `yaml:"id,omitempty"`
 	If               *string         `yaml:"if,omitempty"`
 	Name             *string         `yaml:"name,omitempty"`
 	Uses             *string         `yaml:"uses,omitempty"`
@@ -18,239 +26,457 @@ type Step struct {
 	WorkingDirectory *string         `yaml:"working-directory,omitempty"`
 	Shell            *string         `yaml:"shell,omitempty"`
 	With             *map[string]any `yaml:"with,omitempty"`
-	Env              *action.Env     `yaml:"env,omitempty"`
-	ContinueOnError  *bool           `yaml:"continue-on-error,omitempty"`
-	TimeoutMinutes   *uint16         `yaml:"timeout-minutes,omitempty"`
+	Env              *action.Envs    `yaml:"env,omitempty"`
+	ContinueOnError  any             `yaml:"continue-on-error,omitempty"`
+	TimeoutMinutes   *uint64         `yaml:"timeout-minutes,omitempty"`
 }
 
 type StepsConfig []StepConfig
 
 type StepConfig struct {
-	Id               string                         `hcl:"id,label"`
-	If               *action.IfConfig               `hcl:"if,attr"`
-	Name             *action.NameConfig             `hcl:"name,attr"`
-	Uses             *action.UsesConfig             `hcl:"uses,block"`
-	Run              *action.RunConfig              `hcl:"run,attr"`
-	WorkingDirectory *action.WorkingDirectoryConfig `hcl:"working_directory,attr"`
-	Shell            *action.ShellConfig            `hcl:"shell,attr"`
-	With             action.WithsConfig             `hcl:"with,block"` // action.WithsConfig -> []*WithConfig
-	Env              *action.EnvConfig              `hcl:"env,block"`
-	ContinueOnError  *action.ContinueOnErrorConfig  `hcl:"continue_on_error,attr"`
-	TimeoutMinutes   *action.TimeoutMinutesConfig   `hcl:"timeout_minutes,attr"`
+	Identifier       string             `hcl:"id,label"`
+	IgnoreId         hcl.Expression     `hcl:"ignore_id,attr"`
+	If               hcl.Expression     `hcl:"if,attr"`
+	Name             hcl.Expression     `hcl:"name,attr"`
+	Uses             *action.UsesConfig `hcl:"uses,block"`
+	Run              hcl.Expression     `hcl:"run,attr"`
+	WorkingDirectory hcl.Expression     `hcl:"working_directory,attr"`
+	Shell            hcl.Expression     `hcl:"shell,attr"`
+	With             action.WithsConfig `hcl:"with,block"`
+	Env              action.EnvsConfig  `hcl:"env,block"`
+	ContinueOnError  hcl.Expression     `hcl:"continue_on_error,attr"`
+	TimeoutMinutes   hcl.Expression     `hcl:"timeout_minutes,attr"`
 }
 
-func (config *StepConfig) parseId(step *Step) error {
-	if config.Id == "" {
-		return nil
+func (config *StepConfig) unwrapTimeoutMinutes(acto *actoparser.Acto) (*uint64, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case int64:
+		if resultValue < 0 {
+			return nil, errors.New("attribute 'timeout_minutes' must be a positive number")
+		}
+
+		val := uint64(resultValue)
+		return &val, nil
+	case uint64:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapTimeoutMinutes(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'timeout_minutes' must be a positive number")
+	}
+}
+
+func (config *StepConfig) parseTimeoutMinutes() (*uint64, error) {
+	acto := actoparser.NewActo(config.TimeoutMinutes)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
 	}
 
-	step.Id = config.Id
-
-	return nil
-}
-
-func (config *StepConfig) parseIf(step *Step) error {
-	iF, err := config.If.Parse()
+	value, err := config.unwrapTimeoutMinutes(acto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if iF == "" {
-		return nil
-	}
-
-	step.If = &iF
-
-	return nil
+	return value, nil
 }
 
-func (config *StepConfig) parseName(step *Step) error {
-	name, err := config.Name.Parse()
+func (config *StepConfig) unwrapContinueOnError(acto *actoparser.Acto) (any, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case bool:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapContinueOnError(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'continue_on_error' must be a string or a boolean")
+	}
+}
+
+func (config *StepConfig) parseContinueOnError() (any, error) {
+	acto := actoparser.NewActo(config.ContinueOnError)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapContinueOnError(acto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if name == "" {
-		return nil
-	}
-
-	step.Name = &name
-
-	return nil
+	return value, nil
 }
 
-func (config *StepConfig) parseUses(step *Step) error {
-	uses, err := config.Uses.Parse()
-	if err != nil {
-		return err
-	}
-
-	if uses == "" {
-		return nil
-	}
-
-	step.Uses = &uses
-
-	return nil
-}
-
-func (config *StepConfig) parseRun(step *Step) error {
-	run, err := config.Run.Parse()
-	if err != nil {
-		return err
-	}
-
-	if run == "" {
-		return nil
-	}
-
-	step.Run = &run
-
-	return nil
-}
-
-func (config *StepConfig) parseWorkingDirectory(step *Step) error {
-	workingDirectory, err := config.WorkingDirectory.Parse()
-	if err != nil {
-		return err
-	}
-
-	if workingDirectory == "" {
-		return nil
-	}
-
-	step.WorkingDirectory = &workingDirectory
-
-	return nil
-}
-
-func (config *StepConfig) parseShell(step *Step) error {
-	shell, err := config.Shell.Parse()
-	if err != nil {
-		return err
-	}
-
-	if shell == "" {
-		return nil
-	}
-
-	step.Shell = &shell
-
-	return nil
-}
-
-func (config *StepConfig) parseWith(step *Step) error {
-	with, err := config.With.Parse()
-	if err != nil {
-		return err
-	}
-
-	if with == nil {
-		return nil
-	}
-
-	step.With = &with
-
-	return nil
-}
-
-func (config *StepConfig) parseEnv(step *Step) error {
+func (config *StepConfig) parseEnvs() (*action.Envs, error) {
 	env, err := config.Env.Parse()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if env == nil {
-		return nil
-	}
-
-	step.Env = &env
-
-	return nil
+	return env, nil
 }
 
-func (config *StepConfig) parseContinueOnError(step *Step) error {
-	continueOnError, err := config.ContinueOnError.Parse()
+func (config *StepConfig) parseWith() (*map[string]any, error) {
+	value, err := config.With.Parse()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error in with: %w", err)
 	}
 
-	if continueOnError == nil {
-		return nil
-	}
-
-	step.ContinueOnError = continueOnError
-
-	return nil
+	return value, nil
 }
 
-func (config *StepConfig) parseTimeoutMinutes(step *Step) error {
-	timeoutMinutes, err := config.TimeoutMinutes.Parse()
+func (config *StepConfig) unwrapShell(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapShell(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'shell' must be a string")
+	}
+}
+
+func (config *StepConfig) parseShell() (*string, error) {
+	acto := actoparser.NewActo(config.Shell)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapShell(acto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if timeoutMinutes == nil {
-		return nil
-	}
-
-	step.TimeoutMinutes = timeoutMinutes
-
-	return nil
+	return value, nil
 }
 
-func (config *StepConfig) Parse() (Step, error) {
+func (config *StepConfig) unwrapWorkingDirectory(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapWorkingDirectory(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'working_directory' must be a string")
+	}
+}
+
+func (config *StepConfig) parseWorkingDirectory() (*string, error) {
+	acto := actoparser.NewActo(config.WorkingDirectory)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapWorkingDirectory(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *StepConfig) unwrapIgnoreId(acto *actoparser.Acto) (*bool, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case bool:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapIgnoreId(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'ignore_id' must be a bool")
+	}
+}
+
+func (config *StepConfig) parseIgnoreId() (*bool, error) {
+	acto := actoparser.NewActo(config.IgnoreId)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapIgnoreId(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *StepConfig) unwrapRun(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapRun(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'run' must be a string or a HEREDOC")
+	}
+}
+
+func (config *StepConfig) parseRun() (*string, error) {
+	acto := actoparser.NewActo(config.Run)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapRun(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *StepConfig) parseUses() (*string, error) {
+	value, err := config.Uses.Parse()
+	if err != nil {
+		return nil, fmt.Errorf("error in uses: %w", err)
+	}
+
+	return value, nil
+}
+
+func (config *StepConfig) unwrapName(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapName(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'name' must be a string")
+	}
+}
+
+func (config *StepConfig) parseName() (*string, error) {
+	acto := actoparser.NewActo(config.Name)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapName(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *StepConfig) unwrapIf(acto *actoparser.Acto) (*string, error) {
+	switch resultValue := acto.Result.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return &resultValue, nil
+	case actoparser.ActoVariableRef:
+		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
+		if err != nil {
+			return nil, err
+		}
+
+		return config.unwrapIf(actoparser.NewActoFromResult(variableValue))
+	default:
+		return nil, errors.New("attribute 'if' must be a string or bool")
+	}
+}
+
+func (config *StepConfig) parseIf() (*string, error) {
+	acto := actoparser.NewActo(config.If)
+
+	if err := acto.Parse(); err != nil {
+		return nil, err
+	}
+
+	value, err := config.unwrapIf(acto)
+	if err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func (config *StepConfig) Parse() (*Step, error) {
 	if config == nil {
-		return Step{}, nil
+		return nil, nil
 	}
 
-	step := Step{}
-
-	if err := config.parseId(&step); err != nil {
-		return Step{}, err
+	if config.Identifier == "" {
+		return nil, fmt.Errorf("error in step: no identifier, %w", actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseIf(&step); err != nil {
-		return Step{}, err
+	step := Step{
+		Identifier: config.Identifier,
 	}
 
-	if err := config.parseName(&step); err != nil {
-		return Step{}, err
+	ignoreId, err := config.parseIgnoreId()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseUses(&step); err != nil {
-		return Step{}, err
+	if ignoreId == nil || !*ignoreId {
+		step.Id = &step.Identifier
 	}
 
-	if err := config.parseRun(&step); err != nil {
-		return Step{}, err
+	ifVal, err := config.parseIf()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseWorkingDirectory(&step); err != nil {
-		return Step{}, err
+	if ifVal != nil {
+		step.If = ifVal
 	}
 
-	if err := config.parseShell(&step); err != nil {
-		return Step{}, err
+	name, err := config.parseName()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseWith(&step); err != nil {
-		return Step{}, err
+	if name != nil {
+		step.Name = name
 	}
 
-	if err := config.parseEnv(&step); err != nil {
-		return Step{}, err
+	uses, err := config.parseUses()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
 	}
 
-	if err := config.parseContinueOnError(&step); err != nil {
-		return Step{}, err
+	if uses != nil {
+		step.Uses = uses
 	}
 
-	if err := config.parseTimeoutMinutes(&step); err != nil {
-		return Step{}, err
+	run, err := config.parseRun()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
 	}
 
-	return step, nil
+	if run != nil {
+		step.Run = run
+	}
+
+	if uses != nil && run != nil {
+		return nil, fmt.Errorf("error in step '%s': only 'uses' or 'run', not both, %w", step.Identifier, actoerrors.ErrOpenIssue)
+	}
+
+	workingDirectory, err := config.parseWorkingDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
+	}
+
+	if workingDirectory != nil {
+		step.WorkingDirectory = workingDirectory
+	}
+
+	if uses != nil && workingDirectory != nil {
+		return nil, fmt.Errorf("error in step '%s': 'working_directory' not allowed with 'uses', %w", step.Identifier, actoerrors.ErrOpenIssue)
+	}
+
+	shell, err := config.parseShell()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
+	}
+
+	if shell != nil {
+		step.Shell = shell
+	}
+
+	if uses != nil && shell != nil {
+		return nil, fmt.Errorf("error in step '%s': 'shell' not allowed with 'uses', %w", step.Identifier, actoerrors.ErrOpenIssue)
+	}
+
+	withs, err := config.parseWith()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
+	}
+
+	if withs != nil {
+		step.With = withs
+	}
+
+	if withs != nil && uses == nil {
+		return nil, fmt.Errorf("error in step '%s': can only have 'with' when 'uses' is set, %w", step.Identifier, actoerrors.ErrOpenIssue)
+	}
+
+	envs, err := config.parseEnvs()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
+	}
+
+	if envs != nil {
+		step.Env = envs
+	}
+
+	continueOnError, err := config.parseContinueOnError()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
+	}
+
+	if continueOnError != nil {
+		step.ContinueOnError = continueOnError
+	}
+
+	timeoutMinutes, err := config.parseTimeoutMinutes()
+	if err != nil {
+		return nil, fmt.Errorf("error in step '%s': %w, %w", step.Identifier, err, actoerrors.ErrOpenIssue)
+	}
+
+	if timeoutMinutes != nil {
+		step.TimeoutMinutes = timeoutMinutes
+	}
+
+	return &step, nil
 }
 
 func (config *StepsConfig) Parse() (Steps, error) {
@@ -262,7 +488,11 @@ func (config *StepsConfig) Parse() (Steps, error) {
 			return Steps{}, err
 		}
 
-		steps = append(steps, parsedStep)
+		if steps[parsedStep.Identifier] != nil {
+			return Steps{}, fmt.Errorf("error in step '%s': already defined, %w", parsedStep.Identifier, actoerrors.ErrOpenIssue)
+		}
+
+		steps[parsedStep.Identifier] = parsedStep
 	}
 
 	return steps, nil

@@ -1,5 +1,5 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package action
 
@@ -35,11 +35,11 @@ func TestWorkingDirectory(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.have.Parse()
 			if err != nil {
-				t.Error(err.Error())
+				t.Fatal(err.Error())
 			}
 
 			if !reflect.DeepEqual(got, tt.expect) {
-				t.Fatalf("%s - failed", tt.name)
+				t.Fatal(tt.name)
 			}
 		})
 	}

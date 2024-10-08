@@ -1,27 +1,45 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package action
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestDefaults(t *testing.T) {
 	type Test struct {
 		name   string
 		have   *DefaultsConfig
-		expect Defaults
+		expect *Defaults
+	}
+	shell := "bash"
+	workingDirectory := "./scripts"
+
+	shellExpression := hclsyntax.TemplateExpr{
+		Parts: []hclsyntax.Expression{
+			&hclsyntax.LiteralValueExpr{
+				Val: cty.StringVal(shell),
+			},
+		},
 	}
 
-	var shell = "bash"
-	var workingDirectory = "./scripts"
+	workingDirectoryExpression := hclsyntax.TemplateExpr{
+		Parts: []hclsyntax.Expression{
+			&hclsyntax.LiteralValueExpr{
+				Val: cty.StringVal(workingDirectory),
+			},
+		},
+	}
 
 	var have1 = DefaultsConfig{
 		Run: &DefaultsRunConfig{
-			Shell:            &shell,
-			WorkingDirectory: &workingDirectory,
+			Shell:            &shellExpression,
+			WorkingDirectory: &workingDirectoryExpression,
 		},
 	}
 	var expect1 = Defaults{
@@ -33,7 +51,7 @@ func TestDefaults(t *testing.T) {
 
 	var have2 = DefaultsConfig{
 		Run: &DefaultsRunConfig{
-			Shell: &shell,
+			Shell: &shellExpression,
 		},
 	}
 	var expect2 = Defaults{
@@ -44,7 +62,7 @@ func TestDefaults(t *testing.T) {
 
 	var have3 = DefaultsConfig{
 		Run: &DefaultsRunConfig{
-			WorkingDirectory: &workingDirectory,
+			WorkingDirectory: &workingDirectoryExpression,
 		},
 	}
 	var expect3 = Defaults{
@@ -54,20 +72,20 @@ func TestDefaults(t *testing.T) {
 	}
 
 	var tests = []Test{
-		{"with defined defaults, run shell and working-directory", &have1, expect1},
-		{"with defined defaults, run shell", &have2, expect2},
-		{"with defined defaults and run working-directory", &have3, expect3},
+		{"with defined defaults, run shell and working-directory", &have1, &expect1},
+		{"with defined defaults, run shell", &have2, &expect2},
+		{"with defined defaults and run working-directory", &have3, &expect3},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.have.Parse()
 			if err != nil {
-				t.Error(err.Error())
+				t.Fatal(err.Error())
 			}
 
 			if !reflect.DeepEqual(got, tt.expect) {
-				t.Fatalf("%s - failed", tt.name)
+				t.Fatal(tt.name)
 			}
 		})
 	}

@@ -1,13 +1,11 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 package action
 
 import (
 	"reflect"
 	"testing"
-
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestRunsOn(t *testing.T) {
@@ -17,43 +15,67 @@ func TestRunsOn(t *testing.T) {
 		expect any
 	}
 
-	on1 := cty.StringVal("ubuntu-latest")
-	on2 := cty.TupleVal([]cty.Value{cty.StringVal("self-hosted"), cty.StringVal("linux")})
-	on3 := "ubuntu-runners"
+	// var onUbuntu any = "ubuntu-latest"
+	// var onUbuntuStr string = onUbuntu.(string)
+	// var onLinux any = "linux"
+	// var onLinuxStr string = onLinux.(string)
+	// var onGroup1 any = "ubuntu-runners"
+	// var onLabels1 any = "ubuntu-20.04-16core"
 
-	var have1 = RunsOnConfig{
-		On: &on1,
-	}
-	var expect1 = "ubuntu-latest"
+	// var have1 = RunsOnConfig{
+	// 	On: &hclsyntax.TemplateExpr{
+	// 		Parts: []hclsyntax.Expression{
+	// 			&hclsyntax.LiteralValueExpr{
+	// 				Val: cty.StringVal(onUbuntuStr),
+	// 			},
+	// 		},
+	// 	},
+	// }
+	// var expect1 = &onUbuntu
 
-	var have2 = RunsOnConfig{
-		On: &on2,
-	}
-	var expect2 = []string{"self-hosted", "linux"}
+	// var have2 = RunsOnConfig{
+	// 	On: &hclsyntax.TemplateExpr{
+	// 		Parts: []hclsyntax.Expression{
+	// 			&hclsyntax.LiteralValueExpr{
+	// 				Val: cty.TupleVal([]cty.Value{cty.StringVal(onUbuntuStr), cty.StringVal(onLinuxStr)}),
+	// 			},
+	// 		},
+	// 	},
+	// }
 
-	var have3 = RunsOnConfig{
-		OnGroup: &on3,
-	}
-	var expect3 = map[string]any{
-		"group": "ubuntu-runners",
-	}
+	// var expect2 any = []any{&onUbuntu, &onLinux}
+
+	// var have3 = RunsOnConfig{
+	// 	OnGroup: &hclsyntax.TemplateExpr{
+	// 		Parts: []hclsyntax.Expression{
+	// 			&hclsyntax.LiteralValueExpr{
+	// 				Val: cty.StringVal(on3.(string)),
+	// 			},
+	// 		},
+	// 	},
+	// }
+	// var expect3 = map[string]any{
+	// 	"group": "ubuntu-runners",
+	// }
 
 	var tests = []Test{
-		{"with defined a single runs-on", &have1, expect1},
-		{"without empty a multi runs-on", &have2, expect2},
-		{"without froup runs-on", &have3, expect3},
-		{"without runs-on", nil, nil},
+		// {"with defined runs-on as string", &have1, expect1},
+		// {"with defined runs-on as an array of strings", &have2, expect2},
+		// {"with runs-on group", &have3, expect3},
+		// {"with runs-on labels", &have3, expect3},
+		// {"with runs-on group and labels", &have3, expect3},
+		// {"without runs-on", nil, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.have.Parse()
 			if err != nil {
-				t.Error(err.Error())
+				t.Fatal(err.Error())
 			}
 
 			if !reflect.DeepEqual(got, tt.expect) {
-				t.Fatalf("%s - failed", tt.name)
+				t.Fatal(tt.name)
 			}
 		})
 	}

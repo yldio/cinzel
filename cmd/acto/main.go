@@ -1,5 +1,5 @@
 // Copyright (c) 2024 YLD Limited
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 // Package acto (pronounced as "AH-toosh" (IPA: /ˈa.tuʃ/))
 package main
@@ -9,17 +9,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yldio/acto/service/flag"
+	"github.com/yldio/acto/service/actoflag"
+	"github.com/yldio/acto/service/filereader"
+	"github.com/yldio/acto/service/filewriter"
 	"github.com/yldio/acto/service/hclparser"
-	"github.com/yldio/acto/service/reader"
-	"github.com/yldio/acto/service/writer"
 )
 
 var (
 	version = ""
 )
 
-func do(flags *flag.Flags, outputDir string) error {
+func do(flags *actoflag.Flags, outputDir string) error {
 	var path string
 
 	if flags.Version {
@@ -38,7 +38,7 @@ func do(flags *flag.Flags, outputDir string) error {
 		os.Exit(0)
 	}
 
-	actoReader := reader.New(path, flags.Recursive)
+	actoReader := filereader.New(path, flags.Recursive)
 
 	bodies, err := actoReader.Do()
 	if err != nil {
@@ -85,7 +85,7 @@ func do(flags *flag.Flags, outputDir string) error {
 		}
 
 		for file, content := range listOfFiles {
-			actoWriter := writer.New()
+			actoWriter := filewriter.New()
 			filePath := fmt.Sprintf("%s/%s", outputDir, file)
 			if err := actoWriter.Do(filePath, content); err != nil {
 				return err
@@ -97,7 +97,7 @@ func do(flags *flag.Flags, outputDir string) error {
 }
 
 func main() {
-	flags := flag.New()
+	flags := actoflag.New()
 	gitHubDir := ".github/workflows"
 
 	if err := do(flags, gitHubDir); err != nil {
