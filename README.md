@@ -10,9 +10,11 @@
   - [Installation and usage](#installation-and-usage)
   - [Changelog](#changelog)
   - [Contributing](#contributing)
+  - [Code of Conduct](#code-of-conduct)
   - [Contributors and acknowledgment](#contributors-and-acknowledgment)
   - [License](#license)
   - [Roadmap](#roadmap)
+  - [Contributors](#contributors)
 
 ## About
 
@@ -21,6 +23,9 @@
 It's a tool that converts [HCL](https://github.com/hashicorp/hcl) files to [GitHub Actions](https://github.com/features/actions) [YAML](http://www.yaml.de)'s workflow files.
 
 Made with :heart: by [Yld](https://www.yld.io/).
+
+[![All Contributors](https://img.shields.io/github/all-contributors/yldio/acto?color=ee8449&style=flat-square)](#contributors)
+
 
 ## Installation and usage
 
@@ -52,6 +57,12 @@ Constribution is welcome, as well as sugestions to `acto`. Please go over to the
 
 Please make sure to update tests as appropriate.
 
+## Code of Conduct
+
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
+
+Please check our [Code of Conduct](./CODE_OF_CONDUCT.md).
+
 ## Contributors and acknowledgment
 
 - [João Guimarães](https://github.com/jccguimaraes)
@@ -66,6 +77,17 @@ This project is licensed under the [MIT License](LICENSE).
 ## Roadmap
 
 Check the [Discussions](https://github.com/yldio/acto/discussions) for current state of new features and/or roadmap of `acto`.
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 <!-- ## Wiki
 
