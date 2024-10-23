@@ -1,0 +1,28 @@
+name: "Bug report"
+description: Report a bug
+labels: ["needs_pointing"]
+body:
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Description
+      description: Please add as more details as possible regarding this ticket
+      placeholder: Fill with details
+    validations:
+      required: true
+  - type: textarea
+    id: bug-ac
+    attributes:
+      label: Acceptance Criteria
+      description: Please add all acceptance criteria here
+      placeholder: "- [ ] Describe each acceptance criteria as a checkbox"
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/yldio/acto/CODE_OF_CONDUCT.md). 
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

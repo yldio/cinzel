@@ -1,21 +1,9 @@
-name: Ticket
-description: File a ticket
+name: Suggest Feature
+description: Suggest a feature / enhancement
 labels: ["needs_pointing"]
 body:
-  - type: dropdown
-    id: type
-    attributes:
-      label: Type
-      description: What type of ticket?
-      options:
-        - Feature
-        - Bug
-        - CI/CD
-        - Chore
-    validations:
-      required: true
   - type: textarea
-    id: ticket-description
+    id: bug-description
     attributes:
       label: Description
       description: Please add as more details as possible regarding this ticket
@@ -23,7 +11,7 @@ body:
     validations:
       required: true
   - type: textarea
-    id: ticket-ac
+    id: feature-ac
     attributes:
       label: Acceptance Criteria
       description: Please add all acceptance criteria here
