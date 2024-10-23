@@ -1,23 +1,22 @@
 name: "Bug report"
 description: Report a bug
-labels: ["needs_pointing"]
+labels: ["bug", "triage"]
+title: "[Bug]: "
 body:
   - type: textarea
     id: bug-description
     attributes:
       label: Description
-      description: Please add as more details as possible regarding this ticket
-      placeholder: Fill with details
+      description: Please add as much details as possible regarding this bug
+      placeholder: Fill with details...
     validations:
       required: true
   - type: textarea
-    id: bug-ac
+    id: logs
     attributes:
-      label: Acceptance Criteria
-      description: Please add all acceptance criteria here
-      placeholder: "- [ ] Describe each acceptance criteria as a checkbox"
-    validations:
-      required: true
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
   - type: checkboxes
     id: terms
     attributes:
