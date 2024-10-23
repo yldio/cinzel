@@ -1,0 +1,32 @@
+name: Ticket
+description: File a ticket
+labels: ["needs_pointing"]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: What type of ticket?
+      options:
+        - Feature
+        - Bug
+        - CI/CD
+        - Chore
+    validations:
+      required: true
+  - type: textarea
+    id: ticket-description
+    attributes:
+      label: Description
+      description: Please add as more details as possible regarding this ticket
+      placeholder: Fill with details
+    validations:
+      required: true
+  - type: textarea
+    id: ticket-ac
+    attributes:
+      label: Acceptance Criteria
+      description: Please add all acceptance criteria here
+      placeholder: "- [ ] Describe each acceptance criteria as a checkbox"
+    validations:
+      required: true
