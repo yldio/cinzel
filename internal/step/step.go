@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/action"
 	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/actoparser"
@@ -496,4 +497,12 @@ func (config *StepsConfig) Parse() (Steps, error) {
 	}
 
 	return steps, nil
+}
+
+func DecodeToHCL(step *Step, rootBody *hclwrite.Body) {
+	rootBody.AppendNewline()
+
+	rootBody.AppendNewBlock("step", []string{step.Identifier})
+
+	// jobBody := jobBlock.Body()
 }

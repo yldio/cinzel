@@ -6,28 +6,32 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/action"
 	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/job"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type Workflows []*Workflow
 
 type Workflow struct {
 	Id          string              `yaml:"-"`
-	Filename    string              `yaml:"-"`
-	Name        string              `yaml:"name,omitempty"`
-	RunName     string              `yaml:"run-name,omitempty"`
-	On          *action.On          `yaml:"on"`
-	Permissions *action.Permissions `yaml:"permissions,omitempty"`
-	Env         *action.Envs        `yaml:"env,omitempty"`
-	Defaults    *action.Defaults    `yaml:"defaults,omitempty"`
-	Concurrency *action.Concurrency `yaml:"concurrency,omitempty"`
-	Jobs        job.Jobs            `yaml:"jobs"`
+	Filename    string              `yaml:"-" hcl:"filename"`
+	Name        string              `yaml:"name,omitempty" hcl:"name"`
+	RunName     string              `yaml:"run-name,omitempty" hcl:"run_name"`
+	On          *action.On          `yaml:"on" hcl:"on"`
+	Permissions *action.Permissions `yaml:"permissions,omitempty" hcl:"permissions"`
+	Env         *action.Envs        `yaml:"env,omitempty" hcl:"env"`
+	Defaults    *action.Defaults    `yaml:"defaults,omitempty" hcl:"defaults"`
+	Concurrency *action.Concurrency `yaml:"concurrency,omitempty" hcl:"concurrency"`
+	Jobs        job.Jobs            `yaml:"jobs" hcl:"jobs"`
 	JobsIds     []string            `yaml:"-"`
 }
 
@@ -337,4 +341,257 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 	}
 
 	return workflows, nil
+}
+
+func DecodeWorkflow(workflow Workflow, filename string) []byte {
+	f := hclwrite.NewEmptyFile()
+
+	rootBody := f.Body()
+
+	label := actoparser.ToSnakeCase(filename)
+
+	workflowBlock := rootBody.AppendNewBlock("workflow", []string{label})
+
+	workflowBody := workflowBlock.Body()
+
+	if label == "" {
+		panic(label)
+	}
+
+	workflow.Id = label
+
+	workflowBody.SetAttributeValue("filename", cty.StringVal(label))
+
+	if workflow.Name != "" {
+		attr, err := actoparser.GetHclTag(workflow, "Name")
+		if err != nil {
+			panic(err)
+		}
+
+		workflowBody.AppendNewline()
+		workflowBody.SetAttributeValue(attr, cty.StringVal(workflow.Name))
+	}
+
+	if workflow.RunName != "" {
+		attr, err := actoparser.GetHclTag(workflow, "RunName")
+		if err != nil {
+			panic(err)
+		}
+
+		workflowBody.AppendNewline()
+		workflowBody.SetAttributeValue(attr, cty.StringVal(workflow.Name))
+	}
+
+	if workflow.On != nil {
+		for event, on := range *workflow.On {
+			attr, err := actoparser.GetHclTag(workflow, "On")
+			if err != nil {
+				panic(err)
+			}
+
+			workflowBody.AppendNewline()
+			onBlock := workflowBody.AppendNewBlock(attr, []string{event.ToString()})
+
+			onBody := onBlock.Body()
+
+			switch val := on.(type) {
+			case nil:
+				continue
+			case []any:
+				var list []cty.Value
+				var propName string
+				for _, v := range val {
+					switch subV := v.(type) {
+					case map[string]any:
+						for subK, suberV := range subV {
+							propName = subK
+							switch t := suberV.(type) {
+							case string:
+								list = append(list, cty.StringVal(t))
+							}
+						}
+					}
+				}
+				onBody.SetAttributeValue(propName, cty.TupleVal(list))
+			case map[string]any:
+				for k, v := range val {
+					switch subV := v.(type) {
+					case map[string]any:
+						evtK, _ := strings.CutSuffix(k, "s")
+
+						for sk, sv := range subV {
+							if len(onBody.Blocks()) > 0 {
+								onBody.AppendNewline()
+							}
+							evtBlock := onBody.AppendNewBlock(evtK, []string{sk})
+							evtBody := evtBlock.Body()
+
+							switch ssv := sv.(type) {
+							case map[string]any:
+								for sssk, sssv := range ssv {
+
+									switch x := sssv.(type) {
+									case string:
+										evtBody.SetAttributeValue(sssk, cty.StringVal(x))
+									case bool:
+										evtBody.SetAttributeValue(sssk, cty.BoolVal(x))
+									}
+								}
+							}
+						}
+					case []any:
+						var list []cty.Value
+						for _, suberV := range subV {
+							switch t := suberV.(type) {
+							case string:
+								list = append(list, cty.StringVal(t))
+							}
+						}
+
+						onBody.SetAttributeValue(k, cty.TupleVal(list))
+					}
+				}
+			default:
+				panic(val)
+			}
+		}
+	}
+
+	if workflow.Permissions != nil {
+		attr, err := actoparser.GetHclTag(workflow, "Permissions")
+		if err != nil {
+			panic(err)
+		}
+
+		workflowBody.AppendNewline()
+		permissionsBlock := workflowBody.AppendNewBlock(attr, nil)
+
+		permissionsBody := permissionsBlock.Body()
+
+		values := reflect.ValueOf(*workflow.Permissions)
+		types := values.Type()
+
+		for i := 0; i < values.NumField(); i++ {
+			if values.Field(i).IsNil() {
+				continue
+			}
+
+			option := values.Field(i).Elem().String()
+
+			if !action.ValidatePermissionsOption(option) {
+				panic(option)
+			}
+
+			attr, err := actoparser.GetHclTag(*workflow.Permissions, types.Field(i).Name)
+			if err != nil {
+				panic(err)
+			}
+
+			permissionsBody.SetAttributeValue(attr, cty.StringVal(option))
+		}
+	}
+
+	if workflow.Env != nil {
+		for name, env := range *workflow.Env {
+
+			if len(workflowBody.Blocks()) > 0 {
+				workflowBody.AppendNewline()
+			}
+
+			envBlock := workflowBody.AppendNewBlock("env", nil)
+
+			envBody := envBlock.Body()
+			envBody.SetAttributeValue("name", cty.StringVal(name))
+
+			switch e := env.(type) {
+			case string:
+				envBody.SetAttributeValue("value", cty.StringVal(e))
+			}
+		}
+	}
+
+	if workflow.Defaults != nil {
+		if len(workflowBody.Blocks()) > 0 {
+			workflowBody.AppendNewline()
+		}
+
+		attr, err := actoparser.GetHclTag(workflow, "Defaults")
+		if err != nil {
+			panic(err)
+		}
+
+		defaultsBlock := workflowBody.AppendNewBlock(attr, nil)
+		defaultsBody := defaultsBlock.Body()
+		attr, err = actoparser.GetHclTag(*workflow.Defaults, "Run")
+		if err != nil {
+			panic(err)
+		}
+
+		runBlock := defaultsBody.AppendNewBlock(attr, nil)
+		runBody := runBlock.Body()
+
+		if workflow.Defaults.Run.Shell != nil {
+			attr, err := actoparser.GetHclTag(*workflow.Defaults.Run, "Shell")
+			if err != nil {
+				panic(err)
+			}
+
+			runBody.SetAttributeValue(attr, cty.StringVal(*workflow.Defaults.Run.Shell))
+		}
+
+		if workflow.Defaults.Run.WorkingDirectory != nil {
+			attr, err := actoparser.GetHclTag(*workflow.Defaults.Run, "WorkingDirectory")
+			if err != nil {
+				panic(err)
+			}
+
+			runBody.SetAttributeValue(attr, cty.StringVal(*workflow.Defaults.Run.WorkingDirectory))
+		}
+	}
+
+	if workflow.Concurrency != nil {
+		attr, err := actoparser.GetHclTag(workflow, "Concurrency")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(workflowBody.Blocks()) > 0 {
+			workflowBody.AppendNewline()
+		}
+
+		concurrencyBlock := workflowBody.AppendNewBlock(attr, nil)
+		concurrencyBody := concurrencyBlock.Body()
+
+		attr, err = actoparser.GetHclTag(*workflow.Concurrency, "Group")
+		if err != nil {
+			panic(err)
+		}
+
+		if workflow.Concurrency.Group != nil {
+			attr, err := actoparser.GetHclTag(*workflow.Concurrency, "Group")
+			if err != nil {
+				panic(err)
+			}
+
+			concurrencyBody.SetAttributeValue(attr, cty.StringVal(*workflow.Concurrency.Group))
+		}
+
+		if workflow.Concurrency.CancelInProgress != nil {
+			attr, err := actoparser.GetHclTag(*workflow.Concurrency, "CancelInProgress")
+			if err != nil {
+				panic(err)
+			}
+
+			concurrencyBody.SetAttributeValue(attr, cty.BoolVal(*workflow.Concurrency.CancelInProgress))
+		}
+	}
+
+	if workflow.Jobs != nil {
+		for id, j := range workflow.Jobs {
+			j.Id = fmt.Sprintf("%s-%s", workflow.Id, id)
+			job.DecodeToHCL(j, rootBody)
+		}
+	}
+
+	return f.Bytes()
 }

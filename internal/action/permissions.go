@@ -37,20 +37,20 @@ func ValidatePermissionsOption(option string) bool {
 }
 
 type Permissions struct {
-	Actions            *PermissionsOption `yaml:"actions,omitempty"`
-	Attestations       *PermissionsOption `yaml:"attestations,omitempty"`
-	Checks             *PermissionsOption `yaml:"checks,omitempty"`
-	Contents           *PermissionsOption `yaml:"contents,omitempty"`
-	Deployments        *PermissionsOption `yaml:"deployments,omitempty"`
-	IdToken            *PermissionsOption `yaml:"id-token,omitempty"`
-	Issues             *PermissionsOption `yaml:"issues,omitempty"`
-	Discussions        *PermissionsOption `yaml:"discussions,omitempty"`
-	Packages           *PermissionsOption `yaml:"packages,omitempty"`
-	Pages              *PermissionsOption `yaml:"pages,omitempty"`
-	PullRequests       *PermissionsOption `yaml:"pull-requests,omitempty"`
-	RepositoryProjects *PermissionsOption `yaml:"repository-projects,omitempty"`
-	SecurityEvents     *PermissionsOption `yaml:"security-events,omitempty"`
-	Statuses           *PermissionsOption `yaml:"statuses,omitempty"`
+	Actions            *PermissionsOption `yaml:"actions,omitempty" hcl:"actions"`
+	Attestations       *PermissionsOption `yaml:"attestations,omitempty" hcl:"attestations"`
+	Checks             *PermissionsOption `yaml:"checks,omitempty" hcl:"checks"`
+	Contents           *PermissionsOption `yaml:"contents,omitempty" hcl:"contents"`
+	Deployments        *PermissionsOption `yaml:"deployments,omitempty" hcl:"deployments"`
+	IdToken            *PermissionsOption `yaml:"id-token,omitempty" hcl:"id_token"`
+	Issues             *PermissionsOption `yaml:"issues,omitempty" hcl:"issues"`
+	Discussions        *PermissionsOption `yaml:"discussions,omitempty" hcl:"discussions"`
+	Packages           *PermissionsOption `yaml:"packages,omitempty" hcl:"packages"`
+	Pages              *PermissionsOption `yaml:"pages,omitempty" hcl:"pages"`
+	PullRequests       *PermissionsOption `yaml:"pull-requests,omitempty" hcl:"pull_requests"`
+	RepositoryProjects *PermissionsOption `yaml:"repository-projects,omitempty" hcl:"repository_projects"`
+	SecurityEvents     *PermissionsOption `yaml:"security-events,omitempty" hcl:"security_events"`
+	Statuses           *PermissionsOption `yaml:"statuses,omitempty" hcl:"statuses"`
 }
 
 type PermissionsConfig struct {

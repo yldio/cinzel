@@ -12,12 +12,12 @@ import (
 )
 
 type Run struct {
-	Shell            *string `yaml:"shell,omitempty"`
-	WorkingDirectory *string `yaml:"working-directory,omitempty"`
+	Shell            *string `yaml:"shell,omitempty" hcl:"shell"`
+	WorkingDirectory *string `yaml:"working-directory,omitempty" hcl:"working_directory"`
 }
 
 type Defaults struct {
-	Run *Run `yaml:"run,omitempty"`
+	Run *Run `yaml:"run,omitempty" hcl:"run"`
 }
 
 type DefaultsRunConfig struct {

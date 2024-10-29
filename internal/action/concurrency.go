@@ -12,8 +12,8 @@ import (
 )
 
 type Concurrency struct {
-	Group            *string `yaml:"group,omitempty"`
-	CancelInProgress *bool   `yaml:"cancel-in-progress,omitempty"`
+	Group            *string `yaml:"group,omitempty" hcl:"group"`
+	CancelInProgress *bool   `yaml:"cancel-in-progress,omitempty" hcl:"cancel_in_progress"`
 }
 
 type ConcurrencyConfig struct {

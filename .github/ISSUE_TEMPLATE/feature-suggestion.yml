@@ -1,0 +1,29 @@
+name: "Feature suggestion"
+description: Suggest a feature or enhancement
+labels: ["feature", "triage"]
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please add as much details as possible regarding this suggestion or enhancement
+      placeholder: Fill with details...
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this feature suggestion, you agree to follow our [Code of Conduct](https://github.com/yldio/acto/CODE_OF_CONDUCT.md). 
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
+  - type: checkboxes
+    id: contrutions
+    attributes:
+      label: Contributing
+      description: You have read our [Contributing](https://github.com/yldio/acto/CONTRIBUTING.md) guide. 
+      options:
+        - label: I have read and checked this is not a duplicated feature suggestion
+          required: true

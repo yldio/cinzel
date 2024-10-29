@@ -6,39 +6,43 @@ package job
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/action"
 	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/step"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type Jobs map[string]*Job
 
 type Job struct {
 	Id              string              `yaml:"-"`
-	Name            *string             `yaml:"name,omitempty"`
-	Permissions     *action.Permissions `yaml:"permissions,omitempty"`
-	Needs           *[]string           `yaml:"needs,omitempty"`
-	If              *string             `yaml:"if,omitempty"`
-	RunsOn          any                 `yaml:"runs-on,omitempty"`
-	Environment     any                 `yaml:"environment,omitempty"`
-	Concurrency     *action.Concurrency `yaml:"concurrency,omitempty"`
-	Outputs         *action.Outputs     `yaml:"outputs,omitempty"`
-	Env             *action.Envs        `yaml:"env,omitempty"`
-	Defaults        *action.Defaults    `yaml:"defaults,omitempty"`
-	Steps           []*step.Step        `yaml:"steps,omitempty"`
+	Name            *string             `yaml:"name,omitempty" hcl:"name"`
+	Permissions     *action.Permissions `yaml:"permissions,omitempty" hcl:"permissions"`
+	Needs           *[]string           `yaml:"needs,omitempty" hcl:"needs"`
+	If              *string             `yaml:"if,omitempty" hcl:"if"`
+	RunsOn          any                 `yaml:"runs-on,omitempty" hcl:"runs_on"`
+	Environment     any                 `yaml:"environment,omitempty" hcl:"environment"`
+	Concurrency     *action.Concurrency `yaml:"concurrency,omitempty" hcl:"concurrency"`
+	Outputs         *action.Outputs     `yaml:"outputs,omitempty" hcl:"output"`
+	Env             *action.Envs        `yaml:"env,omitempty" hcl:"env"`
+	Defaults        *action.Defaults    `yaml:"defaults,omitempty" hcl:"defaults"`
+	Steps           []*step.Step        `yaml:"steps,omitempty" hcl:"steps"`
 	StepsIds        []string            `yaml:"-"`
-	TimeoutMinutes  *uint64             `yaml:"timeout-minutes,omitempty"`
-	Strategy        *action.Strategy    `yaml:"strategy,omitempty"`
-	ContinueOnError any                 `yaml:"continue-on-error,omitempty"`
-	Container       *action.Container   `yaml:"container,omitempty"`
-	Services        *action.Services    `yaml:"services,omitempty"`
-	Uses            *string             `yaml:"uses,omitempty"`
-	With            *map[string]any     `yaml:"with,omitempty"`
-	Secrets         any                 `yaml:"secrets,omitempty"`
+	TimeoutMinutes  *uint64             `yaml:"timeout-minutes,omitempty" hcl:"timeout-minutes"`
+	Strategy        *action.Strategy    `yaml:"strategy,omitempty" hcl:"strategy"`
+	ContinueOnError any                 `yaml:"continue-on-error,omitempty" hcl:"continue-on-error"`
+	Container       *action.Container   `yaml:"container,omitempty" hcl:"container"`
+	Services        *action.Services    `yaml:"services,omitempty" hcl:"services"`
+	Uses            *string             `yaml:"uses,omitempty" hcl:"uses"`
+	With            *map[string]any     `yaml:"with,omitempty" hcl:"with"`
+	Secrets         any                 `yaml:"secrets,omitempty" hcl:"secrets"`
 }
 
 type JobsConfig []JobConfig
@@ -683,4 +687,322 @@ func (config *JobsConfig) Parse() (Jobs, error) {
 	}
 
 	return jobs, nil
+}
+
+func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
+	rootBody.AppendNewline()
+
+	jobBlock := rootBody.AppendNewBlock("job", []string{job.Id})
+
+	jobBody := jobBlock.Body()
+
+	if job.Name != nil {
+		attr, err := actoparser.GetHclTag(*job, "Name")
+		if err != nil {
+			panic(err)
+		}
+
+		jobBody.SetAttributeValue(attr, cty.StringVal(*job.Name))
+	}
+
+	if job.Permissions != nil {
+		attr, err := actoparser.GetHclTag(*job, "Permissions")
+		if err != nil {
+			panic(err)
+		}
+
+		jobBody.AppendNewline()
+		permissionsBlock := jobBody.AppendNewBlock(attr, nil)
+
+		permissionsBody := permissionsBlock.Body()
+
+		values := reflect.ValueOf(*job.Permissions)
+		types := values.Type()
+
+		for i := 0; i < values.NumField(); i++ {
+			if values.Field(i).IsNil() {
+				continue
+			}
+
+			option := values.Field(i).Elem().String()
+
+			if !action.ValidatePermissionsOption(option) {
+				panic(option)
+			}
+
+			attr, err := actoparser.GetHclTag(*job.Permissions, types.Field(i).Name)
+			if err != nil {
+				panic(err)
+			}
+
+			permissionsBody.SetAttributeValue(attr, cty.StringVal(option))
+		}
+	}
+
+	if job.Needs != nil {
+		needsTokens := hclwrite.Tokens{
+			{
+				Type:  hclsyntax.TokenOBrack,
+				Bytes: []byte(`[`),
+			},
+			{
+				Type:  hclsyntax.TokenNewline,
+				Bytes: []byte("\n"),
+			},
+		}
+
+		for i, need := range *job.Needs {
+			if i > 0 {
+				needsTokens = append(needsTokens, &hclwrite.Token{
+					Type:  hclsyntax.TokenComma,
+					Bytes: []byte(`,`),
+				})
+				needsTokens = append(needsTokens, &hclwrite.Token{
+					Type:  hclsyntax.TokenNewline,
+					Bytes: []byte("\n"),
+				})
+			}
+
+			needsTokens = append(needsTokens, &hclwrite.Token{
+				Type:  hclsyntax.TokenIdent,
+				Bytes: []byte(fmt.Sprintf("job.%s", need)),
+			})
+		}
+
+		needsTokens = append(needsTokens, &hclwrite.Token{
+			Type:  hclsyntax.TokenNewline,
+			Bytes: []byte("\n"),
+		})
+
+		needsTokens = append(needsTokens, &hclwrite.Token{
+			Type:  hclsyntax.TokenCBrack,
+			Bytes: []byte(`]`),
+		})
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		attr, err := actoparser.GetHclTag(*job, "Needs")
+		if err != nil {
+			panic(err)
+		}
+
+		jobBody.SetAttributeRaw(attr, needsTokens)
+	}
+
+	if job.If != nil {
+		attr, err := actoparser.GetHclTag(*job, "If")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		jobBody.SetAttributeValue(attr, cty.StringVal(*job.If))
+	}
+
+	if job.RunsOn != nil {
+		attr, err := actoparser.GetHclTag(*job, "RunsOn")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		runsOnBlock := jobBody.AppendNewBlock(attr, nil)
+
+		runsOnBody := runsOnBlock.Body()
+
+		switch runsOn := job.RunsOn.(type) {
+		case string:
+			runsOnBody.SetAttributeValue("runners", cty.StringVal(runsOn))
+		case map[string]any:
+			if runsOn["group"] != nil {
+				switch group := runsOn["group"].(type) {
+				case string:
+					runsOnBody.SetAttributeValue("group", cty.StringVal(group))
+				default:
+					panic("only strings on group")
+				}
+			}
+			if runsOn["labels"] != nil {
+				switch labels := runsOn["labels"].(type) {
+				case string:
+					runsOnBody.SetAttributeValue("labels", cty.StringVal(labels))
+				default:
+					panic("only strings on labels")
+				}
+			}
+		}
+	}
+
+	if job.Environment != nil {
+		attr, err := actoparser.GetHclTag(*job, "Environment")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		environmentBlock := jobBody.AppendNewBlock(attr, nil)
+		environmentBody := environmentBlock.Body()
+
+		switch environment := job.Environment.(type) {
+		case map[string]any:
+			if environment["name"] != nil {
+				switch name := environment["name"].(type) {
+				case string:
+					environmentBody.SetAttributeValue("name", cty.StringVal(name))
+				default:
+					panic("only strings on name")
+				}
+			}
+			if environment["url"] != nil {
+				switch url := environment["url"].(type) {
+				case string:
+					environmentBody.SetAttributeValue("url", cty.StringVal(url))
+				default:
+					panic("only strings on url")
+				}
+			}
+		default:
+			panic("only map[string] on environment")
+		}
+	}
+
+	if job.Concurrency != nil {
+		attr, err := actoparser.GetHclTag(*job, "Concurrency")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		concurrencyBlock := jobBody.AppendNewBlock(attr, nil)
+		concurrencyBody := concurrencyBlock.Body()
+
+		attr, err = actoparser.GetHclTag(*job.Concurrency, "Group")
+		if err != nil {
+			panic(err)
+		}
+
+		if job.Concurrency.Group != nil {
+			attr, err := actoparser.GetHclTag(*job.Concurrency, "Group")
+			if err != nil {
+				panic(err)
+			}
+
+			concurrencyBody.SetAttributeValue(attr, cty.StringVal(*job.Concurrency.Group))
+		}
+
+		if job.Concurrency.CancelInProgress != nil {
+			attr, err := actoparser.GetHclTag(*job.Concurrency, "CancelInProgress")
+			if err != nil {
+				panic(err)
+			}
+
+			concurrencyBody.SetAttributeValue(attr, cty.BoolVal(*job.Concurrency.CancelInProgress))
+		}
+	}
+
+	if job.Outputs != nil {
+		attr, err := actoparser.GetHclTag(*job, "Outputs")
+		if err != nil {
+			panic(err)
+		}
+
+		for key, output := range *job.Outputs {
+			if len(jobBody.Blocks()) > 0 {
+				jobBody.AppendNewline()
+			}
+
+			outputBlock := jobBody.AppendNewBlock(attr, nil)
+			outputBody := outputBlock.Body()
+
+			outputBody.SetAttributeValue("name", cty.StringVal(key))
+			outputBody.SetAttributeValue("value", cty.StringVal(output))
+		}
+	}
+
+	if job.Env != nil {
+		for name, env := range *job.Env {
+
+			if len(jobBody.Blocks()) > 0 {
+				jobBody.AppendNewline()
+			}
+
+			envBlock := jobBody.AppendNewBlock("env", nil)
+
+			envBody := envBlock.Body()
+			envBody.SetAttributeValue("name", cty.StringVal(name))
+
+			switch e := env.(type) {
+			case string:
+				envBody.SetAttributeValue("value", cty.StringVal(e))
+			}
+		}
+	}
+
+	if job.Defaults != nil {
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		attr, err := actoparser.GetHclTag(*job, "Defaults")
+		if err != nil {
+			panic(err)
+		}
+
+		defaultsBlock := jobBody.AppendNewBlock(attr, nil)
+		defaultsBody := defaultsBlock.Body()
+		attr, err = actoparser.GetHclTag(*job.Defaults, "Run")
+		if err != nil {
+			panic(err)
+		}
+
+		runBlock := defaultsBody.AppendNewBlock(attr, nil)
+		runBody := runBlock.Body()
+
+		if job.Defaults.Run.Shell != nil {
+			attr, err := actoparser.GetHclTag(*job.Defaults.Run, "Shell")
+			if err != nil {
+				panic(err)
+			}
+
+			runBody.SetAttributeValue(attr, cty.StringVal(*job.Defaults.Run.Shell))
+		}
+
+		if job.Defaults.Run.WorkingDirectory != nil {
+			attr, err := actoparser.GetHclTag(*job.Defaults.Run, "WorkingDirectory")
+			if err != nil {
+				panic(err)
+			}
+
+			runBody.SetAttributeValue(attr, cty.StringVal(*job.Defaults.Run.WorkingDirectory))
+		}
+	}
+
+	if job.Steps != nil {
+		for i, s := range job.Steps {
+			var identifier string
+			if s.Id != nil {
+				identifier = fmt.Sprintf("%s-%s", job.Id, *s.Id)
+			} else {
+				identifier = fmt.Sprintf("%s-step-%d", job.Id, i+1)
+			}
+
+			s.Identifier = identifier
+
+			step.DecodeToHCL(s, rootBody)
+		}
+	}
 }

@@ -36,7 +36,7 @@ Before creating bug reports, please check this list as you might find out that y
 - Explain the problem and include additional details to help maintainers reproduce the problem;
 - Include details about your configuration and environment;
 
-Choose the **Bug** Issue template to file a bug report.
+Choose the **Bug report** Issue template to report a bug.
 
 ## Suggesting Enhancements / Features
 
