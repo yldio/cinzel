@@ -6,9 +6,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/acto/service/actoflag"
 	"github.com/yldio/acto/service/filereader"
 	"github.com/yldio/acto/service/filewriter"
@@ -18,6 +20,8 @@ import (
 var (
 	version = ""
 )
+
+const gitHubDir = ".github/workflows"
 
 func do(flags *actoflag.Flags, outputDir string) error {
 	var path string
@@ -39,57 +43,59 @@ func do(flags *actoflag.Flags, outputDir string) error {
 	}
 
 	actoReader := filereader.New(path, flags.Recursive)
+	actoReader.ReadDir(filereader.FileHCLExt)
+	fmt.Println(actoReader.GetFiles())
 
-	bodies, err := actoReader.Do()
+	bodies, err := actoReader.Do(filereader.FileHCLExt)
 	if err != nil {
 		return err
 	}
 
-	for _, body := range bodies {
-		parser := hclparser.New(body)
+	body := hcl.MergeBodies(bodies)
 
-		if err := parser.Decode(); err != nil {
+	parser := hclparser.New(body)
+
+	if err := parser.Decode(); err != nil {
+		return err
+	}
+
+	content, err := parser.Parse()
+	if err != nil {
+		return err
+	}
+
+	listOfFiles, err := content.Do()
+	if err != nil {
+		return err
+	}
+
+	curDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	var fileinfo string
+
+	if filepath.IsAbs(outputDir) {
+		fileinfo = outputDir
+	} else {
+		fileinfo = fmt.Sprintf("%s/%s", curDir, outputDir)
+	}
+
+	fileInfo, err := os.Stat(fileinfo)
+	if err != nil {
+		return err
+	}
+
+	if !fileInfo.IsDir() {
+		return fmt.Errorf("%s is not a directory", outputDir)
+	}
+
+	for file, content := range listOfFiles {
+		actoWriter := filewriter.New()
+		filePath := fmt.Sprintf("%s/%s", outputDir, file)
+		if err := actoWriter.Do(filePath, content); err != nil {
 			return err
-		}
-
-		content, err := parser.Parse()
-		if err != nil {
-			return err
-		}
-
-		listOfFiles, err := content.Do()
-		if err != nil {
-			return err
-		}
-
-		curDir, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-
-		var fileinfo string
-
-		if filepath.IsAbs(outputDir) {
-			fileinfo = outputDir
-		} else {
-			fileinfo = fmt.Sprintf("%s/%s", curDir, outputDir)
-		}
-
-		fileInfo, err := os.Stat(fileinfo)
-		if err != nil {
-			return err
-		}
-
-		if !fileInfo.IsDir() {
-			return fmt.Errorf("%s is not a directory", outputDir)
-		}
-
-		for file, content := range listOfFiles {
-			actoWriter := filewriter.New()
-			filePath := fmt.Sprintf("%s/%s", outputDir, file)
-			if err := actoWriter.Do(filePath, content); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -97,11 +103,22 @@ func do(flags *actoflag.Flags, outputDir string) error {
 }
 
 func main() {
-	flags := actoflag.New()
-	gitHubDir := ".github/workflows"
+	cliApp := actoflag.NewCliApp()
 
-	if err := do(flags, gitHubDir); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+	if err := cliApp.Run(os.Args); err != nil {
+		log.Fatal(err)
 	}
+
+	// flags := actoflag.New()
+
+	// // TODO: move
+	// if err := os.MkdirAll(gitHubDir, os.ModePerm); err != nil {
+	// 	fmt.Println(err.Error())
+	// 	os.Exit(1)
+	// }
+
+	// if err := do(flags, gitHubDir); err != nil {
+	// 	fmt.Println(err.Error())
+	// 	os.Exit(1)
+	// }
 }

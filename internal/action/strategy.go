@@ -8,9 +8,11 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type MatrixVariable struct {
@@ -40,9 +42,9 @@ type StrategyConfig struct {
 type Matrix map[string]any
 
 type Strategy struct {
-	Matrix      *Matrix `yaml:"matrix"`
-	FailFast    *bool   `yaml:"fail-fast,omitempty"`
-	MaxParallel *uint64 `yaml:"max-parallel,omitempty"`
+	Matrix      *Matrix `yaml:"matrix" hcl:"matrix"`
+	FailFast    *bool   `yaml:"fail-fast,omitempty" hcl:"fail_fast"`
+	MaxParallel *uint64 `yaml:"max-parallel,omitempty" hcl:"max_parallel"`
 }
 
 func (config *StrategyConfig) unwrapMaxParallel(acto *actoparser.Acto) (*uint64, error) {
@@ -343,4 +345,180 @@ func (config *StrategyConfig) Parse() (*Strategy, error) {
 	}
 
 	return &strategy, nil
+}
+
+func (strategy *Strategy) Decode(body *hclwrite.Body, attr string) error {
+	if len(body.Blocks()) > 0 {
+		body.AppendNewline()
+	}
+
+	strategyBlock := body.AppendNewBlock(attr, nil)
+	strategyBody := strategyBlock.Body()
+
+	if strategy.Matrix != nil {
+		matrixAttr, err := actoparser.GetHclTag(*strategy, "Matrix")
+		if err != nil {
+			return err
+		}
+
+		matrixBlock := strategyBody.AppendNewBlock(matrixAttr, nil)
+		matrixBody := matrixBlock.Body()
+
+		for varK, varV := range *strategy.Matrix {
+			if varK == "include" {
+				switch v := varV.(type) {
+				case []any:
+					var list []cty.Value
+					for _, vv := range v {
+						switch vvv := vv.(type) {
+						case string:
+							list = append(list, cty.StringVal(vvv))
+						case int64:
+							list = append(list, cty.NumberIntVal(vvv))
+						case uint64:
+							list = append(list, cty.NumberUIntVal(vvv))
+						case float64:
+							list = append(list, cty.NumberFloatVal(vvv))
+						case bool:
+							list = append(list, cty.BoolVal(vvv))
+						case map[string]any:
+							subList := make(map[string]cty.Value)
+							for a, b := range vvv {
+								switch c := b.(type) {
+								case string:
+									subList[a] = cty.StringVal(c)
+								case int64:
+									subList[a] = cty.NumberIntVal(c)
+								case uint64:
+									subList[a] = cty.NumberUIntVal(c)
+								case float64:
+									subList[a] = cty.NumberFloatVal(c)
+								case bool:
+									subList[a] = cty.BoolVal(c)
+								}
+							}
+							list = append(list, cty.ObjectVal(subList))
+						}
+					}
+					matrixBody.SetAttributeValue("include", cty.TupleVal(list))
+				default:
+					panic("missing dealt type")
+				}
+			} else if varK == "exclude" {
+				switch v := varV.(type) {
+				case []any:
+					var list []cty.Value
+					for _, vv := range v {
+						switch vvv := vv.(type) {
+						case string:
+							list = append(list, cty.StringVal(vvv))
+						case int64:
+							list = append(list, cty.NumberIntVal(vvv))
+						case uint64:
+							list = append(list, cty.NumberUIntVal(vvv))
+						case float64:
+							list = append(list, cty.NumberFloatVal(vvv))
+						case bool:
+							list = append(list, cty.BoolVal(vvv))
+						case map[string]any:
+							subList := make(map[string]cty.Value)
+							for a, b := range vvv {
+								switch c := b.(type) {
+								case string:
+									subList[a] = cty.StringVal(c)
+								case int64:
+									subList[a] = cty.NumberIntVal(c)
+								case uint64:
+									subList[a] = cty.NumberUIntVal(c)
+								case float64:
+									subList[a] = cty.NumberFloatVal(c)
+								case bool:
+									subList[a] = cty.BoolVal(c)
+								default:
+									return errors.New("missing dealt type")
+								}
+							}
+							list = append(list, cty.ObjectVal(subList))
+						}
+					}
+					matrixBody.SetAttributeValue("exclude", cty.TupleVal(list))
+				default:
+					return errors.New("missing dealt type")
+				}
+			} else {
+				variableBlock := matrixBody.AppendNewBlock("variable", nil)
+				variableBody := variableBlock.Body()
+
+				switch v := varV.(type) {
+				case []any:
+					var list []cty.Value
+					for _, vv := range v {
+						switch vvv := vv.(type) {
+						case string:
+							list = append(list, cty.StringVal(vvv))
+						case int64:
+							list = append(list, cty.NumberIntVal(vvv))
+						case uint64:
+							list = append(list, cty.NumberUIntVal(vvv))
+						case float64:
+							list = append(list, cty.NumberFloatVal(vvv))
+						case bool:
+							list = append(list, cty.BoolVal(vvv))
+						case map[string]any:
+							subList := make(map[string]cty.Value)
+							for a, b := range vvv {
+								switch c := b.(type) {
+								case string:
+									subList[a] = cty.StringVal(c)
+								case int64:
+									subList[a] = cty.NumberIntVal(c)
+								case uint64:
+									subList[a] = cty.NumberUIntVal(c)
+								case float64:
+									subList[a] = cty.NumberFloatVal(c)
+								case bool:
+									subList[a] = cty.BoolVal(c)
+								default:
+									return errors.New("missing dealt type")
+								}
+							}
+							list = append(list, cty.ObjectVal(subList))
+						}
+					}
+					variableBody.SetAttributeValue("value", cty.StringVal(varK))
+					variableBody.SetAttributeValue("name", cty.TupleVal(list))
+				default:
+					return errors.New("missing dealt type")
+				}
+			}
+		}
+	}
+
+	if strategy.FailFast != nil {
+		attr, err := actoparser.GetHclTag(*strategy, "FailFast")
+		if err != nil {
+			return err
+		}
+
+		if len(strategyBody.Blocks()) > 0 {
+			strategyBody.AppendNewline()
+		}
+
+		strategyBody.SetAttributeValue(attr, cty.BoolVal(*strategy.FailFast))
+	}
+
+	if strategy.MaxParallel != nil {
+		attr, err := actoparser.GetHclTag(*strategy, "MaxParallel")
+		if err != nil {
+			return err
+		}
+
+		if len(strategyBody.Blocks()) > 0 {
+			strategyBody.AppendNewline()
+		}
+
+		strategyBody.SetAttributeValue(attr, cty.NumberUIntVal(*strategy.MaxParallel))
+	}
+
+	return nil
 }

@@ -689,7 +689,7 @@ func (config *JobsConfig) Parse() (Jobs, error) {
 	return jobs, nil
 }
 
-func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
+func DecodeToHCL(job *Job, rootBody *hclwrite.Body) error {
 	rootBody.AppendNewline()
 
 	jobBlock := rootBody.AppendNewBlock("job", []string{job.Id})
@@ -699,7 +699,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.Name != nil {
 		attr, err := actoparser.GetHclTag(*job, "Name")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		jobBody.SetAttributeValue(attr, cty.StringVal(*job.Name))
@@ -708,7 +708,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.Permissions != nil {
 		attr, err := actoparser.GetHclTag(*job, "Permissions")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		jobBody.AppendNewline()
@@ -732,7 +732,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 
 			attr, err := actoparser.GetHclTag(*job.Permissions, types.Field(i).Name)
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			permissionsBody.SetAttributeValue(attr, cty.StringVal(option))
@@ -785,7 +785,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 
 		attr, err := actoparser.GetHclTag(*job, "Needs")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		jobBody.SetAttributeRaw(attr, needsTokens)
@@ -794,7 +794,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.If != nil {
 		attr, err := actoparser.GetHclTag(*job, "If")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if len(jobBody.Blocks()) > 0 {
@@ -807,7 +807,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.RunsOn != nil {
 		attr, err := actoparser.GetHclTag(*job, "RunsOn")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if len(jobBody.Blocks()) > 0 {
@@ -844,7 +844,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.Environment != nil {
 		attr, err := actoparser.GetHclTag(*job, "Environment")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if len(jobBody.Blocks()) > 0 {
@@ -880,7 +880,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.Concurrency != nil {
 		attr, err := actoparser.GetHclTag(*job, "Concurrency")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if len(jobBody.Blocks()) > 0 {
@@ -892,13 +892,13 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 
 		attr, err = actoparser.GetHclTag(*job.Concurrency, "Group")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if job.Concurrency.Group != nil {
 			attr, err := actoparser.GetHclTag(*job.Concurrency, "Group")
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			concurrencyBody.SetAttributeValue(attr, cty.StringVal(*job.Concurrency.Group))
@@ -907,7 +907,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 		if job.Concurrency.CancelInProgress != nil {
 			attr, err := actoparser.GetHclTag(*job.Concurrency, "CancelInProgress")
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			concurrencyBody.SetAttributeValue(attr, cty.BoolVal(*job.Concurrency.CancelInProgress))
@@ -917,7 +917,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 	if job.Outputs != nil {
 		attr, err := actoparser.GetHclTag(*job, "Outputs")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		for key, output := range *job.Outputs {
@@ -959,14 +959,14 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 
 		attr, err := actoparser.GetHclTag(*job, "Defaults")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		defaultsBlock := jobBody.AppendNewBlock(attr, nil)
 		defaultsBody := defaultsBlock.Body()
 		attr, err = actoparser.GetHclTag(*job.Defaults, "Run")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		runBlock := defaultsBody.AppendNewBlock(attr, nil)
@@ -975,7 +975,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 		if job.Defaults.Run.Shell != nil {
 			attr, err := actoparser.GetHclTag(*job.Defaults.Run, "Shell")
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			runBody.SetAttributeValue(attr, cty.StringVal(*job.Defaults.Run.Shell))
@@ -984,7 +984,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 		if job.Defaults.Run.WorkingDirectory != nil {
 			attr, err := actoparser.GetHclTag(*job.Defaults.Run, "WorkingDirectory")
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			runBody.SetAttributeValue(attr, cty.StringVal(*job.Defaults.Run.WorkingDirectory))
@@ -1005,4 +1005,30 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) {
 			step.DecodeToHCL(s, rootBody)
 		}
 	}
+
+	if job.TimeoutMinutes != nil {
+		attr, err := actoparser.GetHclTag(*job, "TimeoutMinutes")
+		if err != nil {
+			return err
+		}
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		jobBody.SetAttributeValue(attr, cty.NumberUIntVal(*job.TimeoutMinutes))
+	}
+
+	if job.Strategy != nil {
+		attr, err := actoparser.GetHclTag(*job, "Strategy")
+		if err != nil {
+			return err
+		}
+
+		if err := job.Strategy.Decode(jobBody, attr); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
