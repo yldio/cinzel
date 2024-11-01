@@ -7,13 +7,15 @@ import (
 	"errors"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type Credentials struct {
-	Username string `yaml:"username,omitempty"`
-	Password string `yaml:"password,omitempty"`
+	Username string `yaml:"username,omitempty" hcl:"username"`
+	Password string `yaml:"password,omitempty" hcl:"password"`
 }
 
 type CredentialsConfig struct {
@@ -113,4 +115,33 @@ func (config *CredentialsConfig) Parse() (*Credentials, error) {
 	}
 
 	return &credentials, nil
+}
+
+func (credentials *Credentials) Decode(body *hclwrite.Body, attr string) error {
+	if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+		body.AppendNewline()
+	}
+
+	credentialsBlock := body.AppendNewBlock(attr, nil)
+	credentialsBody := credentialsBlock.Body()
+
+	if credentials.Username != "" {
+		usernameAttr, err := actoparser.GetHclTag(*credentials, "Username")
+		if err != nil {
+			return err
+		}
+
+		credentialsBody.SetAttributeValue(usernameAttr, cty.StringVal(credentials.Username))
+	}
+
+	if credentials.Password != "" {
+		passwordAttr, err := actoparser.GetHclTag(*credentials, "Password")
+		if err != nil {
+			return err
+		}
+
+		credentialsBody.SetAttributeValue(passwordAttr, cty.StringVal(credentials.Password))
+	}
+
+	return nil
 }

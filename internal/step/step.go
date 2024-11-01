@@ -13,23 +13,24 @@ import (
 	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type Steps map[string]*Step
 
 type Step struct {
 	Identifier       string          `yaml:"-"`
-	Id               *string         `yaml:"id,omitempty"`
-	If               *string         `yaml:"if,omitempty"`
-	Name             *string         `yaml:"name,omitempty"`
-	Uses             *string         `yaml:"uses,omitempty"`
-	Run              *string         `yaml:"run,omitempty"`
-	WorkingDirectory *string         `yaml:"working-directory,omitempty"`
-	Shell            *string         `yaml:"shell,omitempty"`
-	With             *map[string]any `yaml:"with,omitempty"`
-	Env              *action.Envs    `yaml:"env,omitempty"`
-	ContinueOnError  any             `yaml:"continue-on-error,omitempty"`
-	TimeoutMinutes   *uint64         `yaml:"timeout-minutes,omitempty"`
+	Id               *string         `yaml:"id,omitempty" hcl:"id"`
+	If               *string         `yaml:"if,omitempty" hcl:"if"`
+	Name             *string         `yaml:"name,omitempty" hcl:"name"`
+	Uses             *string         `yaml:"uses,omitempty" hcl:"uses"`
+	Run              *string         `yaml:"run,omitempty" hcl:"run"`
+	WorkingDirectory *string         `yaml:"working-directory,omitempty" hcl:"working_directory"`
+	Shell            *string         `yaml:"shell,omitempty" hcl:"shell"`
+	With             *map[string]any `yaml:"with,omitempty" hcl:"with"`
+	Env              *action.Envs    `yaml:"env,omitempty" hcl:"env"`
+	ContinueOnError  any             `yaml:"continue-on-error,omitempty" hcl:"continue_on_error"`
+	TimeoutMinutes   *uint64         `yaml:"timeout-minutes,omitempty" hcl:"timeout_minutes"`
 }
 
 type StepsConfig []StepConfig
@@ -499,10 +500,181 @@ func (config *StepsConfig) Parse() (Steps, error) {
 	return steps, nil
 }
 
-func DecodeToHCL(step *Step, rootBody *hclwrite.Body) {
-	rootBody.AppendNewline()
+func (step *Step) Decode(body *hclwrite.Body, attr string) error {
+	if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+		body.AppendNewline()
+	}
 
-	rootBody.AppendNewBlock("step", []string{step.Identifier})
+	stepBlock := body.AppendNewBlock(attr, []string{step.Identifier})
+	stepBody := stepBlock.Body()
 
-	// jobBody := jobBlock.Body()
+	if step.Id != nil {
+		idAttr, err := actoparser.GetHclTag(*step, "Id")
+		if err != nil {
+			return err
+		}
+
+		stepBody.SetAttributeValue(idAttr, cty.StringVal(*step.Id))
+	}
+
+	if step.If != nil {
+		ifAttr, err := actoparser.GetHclTag(*step, "If")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		stepBody.SetAttributeValue(ifAttr, cty.StringVal(*step.If))
+	}
+
+	if step.Name != nil {
+		nameAttr, err := actoparser.GetHclTag(*step, "Name")
+		if err != nil {
+			return err
+		}
+
+		stepBody.SetAttributeValue(nameAttr, cty.StringVal(*step.Name))
+	}
+
+	if step.Uses != nil {
+		usesAttr, err := actoparser.GetHclTag(*step, "Uses")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		stepBody.SetAttributeValue(usesAttr, cty.StringVal(*step.Uses))
+	}
+
+	if step.Run != nil {
+		runAttr, err := actoparser.GetHclTag(*step, "Run")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		stepBody.SetAttributeValue(runAttr, cty.StringVal(*step.Run))
+	}
+
+	if step.WorkingDirectory != nil {
+		workingDirectoryAttr, err := actoparser.GetHclTag(*step, "WorkingDirectory")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		stepBody.SetAttributeValue(workingDirectoryAttr, cty.StringVal(*step.WorkingDirectory))
+	}
+
+	if step.Shell != nil {
+		shellAttr, err := actoparser.GetHclTag(*step, "Shell")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		stepBody.SetAttributeValue(shellAttr, cty.StringVal(*step.Shell))
+	}
+
+	if step.With != nil {
+		withAttr, err := actoparser.GetHclTag(*step, "With")
+		if err != nil {
+			return err
+		}
+
+		for key, value := range *step.With {
+			if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
+				stepBody.AppendNewline()
+			}
+
+			withBlock := stepBody.AppendNewBlock(withAttr, nil)
+			withBody := withBlock.Body()
+
+			withBody.SetAttributeValue("name", cty.StringVal(key))
+
+			switch v := value.(type) {
+			case string:
+				withBody.SetAttributeValue("value", cty.StringVal(v))
+			case bool:
+				withBody.SetAttributeValue("value", cty.BoolVal(v))
+			case uint64:
+				withBody.SetAttributeValue("value", cty.NumberUIntVal(v))
+			case int64:
+				withBody.SetAttributeValue("value", cty.NumberIntVal(v))
+			case float64:
+				withBody.SetAttributeValue("value", cty.NumberFloatVal(v))
+			default:
+				return errors.New("unkown dealt type")
+			}
+		}
+	}
+
+	if step.Env != nil {
+		for name, env := range *step.Env {
+
+			if len(stepBody.Blocks()) > 0 {
+				stepBody.AppendNewline()
+			}
+
+			envBlock := stepBody.AppendNewBlock("env", nil)
+
+			envBody := envBlock.Body()
+			envBody.SetAttributeValue("name", cty.StringVal(name))
+
+			switch e := env.(type) {
+			case string:
+				envBody.SetAttributeValue("value", cty.StringVal(e))
+			}
+		}
+	}
+
+	if step.ContinueOnError != nil {
+		attr, err := actoparser.GetHclTag(*step, "ContinueOnError")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		switch v := step.ContinueOnError.(type) {
+		case string:
+			stepBody.SetAttributeValue(attr, cty.StringVal(v))
+		case bool:
+			stepBody.SetAttributeValue(attr, cty.BoolVal(v))
+		default:
+			return errors.New("unkown dealt type")
+		}
+	}
+
+	if step.TimeoutMinutes != nil {
+		attr, err := actoparser.GetHclTag(*step, "TimeoutMinutes")
+		if err != nil {
+			return err
+		}
+
+		if len(stepBody.Blocks()) > 0 {
+			stepBody.AppendNewline()
+		}
+
+		stepBody.SetAttributeValue(attr, cty.NumberUIntVal(*step.TimeoutMinutes))
+	}
+
+	return nil
 }

@@ -42,7 +42,10 @@ func main() {
 
 		filename := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 
-		bytes := workflow.DecodeWorkflow(w, filename)
+		bytes, err := w.Decode(filename)
+		if err != nil {
+			panic(err)
+		}
 
 		fw := filewriter.New()
 

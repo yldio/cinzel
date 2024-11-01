@@ -31,7 +31,7 @@ type Workflow struct {
 	Env         *action.Envs        `yaml:"env,omitempty" hcl:"env"`
 	Defaults    *action.Defaults    `yaml:"defaults,omitempty" hcl:"defaults"`
 	Concurrency *action.Concurrency `yaml:"concurrency,omitempty" hcl:"concurrency"`
-	Jobs        job.Jobs            `yaml:"jobs" hcl:"jobs"`
+	Jobs        job.Jobs            `yaml:"jobs" hcl:"job"`
 	JobsIds     []string            `yaml:"-"`
 }
 
@@ -343,7 +343,7 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 	return workflows, nil
 }
 
-func DecodeWorkflow(workflow Workflow, filename string) []byte {
+func (workflow *Workflow) Decode(filename string) ([]byte, error) {
 	f := hclwrite.NewEmptyFile()
 
 	rootBody := f.Body()
@@ -355,7 +355,7 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 	workflowBody := workflowBlock.Body()
 
 	if label == "" {
-		panic(label)
+		return []byte(``), errors.New("missing label")
 	}
 
 	workflow.Id = label
@@ -363,9 +363,9 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 	workflowBody.SetAttributeValue("filename", cty.StringVal(label))
 
 	if workflow.Name != "" {
-		attr, err := actoparser.GetHclTag(workflow, "Name")
+		attr, err := actoparser.GetHclTag(*workflow, "Name")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		workflowBody.AppendNewline()
@@ -373,9 +373,9 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 	}
 
 	if workflow.RunName != "" {
-		attr, err := actoparser.GetHclTag(workflow, "RunName")
+		attr, err := actoparser.GetHclTag(*workflow, "RunName")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		workflowBody.AppendNewline()
@@ -384,9 +384,9 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 
 	if workflow.On != nil {
 		for event, on := range *workflow.On {
-			attr, err := actoparser.GetHclTag(workflow, "On")
+			attr, err := actoparser.GetHclTag(*workflow, "On")
 			if err != nil {
-				panic(err)
+				return []byte(``), err
 			}
 
 			workflowBody.AppendNewline()
@@ -452,15 +452,15 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 					}
 				}
 			default:
-				panic(val)
+				return []byte(``), errors.New("unkown dealt type")
 			}
 		}
 	}
 
 	if workflow.Permissions != nil {
-		attr, err := actoparser.GetHclTag(workflow, "Permissions")
+		attr, err := actoparser.GetHclTag(*workflow, "Permissions")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		workflowBody.AppendNewline()
@@ -479,12 +479,12 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 			option := values.Field(i).Elem().String()
 
 			if !action.ValidatePermissionsOption(option) {
-				panic(option)
+				return []byte(``), errors.New("unknown option")
 			}
 
 			attr, err := actoparser.GetHclTag(*workflow.Permissions, types.Field(i).Name)
 			if err != nil {
-				panic(err)
+				return []byte(``), err
 			}
 
 			permissionsBody.SetAttributeValue(attr, cty.StringVal(option))
@@ -515,16 +515,16 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 			workflowBody.AppendNewline()
 		}
 
-		attr, err := actoparser.GetHclTag(workflow, "Defaults")
+		attr, err := actoparser.GetHclTag(*workflow, "Defaults")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		defaultsBlock := workflowBody.AppendNewBlock(attr, nil)
 		defaultsBody := defaultsBlock.Body()
 		attr, err = actoparser.GetHclTag(*workflow.Defaults, "Run")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		runBlock := defaultsBody.AppendNewBlock(attr, nil)
@@ -533,7 +533,7 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 		if workflow.Defaults.Run.Shell != nil {
 			attr, err := actoparser.GetHclTag(*workflow.Defaults.Run, "Shell")
 			if err != nil {
-				panic(err)
+				return []byte(``), err
 			}
 
 			runBody.SetAttributeValue(attr, cty.StringVal(*workflow.Defaults.Run.Shell))
@@ -542,7 +542,7 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 		if workflow.Defaults.Run.WorkingDirectory != nil {
 			attr, err := actoparser.GetHclTag(*workflow.Defaults.Run, "WorkingDirectory")
 			if err != nil {
-				panic(err)
+				return []byte(``), err
 			}
 
 			runBody.SetAttributeValue(attr, cty.StringVal(*workflow.Defaults.Run.WorkingDirectory))
@@ -550,9 +550,9 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 	}
 
 	if workflow.Concurrency != nil {
-		attr, err := actoparser.GetHclTag(workflow, "Concurrency")
+		attr, err := actoparser.GetHclTag(*workflow, "Concurrency")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		if len(workflowBody.Blocks()) > 0 {
@@ -564,13 +564,13 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 
 		attr, err = actoparser.GetHclTag(*workflow.Concurrency, "Group")
 		if err != nil {
-			panic(err)
+			return []byte(``), err
 		}
 
 		if workflow.Concurrency.Group != nil {
 			attr, err := actoparser.GetHclTag(*workflow.Concurrency, "Group")
 			if err != nil {
-				panic(err)
+				return []byte(``), err
 			}
 
 			concurrencyBody.SetAttributeValue(attr, cty.StringVal(*workflow.Concurrency.Group))
@@ -579,7 +579,7 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 		if workflow.Concurrency.CancelInProgress != nil {
 			attr, err := actoparser.GetHclTag(*workflow.Concurrency, "CancelInProgress")
 			if err != nil {
-				panic(err)
+				return []byte(``), err
 			}
 
 			concurrencyBody.SetAttributeValue(attr, cty.BoolVal(*workflow.Concurrency.CancelInProgress))
@@ -587,11 +587,20 @@ func DecodeWorkflow(workflow Workflow, filename string) []byte {
 	}
 
 	if workflow.Jobs != nil {
+		jobAttr, err := actoparser.GetHclTag(*workflow, "Jobs")
+		if err != nil {
+			return []byte(``), err
+		}
+
 		for id, j := range workflow.Jobs {
+
 			j.Id = fmt.Sprintf("%s-%s", workflow.Id, id)
-			job.DecodeToHCL(j, rootBody)
+
+			if err := j.Decode(rootBody, jobAttr); err != nil {
+				return []byte(``), err
+			}
 		}
 	}
 
-	return f.Bytes()
+	return f.Bytes(), nil
 }

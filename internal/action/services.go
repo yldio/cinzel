@@ -8,20 +8,22 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type Services map[string]*Service
 
 type Service struct {
 	Name        string       `yaml:"-"`
-	Image       string       `yaml:"image,omitempty"`
-	Credentials *Credentials `yaml:"credentials,omitempty"`
-	Env         *Envs        `yaml:"env,omitempty"`
-	Ports       []*string    `yaml:"ports,omitempty"`
-	Volumes     []*string    `yaml:"volumes,omitempty"`
-	Options     *string      `yaml:"options,omitempty"`
+	Image       string       `yaml:"image,omitempty" hcl:"image"`
+	Credentials *Credentials `yaml:"credentials,omitempty" hcl:"credentials"`
+	Env         *Envs        `yaml:"env,omitempty" hcl:"env"`
+	Ports       []*string    `yaml:"ports,omitempty" hcl:"ports"`
+	Volumes     []*string    `yaml:"volumes,omitempty" hcl:"volumes"`
+	Options     *string      `yaml:"options,omitempty" hcl:"options"`
 }
 
 type ServicesConfig []*ServiceConfig
@@ -263,4 +265,98 @@ func (config *ServiceConfig) Parse() (*Service, error) {
 	}
 
 	return &service, nil
+}
+
+func (services *Services) Decode(body *hclwrite.Body, attr string) error {
+	for id, service := range *services {
+		if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+			body.AppendNewline()
+		}
+
+		serviceBlock := body.AppendNewBlock(attr, []string{id})
+		serviceBody := serviceBlock.Body()
+
+		if service.Image != "" {
+			imageAttr, err := actoparser.GetHclTag(*service, "Image")
+			if err != nil {
+				return err
+			}
+
+			serviceBody.SetAttributeValue(imageAttr, cty.StringVal(service.Image))
+		}
+
+		if service.Credentials != nil {
+			credentialsAttr, err := actoparser.GetHclTag(*service, "Credentials")
+			if err != nil {
+				return err
+			}
+
+			if err := service.Credentials.Decode(serviceBody, credentialsAttr); err != nil {
+				return err
+			}
+		}
+
+		if service.Env != nil {
+			envAttr, err := actoparser.GetHclTag(*service, "Env")
+			if err != nil {
+				return err
+			}
+
+			if err := service.Env.Decode(serviceBody, envAttr); err != nil {
+				return err
+			}
+		}
+
+		if service.Ports != nil {
+			portsAttr, err := actoparser.GetHclTag(*service, "Ports")
+			if err != nil {
+				return err
+			}
+
+			if len(serviceBody.Blocks()) > 0 || len(serviceBody.Attributes()) > 0 {
+				serviceBody.AppendNewline()
+			}
+
+			var ports []cty.Value
+
+			for _, port := range service.Ports {
+				ports = append(ports, cty.StringVal(*port))
+			}
+
+			serviceBody.SetAttributeValue(portsAttr, cty.TupleVal(ports))
+		}
+
+		if service.Volumes != nil {
+			volumesAttr, err := actoparser.GetHclTag(*service, "Volumes")
+			if err != nil {
+				return err
+			}
+
+			if len(serviceBody.Blocks()) > 0 || len(serviceBody.Attributes()) > 0 {
+				serviceBody.AppendNewline()
+			}
+
+			var volumes []cty.Value
+
+			for _, volume := range service.Volumes {
+				volumes = append(volumes, cty.StringVal(*volume))
+			}
+
+			serviceBody.SetAttributeValue(volumesAttr, cty.TupleVal(volumes))
+		}
+
+		if service.Options != nil {
+			optionsAttr, err := actoparser.GetHclTag(*service, "Options")
+			if err != nil {
+				return err
+			}
+
+			if len(serviceBody.Blocks()) > 0 || len(serviceBody.Attributes()) > 0 {
+				serviceBody.AppendNewline()
+			}
+
+			serviceBody.SetAttributeValue(optionsAttr, cty.StringVal(*service.Options))
+		}
+	}
+	return nil
 }

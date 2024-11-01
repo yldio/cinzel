@@ -7,14 +7,11 @@ import (
 	"errors"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
-
-type Env struct {
-	Name  string `yaml:"-"`
-	Value any    `yaml:"-"`
-}
 
 type Envs map[string]any
 
@@ -121,4 +118,35 @@ func (config *EnvsConfig) Parse() (*Envs, error) {
 	}
 
 	return &envs, nil
+}
+
+func (envs *Envs) Decode(body *hclwrite.Body, attr string) error {
+
+	for key, value := range *envs {
+		if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+			body.AppendNewline()
+		}
+
+		envBlock := body.AppendNewBlock(attr, nil)
+		envBody := envBlock.Body()
+
+		envBody.SetAttributeValue("name", cty.StringVal(key))
+
+		switch v := value.(type) {
+		case string:
+			envBody.SetAttributeValue("value", cty.StringVal(v))
+		case bool:
+			envBody.SetAttributeValue("value", cty.BoolVal(v))
+		case uint64:
+			envBody.SetAttributeValue("value", cty.NumberUIntVal(v))
+		case int64:
+			envBody.SetAttributeValue("value", cty.NumberIntVal(v))
+		case float64:
+			envBody.SetAttributeValue("value", cty.NumberFloatVal(v))
+		default:
+			return errors.New("unkown dealt type")
+		}
+	}
+
+	return nil
 }

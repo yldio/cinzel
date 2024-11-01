@@ -8,17 +8,19 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type Container struct {
-	Image       string       `yaml:"image,omitempty"`
-	Credentials *Credentials `yaml:"credentials,omitempty"`
-	Env         *Envs        `yaml:"env,omitempty"`
-	Ports       []*uint64    `yaml:"ports,omitempty"`
-	Volumes     []*string    `yaml:"volumes,omitempty"`
-	Options     *string      `yaml:"options,omitempty"`
+	Image       string       `yaml:"image,omitempty" hcl:"image"`
+	Credentials *Credentials `yaml:"credentials,omitempty" hcl:"credentials"`
+	Env         *Envs        `yaml:"env,omitempty" hcl:"env"`
+	Ports       []*uint64    `yaml:"ports,omitempty" hcl:"ports"`
+	Volumes     []*string    `yaml:"volumes,omitempty" hcl:"volumes"`
+	Options     *string      `yaml:"options,omitempty" hcl:"options"`
 }
 
 type ContainerConfig struct {
@@ -252,4 +254,97 @@ func (config *ContainerConfig) Parse() (*Container, error) {
 	}
 
 	return &container, nil
+}
+
+func (container *Container) Decode(body *hclwrite.Body, attr string) error {
+	if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+		body.AppendNewline()
+	}
+
+	containerBlock := body.AppendNewBlock(attr, nil)
+	containerBody := containerBlock.Body()
+
+	if container.Image != "" {
+		imageAttr, err := actoparser.GetHclTag(*container, "Image")
+		if err != nil {
+			return err
+		}
+
+		containerBody.SetAttributeValue(imageAttr, cty.StringVal(container.Image))
+	}
+
+	if container.Credentials != nil {
+		credentialsAttr, err := actoparser.GetHclTag(*container, "Credentials")
+		if err != nil {
+			return err
+		}
+
+		if err := container.Credentials.Decode(containerBody, credentialsAttr); err != nil {
+			return err
+		}
+	}
+
+	if container.Env != nil {
+		envAttr, err := actoparser.GetHclTag(*container, "Env")
+		if err != nil {
+			return err
+		}
+
+		if err := container.Env.Decode(containerBody, envAttr); err != nil {
+			return err
+		}
+	}
+
+	if container.Ports != nil {
+		portsAttr, err := actoparser.GetHclTag(*container, "Ports")
+		if err != nil {
+			return err
+		}
+
+		if len(containerBody.Blocks()) > 0 || len(containerBody.Attributes()) > 0 {
+			containerBody.AppendNewline()
+		}
+
+		var ports []cty.Value
+
+		for _, port := range container.Ports {
+			ports = append(ports, cty.NumberUIntVal(*port))
+		}
+
+		containerBody.SetAttributeValue(portsAttr, cty.TupleVal(ports))
+	}
+
+	if container.Volumes != nil {
+		volumesAttr, err := actoparser.GetHclTag(*container, "Volumes")
+		if err != nil {
+			return err
+		}
+
+		if len(containerBody.Blocks()) > 0 || len(containerBody.Attributes()) > 0 {
+			containerBody.AppendNewline()
+		}
+
+		var volumes []cty.Value
+
+		for _, volume := range container.Volumes {
+			volumes = append(volumes, cty.StringVal(*volume))
+		}
+
+		containerBody.SetAttributeValue(volumesAttr, cty.TupleVal(volumes))
+	}
+
+	if container.Options != nil {
+		optionsAttr, err := actoparser.GetHclTag(*container, "Options")
+		if err != nil {
+			return err
+		}
+
+		if len(containerBody.Blocks()) > 0 || len(containerBody.Attributes()) > 0 {
+			containerBody.AppendNewline()
+		}
+
+		containerBody.SetAttributeValue(optionsAttr, cty.StringVal(*container.Options))
+	}
+
+	return nil
 }

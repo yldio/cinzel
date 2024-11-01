@@ -33,16 +33,16 @@ type Job struct {
 	Outputs         *action.Outputs     `yaml:"outputs,omitempty" hcl:"output"`
 	Env             *action.Envs        `yaml:"env,omitempty" hcl:"env"`
 	Defaults        *action.Defaults    `yaml:"defaults,omitempty" hcl:"defaults"`
-	Steps           []*step.Step        `yaml:"steps,omitempty" hcl:"steps"`
+	Steps           []*step.Step        `yaml:"steps,omitempty" hcl:"step"`
 	StepsIds        []string            `yaml:"-"`
-	TimeoutMinutes  *uint64             `yaml:"timeout-minutes,omitempty" hcl:"timeout-minutes"`
+	TimeoutMinutes  *uint64             `yaml:"timeout-minutes,omitempty" hcl:"timeout_minutes"`
 	Strategy        *action.Strategy    `yaml:"strategy,omitempty" hcl:"strategy"`
-	ContinueOnError any                 `yaml:"continue-on-error,omitempty" hcl:"continue-on-error"`
+	ContinueOnError any                 `yaml:"continue-on-error,omitempty" hcl:"continue_on_error"`
 	Container       *action.Container   `yaml:"container,omitempty" hcl:"container"`
-	Services        *action.Services    `yaml:"services,omitempty" hcl:"services"`
+	Services        *action.Services    `yaml:"services,omitempty" hcl:"service"`
 	Uses            *string             `yaml:"uses,omitempty" hcl:"uses"`
 	With            *map[string]any     `yaml:"with,omitempty" hcl:"with"`
-	Secrets         any                 `yaml:"secrets,omitempty" hcl:"secrets"`
+	Secrets         any                 `yaml:"secrets,omitempty" hcl:"secret"`
 }
 
 type JobsConfig []JobConfig
@@ -689,10 +689,10 @@ func (config *JobsConfig) Parse() (Jobs, error) {
 	return jobs, nil
 }
 
-func DecodeToHCL(job *Job, rootBody *hclwrite.Body) error {
-	rootBody.AppendNewline()
+func (job *Job) Decode(body *hclwrite.Body, attr string) error {
+	body.AppendNewline()
 
-	jobBlock := rootBody.AppendNewBlock("job", []string{job.Id})
+	jobBlock := body.AppendNewBlock(attr, []string{job.Id})
 
 	jobBody := jobBlock.Body()
 
@@ -992,6 +992,11 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) error {
 	}
 
 	if job.Steps != nil {
+		attr, err := actoparser.GetHclTag(*job, "Steps")
+		if err != nil {
+			return err
+		}
+
 		for i, s := range job.Steps {
 			var identifier string
 			if s.Id != nil {
@@ -1002,7 +1007,7 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) error {
 
 			s.Identifier = identifier
 
-			step.DecodeToHCL(s, rootBody)
+			s.Decode(body, attr)
 		}
 	}
 
@@ -1027,6 +1032,130 @@ func DecodeToHCL(job *Job, rootBody *hclwrite.Body) error {
 
 		if err := job.Strategy.Decode(jobBody, attr); err != nil {
 			return err
+		}
+	}
+
+	if job.ContinueOnError != nil {
+		attr, err := actoparser.GetHclTag(*job, "ContinueOnError")
+		if err != nil {
+			return err
+		}
+
+		if len(jobBody.Blocks()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		switch v := job.ContinueOnError.(type) {
+		case string:
+			jobBody.SetAttributeValue(attr, cty.StringVal(v))
+		case bool:
+			jobBody.SetAttributeValue(attr, cty.BoolVal(v))
+		default:
+			return errors.New("unkown dealt type")
+		}
+	}
+
+	if job.Container != nil {
+		attr, err := actoparser.GetHclTag(*job, "Container")
+		if err != nil {
+			return err
+		}
+
+		if err := job.Container.Decode(jobBody, attr); err != nil {
+			return err
+		}
+	}
+
+	if job.Services != nil {
+		attr, err := actoparser.GetHclTag(*job, "Services")
+		if err != nil {
+			return err
+		}
+
+		if err := job.Services.Decode(jobBody, attr); err != nil {
+			return err
+		}
+	}
+
+	if job.Uses != nil {
+		usesAttr, err := actoparser.GetHclTag(*job, "Uses")
+		if err != nil {
+			return err
+		}
+
+		if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
+			jobBody.AppendNewline()
+		}
+
+		jobBody.SetAttributeValue(usesAttr, cty.StringVal(*job.Uses))
+	}
+
+	if job.With != nil {
+		withAttr, err := actoparser.GetHclTag(*job, "With")
+		if err != nil {
+			return err
+		}
+
+		for key, value := range *job.With {
+			if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
+				jobBody.AppendNewline()
+			}
+
+			withBlock := jobBody.AppendNewBlock(withAttr, nil)
+			withBody := withBlock.Body()
+
+			withBody.SetAttributeValue("name", cty.StringVal(key))
+
+			switch v := value.(type) {
+			case string:
+				withBody.SetAttributeValue("value", cty.StringVal(v))
+			case bool:
+				withBody.SetAttributeValue("value", cty.BoolVal(v))
+			case uint64:
+				withBody.SetAttributeValue("value", cty.NumberUIntVal(v))
+			case int64:
+				withBody.SetAttributeValue("value", cty.NumberIntVal(v))
+			case float64:
+				withBody.SetAttributeValue("value", cty.NumberFloatVal(v))
+			default:
+				return errors.New("unkown dealt type")
+			}
+		}
+	}
+
+	if job.Secrets != nil {
+		secretAttr, err := actoparser.GetHclTag(*job, "Secrets")
+		if err != nil {
+			return err
+		}
+
+		switch secret := job.Secrets.(type) {
+		case string:
+			jobBody.SetAttributeValue("secrets", cty.StringVal("inherit"))
+		case map[string]any:
+			for key, value := range secret {
+				secretBlock := jobBody.AppendNewBlock(secretAttr, nil)
+				secretBody := secretBlock.Body()
+
+				secretBody.SetAttributeValue("name", cty.StringVal(key))
+
+				switch v := value.(type) {
+				case string:
+					secretBody.SetAttributeValue("value", cty.StringVal(v))
+				case bool:
+					secretBody.SetAttributeValue("value", cty.BoolVal(v))
+				case uint64:
+					secretBody.SetAttributeValue("value", cty.NumberUIntVal(v))
+				case int64:
+					secretBody.SetAttributeValue("value", cty.NumberIntVal(v))
+				case float64:
+					secretBody.SetAttributeValue("value", cty.NumberFloatVal(v))
+				default:
+					return errors.New("unkown dealt type")
+				}
+			}
+		default:
+			return errors.New("unkown dealt type")
 		}
 	}
 
