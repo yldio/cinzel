@@ -13,7 +13,6 @@ import (
 	"github.com/yldio/acto/internal/step"
 	"github.com/yldio/acto/internal/variable"
 	"github.com/yldio/acto/internal/workflow"
-	"github.com/yldio/acto/service/yamlwriter"
 )
 
 type HclConfig struct {
@@ -35,29 +34,29 @@ func New(body hcl.Body) *HclParser {
 }
 
 // Decode is a wrapper around the gohcl.DecodeBody function.
-func (parse *HclParser) Decode() error {
-	diags := gohcl.DecodeBody(parse.body, nil, &parse.config)
+func (parser *HclParser) Do() (workflow.Workflows, error) {
+	diags := gohcl.DecodeBody(parser.body, nil, &parser.config)
 	if diags.HasErrors() {
-		return actoerrors.ProcessHCLDiags(diags)
+		return workflow.Workflows{}, actoerrors.ProcessHCLDiags(diags)
 	}
 
-	return nil
+	return parser.parse()
 }
 
-func (parse *HclParser) Parse() (*yamlwriter.Yaml, error) {
-	err := parse.config.Variables.Parse()
+func (parser *HclParser) parse() (workflow.Workflows, error) {
+	err := parser.config.Variables.Parse()
 	if err != nil {
-		return &yamlwriter.Yaml{}, err
+		return workflow.Workflows{}, err
 	}
 
-	parsedSteps, err := parse.config.Steps.Parse()
+	parsedSteps, err := parser.config.Steps.Parse()
 	if err != nil {
-		return &yamlwriter.Yaml{}, err
+		return workflow.Workflows{}, err
 	}
 
-	parsedJobs, err := parse.config.Jobs.Parse()
+	parsedJobs, err := parser.config.Jobs.Parse()
 	if err != nil {
-		return &yamlwriter.Yaml{}, err
+		return workflow.Workflows{}, err
 	}
 
 	for _, job := range parsedJobs {
@@ -88,9 +87,9 @@ func (parse *HclParser) Parse() (*yamlwriter.Yaml, error) {
 		}
 	}
 
-	parsedWorkflows, err := parse.config.Workflows.Parse()
+	parsedWorkflows, err := parser.config.Workflows.Parse()
 	if err != nil {
-		return &yamlwriter.Yaml{}, err
+		return workflow.Workflows{}, err
 	}
 
 	for _, workflow := range parsedWorkflows {
@@ -109,7 +108,5 @@ func (parse *HclParser) Parse() (*yamlwriter.Yaml, error) {
 
 	}
 
-	yamlwriter := yamlwriter.New(parsedWorkflows)
-
-	return yamlwriter, nil
+	return parsedWorkflows, nil
 }

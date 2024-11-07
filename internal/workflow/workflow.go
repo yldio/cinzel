@@ -6,8 +6,6 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"reflect"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -343,151 +341,64 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 	return workflows, nil
 }
 
-func (workflow *Workflow) Decode(filename string) ([]byte, error) {
+func (workflow *Workflow) Decode() ([]byte, error) {
 	f := hclwrite.NewEmptyFile()
 
 	rootBody := f.Body()
 
-	label := actoparser.ToSnakeCase(filename)
+	label := actoparser.ToSnakeCase(workflow.Id)
 
 	workflowBlock := rootBody.AppendNewBlock("workflow", []string{label})
 
 	workflowBody := workflowBlock.Body()
 
-	if label == "" {
-		return []byte(``), errors.New("missing label")
-	}
-
-	workflow.Id = label
-
 	workflowBody.SetAttributeValue("filename", cty.StringVal(label))
 
 	if workflow.Name != "" {
-		attr, err := actoparser.GetHclTag(*workflow, "Name")
+		nameAttr, err := actoparser.GetHclTag(*workflow, "Name")
 		if err != nil {
 			return []byte(``), err
 		}
 
-		workflowBody.AppendNewline()
-		workflowBody.SetAttributeValue(attr, cty.StringVal(workflow.Name))
+		if len(workflowBody.Blocks()) > 0 || len(workflowBody.Attributes()) > 0 {
+			workflowBody.AppendNewline()
+		}
+
+		workflowBody.SetAttributeValue(nameAttr, cty.StringVal(workflow.Name))
 	}
 
 	if workflow.RunName != "" {
-		attr, err := actoparser.GetHclTag(*workflow, "RunName")
+		runNameAttr, err := actoparser.GetHclTag(*workflow, "RunName")
 		if err != nil {
 			return []byte(``), err
 		}
 
-		workflowBody.AppendNewline()
-		workflowBody.SetAttributeValue(attr, cty.StringVal(workflow.Name))
+		if len(workflowBody.Blocks()) > 0 || len(workflowBody.Attributes()) > 0 {
+			workflowBody.AppendNewline()
+		}
+
+		workflowBody.SetAttributeValue(runNameAttr, cty.StringVal(workflow.RunName))
 	}
 
 	if workflow.On != nil {
-		for event, on := range *workflow.On {
-			attr, err := actoparser.GetHclTag(*workflow, "On")
-			if err != nil {
-				return []byte(``), err
-			}
+		onAttr, err := actoparser.GetHclTag(*workflow, "On")
+		if err != nil {
+			return []byte(``), err
+		}
 
-			workflowBody.AppendNewline()
-			onBlock := workflowBody.AppendNewBlock(attr, []string{event.ToString()})
-
-			onBody := onBlock.Body()
-
-			switch val := on.(type) {
-			case nil:
-				continue
-			case []any:
-				var list []cty.Value
-				var propName string
-				for _, v := range val {
-					switch subV := v.(type) {
-					case map[string]any:
-						for subK, suberV := range subV {
-							propName = subK
-							switch t := suberV.(type) {
-							case string:
-								list = append(list, cty.StringVal(t))
-							}
-						}
-					}
-				}
-				onBody.SetAttributeValue(propName, cty.TupleVal(list))
-			case map[string]any:
-				for k, v := range val {
-					switch subV := v.(type) {
-					case map[string]any:
-						evtK, _ := strings.CutSuffix(k, "s")
-
-						for sk, sv := range subV {
-							if len(onBody.Blocks()) > 0 {
-								onBody.AppendNewline()
-							}
-							evtBlock := onBody.AppendNewBlock(evtK, []string{sk})
-							evtBody := evtBlock.Body()
-
-							switch ssv := sv.(type) {
-							case map[string]any:
-								for sssk, sssv := range ssv {
-
-									switch x := sssv.(type) {
-									case string:
-										evtBody.SetAttributeValue(sssk, cty.StringVal(x))
-									case bool:
-										evtBody.SetAttributeValue(sssk, cty.BoolVal(x))
-									}
-								}
-							}
-						}
-					case []any:
-						var list []cty.Value
-						for _, suberV := range subV {
-							switch t := suberV.(type) {
-							case string:
-								list = append(list, cty.StringVal(t))
-							}
-						}
-
-						onBody.SetAttributeValue(k, cty.TupleVal(list))
-					}
-				}
-			default:
-				return []byte(``), errors.New("unkown dealt type")
-			}
+		if err := workflow.On.Decode(workflowBody, onAttr); err != nil {
+			return []byte(``), err
 		}
 	}
 
 	if workflow.Permissions != nil {
-		attr, err := actoparser.GetHclTag(*workflow, "Permissions")
+		permissionsAttr, err := actoparser.GetHclTag(*workflow, "Permissions")
 		if err != nil {
 			return []byte(``), err
 		}
 
-		workflowBody.AppendNewline()
-		permissionsBlock := workflowBody.AppendNewBlock(attr, nil)
-
-		permissionsBody := permissionsBlock.Body()
-
-		values := reflect.ValueOf(*workflow.Permissions)
-		types := values.Type()
-
-		for i := 0; i < values.NumField(); i++ {
-			if values.Field(i).IsNil() {
-				continue
-			}
-
-			option := values.Field(i).Elem().String()
-
-			if !action.ValidatePermissionsOption(option) {
-				return []byte(``), errors.New("unknown option")
-			}
-
-			attr, err := actoparser.GetHclTag(*workflow.Permissions, types.Field(i).Name)
-			if err != nil {
-				return []byte(``), err
-			}
-
-			permissionsBody.SetAttributeValue(attr, cty.StringVal(option))
+		if err := workflow.Permissions.Decode(workflowBody, permissionsAttr); err != nil {
+			return []byte(``), err
 		}
 	}
 

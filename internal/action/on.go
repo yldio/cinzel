@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoerrors"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type EventType string
@@ -2232,4 +2235,78 @@ func (config *EventsConfig) Parse() (*On, error) {
 	}
 
 	return &on, nil
+}
+
+func (on *On) Decode(body *hclwrite.Body, attr string) error {
+	for event, o := range *on {
+		if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+			body.AppendNewline()
+		}
+
+		onBlock := body.AppendNewBlock(attr, []string{event.ToString()})
+		onBody := onBlock.Body()
+
+		switch val := o.(type) {
+		case nil:
+			continue
+		case []any:
+			var list []cty.Value
+			var propName string
+			for _, v := range val {
+				switch subV := v.(type) {
+				case map[string]any:
+					for subK, suberV := range subV {
+						propName = subK
+						switch t := suberV.(type) {
+						case string:
+							list = append(list, cty.StringVal(t))
+						}
+					}
+				}
+			}
+			onBody.SetAttributeValue(propName, cty.TupleVal(list))
+		case map[string]any:
+			for k, v := range val {
+				switch subV := v.(type) {
+				case map[string]any:
+					evtK, _ := strings.CutSuffix(k, "s")
+
+					for sk, sv := range subV {
+						if len(onBody.Blocks()) > 0 {
+							onBody.AppendNewline()
+						}
+						evtBlock := onBody.AppendNewBlock(evtK, []string{sk})
+						evtBody := evtBlock.Body()
+
+						switch ssv := sv.(type) {
+						case map[string]any:
+							for sssk, sssv := range ssv {
+
+								switch x := sssv.(type) {
+								case string:
+									evtBody.SetAttributeValue(sssk, cty.StringVal(x))
+								case bool:
+									evtBody.SetAttributeValue(sssk, cty.BoolVal(x))
+								}
+							}
+						}
+					}
+				case []any:
+					var list []cty.Value
+					for _, suberV := range subV {
+						switch t := suberV.(type) {
+						case string:
+							list = append(list, cty.StringVal(t))
+						}
+					}
+
+					onBody.SetAttributeValue(k, cty.TupleVal(list))
+				}
+			}
+		default:
+			return errors.New("unkown dealt type")
+		}
+	}
+
+	return nil
 }

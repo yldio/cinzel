@@ -693,7 +693,6 @@ func (job *Job) Decode(body *hclwrite.Body, attr string) error {
 	body.AppendNewline()
 
 	jobBlock := body.AppendNewBlock(attr, []string{job.Id})
-
 	jobBody := jobBlock.Body()
 
 	if job.Name != nil {
@@ -712,8 +711,8 @@ func (job *Job) Decode(body *hclwrite.Body, attr string) error {
 		}
 
 		jobBody.AppendNewline()
-		permissionsBlock := jobBody.AppendNewBlock(attr, nil)
 
+		permissionsBlock := jobBody.AppendNewBlock(attr, nil)
 		permissionsBody := permissionsBlock.Body()
 
 		values := reflect.ValueOf(*job.Permissions)
@@ -935,12 +934,16 @@ func (job *Job) Decode(body *hclwrite.Body, attr string) error {
 
 	if job.Env != nil {
 		for name, env := range *job.Env {
+			envAttr, err := actoparser.GetHclTag(*job, "Env")
+			if err != nil {
+				return err
+			}
 
-			if len(jobBody.Blocks()) > 0 {
+			if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
 				jobBody.AppendNewline()
 			}
 
-			envBlock := jobBody.AppendNewBlock("env", nil)
+			envBlock := jobBody.AppendNewBlock(envAttr, nil)
 
 			envBody := envBlock.Body()
 			envBody.SetAttributeValue("name", cty.StringVal(name))
@@ -953,41 +956,42 @@ func (job *Job) Decode(body *hclwrite.Body, attr string) error {
 	}
 
 	if job.Defaults != nil {
-		if len(jobBody.Blocks()) > 0 {
+		defaultsAttr, err := actoparser.GetHclTag(*job, "Defaults")
+		if err != nil {
+			return err
+		}
+
+		if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
 			jobBody.AppendNewline()
 		}
 
-		attr, err := actoparser.GetHclTag(*job, "Defaults")
-		if err != nil {
-			return err
-		}
-
-		defaultsBlock := jobBody.AppendNewBlock(attr, nil)
+		defaultsBlock := jobBody.AppendNewBlock(defaultsAttr, nil)
 		defaultsBody := defaultsBlock.Body()
-		attr, err = actoparser.GetHclTag(*job.Defaults, "Run")
+
+		runAttr, err := actoparser.GetHclTag(*job.Defaults, "Run")
 		if err != nil {
 			return err
 		}
 
-		runBlock := defaultsBody.AppendNewBlock(attr, nil)
+		runBlock := defaultsBody.AppendNewBlock(runAttr, nil)
 		runBody := runBlock.Body()
 
 		if job.Defaults.Run.Shell != nil {
-			attr, err := actoparser.GetHclTag(*job.Defaults.Run, "Shell")
+			shellAttr, err := actoparser.GetHclTag(*job.Defaults.Run, "Shell")
 			if err != nil {
 				return err
 			}
 
-			runBody.SetAttributeValue(attr, cty.StringVal(*job.Defaults.Run.Shell))
+			runBody.SetAttributeValue(shellAttr, cty.StringVal(*job.Defaults.Run.Shell))
 		}
 
 		if job.Defaults.Run.WorkingDirectory != nil {
-			attr, err := actoparser.GetHclTag(*job.Defaults.Run, "WorkingDirectory")
+			workingDirectoryAttr, err := actoparser.GetHclTag(*job.Defaults.Run, "WorkingDirectory")
 			if err != nil {
 				return err
 			}
 
-			runBody.SetAttributeValue(attr, cty.StringVal(*job.Defaults.Run.WorkingDirectory))
+			runBody.SetAttributeValue(workingDirectoryAttr, cty.StringVal(*job.Defaults.Run.WorkingDirectory))
 		}
 	}
 
@@ -1012,67 +1016,67 @@ func (job *Job) Decode(body *hclwrite.Body, attr string) error {
 	}
 
 	if job.TimeoutMinutes != nil {
-		attr, err := actoparser.GetHclTag(*job, "TimeoutMinutes")
+		timeoutMinutesAttr, err := actoparser.GetHclTag(*job, "TimeoutMinutes")
 		if err != nil {
 			return err
 		}
 
-		if len(jobBody.Blocks()) > 0 {
+		if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
 			jobBody.AppendNewline()
 		}
 
-		jobBody.SetAttributeValue(attr, cty.NumberUIntVal(*job.TimeoutMinutes))
+		jobBody.SetAttributeValue(timeoutMinutesAttr, cty.NumberUIntVal(*job.TimeoutMinutes))
 	}
 
 	if job.Strategy != nil {
-		attr, err := actoparser.GetHclTag(*job, "Strategy")
+		strategyAttr, err := actoparser.GetHclTag(*job, "Strategy")
 		if err != nil {
 			return err
 		}
 
-		if err := job.Strategy.Decode(jobBody, attr); err != nil {
+		if err := job.Strategy.Decode(jobBody, strategyAttr); err != nil {
 			return err
 		}
 	}
 
 	if job.ContinueOnError != nil {
-		attr, err := actoparser.GetHclTag(*job, "ContinueOnError")
+		continueOnErrorAttr, err := actoparser.GetHclTag(*job, "ContinueOnError")
 		if err != nil {
 			return err
 		}
 
-		if len(jobBody.Blocks()) > 0 {
+		if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
 			jobBody.AppendNewline()
 		}
 
 		switch v := job.ContinueOnError.(type) {
 		case string:
-			jobBody.SetAttributeValue(attr, cty.StringVal(v))
+			jobBody.SetAttributeValue(continueOnErrorAttr, cty.StringVal(v))
 		case bool:
-			jobBody.SetAttributeValue(attr, cty.BoolVal(v))
+			jobBody.SetAttributeValue(continueOnErrorAttr, cty.BoolVal(v))
 		default:
 			return errors.New("unkown dealt type")
 		}
 	}
 
 	if job.Container != nil {
-		attr, err := actoparser.GetHclTag(*job, "Container")
+		containerAttr, err := actoparser.GetHclTag(*job, "Container")
 		if err != nil {
 			return err
 		}
 
-		if err := job.Container.Decode(jobBody, attr); err != nil {
+		if err := job.Container.Decode(jobBody, containerAttr); err != nil {
 			return err
 		}
 	}
 
 	if job.Services != nil {
-		attr, err := actoparser.GetHclTag(*job, "Services")
+		servicesAttr, err := actoparser.GetHclTag(*job, "Services")
 		if err != nil {
 			return err
 		}
 
-		if err := job.Services.Decode(jobBody, attr); err != nil {
+		if err := job.Services.Decode(jobBody, servicesAttr); err != nil {
 			return err
 		}
 	}
@@ -1127,6 +1131,10 @@ func (job *Job) Decode(body *hclwrite.Body, attr string) error {
 		secretAttr, err := actoparser.GetHclTag(*job, "Secrets")
 		if err != nil {
 			return err
+		}
+
+		if len(jobBody.Blocks()) > 0 || len(jobBody.Attributes()) > 0 {
+			jobBody.AppendNewline()
 		}
 
 		switch secret := job.Secrets.(type) {

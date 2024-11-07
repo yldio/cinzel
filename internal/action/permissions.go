@@ -5,10 +5,13 @@ package action
 
 import (
 	"errors"
+	"reflect"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/acto/internal/actoparser"
 	"github.com/yldio/acto/internal/variables"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type PermissionsOption string
@@ -680,4 +683,37 @@ func (config *PermissionsConfig) Parse() (*Permissions, error) {
 	}
 
 	return &permissions, nil
+}
+
+func (permissions *Permissions) Decode(body *hclwrite.Body, attr string) error {
+	if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
+		body.AppendNewline()
+	}
+
+	permissionsBlock := body.AppendNewBlock(attr, nil)
+	permissionsBody := permissionsBlock.Body()
+
+	values := reflect.ValueOf(*permissions)
+	types := values.Type()
+
+	for i := 0; i < values.NumField(); i++ {
+		if values.Field(i).IsNil() {
+			continue
+		}
+
+		option := values.Field(i).Elem().String()
+
+		if !ValidatePermissionsOption(option) {
+			return errors.New("unknown permission option")
+		}
+
+		attr, err := actoparser.GetHclTag(*permissions, types.Field(i).Name)
+		if err != nil {
+			return err
+		}
+
+		permissionsBody.SetAttributeValue(attr, cty.StringVal(option))
+	}
+
+	return nil
 }

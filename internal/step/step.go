@@ -626,12 +626,16 @@ func (step *Step) Decode(body *hclwrite.Body, attr string) error {
 
 	if step.Env != nil {
 		for name, env := range *step.Env {
+			envAttr, err := actoparser.GetHclTag(*step, "Env")
+			if err != nil {
+				return err
+			}
 
-			if len(stepBody.Blocks()) > 0 {
+			if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
 				stepBody.AppendNewline()
 			}
 
-			envBlock := stepBody.AppendNewBlock("env", nil)
+			envBlock := stepBody.AppendNewBlock(envAttr, nil)
 
 			envBody := envBlock.Body()
 			envBody.SetAttributeValue("name", cty.StringVal(name))

@@ -3,6 +3,8 @@
 
 package yamlparser
 
-type YamlParser struct{}
+type Parser struct{}
 
-func NewParser() {}
+func New() *Parser {
+	return &Parser{}
+}

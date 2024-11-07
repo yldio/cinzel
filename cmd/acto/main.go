@@ -5,120 +5,119 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/acto/service/actoflag"
 	"github.com/yldio/acto/service/filereader"
-	"github.com/yldio/acto/service/filewriter"
 	"github.com/yldio/acto/service/hclparser"
+	"github.com/yldio/acto/service/yamlwriter"
 )
 
 var (
 	version = ""
 )
 
-const gitHubDir = ".github/workflows"
-
-func do(flags *actoflag.Flags, outputDir string) error {
-	var path string
-
-	if flags.Version {
-		fmt.Printf("Acto version: %s.", version)
-		fmt.Println("\nAny feature or issue please read the README on the official GitHub repo.")
-		os.Exit(0)
-	} else if flags.Help {
-		flags.GetUsage()
-		os.Exit(0)
-	} else if flags.Directory != "" {
-		path = flags.Directory
-	} else if flags.File != "" {
-		path = flags.File
-	} else {
-		flags.GetUsage()
-		os.Exit(0)
+func getPath(flags *actoflag.ActoCli) (string, error) {
+	if flags.InputFile != "" {
+		return flags.InputFile, nil
+	} else if flags.InputDirectory != "" {
+		return flags.InputDirectory, nil
 	}
 
-	actoReader := filereader.New(path, flags.Recursive)
-	actoReader.ReadDir(filereader.FileHCLExt)
-	fmt.Println(actoReader.GetFiles())
+	return "", errors.New("no input file or directory defined")
+}
 
-	bodies, err := actoReader.Do(filereader.FileHCLExt)
+func parse(flags *actoflag.ActoCli) error {
+	path, err := getPath(flags)
 	if err != nil {
 		return err
 	}
 
-	body := hcl.MergeBodies(bodies)
+	fileReader := filereader.New()
 
-	parser := hclparser.New(body)
-
-	if err := parser.Decode(); err != nil {
-		return err
-	}
-
-	content, err := parser.Parse()
+	hclBody, err := fileReader.DoHcl(path, flags.Recursive)
 	if err != nil {
 		return err
 	}
 
-	listOfFiles, err := content.Do()
+	hclParser := hclparser.New(hclBody)
+
+	parsedWorkflows, err := hclParser.Do()
 	if err != nil {
 		return err
 	}
 
-	curDir, err := os.Getwd()
+	yamlwriter := yamlwriter.New(parsedWorkflows)
+
+	listOfFiles, err := yamlwriter.Do()
 	if err != nil {
 		return err
 	}
 
-	var fileinfo string
-
-	if filepath.IsAbs(outputDir) {
-		fileinfo = outputDir
-	} else {
-		fileinfo = fmt.Sprintf("%s/%s", curDir, outputDir)
-	}
-
-	fileInfo, err := os.Stat(fileinfo)
-	if err != nil {
-		return err
-	}
-
-	if !fileInfo.IsDir() {
-		return fmt.Errorf("%s is not a directory", outputDir)
-	}
-
-	for file, content := range listOfFiles {
-		actoWriter := filewriter.New()
-		filePath := fmt.Sprintf("%s/%s", outputDir, file)
-		if err := actoWriter.Do(filePath, content); err != nil {
-			return err
+	for file, yamlContent := range listOfFiles {
+		if flags.DryRun {
+			fmt.Printf("# file: %s\n", file)
+			fmt.Println(string(yamlContent))
+			continue
 		}
 	}
 
 	return nil
 }
 
-func main() {
-	cliApp := actoflag.NewCliApp()
-
-	if err := cliApp.Run(os.Args); err != nil {
-		log.Fatal(err)
+func decode(flags *actoflag.ActoCli) error {
+	path, err := getPath(flags)
+	if err != nil {
+		return err
 	}
 
-	// flags := actoflag.New()
+	fileReader := filereader.New()
+	parsedWorkflows, err := fileReader.DoYaml(path, flags.Recursive)
+	if err != nil {
+		return err
+	}
 
-	// // TODO: move
-	// if err := os.MkdirAll(gitHubDir, os.ModePerm); err != nil {
-	// 	fmt.Println(err.Error())
-	// 	os.Exit(1)
-	// }
+	for _, parsedWorkflow := range parsedWorkflows {
+		bytes, err := parsedWorkflow.Decode()
+		if err != nil {
+			return err
+		}
 
-	// if err := do(flags, gitHubDir); err != nil {
-	// 	fmt.Println(err.Error())
-	// 	os.Exit(1)
-	// }
+		if flags.DryRun {
+			fmt.Printf("# file: %s\n", parsedWorkflow.Filename)
+			fmt.Println(string(bytes))
+			continue
+		}
+
+		// fw := filewriter.New()
+		// fw.Do(fmt.Sprintf("%s.hcl", parsedWorkflow.Filename), bytes)
+	}
+
+	return nil
+}
+
+func main() {
+	flags := actoflag.NewFlags()
+
+	cliApp := actoflag.NewCliApp(flags)
+
+	if err := cliApp.Run(os.Args); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	var err error
+
+	if !flags.FromActions {
+		err = parse(flags)
+	} else {
+		err = decode(flags)
+	}
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
