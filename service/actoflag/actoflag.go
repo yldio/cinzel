@@ -161,8 +161,8 @@ func (actoCli *ActoCli) GetFlags() []cli.Flag {
 		actoCli.GetOutputDirectoryFlag(),
 		actoCli.GetRecursiveFlag(),
 		actoCli.GetDryRunFlag(),
-		actoCli.GetOverrideFlag(),
-		actoCli.GetWatchFlag(),
+		// actoCli.GetOverrideFlag(), // TODO
+		// actoCli.GetWatchFlag(), // TODO
 		actoCli.GetFromActionsFlag(),
 	}
 }

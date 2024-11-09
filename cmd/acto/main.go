@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/yldio/acto/service/actoflag"
 	"github.com/yldio/acto/service/filereader"
+	"github.com/yldio/acto/service/filewriter"
 	"github.com/yldio/acto/service/hclparser"
 	"github.com/yldio/acto/service/yamlwriter"
 )
@@ -27,6 +29,36 @@ func getPath(flags *actoflag.ActoCli) (string, error) {
 	}
 
 	return "", errors.New("no input file or directory defined")
+}
+
+func getOutputDirectory(flags *actoflag.ActoCli) (string, error) {
+	var outputPath string
+	var err error
+
+	if flags.OutputDirectory != "" {
+		outputPath = flags.OutputDirectory
+	}
+
+	if !filepath.IsAbs(outputPath) {
+		outputPath, err = filepath.Abs(outputPath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if outputPath == "" {
+		currentDirectory, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		outputPath = currentDirectory
+	}
+
+	if err := os.MkdirAll(outputPath, os.ModePerm); err != nil {
+		return "", err
+	}
+
+	return outputPath, nil
 }
 
 func parse(flags *actoflag.ActoCli) error {
@@ -56,11 +88,24 @@ func parse(flags *actoflag.ActoCli) error {
 		return err
 	}
 
-	for file, yamlContent := range listOfFiles {
+	outputDirectory, err := getOutputDirectory(flags)
+	if err != nil {
+		return err
+	}
+
+	fw := filewriter.New()
+
+	for file, bytes := range listOfFiles {
+		filePath := filepath.Join(outputDirectory, file)
+
 		if flags.DryRun {
-			fmt.Printf("# file: %s\n", file)
-			fmt.Println(string(yamlContent))
+			fmt.Printf("# file: %s\n", filePath)
+			fmt.Println(string(bytes))
 			continue
+		}
+
+		if err := fw.Do(filePath, bytes); err != nil {
+			return err
 		}
 	}
 
@@ -79,20 +124,31 @@ func decode(flags *actoflag.ActoCli) error {
 		return err
 	}
 
+	outputDirectory, err := getOutputDirectory(flags)
+	if err != nil {
+		return err
+	}
+
+	fw := filewriter.New()
+
 	for _, parsedWorkflow := range parsedWorkflows {
 		bytes, err := parsedWorkflow.Decode()
 		if err != nil {
 			return err
 		}
 
+		file := fmt.Sprintf("%s%s", parsedWorkflow.Filename, filereader.FileHclExtensions[0])
+		filePath := filepath.Join(outputDirectory, file)
+
 		if flags.DryRun {
-			fmt.Printf("# file: %s\n", parsedWorkflow.Filename)
+			fmt.Printf("# file: %s\n", filePath)
 			fmt.Println(string(bytes))
 			continue
 		}
 
-		// fw := filewriter.New()
-		// fw.Do(fmt.Sprintf("%s.hcl", parsedWorkflow.Filename), bytes)
+		if err := fw.Do(filePath, bytes); err != nil {
+			return err
+		}
 	}
 
 	return nil
