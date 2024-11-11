@@ -1,0 +1,37 @@
+name: Build Release
+on:
+  release:
+    types:
+    - created
+jobs:
+  releases-matrix:
+    name: Release Go Binary
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      uses: actions/checkout@v4
+    - id: go-release
+      uses: wangyoucao577/go-release-action@v1
+      with:
+        binary_name: acto
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        goarch: ${{ matrix.goarch }}
+        goos: ${{ matrix.goos }}
+        goversion: 1.23.2
+        ldflags: -s -w -X "main.version={{.Version}}"
+        project_path: ./cmd/acto
+    strategy:
+      matrix:
+        exclude:
+        - goarch: "386"
+          goos: darwin
+        - goarch: arm64
+          goos: windows
+        goarch:
+        - "386"
+        - amd64
+        - arm64
+        goos:
+        - linux
+        - windows
+        - darwin

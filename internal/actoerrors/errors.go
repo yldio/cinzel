@@ -45,7 +45,7 @@ func ProcessHCLDiags(diags hcl.Diagnostics) error {
 	var err error
 
 	for _, diag := range diags {
-		err = fmt.Errorf("%s", diag.Summary)
+		err = fmt.Errorf("%s", diag.Detail)
 	}
 
 	return fmt.Errorf("%w, %w", err, ErrOpenIssue)
