@@ -20,6 +20,13 @@ jobs:
         goversion: 1.23.2
         ldflags: -s -w -X "main.version={{.Version}}"
         project_path: ./cmd/acto
+    - id: changelog
+      uses: orhun/git-cliff-action@v3
+      with:
+        config: cliff.toml
+      env:
+        GITHUB_REPO: ${{ github.repository }}
+        OUTPUT: CHANGELOG.md
     strategy:
       matrix:
         exclude:

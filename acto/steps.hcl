@@ -51,3 +51,25 @@ step "go-release" {
     value = "-s -w -X \"main.version={{.Version}}\""
   }
 }
+
+step "changelog" {
+  uses {
+    action  = "orhun/git-cliff-action"
+    version = "v3"
+  }
+
+  with {
+    name  = "config"
+    value = "cliff.toml"
+  }
+
+  env {
+    name  = "OUTPUT"
+    value = "CHANGELOG.md"
+  }
+
+  env {
+    name  = "GITHUB_REPO"
+    value = "$${{ github.repository }}"
+  }
+}

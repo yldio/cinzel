@@ -34,6 +34,7 @@ job "releases-matrix" {
 
   steps = [
     step.checkout,
-    step.go-release
+    step.go-release,
+    step.changelog
   ]
 }
