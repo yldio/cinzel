@@ -1,3 +1,41 @@
+job "pull_request" {
+  name = "$${{ matrix.os }}"
+
+  strategy {
+    matrix {
+      variable {
+        name  = "os"
+        value = variable.list_os
+      }
+    }
+  }
+
+  runs_on {
+    runners = "$${{ matrix.os }}"
+  }
+
+  timeout_minutes = 5
+
+  steps = [
+    step.checkout,
+    step.go_setup,
+    step.tests,
+    step.coverage,
+  ]
+}
+
+job "merge" {
+  name = "Merge with main"
+
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+
+  steps = [
+    step.checkout,
+  ]
+}
+
 job "releases-matrix" {
   name = "Release Go Binary"
 
@@ -35,6 +73,17 @@ job "releases-matrix" {
   steps = [
     step.checkout,
     step.go-release,
+  ]
+}
+
+job "changelog" {
+  name = "Update CHANGELOG"
+
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+
+  steps = [
     step.changelog
   ]
 }

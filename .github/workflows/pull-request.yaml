@@ -8,13 +8,7 @@ jobs:
     steps:
     - id: checkout
       name: Checkout
-      uses: actions/checkout@v4.1.7
-    - id: go_setup
-      if: ${{ matrix.os }} != ubuntu-20.04
-      name: Setup Go environment
-      uses: actions/setup-go@v5.0.2
-      with:
-        go-version-file: ./go.mod
+      uses: actions/checkout@v4
     - id: tests
       name: Tests
       run: make test-ci
@@ -26,6 +20,6 @@ jobs:
     strategy:
       matrix:
         os:
-        - ubuntu-20.04
-        - macos-14
+        - ubuntu-24.04
+        - macos-15
         - windows-2022

@@ -1,23 +1,26 @@
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 COVERAGE_PATH=./coverage
 COVERAGE_REPORT_PATH=$(COVERAGE_PATH)/coverage.out
 COVERAGE_HTML_PATH=$(COVERAGE_PATH)/coverage.html
-BINARY=acto
 
-run:
-ifdef file
-	@go run ./cmd/$(BINARY)/main.go --file=$(file)
+check_version:
+ifndef VERSION
+	$(error VERSION is undefined)
 endif
-ifdef dir
-	@go run ./cmd/$(BINARY)/main.go --dir=$(dir)
-endif
-
-build:
-	@rm -rf ./dist
-	@goreleaser release --snapshot --skip=publish
 
 fmt:
 	@go fmt ./...
-	@terragrunt hclfmt
+	@go tool hclfmt -w ./**/*.hcl
+
+lint:
+	@go tool golangci-lint run
+
+build: check_version
+	@go build -ldflags "-s -w -X 'main.version=${VERSION}'" -o ./bin/$(BINARY) ./cmd/$(BINARY)/main.go
 
 test-ci:
 	@go test ./... --cover
@@ -38,4 +41,13 @@ docs-ui:
 	@godoc -http=:6060
 
 changelog:
-	@git cliff --output CHANGELOG.md
+	go tool changie
+
+actions:
+	@./bin/$(BINARY) --directory=./$(BINARY) --output-directory=.github/workflows
+
+docker-build: check_version
+	@docker build --build-arg version=${VERSION} -t $(BINARY) .
+
+docker-run:
+	@docker run --rm -it $(BINARY) --version

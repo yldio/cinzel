@@ -1,4 +1,4 @@
-// Copyright (c) 2024 YLD Limited
+// Copyright (c) 2024-2025 YLD Limited
 // SPDX-License-Identifier: MIT
 
 package actoparser
@@ -20,9 +20,9 @@ func NewActoExpression(expression hcl.Expression) *ActoExpression {
 func (acto *ActoExpression) Parse() (any, error) {
 	switch actoType := acto.expression.(type) {
 	default:
-		val, diags := actoType.Value(nil)
-		if diags.HasErrors() {
-		}
+		val, _ := actoType.Value(nil)
+		// val, diags := actoType.Value(nil)
+		// if diags.HasErrors() {}
 
 		return val.AsValueMap(), nil
 	}

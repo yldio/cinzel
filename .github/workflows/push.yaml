@@ -1,0 +1,13 @@
+name: Merge with Main
+on:
+  push:
+    branches:
+    - main
+jobs:
+  merge:
+    name: Merge with main
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: Checkout
+      uses: actions/checkout@v4

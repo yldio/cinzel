@@ -1,4 +1,4 @@
-// Copyright (c) 2024 YLD Limited
+// Copyright (c) 2024-2025 YLD Limited
 // SPDX-License-Identifier: MIT
 
 package actoparser
@@ -32,10 +32,9 @@ func (acto *Acto) Parse() error {
 	var expression cty.Value
 
 	if acto.expression != nil {
-		exp, diags := acto.expression.Value(nil)
-		if diags.HasErrors() {
-			// return diags
-		}
+		exp, _ := acto.expression.Value(nil)
+		// exp, diags := acto.expression.Value(nil)
+		// if diags.HasErrors() {}
 
 		expression = exp
 	}

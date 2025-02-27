@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - id: checkout
+      name: Checkout
       uses: actions/checkout@v4
     - id: go-release
       uses: wangyoucao577/go-release-action@v1
@@ -17,16 +18,9 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         goarch: ${{ matrix.goarch }}
         goos: ${{ matrix.goos }}
-        goversion: 1.23.2
+        goversion: 1.23.5
         ldflags: -s -w -X "main.version={{.Version}}"
         project_path: ./cmd/acto
-    - id: changelog
-      uses: orhun/git-cliff-action@v3
-      with:
-        config: cliff.toml
-      env:
-        GITHUB_REPO: ${{ github.repository }}
-        OUTPUT: CHANGELOG.md
     strategy:
       matrix:
         exclude:

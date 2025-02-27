@@ -1,4 +1,4 @@
-// Copyright (c) 2024 YLD Limited
+// Copyright (c) 2024-2025 YLD Limited
 // SPDX-License-Identifier: MIT
 
 package actoparser
@@ -62,6 +62,4 @@ func (acto *ActoUnaryOpExpr) Parse() (any, error) {
 	default:
 		return nil, fmt.Errorf("unkown type found %s", valueType)
 	}
-
-	return nil, nil
 }

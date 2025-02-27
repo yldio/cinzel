@@ -1,3 +1,31 @@
+workflow "pull_request" {
+  filename = "pull-request"
+
+  name = "Pull Request"
+
+  on "pull_request" {}
+
+  jobs = [
+    job.pull_request,
+  ]
+}
+
+workflow "push" {
+  filename = "push"
+
+  name = "Merge with Main"
+
+  on "push" {
+    branches = [
+      "main"
+    ]
+  }
+
+  jobs = [
+    job.merge
+  ]
+}
+
 workflow "release" {
   filename = "release"
 
