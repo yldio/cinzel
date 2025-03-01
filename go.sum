@@ -152,8 +152,9 @@ github.com/conventionalcommit/commitlint v0.10.1 h1:WTPBiFRvae1+5LVEhOPHBe2Hbb1U
 github.com/conventionalcommit/commitlint v0.10.1/go.mod h1:oJlFI7nE5Z6YHYwzXQ2nK+Waa58c2cscDZezxSNUkjA=
 github.com/conventionalcommit/parser v0.7.1 h1:oAzcrEqyyGnzCeNOBqGx2qnxISxneUuBiu320chjzMU=
 github.com/conventionalcommit/parser v0.7.1/go.mod h1:k3teTA7nWpRrk7sjAihpAXm+1QLu1OscGrxclMHgEyc=
-github.com/cpuguy83/go-md2man/v2 v2.0.4 h1:wfIWP927BUkWJb2NmU/kNDYIBTh/ziUX91+lVfRxZq4=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
+github.com/cpuguy83/go-md2man/v2 v2.0.6 h1:XJtiaUW6dEEqVuZiMTn1ldk455QWwEIsMIJlo5vtkx0=
+github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/cqroot/multichoose v0.1.1 h1:diGuKYKea9ePOTwUyUDor9zKRqKFWXGkYGqUa9+firU=
 github.com/cqroot/multichoose v0.1.1/go.mod h1:BJzIGqbQZNADPDuA3IzhmTMpRc2F3fZKysMRYP+Ydw8=
 github.com/cqroot/prompt v0.9.3 h1:00Sjiasl1QL7ttEphJ+1xAl0fKQi+7s2F3aY0x7wnz4=

@@ -3,10 +3,6 @@ ifneq (,$(wildcard ./.env))
     export
 endif
 
-COVERAGE_PATH=./coverage
-COVERAGE_REPORT_PATH=$(COVERAGE_PATH)/coverage.out
-COVERAGE_HTML_PATH=$(COVERAGE_PATH)/coverage.html
-
 check_version:
 ifndef VERSION
 	$(error VERSION is undefined)
@@ -20,7 +16,8 @@ lint:
 	@go tool golangci-lint run
 
 build: check_version
-	@go build -ldflags "-s -w -X 'main.version=${VERSION}'" -o ./bin/$(BINARY) ./cmd/$(BINARY)/main.go
+	rm -rf ./bin
+	go build -ldflags "-s -w -X main.version=${VERSION}" -o ./bin/$(BINARY) ./$(BINARY).go
 
 test-ci:
 	@go test ./... --cover
@@ -47,7 +44,7 @@ actions:
 	@./bin/$(BINARY) --directory=./$(BINARY) --output-directory=.github/workflows
 
 docker-build: check_version
-	@docker build --build-arg version=${VERSION} -t $(BINARY) .
+	@docker build --file=./build/Dockerfile --build-arg version=${VERSION} -t "$(BINARY):${VERSION}" .
 
 docker-run:
 	@docker run --rm -it $(BINARY) --version

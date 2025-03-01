@@ -341,6 +341,11 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 	return workflows, nil
 }
 
+func (workflow *Workflow) Update(filename string) {
+	workflow.Id = filename
+	workflow.Filename = filename
+}
+
 func (workflow *Workflow) Decode() ([]byte, error) {
 	f := hclwrite.NewEmptyFile()
 

@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	version = ""
+	version = "local"
 )
 
 func main() {
+	// createBuildInfo()
+
 	cmd := command.New(version)
 
 	gh := github.New()
@@ -27,3 +29,13 @@ func main() {
 		log.Fatal("err", err)
 	}
 }
+
+// func createBuildInfo() {
+// 	buildInfo, ok := debug.ReadBuildInfo()
+// 	if !ok {
+// 		fmt.Println("not ok")
+// 	}
+
+// 	fmt.Println(buildInfo.Main)
+// 	fmt.Println(buildInfo)
+// }

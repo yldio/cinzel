@@ -14,6 +14,10 @@ import (
 	"github.com/yldio/acto/provider"
 )
 
+type hclBody struct{}
+
+func (h *hclBody) Update(filename string) {}
+
 func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	if opts.File == "" && opts.Directory == "" {
 		return errors.New("`file` or `directory` cannot be set at the same time")
@@ -40,7 +44,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		outputDirectory = p.DefaultOutputDirectory()
 	}
 
-	fileReader := filereader.New()
+	fileReader := filereader.Reader[*hclBody]{}
 
 	hclBody, err := fileReader.FromHCL(path, recursive)
 	if err != nil {

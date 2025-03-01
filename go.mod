@@ -14,6 +14,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/urfave/cli/v3 v3.0.0-beta1
 	github.com/zclconf/go-cty v1.16.2
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -66,7 +67,7 @@ require (
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/conventionalcommit/commitlint v0.10.1 // indirect
 	github.com/conventionalcommit/parser v0.7.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/cqroot/multichoose v0.1.1 // indirect
 	github.com/cqroot/prompt v0.9.3 // indirect
 	github.com/curioswitch/go-reassign v0.3.0 // indirect
@@ -237,7 +238,6 @@ require (
 	golang.org/x/tools v0.30.0 // indirect
 	google.golang.org/protobuf v1.36.4 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.6.0 // indirect
 	mvdan.cc/gofumpt v0.7.0 // indirect

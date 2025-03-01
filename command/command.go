@@ -28,42 +28,6 @@ func New(version string) *Cli {
 			Authors: []any{
 				&mail.Address{Name: "Joao Guimaraes", Address: "jccguimaraes@gmail.com"},
 			},
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "file",
-					Aliases: []string{"f"},
-					Value:   "",
-					Usage:   "Load HCL from a `FILE`",
-				},
-				&cli.StringFlag{
-					Name:    "directory",
-					Aliases: []string{"d"},
-					Value:   "",
-					Usage:   "Load HCL files from a `DIRECTORY`",
-				},
-				&cli.BoolFlag{
-					Name:    "recursive",
-					Aliases: []string{"r"},
-					Value:   false,
-					Usage:   "Reads the defined directory recursively",
-				},
-				&cli.BoolFlag{
-					Name:  "dry-run",
-					Value: false,
-					Usage: "Output to stdout",
-				},
-				&cli.BoolFlag{
-					Name:  "override",
-					Value: true,
-					Usage: "Overrides existing files without prompting the user",
-				},
-				&cli.BoolFlag{
-					Name:    "watch",
-					Aliases: []string{"w"},
-					Value:   false,
-					Usage:   "Watch mode for continuously regenerate the files",
-				},
-			},
 		},
 	}
 }
@@ -74,9 +38,43 @@ func (cmd *Cli) AddCommand(p provider.Provider) {
 		Usage: p.GetDescription(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
+				Name:    "file",
+				Aliases: []string{"f"},
+				Value:   "",
+				Usage:   "Load HCL from a `FILE`",
+			},
+			&cli.StringFlag{
+				Name:    "directory",
+				Aliases: []string{"d"},
+				Value:   "",
+				Usage:   "Load HCL files from a `DIRECTORY`",
+			},
+			&cli.BoolFlag{
+				Name:    "recursive",
+				Aliases: []string{"r"},
+				Value:   false,
+				Usage:   "Reads the defined directory recursively",
+			},
+			&cli.StringFlag{
 				Name:  "output-directory",
 				Value: "",
 				Usage: "Parsed files from HCL or Parsed (unparse) files to HCL are created in `DIRECTORY`",
+			},
+			&cli.BoolFlag{
+				Name:  "dry-run",
+				Value: false,
+				Usage: "Output to stdout",
+			},
+			&cli.BoolFlag{
+				Name:  "override",
+				Value: true,
+				Usage: "Overrides existing files without prompting the user",
+			},
+			&cli.BoolFlag{
+				Name:    "watch",
+				Aliases: []string{"w"},
+				Value:   false,
+				Usage:   "Watch mode for continuously regenerate the files",
 			},
 		},
 		Commands: []*cli.Command{

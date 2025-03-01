@@ -7,32 +7,21 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/yldio/acto/internal/actoerrors"
 )
 
-var (
-	FileHclExtensions  = []string{".hcl"}
-	FileYamlExtensions = []string{".yaml", ".yml"}
-)
+type Updater interface {
+	Update(string)
+}
 
-type Parser interface{}
-
-type Reader struct {
+type Reader[T Updater] struct {
 	files []string
 }
 
-func (read *Reader) GetFiles() []string {
+func (read *Reader[T]) GetFiles() []string {
 	return read.files
 }
 
-func New() *Reader {
-	return &Reader{}
-}
-
-func (read *Reader) readPath(path string, recursive bool, extensions []string) error {
+func (read *Reader[T]) readPath(path string, recursive bool, extensions []string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -71,24 +60,4 @@ func (read *Reader) readPath(path string, recursive bool, extensions []string) e
 	}
 
 	return nil
-}
-
-func (read *Reader) FromHCL(path string, recursive bool) (hcl.Body, error) {
-	if err := read.readPath(path, recursive, FileHclExtensions); err != nil {
-		return nil, err
-	}
-
-	parser := hclparse.NewParser()
-	var bodies []hcl.Body
-
-	for _, hclFile := range read.files {
-		file, diags := parser.ParseHCLFile(hclFile)
-		if diags.HasErrors() {
-			return nil, actoerrors.ProcessHCLDiags(diags)
-		}
-
-		bodies = append(bodies, file.Body)
-	}
-
-	return hcl.MergeBodies(bodies), nil
 }
