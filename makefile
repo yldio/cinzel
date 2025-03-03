@@ -3,10 +3,17 @@ ifneq (,$(wildcard ./.env))
     export
 endif
 
+check_binary:
+ifndef BINARY
+	$(error BINARY is undefined)
+endif
+
 check_version:
 ifndef VERSION
 	$(error VERSION is undefined)
 endif
+
+do_checks: check_binary check_version
 
 fmt:
 	@go fmt ./...
@@ -15,7 +22,7 @@ fmt:
 lint:
 	@go tool golangci-lint run
 
-build: check_version
+build: do_checks
 	rm -rf ./bin
 	go build -ldflags "-s -w -X main.version=${VERSION}" -o ./bin/$(BINARY) ./$(BINARY).go
 
@@ -40,11 +47,8 @@ docs-ui:
 changelog:
 	go tool changie
 
-actions:
-	@./bin/$(BINARY) --directory=./$(BINARY) --output-directory=.github/workflows
-
-docker-build: check_version
+docker-build: do_checks
 	@docker build --file=./build/Dockerfile --build-arg version=${VERSION} -t "$(BINARY):${VERSION}" .
 
-docker-run:
+docker-run: do_checks
 	@docker run --rm -it $(BINARY) --version
