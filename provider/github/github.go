@@ -21,27 +21,39 @@ type ConfigHCL struct {
 }
 
 type GitHub struct {
-	configHCL   ConfigHCL
-	bodyHCL     hcl.Body
-	name        string
-	description string
+	configHCL          ConfigHCL
+	bodyHCL            hcl.Body
+	provider           string
+	description        string
+	parseDescription   string
+	unparseDescription string
 }
 
 func (p *GitHub) DefaultOutputDirectory() string {
 	return defaultOutputDirectory
 }
 
-func (p *GitHub) GetName() string {
-	return p.name
+func (p *GitHub) GetProviderName() string {
+	return p.provider
 }
 
 func (p *GitHub) GetDescription() string {
 	return p.description
 }
 
+func (p *GitHub) GetParseDescription() string {
+	return p.parseDescription
+}
+
+func (p *GitHub) GetUnparseDescription() string {
+	return p.unparseDescription
+}
+
 func New() *GitHub {
 	return &GitHub{
-		name:        "github",
-		description: "",
+		provider:           "github",
+		description:        "MISSING DESCRIPTION",
+		parseDescription:   "Convert HCL files describing workflows to GitHub's Actions Yaml files",
+		unparseDescription: "Converts existing GitHub's Actions Yaml files into HCL",
 	}
 }

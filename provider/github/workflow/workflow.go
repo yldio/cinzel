@@ -4,6 +4,7 @@
 package workflow
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -339,6 +340,25 @@ func (config *WorkflowsConfig) Parse() (Workflows, error) {
 	}
 
 	return workflows, nil
+}
+
+func (workflow *Workflow) Validation() error {
+	return nil
+}
+
+func (workflow *Workflow) GetFilename() string {
+	return workflow.Filename
+}
+
+func (workflow *Workflow) PostChanges(content []byte) []byte {
+	// Please link to the documentation [here](https://github.com/go-yaml/yaml?tab=readme-ov-file#yaml-support-for-the-go-language)
+	// `acto` uses `any` so we need this "hack" to clean `"on":` to just `on:`.
+	filteredOut := bytes.Replace(content, []byte("\"on\""), []byte("on"), -1)
+
+	// hack to clean empty structs such as push: {}
+	filteredOut = bytes.Replace(filteredOut, []byte(" {}"), []byte(""), -1)
+
+	return filteredOut
 }
 
 func (workflow *Workflow) Update(filename string) {

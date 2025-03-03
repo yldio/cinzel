@@ -44,15 +44,8 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 	parsedWorkflows, err := fileReader.FromYaml(path, recursive)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
-
-	// fileReader := filereader.New()
-
-	// parsedWorkflows, err := fileReader.FromYaml(path, recursive)
-	// if err != nil {
-	// 	return err
-	// }
 
 	fw := filewriter.New()
 

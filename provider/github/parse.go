@@ -58,9 +58,9 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
-	yamlwriter := yamlwriter.New(parsedWorkflows)
+	yamlWriter := yamlwriter.New(parsedWorkflows)
 
-	listOfFiles, err := yamlwriter.Do()
+	listOfFiles, err := yamlWriter.Do()
 	if err != nil {
 		return err
 	}

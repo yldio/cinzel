@@ -121,7 +121,7 @@ type EventConfig struct {
 	Workflows      hcl.Expression       `hcl:"workflows,attr"`
 }
 
-type Evt interface{}
+type Evt any
 
 type EventSchedule []map[string]string
 
@@ -2250,6 +2250,22 @@ func (on *On) Decode(body *hclwrite.Body, attr string) error {
 		case nil:
 			continue
 		case []any:
+			var list []cty.Value
+			var propName string
+			for _, v := range val {
+				switch subV := v.(type) {
+				case map[string]any:
+					for subK, suberV := range subV {
+						propName = subK
+						switch t := suberV.(type) {
+						case string:
+							list = append(list, cty.StringVal(t))
+						}
+					}
+				}
+			}
+			onBody.SetAttributeValue(propName, cty.TupleVal(list))
+		case map[any]any:
 			var list []cty.Value
 			var propName string
 			for _, v := range val {

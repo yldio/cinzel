@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "github parse",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceRoot}/acto.go",
+      "args": [
+        "github",
+        "parse",
+        "--directory=${workspaceRoot}/acto",
+        "--dry-run"
+      ],
+      "env": {},
+      "envFile": "${workspaceRoot}/.env"
+    },
+    {
+        "name": "github unparse",
+        "type": "go",
+        "request": "launch",
+        "mode": "debug",
+        "program": "${workspaceRoot}/acto.go",
+        "args": [
+          "github",
+          "unparse",
+          "--directory=${workspaceRoot}/.github/workflows",
+          "--dry-run"
+        ],
+        "env": {},
+        "envFile": "${workspaceRoot}/.env"
+      }
+  ]
+}

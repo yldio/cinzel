@@ -6,10 +6,6 @@ logs
 Thumbs.db
 
 # Editor directories and files
-.vscode
-.vscode/*
-!.vscode/extensions.json
-!.vscode/launch.json
 .idea
 .DS_Store
 *.suo

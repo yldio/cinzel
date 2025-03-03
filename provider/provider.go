@@ -16,7 +16,9 @@ type ProviderOps struct {
 type Provider interface {
 	Parse(opts ProviderOps) error
 	Unparse(opts ProviderOps) error
-	GetName() string
+	GetProviderName() string
 	GetDescription() string
+	GetParseDescription() string
+	GetUnparseDescription() string
 	DefaultOutputDirectory() string
 }

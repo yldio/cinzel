@@ -34,7 +34,7 @@ func New(version string) *Cli {
 
 func (cmd *Cli) AddCommand(p provider.Provider) {
 	cc := &cli.Command{
-		Name:  p.GetName(),
+		Name:  p.GetProviderName(),
 		Usage: p.GetDescription(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -65,22 +65,22 @@ func (cmd *Cli) AddCommand(p provider.Provider) {
 				Value: false,
 				Usage: "Output to stdout",
 			},
-			&cli.BoolFlag{
-				Name:  "override",
-				Value: true,
-				Usage: "Overrides existing files without prompting the user",
-			},
-			&cli.BoolFlag{
-				Name:    "watch",
-				Aliases: []string{"w"},
-				Value:   false,
-				Usage:   "Watch mode for continuously regenerate the files",
-			},
+			// &cli.BoolFlag{
+			// 	Name:  "override",
+			// 	Value: true,
+			// 	Usage: "Overrides existing files without prompting the user",
+			// },
+			// &cli.BoolFlag{
+			// 	Name:    "watch",
+			// 	Aliases: []string{"w"},
+			// 	Value:   false,
+			// 	Usage:   "Watch mode for continuously regenerate the files",
+			// },
 		},
 		Commands: []*cli.Command{
 			{
 				Name:  "parse",
-				Usage: "Parse HCL files",
+				Usage: p.GetParseDescription(),
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					opts := toProviderOpts(cmd)
 
@@ -93,7 +93,7 @@ func (cmd *Cli) AddCommand(p provider.Provider) {
 			},
 			{
 				Name:  "unparse",
-				Usage: "Parse to HCL files",
+				Usage: p.GetUnparseDescription(),
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					opts := toProviderOpts(cmd)
 
