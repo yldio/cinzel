@@ -15,7 +15,7 @@ import (
 type Outputs map[string]string
 
 type OutputConfig struct {
-	Name  string         `hcl:"_,label"`
+	Name  string         `hcl:"name,attr"`
 	Value hcl.Expression `hcl:"value,attr"`
 }
 

@@ -62,6 +62,11 @@ workflow "test" {
     group              = "$${{ github.workflow }}-$${{ github.ref }}"
     cancel_in_progress = true
   }
+
+  jobs = [
+    job.test-job-1,
+    job.test-job-2,
+  ]
 }
 
 job "test-job-1" {
@@ -74,7 +79,7 @@ job "test-job-1" {
   }
 
   needs = [
-    job.job-2
+    job.test-job-2
   ]
 
   if = "$${{ ! startsWith(github.ref, 'refs/tags/') }}"
@@ -132,8 +137,8 @@ job "test-job-1" {
         color  = "pink"
       }]
       variable {
-        value = "node"
-        name = [{
+        name = "node"
+        value = [{
           version = 14
           }, {
           env     = "NODE_DEBUG=acto*"
@@ -144,8 +149,8 @@ job "test-job-1" {
         }]
       }
       variable {
-        value = "os"
-        name  = ["ubuntu-latest", "macos-latest"]
+        name = "os"
+        value  = ["ubuntu-latest", "macos-latest"]
       }
       exclude = [{
         environment = "production"
@@ -212,7 +217,10 @@ step "test-job-1-step-1" {
   id   = "step-1"
   name = "step 1"
 
-  uses = "actions/checkout@v4"
+  uses {
+    action = "actions/checkout"
+    version = "v4"
+  }
 
   with {
     name  = "args"
@@ -226,7 +234,10 @@ step "test-job-1-step-1" {
 }
 
 step "test-job-1-step-2" {
-  run = "npm ci\nnpm run build\n"
+  run = <<EOF
+npm ci
+npm run build
+EOF
 
   working_directory = "./temp"
 
@@ -242,15 +253,18 @@ step "test-job-1-step-2" {
   timeout_minutes = 30
 }
 
-// job "test-job-2" {
-//   name = "job 2"
+job "test-job-2" {
+   name = "job 2"
 
-//   uses = "octo-org/another-repo/.github/workflows/workflow.yml@v1"
+   uses {
+    action = "octo-org/another-repo/.github/workflows/workflow.yml"
+    version = "v1"
+   }
 
-//   with {
-//     name  = "username"
-//     value = "mona"
-//   }
+   with {
+     name  = "username"
+     value = "mona"
+   }
 
-//   secrets = "inherit"
-// }
+   secrets = "inherit"
+ }

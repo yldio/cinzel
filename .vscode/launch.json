@@ -30,6 +30,21 @@
         ],
         "env": {},
         "envFile": "${workspaceRoot}/.env"
-      }
+      },
+      {
+        "name": "github parse file",
+        "type": "go",
+        "request": "launch",
+        "mode": "debug",
+        "program": "${workspaceRoot}/acto.go",
+        "args": [
+          "github",
+          "parse",
+          "--file=${workspaceRoot}/test.hcl",
+          "--dry-run"
+        ],
+        "env": {},
+        "envFile": "${workspaceRoot}/.env"
+      },
   ]
 }
