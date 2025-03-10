@@ -1,140 +1,83 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package yamlwriter
 
-// import (
-// 	"reflect"
-// 	"testing"
+import (
+	"testing"
+)
 
-// 	"github.com/yldio/acto/internal/action"
-// 	"github.com/yldio/acto/internal/job"
-// 	"github.com/yldio/acto/internal/step"
-// 	"github.com/yldio/acto/internal/workflow"
-// )
+type mockUpdater struct {
+	filename string
+	Content  string `yaml:"content"`
+}
 
-// func TestParseYaml(t *testing.T) {
-// 	type ParserTest struct {
-// 		name   string
-// 		have   *Yaml
-// 		expect map[string][]byte
-// 	}
+func (m mockUpdater) GetFilename() string         { return m.filename }
+func (m mockUpdater) Validation() error           { return nil }
+func (m mockUpdater) PostChanges(b []byte) []byte { return b }
 
-// 	var filename = "dummy-file"
+func TestWriterDo(t *testing.T) {
+	w := New([]mockUpdater{
+		{filename: "test", Content: "hello"},
+	})
 
-// 	var job1 = "job 1"
-// 	var step1 = "step 1"
-// 	var have1 = New(workflow.Workflows{
-// 		{
-// 			Id:       "workflow1",
-// 			Filename: filename,
-// 			On:       action.On("push"),
-// 			Jobs: map[string]job.Job{
-// 				"job1": {
-// 					Id:       "job1",
-// 					Name:     &job1,
-// 					Needs:    &[]string{"job2"},
-// 					StepsIds: []string{"step1"},
-// 					Steps: step.Steps{
-// 						{
-// 							Id:   "step1",
-// 							Name: &step1,
-// 						},
-// 					},
-// 				},
-// 				"job2": {
-// 					Id:       "job2",
-// 					StepsIds: []string{"step1"},
-// 					Steps: step.Steps{
-// 						{
-// 							Id:   "step1",
-// 							Name: &step1,
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	})
-// 	var expect1 = map[string][]byte{
-// 		"dummy-file.yaml": []byte(`on: push
-// jobs:
-//   job1:
-//     name: job 1
-//     needs:
-//     - job2
-//     steps:
-//     - id: step1
-//       name: step 1
-//   job2:
-//     steps:
-//     - id: step1
-//       name: step 1
-// `),
-// 	}
+	result, err := w.Do()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	var job2 = "job 2"
-// 	var have2 = New(workflow.Workflows{
-// 		{
-// 			Id:       "workflow2",
-// 			Filename: filename,
-// 			On: action.On(map[string]map[string][]string{
-// 				"push": {
-// 					"branches": []string{"main"},
-// 					"tags":     []string{"v2"},
-// 				},
-// 				"label": {
-// 					"types": []string{"created"},
-// 				},
-// 			}),
-// 			JobsIds: []string{"job2"},
-// 			Jobs: map[string]job.Job{
-// 				"job2": {
-// 					Id:       "job2",
-// 					Name:     &job2,
-// 					StepsIds: []string{"step1"},
-// 					Steps: step.Steps{
-// 						{
-// 							Id:   "step1",
-// 							Name: &step1,
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	})
-// 	var expect2 = map[string][]byte{
-// 		"dummy-file.yaml": []byte(`on:
-//   label:
-//     types:
-//     - created
-//   push:
-//     branches:
-//     - main
-//     tags:
-//     - v2
-// jobs:
-//   job2:
-//     name: job 2
-//     steps:
-//     - id: step1
-//       name: step 1
-// `),
-// 	}
+	if _, ok := result["test.yaml"]; !ok {
+		t.Fatalf("expected test.yaml key, got %v", result)
+	}
 
-// 	var tests = []ParserTest{
-// 		{"a workflow with on push", have1, expect1},
-// 		{"a workflow with on push with branches and tags", have2, expect2},
-// 	}
+	content := string(result["test.yaml"])
+	if content == "" {
+		t.Fatal("expected non-empty YAML content")
+	}
+}
 
-// 	for _, tt := range tests {
+func TestWriterDoMultiple(t *testing.T) {
+	w := New([]mockUpdater{
+		{filename: "first", Content: "a"},
+		{filename: "second", Content: "b"},
+	})
 
-// 		got, err := tt.have.Do()
-// 		if err != nil {
-// 			t.Fatal(err.Error())
-// 		}
+	result, err := w.Do()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 		if !reflect.DeepEqual(got, tt.expect) {
-// 			t.Fatalf("expected %s but got %s", tt.expect, got)
-// 		}
-// 	}
-// }
+	if len(result) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(result))
+	}
+
+	if _, ok := result["first.yaml"]; !ok {
+		t.Fatal("expected first.yaml")
+	}
+	if _, ok := result["second.yaml"]; !ok {
+		t.Fatal("expected second.yaml")
+	}
+}
+
+type failingUpdater struct {
+	mockUpdater
+}
+
+func (f failingUpdater) Validation() error { return errValidation }
+
+var errValidation = &validationError{}
+
+type validationError struct{}
+
+func (e *validationError) Error() string { return "validation failed" }
+
+func TestWriterDoValidationError(t *testing.T) {
+	w := New([]failingUpdater{
+		{mockUpdater: mockUpdater{filename: "test", Content: "hello"}},
+	})
+
+	_, err := w.Do()
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+}

@@ -3,23 +3,29 @@ on:
   pull_request:
 jobs:
   pull_request:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: "${{ matrix.os }}"
+    runs-on: "${{ matrix.os }}"
     steps:
-    - id: checkout
-      name: Checkout
-      uses: actions/checkout@v4
-    - id: tests
-      name: Tests
-      run: make test-ci
-    - id: coverage
-      if: ${{ matrix.os }} == ubuntu-20.04
-      name: Coverage
-      uses: gwatts/go-coverage-action@v2.0.0
-    timeout-minutes: 5
+      - id: checkout
+        name: Checkout
+        uses: actions/checkout@v4
+      - id: go_setup
+        if: "${{ matrix.os != 'ubuntu-20.04' }}"
+        name: Setup Go environment
+        uses: actions/setup-go@v5.0.2
+        with:
+          go-version-file: ./go.mod
+      - id: tests
+        name: Tests
+        run: "make test-ci\nshort_sha=$(git rev-parse --short \"$GITHUB_SHA\")\necho \"tag=dev-$short_sha\" >> $GITHUB_OUTPUT\n"
+      - id: coverage
+        if: "${{ matrix.os == 'ubuntu-20.04' }}"
+        name: Coverage
+        uses: gwatts/go-coverage-action@v2.0.0
     strategy:
       matrix:
         os:
-        - ubuntu-24.04
-        - macos-15
-        - windows-2022
+          - ubuntu-24.04
+          - macos-15
+          - windows-2022
+    timeout-minutes: 5

@@ -1,5 +1,5 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package action
 
@@ -7,115 +7,68 @@ import (
 	"errors"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/yldio/acto/internal/actoparser"
-	"github.com/yldio/acto/internal/variables"
+	"github.com/yldio/cinzel/internal/hclparser"
+	"github.com/zclconf/go-cty/cty"
 )
 
+// WithConfig represents the HCL configuration for a single with block.
 type WithConfig struct {
 	Name  hcl.Expression `hcl:"name,attr"`
 	Value hcl.Expression `hcl:"value,attr"`
 }
 
-type WithsConfig []*WithConfig
+// WithListConfig is a slice of WithConfig decoded from HCL with blocks.
+type WithListConfig []WithConfig
 
-func (config *WithConfig) unwrapName(acto *actoparser.Acto) (*string, error) {
-	switch resultValue := acto.Result.(type) {
-	case nil:
-		return nil, errors.New("attribute 'name' must be a string")
-	case string:
-		return &resultValue, nil
-	case actoparser.ActoVariableRef:
-		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
-		if err != nil {
-			return nil, err
-		}
+func (config *WithConfig) parseName(hv *hclparser.HCLVars) (cty.Value, error) {
+	hp := hclparser.New(config.Name, hv)
 
-		return config.unwrapName(actoparser.NewActoFromResult(variableValue))
-	default:
-		return nil, errors.New("attribute 'name' must be a string")
+	if err := hp.Parse(); err != nil {
+		return cty.NilVal, err
 	}
+
+	return hp.Result(), nil
 }
 
-func (config *WithConfig) parseName() (*string, error) {
-	acto := actoparser.NewActo(config.Name)
+func (config *WithConfig) parseValue(hv *hclparser.HCLVars) (cty.Value, error) {
+	hp := hclparser.New(config.Value, hv)
 
-	if err := acto.Parse(); err != nil {
-		return nil, err
+	if err := hp.Parse(); err != nil {
+		return cty.NilVal, err
 	}
 
-	value, err := config.unwrapName(acto)
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
+	return hp.Result(), nil
 }
 
-func (config *WithConfig) unwrapValue(acto *actoparser.Acto) (any, error) {
-	switch resultValue := acto.Result.(type) {
-	case nil:
-		return nil, errors.New("attribute 'value' must be a string, number or boolean")
-	case string:
-		return &resultValue, nil
-	case int64:
-		return &resultValue, nil
-	case uint64:
-		return &resultValue, nil
-	case float64:
-		return &resultValue, nil
-	case bool:
-		return &resultValue, nil
-	case actoparser.ActoVariableRef:
-		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
-		if err != nil {
-			return nil, err
-		}
-
-		return config.unwrapValue(actoparser.NewActoFromResult(variableValue))
-	default:
-		return nil, errors.New("attribute 'value' must be a string, number or boolean")
-	}
-}
-
-func (config *WithConfig) parseValue() (any, error) {
-	acto := actoparser.NewActo(config.Value)
-
-	if err := acto.Parse(); err != nil {
-		return nil, err
-	}
-
-	value, err := config.unwrapValue(acto)
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
-}
-
-func (config *WithsConfig) Parse() (*map[string]any, error) {
+// Parse resolves with blocks into a cty object mapping names to values.
+func (config *WithListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 	if config == nil {
-		return nil, nil
+		return cty.NilVal, nil
 	}
 
-	withs := make(map[string]any)
+	mapping := map[string]cty.Value{}
 
-	for _, with := range *config {
-		name, err := with.parseName()
+	for _, w := range *config {
+		name, err := w.parseName(hv)
 		if err != nil {
-			return nil, err
+			return cty.NilVal, err
 		}
 
-		value, err := with.parseValue()
-		if err != nil {
-			return nil, err
+		if name == cty.NilVal {
+			return cty.NilVal, errors.New("name must be set")
 		}
 
-		withs[*name] = value
+		value, err := w.parseValue(hv)
+		if err != nil {
+			return cty.NilVal, err
+		}
+
+		if value != cty.NilVal {
+			mapping[name.AsString()] = value
+		} else {
+			return cty.NilVal, errors.New("value must be set")
+		}
 	}
 
-	if len(withs) == 0 {
-		return nil, nil
-	}
-
-	return &withs, nil
+	return cty.ObjectVal(mapping), nil
 }

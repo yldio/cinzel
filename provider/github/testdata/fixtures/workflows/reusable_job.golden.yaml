@@ -1,0 +1,10 @@
+jobs:
+  release:
+    secrets: inherit
+    uses: org/repo/.github/workflows/release.yaml@v1
+    with:
+      target: prod
+on:
+  push:
+    tags:
+      - v*

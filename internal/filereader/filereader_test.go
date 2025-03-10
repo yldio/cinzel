@@ -1,104 +1,146 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package filereader
 
-// func TempFile(t *testing.T) {
-// 	t.Helper()
+import (
+	"os"
+	"path/filepath"
+	"testing"
 
-// 	tmpDir := t.TempDir()
-// 	filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-// 	content := []byte("workflow \"workflow1\" {}")
+	"github.com/yldio/cinzel/internal/test"
+)
 
-// 	if err := filewriter.New().Do(filePath, content); err != nil {
-// 		t.Fatal(err.Error())
-// 	}
-// }
+type tempFile struct {
+	filename string
+	content  []byte
+}
 
-// func TestReader(t *testing.T) {
-// 	t.Run("reads from a file", func(t *testing.T) {
-// 		tmpDir := t.TempDir()
-// 		filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-// 		content := []byte("workflow \"workflow1\" {}")
-// 		if err := filewriter.New().Do(filePath, content); err != nil {
-// 			t.Fatal(err.Error())
-// 		}
+func TempFiles(t *testing.T, tempFiles ...tempFile) []string {
+	t.Helper()
 
-// 	})
+	if len(tempFiles) == 0 {
+		t.Fatal()
+	}
 
-// 	// t.Run("reads from a file", func(t *testing.T) {
-// 	// 	tmpDir := t.TempDir()
+	tmpDir := t.TempDir()
+	var filepaths []string
 
-// 	// 	filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-// 	// 	content := []byte("workflow \"workflow1\" {}")
+	for _, tempFile := range tempFiles {
+		filePath := filepath.Join(tmpDir, tempFile.filename)
+		err := os.WriteFile(filePath, tempFile.content, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-// 	// 	if err := filewriter.New().Do(filePath, content); err != nil {
-// 	// 		t.Fatal(err.Error())
-// 	// 	}
+		filepaths = append(filepaths, filePath)
+	}
 
-// 	// 	actoReader := New(filePath, false)
+	return filepaths
+}
 
-// 	// 	_, err := actoReader.Do()
-// 	// 	if err != nil {
-// 	// 		t.Fatal(err.Error())
-// 	// 	}
-// 	// })
+func TestFilereader(t *testing.T) {
+	t.Run("reads without errors from an HCL file", func(t *testing.T) {
+		content := []byte("workflow \"workflow1\" {}")
+		filePath := TempFiles(t, tempFile{"dummy-file.hcl", content})
 
-// 	// t.Run("reads from a directory", func(t *testing.T) {
-// 	// 	tmpDir := t.TempDir()
+		fileReader := New[test.HclBody]()
 
-// 	// 	filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-// 	// 	content := []byte("workflow \"workflow1\" {}")
+		hclBody, err := fileReader.FromHCL(filePath[0], false)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
 
-// 	// 	if err := filewriter.New().Do(filePath, content); err != nil {
-// 	// 		t.Fatal(err.Error())
-// 	// 	}
+		if hclBody == nil {
+			t.Fatal()
+		}
+	})
 
-// 	// 	actoReader := New(tmpDir, false)
+	t.Run("reads with errors from an HCL file", func(t *testing.T) {
+		content := []byte("workflow \"workflow1\"")
+		filePath := TempFiles(t, tempFile{"dummy-file.hcl", content})
 
-// 	// 	_, err := actoReader.Do()
-// 	// 	if err != nil {
-// 	// 		t.Fatal(err.Error())
-// 	// 	}
-// 	// })
+		message := "Either a quoted string block label or an opening brace (\"{\") is expected here., if you think this is incorrect, consider opening an issue in https://www.github.com/yldio/cinzel/issues"
 
-// 	// t.Run("only allow reading from HCL file(s)", func(t *testing.T) {
-// 	// 	tmpDir := t.TempDir()
+		fileReader := New[test.HclBody]()
 
-// 	// 	filePath := filepath.Join(tmpDir, "dummy-file.yaml")
-// 	// 	content := []byte("abc")
+		hclBody, err := fileReader.FromHCL(filePath[0], false)
+		if err.Error() != message {
+			t.Fatal(err.Error())
+		}
 
-// 	// 	if err := filewriter.New().Do(filePath, content); err != nil {
-// 	// 		t.Fatal(err.Error())
-// 	// 	}
+		if hclBody != nil {
+			t.Fatal()
+		}
+	})
 
-// 	// 	actoReader := New(filePath, false)
+	t.Run("can't read non existing HCL file", func(t *testing.T) {
+		filePath := "somewhere"
 
-// 	// 	_, err := actoReader.Do()
-// 	// 	if err == nil {
-// 	// 		t.Fatal("should fail because it's not an HCL file")
-// 	// 	}
+		message := "stat somewhere: no such file or directory"
 
-// 	// 	if !errors.Is(err, actoerrors.ErrOnlyHclFiles) {
-// 	// 		t.Fatal("got wrong error message")
-// 	// 	}
-// 	// })
+		fileReader := New[test.HclBody]()
 
-// 	// t.Run("should read an HCL file with valid HCL syntax", func(t *testing.T) {
-// 	// 	tmpDir := t.TempDir()
+		hclBody, err := fileReader.FromHCL(filePath, false)
 
-// 	// 	filePath := filepath.Join(tmpDir, "dummy-file.hcl")
-// 	// 	content := []byte("abc")
+		if err.Error() != message {
+			t.Fatal(err.Error())
+		}
 
-// 	// 	if err := filewriter.New().Do(filePath, content); err != nil {
-// 	// 		t.Fatal(err.Error())
-// 	// 	}
+		if hclBody != nil {
+			t.Fatal()
+		}
+	})
 
-// 	// 	actoReader := New(filePath, false)
+	t.Run("reads without errors from an YAML file", func(t *testing.T) {
+		content := []byte(`name: Pull Request`)
+		filePath := TempFiles(t, tempFile{"dummy-file.yaml", content})
 
-// 	// 	_, err := actoReader.Do()
-// 	// 	if err == nil {
-// 	// 		t.Fatal("should fail because it's not an HCL syntax")
-// 	// 	}
-// 	// })
-// }
+		fileReader := New[test.YamlBody]()
+
+		yamlBody, err := fileReader.FromYaml(filePath[0], false)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		if yamlBody == nil {
+			t.Fatal()
+		}
+	})
+
+	t.Run("reads with errors from an YAML file", func(t *testing.T) {
+		content := []byte(`on`)
+		filePath := TempFiles(t, tempFile{"dummy-file.yaml", content})
+
+		message := "[1:1] string was used where mapping is expected\n>  1 | on\n       ^\n"
+
+		fileReader := New[test.YamlBody]()
+
+		yamlBody, err := fileReader.FromYaml(filePath[0], false)
+		if err.Error() != message {
+			t.Fatal(err.Error())
+		}
+
+		if yamlBody != nil {
+			t.Fatal()
+		}
+	})
+
+	t.Run("can't read non existing YAML file", func(t *testing.T) {
+		filePath := "somewhere"
+
+		message := "stat somewhere: no such file or directory"
+
+		fileReader := New[test.YamlBody]()
+
+		yamlBody, err := fileReader.FromYaml(filePath, false)
+
+		if err.Error() != message {
+			t.Fatal(err.Error())
+		}
+
+		if yamlBody != nil {
+			t.Fatal()
+		}
+	})
+}

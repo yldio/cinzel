@@ -1,0 +1,14 @@
+run-name: "${{ github.workflow }} #${{ github.run_number }}"
+on:
+  workflow_run:
+    types:
+      - completed
+    workflows:
+      - Build
+jobs:
+  build:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: echo
+        run: echo hi

@@ -1,0 +1,15 @@
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: build
+        run: echo build
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+    outputs:
+      artifact-url:
+        value: ${{ jobs.build.outputs.url }}

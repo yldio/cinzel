@@ -1,0 +1,69 @@
+[tools]
+actionlint = "latest"
+ghalint = "latest"
+go = "1.26"
+
+[env]
+VERSION="0.0.1"
+COVERAGE_PATH="./coverage"
+COVERAGE_REPORT_PATH="{{env.COVERAGE_PATH}}/coverage.out"
+COVERAGE_HTML_PATH="{{env.COVERAGE_PATH}}/coverage.html"
+
+[tasks.cinzel]
+run = "go run ./..."
+
+[tasks.pkgsite]
+run = "go tool pkgsite"
+
+[tasks.fmt]
+run = """
+go fmt ./...
+go tool hclfmt -w ./**/*.hcl
+"""
+
+[tasks.build]
+depends = ["test-ci"]
+run = """
+rm -rf ./bin
+go build -ldflags "-s -w -X main.version=$VERSION" -o ./bin/cinzel ./cinzel.go
+"""
+
+[tasks.changelog]
+run = """
+go tool changie
+"""
+
+[tasks.docker-build]
+run = """
+docker build --file=./build/Dockerfile --build-arg version=$VERSION -t "cinzel:$VERSION" .
+"""
+
+[tasks.docker-run]
+run = """
+docker run --rm -it ${DOCKER_RUN_OPTS:-} cinzel:$VERSION
+"""
+
+[tasks.coverpath]
+run = "mkdir -p ./coverage"
+
+[tasks.test-ci]
+run = "go test ./... --cover"
+
+[tasks.test]
+depends = ["coverpath"]
+run = "go test ./... --cover -coverprofile=${COVERAGE_REPORT_PATH}"
+
+[tasks.report]
+depends = ["test"]
+run = "go tool cover -html=${COVERAGE_REPORT_PATH} -o ${COVERAGE_HTML_PATH}"
+
+[tasks.license]
+run = "go tool addlicense -v -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' -l mit -s=only -c 'YLD Limited' ."
+
+[tasks.license-check]
+run = "go tool addlicense -check -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' ."
+
+[tasks.bench]
+run = """
+go test ./provider/github -run '^$' -bench 'Benchmark' -benchmem
+"""

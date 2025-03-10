@@ -1,0 +1,19 @@
+on:
+  push:
+jobs:
+  integration:
+    container:
+      env:
+        NODE_ENV: test
+      image: node:18
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        env:
+          POSTGRES_PASSWORD: test
+        image: postgres:15
+      redis:
+        image: redis:7
+    steps:
+      - id: test
+        run: npm test

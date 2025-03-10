@@ -1,0 +1,21 @@
+on:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: test
+        run: go test ./...
+    strategy:
+      fail-fast: false
+      matrix:
+        exclude:
+          - node: "20"
+            os: macos-latest
+        include:
+          - node: "20"
+            os: ubuntu-latest
+        os:
+          - ubuntu-latest
+          - macos-latest
+      max-parallel: 2

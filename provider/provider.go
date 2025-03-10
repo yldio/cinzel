@@ -1,18 +1,18 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package provider
 
+// ProviderOps holds the options passed to a provider's Parse or Unparse operation.
 type ProviderOps struct {
 	File            string
 	Directory       string
 	OutputDirectory string
 	Recursive       bool
 	DryRun          bool
-	Override        bool
-	Watch           bool
 }
 
+// Provider defines the interface that each CI/CD provider must implement.
 type Provider interface {
 	Parse(opts ProviderOps) error
 	Unparse(opts ProviderOps) error
@@ -20,5 +20,4 @@ type Provider interface {
 	GetDescription() string
 	GetParseDescription() string
 	GetUnparseDescription() string
-	DefaultOutputDirectory() string
 }

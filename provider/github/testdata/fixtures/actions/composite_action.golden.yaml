@@ -1,0 +1,30 @@
+name: My Composite Action
+description: A sample composite action
+inputs:
+  token:
+    description: GitHub token
+    required: true
+  working_directory:
+    default: .
+    description: Working directory
+    required: false
+outputs:
+  result:
+    description: Build result
+    value: ${{ steps.build.outputs.result }}
+runs:
+  steps:
+    - id: setup
+      name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+    - id: install
+      name: Install dependencies
+      run: npm ci
+    - env:
+        NODE_ENV: production
+      id: build
+      name: Build
+      run: npm run build
+  using: composite

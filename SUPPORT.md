@@ -1,8 +1,8 @@
-# Acto Support
+# cinzel Support
 
-If you're looking for support for `acto` there are a lot of options, check out:
+If you're looking for support for `cinzel` there are a lot of options, check out:
 
-* [Wiki](https://github.com/yldio/acto/wiki)
-* [Discussions](https://github.com/yldio/acto/discussions)
+* [Wiki](https://github.com/yldio/cinzel/wiki)
+* [Discussions](https://github.com/yldio/cinzel/discussions)
 
-On `acto` Github Discussions board, there are a bunch of helpful community members that should be willing to point you in the right direction.
+On `cinzel` Github Discussions board, there are a bunch of helpful community members that should be willing to point you in the right direction.

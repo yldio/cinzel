@@ -16,7 +16,9 @@ coverage/*
 go.work
 go.work.sum
 
-# env file
-.env
 dist/
 bin/
+
+.vscode/
+
+.claude/

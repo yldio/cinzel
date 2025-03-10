@@ -1,0 +1,12 @@
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        required: true
+        type: string
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: echo
+        run: echo hi

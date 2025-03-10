@@ -1,0 +1,12 @@
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
+      - id: test
+        run: go test ./...
+on:
+  push:
+    branches:
+      - main

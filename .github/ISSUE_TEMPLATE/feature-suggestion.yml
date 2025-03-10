@@ -1,3 +1,6 @@
+# Copyright 2026 YLD Limited
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 name: "Feature suggestion"
 description: Suggest a feature or enhancement
 labels: ["feature", "triage"]
@@ -15,7 +18,7 @@ body:
     id: terms
     attributes:
       label: Code of Conduct
-      description: By submitting this feature suggestion, you agree to follow our [Code of Conduct](https://github.com/yldio/acto/CODE_OF_CONDUCT.md). 
+      description: By submitting this feature suggestion, you agree to follow our [Code of Conduct](https://github.com/yldio/cinzel/CODE_OF_CONDUCT.md).
       options:
         - label: I agree to follow this project's Code of Conduct
           required: true
@@ -23,7 +26,7 @@ body:
     id: contrutions
     attributes:
       label: Contributing
-      description: You have read our [Contributing](https://github.com/yldio/acto/CONTRIBUTING.md) guide. 
+      description: You have read our [Contributing](https://github.com/yldio/cinzel/CONTRIBUTING.md) guide.
       options:
         - label: I have read and checked this is not a duplicated feature suggestion
           required: true

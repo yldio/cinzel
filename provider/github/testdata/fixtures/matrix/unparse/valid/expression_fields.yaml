@@ -1,0 +1,10 @@
+run-name: "${{ github.workflow }} #${{ github.run_number }}"
+on:
+  push: {}
+jobs:
+  release:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - id: script
+        run: echo ${{ github.ref }}

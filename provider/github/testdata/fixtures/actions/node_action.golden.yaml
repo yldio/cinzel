@@ -1,0 +1,15 @@
+name: Greet Action
+description: A sample Node.js action
+inputs:
+  who_to_greet:
+    default: World
+    description: Who to greet
+    required: true
+outputs:
+  time:
+    description: The time we greeted you
+runs:
+  main: index.js
+  post: cleanup.js
+  pre: setup.js
+  using: node20

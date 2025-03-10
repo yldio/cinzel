@@ -1,55 +1,170 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package action
 
 import (
 	"testing"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/yldio/cinzel/internal/hclparser"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestUses(t *testing.T) {
-	// type Test struct {
-	// 	name   string
-	// 	have   *UsesConfig
-	// 	expect *string
-	// }
+	t.Run("test 1", func(t *testing.T) {
+		action := []byte(`"my-action"`)
+		version := []byte(`"v1.1.1"`)
+		expect := "my-action@v1.1.1"
 
-	// var action = "actions/checkout"
-	// var version = "v4"
+		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
 
-	// var have1 = UsesConfig{
-	// 	Action: &hclsyntax.TemplateExpr{
-	// 		Parts: []hclsyntax.Expression{
-	// 			&hclsyntax.LiteralValueExpr{
-	// 				Val: cty.StringVal(action),
-	// 			},
-	// 		},
-	// 	},
-	// 	Version: &hclsyntax.TemplateExpr{
-	// 		Parts: []hclsyntax.Expression{
-	// 			&hclsyntax.LiteralValueExpr{
-	// 				Val: cty.StringVal(version),
-	// 			},
-	// 		},
-	// 	},
-	// }
-	// var expect1 = fmt.Sprintf("%s@%s", action, version)
+		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
 
-	// var tests = []Test{
-	// 	{"with defined uses", &have1, &expect1},
-	// 	{"without undefined uses", nil, nil},
-	// }
+		config := UsesListConfig{
+			{
+				Action:  actionExpr,
+				Version: versionExpr,
+			},
+		}
 
-	// for _, tt := range tests {
-	// 	t.Run(tt.name, func(t *testing.T) {
-	// 		got, err := tt.have.Parse()
-	// 		if err != nil {
-	// 			t.Fatal(err.Error())
-	// 		}
+		hv := hclparser.NewHCLVars()
 
-	// 		if !reflect.DeepEqual(got, tt.expect) {
-	// 			t.Fatal(tt.name)
-	// 		}
-	// 	})
-	// }
+		val, err := config.Parse(hv)
+		if err != nil {
+			t.FailNow()
+		}
+
+		if val.AsString() != expect {
+			t.FailNow()
+		}
+	})
+
+	t.Run("local action without version", func(t *testing.T) {
+		action := []byte(`"./.github/actions/my-action"`)
+
+		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
+
+		config := UsesListConfig{
+			{
+				Action: actionExpr,
+			},
+		}
+
+		hv := hclparser.NewHCLVars()
+
+		val, err := config.Parse(hv)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if val.AsString() != "./.github/actions/my-action" {
+			t.Fatalf("expected './.github/actions/my-action', got %q", val.AsString())
+		}
+	})
+
+	t.Run("test 3", func(t *testing.T) {
+		version := []byte(`"v1.1.1"`)
+		expected := "action must be set"
+
+		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
+
+		config := UsesListConfig{
+			{
+				Version: versionExpr,
+			},
+		}
+
+		hv := hclparser.NewHCLVars()
+
+		val, err := config.Parse(hv)
+		if err.Error() != expected {
+			t.FailNow()
+		}
+
+		if val != cty.NilVal {
+			t.FailNow()
+		}
+	})
+
+	t.Run("test 4", func(t *testing.T) {
+		action := []byte(`"my-action"`)
+		version := []byte(`1`)
+		expected := "unsupported type, expected string, found number"
+
+		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
+
+		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
+
+		config := UsesListConfig{
+			{
+				Action:  actionExpr,
+				Version: versionExpr,
+			},
+		}
+
+		hv := hclparser.NewHCLVars()
+
+		val, err := config.Parse(hv)
+		if err.Error() != expected {
+			t.FailNow()
+		}
+
+		if val != cty.NilVal {
+			t.FailNow()
+		}
+	})
+
+	t.Run("test 5", func(t *testing.T) {
+		action := []byte(`1`)
+		version := []byte(`"v1.1.1"`)
+		expected := "unsupported type, expected string, found number"
+
+		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
+
+		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+		if diags.HasErrors() {
+			t.FailNow()
+		}
+
+		config := UsesListConfig{
+			{
+				Action:  actionExpr,
+				Version: versionExpr,
+			},
+		}
+
+		hv := hclparser.NewHCLVars()
+
+		val, err := config.Parse(hv)
+		if err.Error() != expected {
+			t.FailNow()
+		}
+
+		if val != cty.NilVal {
+			t.FailNow()
+		}
+	})
 }

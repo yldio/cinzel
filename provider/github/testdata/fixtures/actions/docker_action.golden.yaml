@@ -1,0 +1,16 @@
+name: Hello Docker Action
+description: A sample Docker action
+inputs:
+  who_to_greet:
+    default: World
+    description: Who to greet
+    required: true
+runs:
+  args:
+    - --greeting
+    - hello
+  image: Dockerfile
+  using: docker
+branding:
+  color: green
+  icon: award

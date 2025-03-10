@@ -1,0 +1,3 @@
+lint:
+  id: lint
+  run: go test ./...

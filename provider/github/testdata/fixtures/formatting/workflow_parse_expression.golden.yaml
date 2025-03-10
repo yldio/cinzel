@@ -1,0 +1,9 @@
+run-name: "${{ github.workflow }} #${{ github.run_number }}"
+on:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: echo
+        run: echo hi

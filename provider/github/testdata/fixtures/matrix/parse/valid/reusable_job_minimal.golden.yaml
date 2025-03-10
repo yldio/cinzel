@@ -1,0 +1,8 @@
+on:
+  push:
+jobs:
+  release:
+    secrets: inherit
+    uses: org/repo/.github/workflows/release.yaml@v1
+    with:
+      environment: prod

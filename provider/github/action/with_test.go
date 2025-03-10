@@ -1,105 +1,96 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package action
 
 import (
+	"math/big"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/yldio/cinzel/internal/hclparser"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestWith(t *testing.T) {
-	// type Test struct {
-	// 	name   string
-	// 	have   *WithsConfig
-	// 	expect map[string]any
-	// }
+	type Test struct {
+		name        string
+		haveKey     []byte
+		haveValue   []byte
+		expectKey   cty.Value
+		expectValue cty.Value
+	}
 
-	// var name1 any = "first_name"
-	// var value1 any = "Mona"
-	// var name2 any = "middle_name"
-	// var value2 any = "The"
-	// var name3 any = "last_name"
-	// var value3 any = "Octocat"
+	var tests = []Test{
+		{
+			"test 1",
+			[]byte(`"my-name"`),
+			[]byte(`"my-value"`),
+			cty.StringVal("my-name"),
+			cty.StringVal("my-value"),
+		},
+		{
+			"test 2",
+			[]byte(`"my-name"`),
+			[]byte(`true`),
+			cty.StringVal("my-name"),
+			cty.BoolVal(true),
+		},
+		{
+			"test 3",
+			[]byte(`"my-name"`),
+			[]byte(`11`),
+			cty.StringVal("my-name"),
+			cty.NumberVal(big.NewFloat(11)),
+		},
+		{
+			"test 4",
+			[]byte(`"my-name"`),
+			[]byte(`22.22`),
+			cty.StringVal("my-name"),
+			cty.NumberVal(big.NewFloat(22.22)),
+		},
+	}
 
-	// var firstName = value1.(string)
-	// var middleName = value2.(string)
-	// var lastName = value3.(string)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			keyExpr, diags := hclsyntax.ParseExpression(tt.haveKey, "key.hcl", hcl.Pos{})
+			if diags.HasErrors() {
+				t.FailNow()
+			}
 
-	// var have1 = WithsConfig{
-	// 	{
-	// 		Name: &hclsyntax.TemplateExpr{
-	// 			Parts: []hclsyntax.Expression{
-	// 				&hclsyntax.LiteralValueExpr{
-	// 					Val: cty.StringVal(name1.(string)),
-	// 				},
-	// 			},
-	// 		},
-	// 		Value: &hclsyntax.TemplateExpr{
-	// 			Parts: []hclsyntax.Expression{
-	// 				&hclsyntax.LiteralValueExpr{
-	// 					Val: cty.StringVal(value1.(string)),
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// 	{
-	// 		Name: &hclsyntax.TemplateExpr{
-	// 			Parts: []hclsyntax.Expression{
-	// 				&hclsyntax.LiteralValueExpr{
-	// 					Val: cty.StringVal(name2.(string)),
-	// 				},
-	// 			},
-	// 		},
-	// 		Value: &hclsyntax.TemplateExpr{
-	// 			Parts: []hclsyntax.Expression{
-	// 				&hclsyntax.LiteralValueExpr{
-	// 					Val: cty.StringVal(value2.(string)),
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// 	{
-	// 		Name: &hclsyntax.TemplateExpr{
-	// 			Parts: []hclsyntax.Expression{
-	// 				&hclsyntax.LiteralValueExpr{
-	// 					Val: cty.StringVal(name3.(string)),
-	// 				},
-	// 			},
-	// 		},
-	// 		Value: &hclsyntax.TemplateExpr{
-	// 			Parts: []hclsyntax.Expression{
-	// 				&hclsyntax.LiteralValueExpr{
-	// 					Val: cty.StringVal(value3.(string)),
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
+			valueExpr, diags := hclsyntax.ParseExpression(tt.haveValue, "value.hcl", hcl.Pos{})
+			if diags.HasErrors() {
+				t.FailNow()
+			}
 
-	// var expect1 = map[string]any{
-	// 	"first_name":  &firstName,
-	// 	"middle_name": &middleName,
-	// 	"last_name":   &lastName,
-	// }
+			config := WithListConfig{
+				{
+					Name:  keyExpr,
+					Value: valueExpr,
+				},
+			}
 
-	// var have2 = WithsConfig{}
+			hv := hclparser.NewHCLVars()
 
-	// var tests = []Test{
-	// 	{"with defined with", &have1, expect1},
-	// 	{"without empty with", &have2, nil},
-	// 	{"without undefined with", nil, nil},
-	// }
+			val, err := config.Parse(hv)
+			if err != nil {
+				t.FailNow()
+			}
 
-	// for _, tt := range tests {
-	// 	t.Run(tt.name, func(t *testing.T) {
-	// 		got, err := tt.have.Parse()
-	// 		if err != nil {
-	// 			t.Fatal(err.Error())
-	// 		}
+			iter := val.ElementIterator()
+			for iter.Next() {
+				key, value := iter.Element()
 
-	// 		if !reflect.DeepEqual(got, tt.expect) {
-	// 			t.Fatal(tt.name)
-	// 		}
-	// 	})
-	// }
+				if !key.RawEquals(tt.expectKey) {
+					t.FailNow()
+				}
+
+				if !value.RawEquals(tt.expectValue) {
+					t.FailNow()
+				}
+			}
+		})
+	}
 }

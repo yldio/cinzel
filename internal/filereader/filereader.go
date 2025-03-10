@@ -1,5 +1,5 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package filereader
 
@@ -9,14 +9,22 @@ import (
 	"slices"
 )
 
+// Updater is implemented by types that can receive a filename after being read.
 type Updater interface {
 	Update(string)
 }
 
+// Reader discovers and reads files of a given type T from disk.
 type Reader[T Updater] struct {
 	files []string
 }
 
+// New returns a new Reader instance.
+func New[T Updater]() *Reader[T] {
+	return &Reader[T]{}
+}
+
+// GetFiles returns the list of file paths discovered by the reader.
 func (read *Reader[T]) GetFiles() []string {
 	return read.files
 }

@@ -1,5 +1,5 @@
-// Copyright (c) 2024-2025 YLD Limited
-// SPDX-License-Identifier: MIT
+// Copyright 2026 YLD Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package action
 
@@ -8,97 +8,111 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/yldio/acto/internal/actoparser"
-	"github.com/yldio/acto/internal/variables"
+	"github.com/yldio/cinzel/internal/hclparser"
+	"github.com/zclconf/go-cty/cty"
 )
 
+// Uses holds the parsed action reference and optional version.
+type Uses struct {
+	Action  cty.Value `yaml:"action,omitempty"`
+	Version cty.Value `yaml:"version,omitempty"`
+}
+
+// UsesConfig represents the HCL configuration for a uses block.
 type UsesConfig struct {
 	Action  hcl.Expression `hcl:"action,attr"`
 	Version hcl.Expression `hcl:"version,attr"`
 }
 
-func (config *UsesConfig) unwrapVersion(acto *actoparser.Acto) (*string, error) {
-	switch resultValue := acto.Result.(type) {
-	case nil:
-		return nil, errors.New("attribute 'action' must be a string")
-	case string:
-		return &resultValue, nil
-	case actoparser.ActoVariableRef:
-		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
-		if err != nil {
-			return nil, err
-		}
+// UsesListConfig is a slice of UsesConfig decoded from HCL uses blocks.
+type UsesListConfig []UsesConfig
 
-		return config.unwrapVersion(actoparser.NewActoFromResult(variableValue))
+func (s *Uses) parseAction(value cty.Value) error {
+	switch value.Type() {
+	case cty.String:
+		s.Action = value
+
+		return nil
 	default:
-		return nil, errors.New("attribute 'version' must be a string")
+		return fmt.Errorf("unsupported type, expected string, found %s", value.Type().FriendlyName())
 	}
 }
 
-func (config *UsesConfig) parseVersion() (*string, error) {
-	acto := actoparser.NewActo(config.Version)
+func (s *Uses) parseVersion(value cty.Value) error {
+	switch value.Type() {
+	case cty.String:
+		s.Version = value
 
-	if err := acto.Parse(); err != nil {
-		return nil, err
-	}
-
-	value, err := config.unwrapVersion(acto)
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
-}
-
-func (config *UsesConfig) unwrapAction(acto *actoparser.Acto) (*string, error) {
-	switch resultValue := acto.Result.(type) {
-	case nil:
-		return nil, errors.New("attribute 'action' must be a string")
-	case string:
-		return &resultValue, nil
-	case actoparser.ActoVariableRef:
-		variableValue, err := variables.Instance().GetValue(resultValue.Attr, resultValue.Index)
-		if err != nil {
-			return nil, err
-		}
-
-		return config.unwrapAction(actoparser.NewActoFromResult(variableValue))
+		return nil
 	default:
-		return nil, errors.New("attribute 'action' must be a string")
+		return fmt.Errorf("unsupported type, expected string, found %s", value.Type().FriendlyName())
 	}
 }
 
-func (config *UsesConfig) parseAction() (*string, error) {
-	acto := actoparser.NewActo(config.Action)
+func (config *UsesConfig) parseAction(hv *hclparser.HCLVars) (cty.Value, error) {
+	hp := hclparser.New(config.Action, hv)
 
-	if err := acto.Parse(); err != nil {
-		return nil, err
+	if err := hp.Parse(); err != nil {
+		return cty.NilVal, err
 	}
 
-	value, err := config.unwrapAction(acto)
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
+	return hp.Result(), nil
 }
 
-func (config *UsesConfig) Parse() (*string, error) {
+func (config *UsesConfig) parseVersion(hv *hclparser.HCLVars) (cty.Value, error) {
+	hp := hclparser.New(config.Version, hv)
+
+	if err := hp.Parse(); err != nil {
+		return cty.NilVal, err
+	}
+
+	return hp.Result(), nil
+}
+
+// Parse resolves the uses block into a single "action@version" cty string value.
+func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 	if config == nil {
-		return nil, nil
+		return cty.NilVal, nil
 	}
 
-	action, err := config.parseAction()
+	if len(*config) != 1 {
+		return cty.NilVal, errors.New("should only exist one uses")
+	}
+
+	c := (*config)[0]
+
+	parsedUses := Uses{}
+
+	action, err := c.parseAction(hv)
 	if err != nil {
-		return nil, err
+		return cty.NilVal, err
 	}
 
-	version, err := config.parseVersion()
+	if action != cty.NilVal {
+		if err := parsedUses.parseAction(action); err != nil {
+			return cty.NilVal, err
+		}
+	} else {
+		return cty.NilVal, errors.New("action must be set")
+	}
+
+	version, err := c.parseVersion(hv)
 	if err != nil {
-		return nil, err
+		return cty.NilVal, err
 	}
 
-	uses := fmt.Sprintf("%s@%s", *action, *version)
+	if version != cty.NilVal {
+		if err := parsedUses.parseVersion(version); err != nil {
+			return cty.NilVal, err
+		}
+	}
 
-	return &uses, nil
+	var uses string
+	if parsedUses.Version != cty.NilVal {
+		uses = fmt.Sprintf("%s@%s", parsedUses.Action.AsString(), parsedUses.Version.AsString())
+	} else {
+		uses = parsedUses.Action.AsString()
+	}
+
+	return cty.StringVal(uses), nil
 }

@@ -2,7 +2,7 @@
 
 :thumbsup: :tada: First off, thanks for taking the time to contribute! :thumbsup: :tada:
 
-The following is a set of guidelines for contributing to `acto`, which is hosted in the [YLD](https://github.com/yldio/) Organization on GitHub. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+The following is a set of guidelines for contributing to `cinzel`, which is hosted in the [YLD](https://github.com/yldio/) Organization on GitHub. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
 
 - [How to Contribute](#how-to-contribute)
   - [Code of Conduct](#code-of-conduct)
@@ -13,7 +13,7 @@ The following is a set of guidelines for contributing to `acto`, which is hosted
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by the `acto`'s [Code of Conduct](/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to acto@yld.io.
+This project and everyone participating in it is governed by the `cinzel`'s [Code of Conduct](/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to cinzel@yld.com.
 
 ## What should I know before I get started?
 
@@ -27,7 +27,7 @@ We have an official message board with a detailed FAQ and where the community ch
 
 ### Reporting Bugs
 
-This section guides you through submitting a bug report for `acto`. Following these guidelines will help maintainers and the community understand your report, reproduce the behavior and find related reports.
+This section guides you through submitting a bug report for `cinzel`. Following these guidelines will help maintainers and the community understand your report, reproduce the behavior and find related reports.
 
 Before creating bug reports, please check this list as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible. Fill out the required template as the information will help us resolve issues faster.
 
@@ -40,6 +40,6 @@ Choose the **Bug report** Issue template to report a bug.
 
 ## Suggesting Enhancements / Features
 
-This section guides you through submitting an enhancement suggestion for `acto`, including completely new features and minor improvements to existing functionality. Following these guidelines helps maintainers and the community understand your suggestion and find related suggestions.
+This section guides you through submitting an enhancement suggestion for `cinzel`, including completely new features and minor improvements to existing functionality. Following these guidelines helps maintainers and the community understand your suggestion and find related suggestions.
 
 They follow the same principal as [Reporting Bugs](#reporting-bugs), but chosing a different Issue template, in this case **Feature**.

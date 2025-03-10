@@ -1,0 +1,1 @@
+workflow 'on' must be a string, list of strings, or object

@@ -1,0 +1,29 @@
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+  packages: write
+defaults:
+  run:
+    shell: bash
+    working-directory: ./src
+concurrency:
+  cancel-in-progress: false
+  group: main-deploy
+jobs:
+  deploy:
+    concurrency:
+      cancel-in-progress: true
+      group: deploy-prod
+    environment:
+      name: production
+      url: https://example.com
+    permissions:
+      contents: read
+      deployments: write
+    runs-on: ubuntu-latest
+    steps:
+      - id: deploy
+        run: echo deploying
