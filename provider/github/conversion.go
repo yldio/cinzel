@@ -13,9 +13,7 @@ import (
 )
 
 func ctyToAny(val cty.Value) (any, error) {
-
 	if !val.IsKnown() || val.IsNull() {
-
 		return nil, nil
 	}
 
@@ -36,7 +34,6 @@ func ctyToAny(val cty.Value) (any, error) {
 			_, child := it.Element()
 			childAny, err := ctyToAny(child)
 			if err != nil {
-
 				return nil, err
 			}
 			out = append(out, childAny)
@@ -49,7 +46,6 @@ func ctyToAny(val cty.Value) (any, error) {
 		for key, child := range val.AsValueMap() {
 			childAny, err := ctyToAny(child)
 			if err != nil {
-
 				return nil, err
 			}
 			out[key] = childAny
@@ -62,16 +58,12 @@ func ctyToAny(val cty.Value) (any, error) {
 }
 
 func anyToCty(value any) (cty.Value, error) {
-
 	if value == nil {
-
 		return cty.NullVal(cty.DynamicPseudoType), nil
 	}
 
 	if v, ok := value.(cty.Value); ok {
-
 		if !v.IsKnown() {
-
 			return cty.NullVal(cty.DynamicPseudoType), nil
 		}
 
@@ -79,7 +71,6 @@ func anyToCty(value any) (cty.Value, error) {
 	}
 
 	if v, ok := anyToCtyDirect(value); ok {
-
 		return v, nil
 	}
 
@@ -123,7 +114,6 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 			child, ok := anyToCtyDirect(item)
 
 			if !ok {
-
 				return cty.NilVal, false
 			}
 			vals = append(vals, child)
@@ -137,7 +127,6 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 			child, ok := anyToCtyDirect(item)
 
 			if !ok {
-
 				return cty.NilVal, false
 			}
 			vals[key] = child
@@ -151,13 +140,11 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 			ks, ok := key.(string)
 
 			if !ok {
-
 				return cty.NilVal, false
 			}
 			child, ok := anyToCtyDirect(item)
 
 			if !ok {
-
 				return cty.NilVal, false
 			}
 			vals[ks] = child
@@ -169,14 +156,11 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 	rv := reflect.ValueOf(value)
 
 	if !rv.IsValid() {
-
 		return cty.NullVal(cty.DynamicPseudoType), true
 	}
 
 	if rv.Kind() == reflect.Pointer {
-
 		if rv.IsNil() {
-
 			return cty.NullVal(cty.DynamicPseudoType), true
 		}
 
@@ -190,7 +174,6 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 			child, ok := anyToCtyDirect(rv.Index(i).Interface())
 
 			if !ok {
-
 				return cty.NilVal, false
 			}
 			vals = append(vals, child)
@@ -207,7 +190,6 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 			child, ok := anyToCtyDirect(iter.Value().Interface())
 
 			if !ok {
-
 				return cty.NilVal, false
 			}
 			vals[iter.Key().String()] = child
@@ -223,7 +205,6 @@ func ctyNumberToAny(val cty.Value) any {
 	bf := val.AsBigFloat()
 
 	if i, acc := bf.Int64(); acc == big.Exact {
-
 		return i
 	}
 
@@ -235,14 +216,12 @@ func ctyNumberToAny(val cty.Value) any {
 func ctyToAnyViaYAML(val cty.Value) (any, error) {
 	bytes, err := ctyyaml.Marshal(val)
 	if err != nil {
-
 		return nil, err
 	}
 
 	var out any
 
 	if err := yaml.Unmarshal(bytes, &out); err != nil {
-
 		return nil, err
 	}
 
@@ -252,18 +231,15 @@ func ctyToAnyViaYAML(val cty.Value) (any, error) {
 func anyToCtyViaYAML(value any) (cty.Value, error) {
 	bytes, err := yaml.Marshal(value)
 	if err != nil {
-
 		return cty.NilVal, err
 	}
 
 	val, err := ctyyaml.Unmarshal(bytes, cty.DynamicPseudoType)
 	if err != nil {
-
 		return cty.NilVal, err
 	}
 
 	if !val.IsKnown() {
-
 		return cty.NullVal(cty.DynamicPseudoType), nil
 	}
 

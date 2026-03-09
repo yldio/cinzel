@@ -83,7 +83,6 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 	}
 
 	for _, input := range inputs {
-
 		if strings.HasSuffix(input, ".roundtrip.golden.yaml") {
 			continue
 		}
@@ -122,14 +121,12 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 func singleYAMLFileInDir(dir string) (string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-
 		return "", err
 	}
 
 	paths := make([]string, 0, len(entries))
 
 	for _, entry := range entries {
-
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
 			continue
 		}
@@ -138,7 +135,6 @@ func singleYAMLFileInDir(dir string) (string, error) {
 	}
 
 	if len(paths) != 1 {
-
 		return "", os.ErrNotExist
 	}
 

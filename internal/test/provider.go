@@ -26,9 +26,7 @@ type mockProvider struct {
 }
 
 func (p *mockProvider) Parse(opts provider.ProviderOps) error {
-
 	if p.HasError {
-
 		return errors.New("parse error")
 	}
 
@@ -38,9 +36,7 @@ func (p *mockProvider) Parse(opts provider.ProviderOps) error {
 }
 
 func (p *mockProvider) Unparse(opts provider.ProviderOps) error {
-
 	if p.HasError {
-
 		return errors.New("unparse error")
 	}
 
@@ -50,21 +46,17 @@ func (p *mockProvider) Unparse(opts provider.ProviderOps) error {
 }
 
 func (p *mockProvider) GetProviderName() string {
-
 	return "mock-provider"
 }
 
 func (p *mockProvider) GetDescription() string {
-
 	return "mock-provider description"
 }
 
 func (p *mockProvider) GetParseDescription() string {
-
 	return "mock-provider parse"
 }
 
 func (p *mockProvider) GetUnparseDescription() string {
-
 	return "mock-provider unparse"
 }

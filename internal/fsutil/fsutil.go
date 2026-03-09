@@ -22,7 +22,6 @@ var ErrNoHCLFiles = errors.New("no HCL files found in input")
 func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -31,7 +30,6 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 		file, diags := parser.ParseHCLFile(path)
 
 		if diags.HasErrors() {
-
 			return nil, cinzelerror.ProcessHCLDiags(diags)
 		}
 
@@ -42,16 +40,12 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 	parser := hclparse.NewParser()
 
 	err = filepath.WalkDir(path, func(current string, d os.DirEntry, walkErr error) error {
-
 		if walkErr != nil {
-
 			return walkErr
 		}
 
 		if d.IsDir() {
-
 			if current != path && !recursive {
-
 				return filepath.SkipDir
 			}
 
@@ -59,14 +53,12 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 		}
 
 		if filepath.Ext(current) != ".hcl" {
-
 			return nil
 		}
 
 		file, diags := parser.ParseHCLFile(current)
 
 		if diags.HasErrors() {
-
 			return cinzelerror.ProcessHCLDiags(diags)
 		}
 
@@ -75,12 +67,10 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 		return nil
 	})
 	if err != nil {
-
 		return nil, err
 	}
 
 	if len(bodies) == 0 {
-
 		return nil, ErrNoHCLFiles
 	}
 
@@ -91,7 +81,6 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 func ListFilesWithExtensions(path string, recursive bool, exts ...string) ([]string, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -105,7 +94,6 @@ func ListFilesWithExtensions(path string, recursive bool, exts ...string) ([]str
 		ext := strings.ToLower(filepath.Ext(path))
 
 		if _, ok := allowed[ext]; !ok {
-
 			return nil, fmt.Errorf("input file must have %s extension", joinExtensions(exts))
 		}
 
@@ -114,16 +102,12 @@ func ListFilesWithExtensions(path string, recursive bool, exts ...string) ([]str
 
 	files := []string{}
 	err = filepath.WalkDir(path, func(current string, d os.DirEntry, walkErr error) error {
-
 		if walkErr != nil {
-
 			return walkErr
 		}
 
 		if d.IsDir() {
-
 			if current != path && !recursive {
-
 				return filepath.SkipDir
 			}
 
@@ -139,7 +123,6 @@ func ListFilesWithExtensions(path string, recursive bool, exts ...string) ([]str
 		return nil
 	})
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -148,9 +131,7 @@ func ListFilesWithExtensions(path string, recursive bool, exts ...string) ([]str
 
 // WriteFile writes content to path, creating parent directories as needed.
 func WriteFile(path string, content []byte) error {
-
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-
 		return err
 	}
 
@@ -158,19 +139,15 @@ func WriteFile(path string, content []byte) error {
 }
 
 func joinExtensions(exts []string) string {
-
 	if len(exts) == 0 {
-
 		return "a supported"
 	}
 
 	if len(exts) == 1 {
-
 		return exts[0]
 	}
 
 	if len(exts) == 2 {
-
 		return exts[0] + " or " + exts[1]
 	}
 

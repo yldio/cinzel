@@ -12,7 +12,6 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		stages, ok := rawStages.([]any)
 
 		if !ok {
-
 			return fmt.Errorf("'stages' must be a list")
 		}
 
@@ -20,7 +19,6 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 			name, ok := s.(string)
 
 			if !ok || name == "" {
-
 				return fmt.Errorf("stages must contain non-empty strings")
 			}
 			stagesSet[name] = struct{}{}
@@ -33,21 +31,18 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		jobMap, ok := rawJob.(map[string]any)
 
 		if !ok {
-
 			return fmt.Errorf("job '%s' must be an object", jobName)
 		}
 
 		script, ok := jobMap["script"]
 
 		if !ok && !isTemplate {
-
 			return fmt.Errorf("job '%s' must define 'script'", jobName)
 		}
 
 		scriptList, ok := script.([]any)
 
 		if !isTemplate && (!ok || len(scriptList) == 0) {
-
 			return fmt.Errorf("job '%s' script must be a non-empty list", jobName)
 		}
 
@@ -55,25 +50,21 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 			stageRaw, ok := jobMap["stage"]
 
 			if !ok {
-
 				return fmt.Errorf("job '%s' must define 'stage'", jobName)
 			}
 			stage, ok := stageRaw.(string)
 
 			if !ok || stage == "" {
-
 				return fmt.Errorf("job '%s' stage must be a non-empty string", jobName)
 			}
 
 			if _, exists := stagesSet[stage]; !exists {
-
 				return fmt.Errorf("job '%s' references undeclared stage '%s'", jobName, stage)
 			}
 		}
 
 		if rawServices, ok := jobMap["services"]; ok {
 			if err := validateServices(rawServices, fmt.Sprintf("job '%s'", jobName)); err != nil {
-
 				return err
 			}
 		}
@@ -82,13 +73,11 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 	if rawDefault, ok := pipeline["default"]; ok {
 		defaultMap, ok := rawDefault.(map[string]any)
 		if !ok {
-
 			return fmt.Errorf("default must be an object")
 		}
 
 		if rawServices, ok := defaultMap["services"]; ok {
 			if err := validateServices(rawServices, "default"); err != nil {
-
 				return err
 			}
 		}
@@ -104,7 +93,6 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 			needs, ok := rawNeeds.([]any)
 
 			if !ok {
-
 				return fmt.Errorf("job '%s' needs must be a list", jobName)
 			}
 			seen := map[string]struct{}{}
@@ -113,18 +101,15 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 				name, ok := n.(string)
 
 				if !ok || name == "" {
-
 					return fmt.Errorf("job '%s' needs must contain non-empty strings", jobName)
 				}
 
 				if _, dup := seen[name]; dup {
-
 					return fmt.Errorf("job '%s' has duplicate needs '%s'", jobName, name)
 				}
 				seen[name] = struct{}{}
 
 				if _, exists := jobs[name]; !exists {
-
 					return fmt.Errorf("job '%s' needs unknown job '%s'", jobName, name)
 				}
 				graph[jobName] = append(graph[jobName], name)
@@ -138,20 +123,16 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		state := visited[node]
 
 		if state == 1 {
-
 			return fmt.Errorf("depends_on cycle detected")
 		}
 
 		if state == 2 {
-
 			return nil
 		}
 		visited[node] = 1
 
 		for _, next := range graph[node] {
-
 			if err := dfs(next); err != nil {
-
 				return err
 			}
 		}
@@ -161,9 +142,7 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 	}
 
 	for name := range graph {
-
 		if err := dfs(name); err != nil {
-
 			return err
 		}
 	}
@@ -174,12 +153,10 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 func validateServices(raw any, owner string) error {
 	services, ok := raw.([]any)
 	if !ok {
-
 		return fmt.Errorf("%s services must be a list", owner)
 	}
 
 	if len(services) == 0 {
-
 		return fmt.Errorf("%s services must not be empty", owner)
 	}
 
@@ -187,18 +164,15 @@ func validateServices(raw any, owner string) error {
 		switch service := item.(type) {
 		case string:
 			if service == "" {
-
 				return fmt.Errorf("%s services must contain non-empty strings", owner)
 			}
 		case map[string]any:
 			nameRaw, ok := service["name"]
 			if !ok {
-
 				return fmt.Errorf("%s service entries must include 'name'", owner)
 			}
 			name, ok := nameRaw.(string)
 			if !ok || name == "" {
-
 				return fmt.Errorf("%s service name must be a non-empty string", owner)
 			}
 		default:

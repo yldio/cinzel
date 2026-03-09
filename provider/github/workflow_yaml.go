@@ -25,7 +25,6 @@ var workflowKeyOrder = []string{
 func marshalWorkflowYAML(workflow map[string]any) ([]byte, error) {
 	rootNode, err := workflowMapNode(workflow)
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -36,12 +35,10 @@ func marshalWorkflowYAML(workflow map[string]any) ([]byte, error) {
 	enc.SetIndent(2)
 
 	if err := enc.Encode(doc); err != nil {
-
 		return nil, err
 	}
 
 	if err := enc.Close(); err != nil {
-
 		return nil, err
 	}
 
@@ -63,7 +60,6 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 		}
 
 		if err := appendMappingPair(node, key, value); err != nil {
-
 			return nil, err
 		}
 
@@ -73,7 +69,6 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 	remaining := make([]string, 0, len(workflow))
 
 	for key := range workflow {
-
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -84,9 +79,7 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 	sort.Strings(remaining)
 
 	for _, key := range remaining {
-
 		if err := appendMappingPair(node, key, workflow[key]); err != nil {
-
 			return nil, err
 		}
 	}
@@ -97,7 +90,6 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 func appendMappingPair(node *yamlv3.Node, key string, value any) error {
 	valueNode, err := toYAMLNode(value)
 	if err != nil {
-
 		return err
 	}
 
@@ -121,7 +113,6 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 		return node, nil
 	case bool:
 		if v {
-
 			return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!bool", Value: "true"}, nil
 		}
 
@@ -134,7 +125,6 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 		for _, item := range v {
 			child, err := toYAMLNode(item)
 			if err != nil {
-
 				return nil, err
 			}
 
@@ -151,7 +141,6 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 			key, ok := rawKey.(string)
 
 			if !ok {
-
 				return nil, fmt.Errorf("unsupported non-string YAML key type %T", rawKey)
 			}
 
@@ -168,10 +157,8 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 // misinterpreted without quotes (e.g., looks like a number, boolean,
 // null, or contains special characters).
 func stringNeedsQuoting(v string) bool {
-
 	if v == "" || v == "true" || v == "false" || v == "null" || v == "~" ||
 		v == "yes" || v == "no" || v == "on" || v == "off" {
-
 		return true
 	}
 
@@ -182,7 +169,6 @@ func stringNeedsQuoting(v string) bool {
 		isNumeric := true
 
 		for _, c := range v {
-
 			if !((c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E') {
 				isNumeric = false
 				break
@@ -190,7 +176,6 @@ func stringNeedsQuoting(v string) bool {
 		}
 
 		if isNumeric {
-
 			return true
 		}
 	}
@@ -227,9 +212,7 @@ func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
 
 	for _, key := range keys {
-
 		if err := appendMappingPair(node, key, mapping[key]); err != nil {
-
 			return nil, err
 		}
 	}

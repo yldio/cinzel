@@ -45,25 +45,21 @@ func (p *GitLab) GetUnparseDescription() string { return unparseDesc }
 func (p *GitLab) Parse(opts provider.ProviderOps) error {
 	inputPath, err := resolveInputPath(opts)
 	if err != nil {
-
 		return err
 	}
 
 	body, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
 	if err != nil {
-
 		return err
 	}
 
 	pipeline, err := parseHCLToPipeline(body)
 	if err != nil {
-
 		return err
 	}
 
 	outputBytes, err := marshalPipelineYAML(pipeline)
 	if err != nil {
-
 		return err
 	}
 
@@ -77,7 +73,6 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 	}
 
 	if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-
 		return err
 	}
 
@@ -88,13 +83,11 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 	inputPath, err := resolveInputPath(opts)
 	if err != nil {
-
 		return err
 	}
 
 	files, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
 	if err != nil {
-
 		return err
 	}
 
@@ -103,13 +96,11 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
-
 			return err
 		}
 
 		doc, err := parseYAMLDocument(yamlBytes)
 		if err != nil {
-
 			return err
 		}
 
@@ -120,7 +111,6 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 		hclBytes, err := pipelineToHCL(doc, baseName)
 		if err != nil {
-
 			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
 
@@ -133,7 +123,6 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		}
 
 		if err := fsutil.WriteFile(outputPath, hclBytes); err != nil {
-
 			return err
 		}
 	}

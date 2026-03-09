@@ -21,27 +21,22 @@ type Reader[T Updater] struct {
 
 // New returns a new Reader instance.
 func New[T Updater]() *Reader[T] {
-
 	return &Reader[T]{}
 }
 
 // GetFiles returns the list of file paths discovered by the reader.
 func (read *Reader[T]) GetFiles() []string {
-
 	return read.files
 }
 
 func (read *Reader[T]) readPath(path string, recursive bool, extensions []string) error {
 	info, err := os.Stat(path)
 	if err != nil {
-
 		return err
 	}
 
 	if !info.IsDir() {
-
 		if !slices.Contains(extensions, filepath.Ext(path)) {
-
 			return nil
 		}
 
@@ -52,7 +47,6 @@ func (read *Reader[T]) readPath(path string, recursive bool, extensions []string
 
 	files, err := os.ReadDir(path)
 	if err != nil {
-
 		return err
 	}
 
@@ -61,7 +55,6 @@ func (read *Reader[T]) readPath(path string, recursive bool, extensions []string
 
 		info, err := os.Stat(fullpath)
 		if err != nil {
-
 			return err
 		}
 
@@ -70,7 +63,6 @@ func (read *Reader[T]) readPath(path string, recursive bool, extensions []string
 		}
 
 		if err := read.readPath(fullpath, recursive, extensions); err != nil {
-
 			return err
 		}
 	}

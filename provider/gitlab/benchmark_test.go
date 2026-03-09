@@ -19,7 +19,6 @@ func BenchmarkParsePipeline(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if err := p.Parse(provider.ProviderOps{File: input, OutputDirectory: outputDir}); err != nil {
 			b.Fatal(err)
 		}
@@ -35,7 +34,6 @@ func BenchmarkUnparsePipeline(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if err := p.Unparse(provider.ProviderOps{File: input, OutputDirectory: outputDir}); err != nil {
 			b.Fatal(err)
 		}
@@ -53,7 +51,6 @@ func BenchmarkRoundtripPipeline(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if err := p.Parse(provider.ProviderOps{File: inputHCL, OutputDirectory: parseDir}); err != nil {
 			b.Fatal(err)
 		}

@@ -25,7 +25,6 @@ func TestValidateUsesRef(t *testing.T) {
 
 	for _, tt := range valid {
 		t.Run(tt.name, func(t *testing.T) {
-
 			if err := ValidateUsesRef(tt.uses); err != nil {
 				t.Fatalf("expected valid, got %v", err)
 			}

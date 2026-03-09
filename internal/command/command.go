@@ -27,7 +27,6 @@ type Cli struct {
 
 // Execute registers the given providers and runs the CLI with the supplied arguments.
 func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
-
 	for _, p := range providers {
 		ap := cmd.addProvider(p)
 		cmd.Cmd.Commands = append(cmd.Cmd.Commands, ap)
@@ -44,7 +43,6 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 
 // New creates a Cli configured with the given writer and version string.
 func New(writer io.Writer, version string) *Cli {
-
 	return &Cli{
 		Writer: writer,
 		Cmd: &cli.Command{
@@ -79,7 +77,6 @@ func formattedAuthors(authors []mail.Address) []any {
 }
 
 func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
-
 	return &cli.Command{
 		Name:  p.GetProviderName(),
 		Usage: p.GetDescription(),
@@ -90,7 +87,6 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					opts, warnings, err := toProviderOpts(cmd, p.GetProviderName(), "parse")
 					if err != nil {
-
 						return err
 					}
 
@@ -99,7 +95,6 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 					}
 
 					if err := p.Parse(opts); err != nil {
-
 						return err
 					}
 
@@ -142,7 +137,6 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					opts, warnings, err := toProviderOpts(cmd, p.GetProviderName(), "unparse")
 					if err != nil {
-
 						return err
 					}
 
@@ -151,7 +145,6 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 					}
 
 					if err := p.Unparse(opts); err != nil {
-
 						return err
 					}
 

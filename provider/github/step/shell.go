@@ -25,7 +25,6 @@ func (config *StepConfig) parseShell(hv *hclparser.HCLVars) (cty.Value, error) {
 	hp := hclparser.New(config.Shell, hv)
 
 	if err := hp.Parse(); err != nil {
-
 		return cty.NilVal, err
 	}
 

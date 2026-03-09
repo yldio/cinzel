@@ -18,7 +18,6 @@ type TemplateExpr struct {
 
 // NewTemplateExpr creates a TemplateExpr for the given HCL template.
 func NewTemplateExpr(expression *hclsyntax.TemplateExpr) *TemplateExpr {
-
 	return &TemplateExpr{
 		expression: expression,
 	}
@@ -26,12 +25,10 @@ func NewTemplateExpr(expression *hclsyntax.TemplateExpr) *TemplateExpr {
 
 // Parse evaluates the template parts and returns the first resolved value.
 func (te *TemplateExpr) Parse() (cty.Value, error) {
-
 	for _, part := range te.expression.Parts {
 		value, diag := part.Value(nil)
 
 		if diag.HasErrors() {
-
 			return cty.NilVal, errors.New(diag.Error())
 		}
 

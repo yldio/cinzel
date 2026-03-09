@@ -14,16 +14,13 @@ import (
 //   - ./local/path
 //   - docker://{image}
 func ValidateUsesRef(uses string) error {
-
 	if uses == "" {
-
 		return fmt.Errorf("uses must not be empty")
 	}
 
 	// Local action
 
 	if strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../") {
-
 		return nil
 	}
 
@@ -33,7 +30,6 @@ func ValidateUsesRef(uses string) error {
 		image := uses[len("docker://"):]
 
 		if image == "" {
-
 			return fmt.Errorf("docker uses must specify an image: %q", uses)
 		}
 
@@ -44,14 +40,12 @@ func ValidateUsesRef(uses string) error {
 	atIdx := strings.LastIndex(uses, "@")
 
 	if atIdx < 0 {
-
 		return fmt.Errorf("uses %q must include a version reference (@ref, @sha, or @tag)", uses)
 	}
 
 	ref := uses[atIdx+1:]
 
 	if ref == "" {
-
 		return fmt.Errorf("uses %q has empty version reference after '@'", uses)
 	}
 
@@ -59,7 +53,6 @@ func ValidateUsesRef(uses string) error {
 	parts := strings.SplitN(slug, "/", 3) // owner/repo or owner/repo/path
 
 	if len(parts) < 2 {
-
 		return fmt.Errorf("uses %q must be in owner/repo@ref format", uses)
 	}
 
@@ -67,7 +60,6 @@ func ValidateUsesRef(uses string) error {
 	repo := parts[1]
 
 	if owner == "" || repo == "" {
-
 		return fmt.Errorf("uses %q has empty owner or repo name", uses)
 	}
 

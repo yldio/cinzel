@@ -21,7 +21,6 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 	for _, a := range actions {
 		content, err := parseActionConfig(a, hv, stepMap)
 		if err != nil {
-
 			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
 		}
 
@@ -45,22 +44,18 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 	out := make(map[string]any)
 
 	if err := setOptionalYAMLAttr(out, "_filename", cfg.Filename, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "description", cfg.Description, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "author", cfg.Author, hv); err != nil {
-
 		return nil, err
 	}
 
@@ -68,22 +63,18 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		inputMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(inputMap, "description", input.Description, hv); err != nil {
-
 			return nil, err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "required", input.Required, hv); err != nil {
-
 			return nil, err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "default", input.Default, hv); err != nil {
-
 			return nil, err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "deprecation-message", input.DeprecationMessage, hv); err != nil {
-
 			return nil, err
 		}
 
@@ -95,12 +86,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		outputMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(outputMap, "description", output.Description, hv); err != nil {
-
 			return nil, err
 		}
 
 		if err := setOptionalYAMLAttr(outputMap, "value", output.Value, hv); err != nil {
-
 			return nil, err
 		}
 
@@ -111,7 +100,6 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 	for _, runs := range cfg.Runs {
 		runsMap, err := parseActionRunsConfig(runs, hv, stepMap)
 		if err != nil {
-
 			return nil, err
 		}
 
@@ -122,12 +110,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		brandingMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(brandingMap, "icon", branding.Icon, hv); err != nil {
-
 			return nil, err
 		}
 
 		if err := setOptionalYAMLAttr(brandingMap, "color", branding.Color, hv); err != nil {
-
 			return nil, err
 		}
 
@@ -141,52 +127,42 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 	out := make(map[string]any)
 
 	if err := setOptionalYAMLAttr(out, "using", cfg.Using, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "main", cfg.Main, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "pre", cfg.Pre, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "pre-if", cfg.PreIf, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "post", cfg.Post, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "post-if", cfg.PostIf, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "image", cfg.Image, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "args", cfg.Args, hv); err != nil {
-
 		return nil, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "entrypoint", cfg.Entrypoint, hv); err != nil {
-
 		return nil, err
 	}
 
 	if refs, err := parseReferenceList(cfg.Steps, "step"); err != nil {
-
 		return nil, err
 	} else if len(refs) > 0 {
 		steps := make([]any, 0, len(refs))
@@ -194,7 +170,6 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 		for _, ref := range refs {
 			stepVal, exists := stepMap[ref]
 			if !exists {
-
 				return nil, fmt.Errorf("cannot find step '%s'", ref)
 			}
 
@@ -207,7 +182,6 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 	for _, env := range cfg.Env {
 		key, value, err := parseNamedConfig(env, hv)
 		if err != nil {
-
 			return nil, err
 		}
 

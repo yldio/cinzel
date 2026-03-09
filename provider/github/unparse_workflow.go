@@ -20,7 +20,6 @@ func parseYAMLDocument(content []byte) (map[string]any, error) {
 	var doc map[string]any
 
 	if err := yaml.Unmarshal(content, &doc); err != nil {
-
 		return nil, err
 	}
 
@@ -28,20 +27,16 @@ func parseYAMLDocument(content []byte) (map[string]any, error) {
 }
 
 func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, error) {
-
 	if len(doc) == 0 {
-
 		return nil, nil
 	}
 
 	workflowDoc, isWorkflow, err := ghworkflow.NewYAMLDocument(doc, maputil.ToStringAnyMap)
 	if err != nil {
-
 		return nil, err
 	}
 
 	if isWorkflow {
-
 		return &workflowDoc, nil
 	}
 
@@ -49,9 +44,7 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 }
 
 func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error) {
-
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
-
 		return nil, err
 	}
 
@@ -59,18 +52,15 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error)
 	generatedVariables := map[string]any{}
 
 	if len(doc.Jobs) == 0 {
-
 		return nil, errors.New("workflow must define at least one job in 'jobs'")
 	}
 
 	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs)
 	if err != nil {
-
 		return nil, err
 	}
 
 	if err := writeWorkflowMetadata(workflowBody, doc); err != nil {
-
 		return nil, err
 	}
 
@@ -79,17 +69,14 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error)
 	}
 
 	if err := writeReferenceListAttribute(workflowBody, "jobs", "job", jobRefs); err != nil {
-
 		return nil, err
 	}
 
 	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, generatedVariables); err != nil {
-
 		return nil, err
 	}
 
 	if err := writeGeneratedVariables(root, generatedVariables); err != nil {
-
 		return nil, err
 	}
 
@@ -100,11 +87,9 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 	stepRefs := []string{}
 
 	for _, key := range sortedKeys(job) {
-
 		if key == "steps" {
 			refs, err := writeJobSteps(root, jobID, job[key])
 			if err != nil {
-
 				return err
 			}
 
@@ -117,19 +102,16 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 		}
 
 		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, generatedVariables, &stepRefs); err != nil {
-
 			return err
 		}
 	}
 
 	if len(stepRefs) > 0 {
-
 		if len(jobBody.Attributes()) > 0 || len(jobBody.Blocks()) > 0 {
 			jobBody.AppendNewline()
 		}
 
 		if err := writeReferenceListAttribute(jobBody, "steps", "step", stepRefs); err != nil {
-
 			return err
 		}
 	}
@@ -141,7 +123,6 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 	services, ok := toStringAnyMap(raw)
 
 	if !ok {
-
 		return errors.New("services must be an object")
 	}
 
@@ -149,7 +130,6 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 		svcVal, ok := toStringAnyMap(services[serviceName])
 
 		if !ok {
-
 			return fmt.Errorf("service '%s' must be an object", serviceName)
 		}
 
@@ -161,17 +141,14 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 			switch key {
 			case "env":
 				if err := writeNameValueBlocks(serviceBody, "env", value); err != nil {
-
 					return err
 				}
 			case "credentials":
 				if err := writeNestedMapAsBlock(serviceBody, key, value); err != nil {
-
 					return err
 				}
 			default:
 				if err := writeAttributeAny(serviceBody, toHCLKey(key), value); err != nil {
-
 					return err
 				}
 			}
@@ -186,26 +163,21 @@ func writeRunsOn(body *hclwrite.Body, raw any) error {
 	blockBody := block.Body()
 
 	if str, ok := raw.(string); ok {
-
 		return writeAttributeAny(blockBody, "runners", str)
 	}
 
 	if list, ok := raw.([]any); ok {
-
 		return writeAttributeAny(blockBody, "runners", list)
 	}
 
 	mapping, ok := toStringAnyMap(raw)
 
 	if !ok {
-
 		return errors.New("runs-on must be a string, list, or an object")
 	}
 
 	for _, key := range sortedKeys(mapping) {
-
 		if err := writeAttributeAny(blockBody, toHCLKey(key), mapping[key]); err != nil {
-
 			return err
 		}
 	}
@@ -214,31 +186,25 @@ func writeRunsOn(body *hclwrite.Body, raw any) error {
 }
 
 func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any) error {
-
 	if blockType == "env" {
-
 		return writeNameValueBlocks(body, "env", raw)
 	}
 
 	if blockType == "with" {
-
 		return writeNameValueBlocks(body, "with", raw)
 	}
 
 	if blockType == "output" || blockType == "outputs" {
-
 		return writeNameValueBlocks(body, "output", raw)
 	}
 
 	if blockType == "secret" || blockType == "secrets" {
-
 		return writeNameValueBlocks(body, "secret", raw)
 	}
 
 	mapping, ok := toStringAnyMap(raw)
 
 	if !ok {
-
 		return writeAttributeAny(body, toHCLKey(blockType), raw)
 	}
 
@@ -249,16 +215,13 @@ func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any) error
 		value := mapping[key]
 
 		if nestedMap, isMap := toStringAnyMap(value); isMap {
-
 			if err := writeNestedMapAsBlock(blockBody, key, nestedMap); err != nil {
-
 				return err
 			}
 			continue
 		}
 
 		if err := writeAttributeAny(blockBody, toHCLKey(key), value); err != nil {
-
 			return err
 		}
 	}
@@ -270,7 +233,6 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error 
 	mapping, ok := toStringAnyMap(raw)
 
 	if !ok {
-
 		return fmt.Errorf("%s must be an object", blockType)
 	}
 
@@ -279,12 +241,10 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error 
 		blockBody := block.Body()
 
 		if err := writeAttributeAny(blockBody, "name", key); err != nil {
-
 			return err
 		}
 
 		if err := writeAttributeAny(blockBody, "value", mapping[key]); err != nil {
-
 			return err
 		}
 	}
@@ -295,7 +255,6 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error 
 func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 	ctyValue, err := anyToCty(raw)
 	if err != nil {
-
 		return err
 	}
 
@@ -305,9 +264,7 @@ func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 }
 
 func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, refs []string) error {
-
 	if len(refs) == 0 {
-
 		return nil
 	}
 
@@ -331,7 +288,6 @@ func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, 
 }
 
 func traversalTokens(root string, attr string) hclwrite.Tokens {
-
 	return hclwrite.Tokens{
 		{Type: hclsyntax.TokenIdent, Bytes: []byte(fmt.Sprintf("%s.%s", root, attr))},
 	}
@@ -340,14 +296,12 @@ func traversalTokens(root string, attr string) hclwrite.Tokens {
 func stepFromMap(value map[string]any) (step.Step, error) {
 	ctyValue, err := anyToCty(value)
 	if err != nil {
-
 		return step.Step{}, err
 	}
 
 	var s step.Step
 
 	if err := s.PreDecode(ctyValue); err != nil {
-
 		return step.Step{}, err
 	}
 
@@ -380,9 +334,7 @@ func normalizeNeeds(raw any, jobIDMap map[string]string) ([]string, error) {
 	list, ok := raw.([]any)
 
 	if !ok {
-
 		if one, ok := raw.(string); ok {
-
 			return []string{jobIDMapOrSanitized(one, jobIDMap)}, nil
 		}
 
@@ -395,7 +347,6 @@ func normalizeNeeds(raw any, jobIDMap map[string]string) ([]string, error) {
 		name, ok := item.(string)
 
 		if !ok {
-
 			return nil, errors.New("'needs' entries must be strings")
 		}
 
@@ -406,9 +357,7 @@ func normalizeNeeds(raw any, jobIDMap map[string]string) ([]string, error) {
 }
 
 func jobIDMapOrSanitized(name string, ids map[string]string) string {
-
 	if v, ok := ids[name]; ok {
-
 		return v
 	}
 
@@ -416,31 +365,25 @@ func jobIDMapOrSanitized(name string, ids map[string]string) string {
 }
 
 func toStringAnyMap(value any) (map[string]any, bool) {
-
 	return maputil.ToStringAnyMap(value)
 }
 
 func sortedKeys[T any](mapping map[string]T) []string {
-
 	return maputil.SortedKeys(mapping)
 }
 
 func sanitizeIdentifier(in string) string {
-
 	return naming.SanitizeIdentifier(in)
 }
 
 func uniqueIdentifier(base string, existing []string) string {
-
 	return naming.UniqueIdentifier(base, existing)
 }
 
 func uniqueIdentifierInSet(base string, existing map[string]struct{}) string {
-
 	return naming.UniqueIdentifierInSet(base, existing)
 }
 
 func toHCLKey(name string) string {
-
 	return naming.ToHCLKey(name)
 }

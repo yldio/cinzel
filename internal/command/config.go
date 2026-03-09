@@ -35,7 +35,6 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 
 	conf, warnings, err := loadProviderCommandConfig(configFilename, providerName, commandName)
 	if err != nil {
-
 		return provider.ProviderOps{}, nil, err
 	}
 
@@ -46,7 +45,6 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 	hasCLIFileInput := cmd.IsSet("file") || cmd.IsSet("directory")
 
 	if !hasCLIFileInput {
-
 		if conf.hasFile {
 			opts.File = conf.file
 		}
@@ -62,9 +60,7 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 func loadProviderCommandConfig(path string, providerName string, commandName string) (providerCommandConfig, []string, error) {
 	configBytes, err := os.ReadFile(path)
 	if err != nil {
-
 		if os.IsNotExist(err) {
-
 			return providerCommandConfig{}, nil, nil
 		}
 
@@ -74,19 +70,16 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	var doc yaml.Node
 
 	if err := yaml.Unmarshal(configBytes, &doc); err != nil {
-
 		return providerCommandConfig{}, nil, fmt.Errorf("invalid %s: %w", path, err)
 	}
 
 	if len(doc.Content) == 0 {
-
 		return providerCommandConfig{}, nil, nil
 	}
 
 	root := doc.Content[0]
 
 	if root.Kind != yaml.MappingNode {
-
 		return providerCommandConfig{}, nil, fmt.Errorf("%s must contain a YAML mapping", path)
 	}
 
@@ -94,12 +87,10 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	providerNode := findMappingValue(root, providerName)
 
 	if providerNode == nil {
-
 		return providerCommandConfig{}, warnings, nil
 	}
 
 	if providerNode.Kind != yaml.MappingNode {
-
 		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s must be a mapping", path, providerName)
 	}
 
@@ -120,7 +111,6 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	}
 
 	if commandNode.Kind != yaml.MappingNode {
-
 		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s must be a mapping", path, providerName, commandName)
 	}
 
@@ -133,33 +123,28 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 		switch keyNode.Value {
 		case "file":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.file must be string", path, providerName, commandName)
 			}
 			config.file = valueNode.Value
 			config.hasFile = true
 		case "directory":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.directory must be string", path, providerName, commandName)
 			}
 			config.directory = valueNode.Value
 			config.hasDirectory = true
 		case "output-directory":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.output-directory must be string", path, providerName, commandName)
 			}
 			config.outputDirectory = valueNode.Value
 			config.hasOutputDir = true
 		case "single-file":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
-
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.single-file must be boolean", path, providerName, commandName)
 			}
 		case "filename":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.filename must be string", path, providerName, commandName)
 			}
 		default:
@@ -168,7 +153,6 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	}
 
 	if config.hasFile && config.hasDirectory {
-
 		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s cannot set both file and directory", path, providerName, commandName)
 	}
 
@@ -178,11 +162,8 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 }
 
 func findMappingValue(n *yaml.Node, key string) *yaml.Node {
-
 	for i := 0; i < len(n.Content); i += 2 {
-
 		if n.Content[i].Value == key {
-
 			return n.Content[i+1]
 		}
 	}

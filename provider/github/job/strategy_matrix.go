@@ -27,20 +27,16 @@ func NormalizeStrategyMatrix(matrix map[string]any) (map[string]any, error) {
 	raw, hasVariables := matrix["variable"]
 
 	if !hasVariables {
-
 		return matrix, nil
 	}
 
 	variables, err := matrixVariablesFromRaw(raw)
 	if err != nil {
-
 		return nil, err
 	}
 
 	for _, variable := range variables {
-
 		if _, exists := matrix[variable.Name]; exists {
-
 			return nil, fmt.Errorf("strategy.matrix contains duplicate key '%s'", variable.Name)
 		}
 
@@ -70,14 +66,11 @@ func matrixVariablesFromRaw(raw any) ([]MatrixVariable, error) {
 		value, valueOK := entry["value"]
 
 		if nameOK || valueOK {
-
 			if !nameOK || name == "" {
-
 				return nil, errors.New("strategy.matrix.variable entries require a non-empty name")
 			}
 
 			if !valueOK {
-
 				return nil, errors.New("strategy.matrix.variable entries require a value")
 			}
 
@@ -101,13 +94,11 @@ func matrixVariablesFromRaw(raw any) ([]MatrixVariable, error) {
 			entry, ok := maputil.ToStringAnyMap(item)
 
 			if !ok {
-
 				return nil, errors.New("strategy.matrix.variable entries must be objects")
 			}
 
 			normalized, err := toVariables(entry)
 			if err != nil {
-
 				return nil, err
 			}
 

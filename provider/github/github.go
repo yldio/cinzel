@@ -47,19 +47,16 @@ func (p *GitHub) GetUnparseDescription() string { return unparseDesc }
 func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	inputPath, err := resolveInputPath(opts)
 	if err != nil {
-
 		return err
 	}
 
 	body, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
 	if err != nil {
-
 		return err
 	}
 
 	workflows, stepMap, actions, err := parseHCLToWorkflows(body)
 	if err != nil {
-
 		return err
 	}
 
@@ -68,7 +65,6 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	if len(workflows) == 0 && len(actions) == 0 {
 		outputBytes, err := yaml.Marshal(stepMap)
 		if err != nil {
-
 			return err
 		}
 
@@ -87,7 +83,6 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	for _, workflowFile := range workflows {
 		outputBytes, err := marshalWorkflowYAML(workflowFile.Content)
 		if err != nil {
-
 			return err
 		}
 
@@ -100,7 +95,6 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		}
 
 		if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-
 			return err
 		}
 	}
@@ -108,7 +102,6 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	for _, actionFile := range actions {
 		outputBytes, err := marshalWorkflowYAML(actionFile.Content)
 		if err != nil {
-
 			return err
 		}
 
@@ -121,7 +114,6 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		}
 
 		if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-
 			return err
 		}
 	}
@@ -133,18 +125,15 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	inputPath, err := resolveInputPath(opts)
 	if err != nil {
-
 		return err
 	}
 
 	files, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
 	if err != nil {
-
 		return err
 	}
 
 	if len(files) == 0 {
-
 		return errNoYAMLFiles
 	}
 
@@ -153,7 +142,6 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
-
 			return err
 		}
 
@@ -161,7 +149,6 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		hclBytes, err := unparseYAMLFile(yamlBytes, baseName)
 		if err != nil {
-
 			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
 
@@ -178,7 +165,6 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 		}
 
 		if err := fsutil.WriteFile(outputPath, hclBytes); err != nil {
-
 			return err
 		}
 	}
@@ -192,34 +178,28 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
 	doc, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
-
 		return nil, err
 	}
 
 	workflowDoc, err := classifyWorkflowDocument(doc)
 	if err != nil {
-
 		return nil, err
 	}
 
 	if workflowDoc != nil {
-
 		return workflowToHCL(*workflowDoc, baseName)
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
-
 		return actionToHCL(actionDoc, baseName)
 	}
 
 	steps, err := parseStepsFromYAML(yamlBytes)
 	if err != nil {
-
 		return nil, err
 	}
 
 	if len(steps) == 0 {
-
 		return nil, nil
 	}
 
@@ -227,9 +207,7 @@ func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
 	body := f.Body()
 
 	for _, s := range steps {
-
 		if err := s.Decode(body, "step"); err != nil {
-
 			return nil, err
 		}
 	}

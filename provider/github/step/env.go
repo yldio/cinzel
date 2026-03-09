@@ -11,7 +11,6 @@ import (
 )
 
 func (s *Step) parseEnv(value cty.Value) error {
-
 	if value.Type().IsObjectType() {
 		s.Env = value
 
@@ -22,9 +21,7 @@ func (s *Step) parseEnv(value cty.Value) error {
 }
 
 func (config *StepConfig) parseEnv(hv *hclparser.HCLVars) (cty.Value, error) {
-
 	if config.Env == nil {
-
 		return cty.NilVal, nil
 	}
 

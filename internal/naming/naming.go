@@ -11,9 +11,7 @@ import (
 
 // SanitizeIdentifier replaces non-alphanumeric characters with underscores and ensures a valid identifier.
 func SanitizeIdentifier(in string) string {
-
 	if in == "" {
-
 		return ""
 	}
 
@@ -21,7 +19,6 @@ func SanitizeIdentifier(in string) string {
 	b.Grow(len(in))
 
 	for _, r := range in {
-
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
 			b.WriteRune(r)
 			continue
@@ -33,12 +30,10 @@ func SanitizeIdentifier(in string) string {
 	out := b.String()
 
 	if out == "" {
-
 		return ""
 	}
 
 	if unicode.IsDigit(rune(out[0])) {
-
 		return "_" + out
 	}
 
@@ -58,9 +53,7 @@ func UniqueIdentifier(base string, existing []string) string {
 
 // UniqueIdentifierInSet returns base or a suffixed variant not present in the existing set.
 func UniqueIdentifierInSet(base string, existing map[string]struct{}) string {
-
 	if _, ok := existing[base]; !ok {
-
 		return base
 	}
 
@@ -70,7 +63,6 @@ func UniqueIdentifierInSet(base string, existing map[string]struct{}) string {
 		candidate := fmt.Sprintf("%s_%d", base, idx)
 
 		if _, ok := existing[candidate]; !ok {
-
 			return candidate
 		}
 
@@ -80,12 +72,10 @@ func UniqueIdentifierInSet(base string, existing map[string]struct{}) string {
 
 // ToHCLKey converts a name to an HCL-compatible key by replacing hyphens with underscores.
 func ToHCLKey(name string) string {
-
 	return strings.ReplaceAll(name, "-", "_")
 }
 
 // ToYAMLKey converts a name to a YAML-compatible key by replacing underscores with hyphens.
 func ToYAMLKey(name string) string {
-
 	return strings.ReplaceAll(name, "_", "-")
 }

@@ -10,21 +10,18 @@ import (
 
 func TestValidatePermissions(t *testing.T) {
 	t.Run("nil is valid", func(t *testing.T) {
-
 		if err := ValidatePermissions(nil); err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("read-all shorthand", func(t *testing.T) {
-
 		if err := ValidatePermissions("read-all"); err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("write-all shorthand", func(t *testing.T) {
-
 		if err := ValidatePermissions("write-all"); err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +79,6 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("empty map is valid", func(t *testing.T) {
-
 		if err := ValidatePermissions(map[string]any{}); err != nil {
 			t.Fatal(err)
 		}

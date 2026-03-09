@@ -20,19 +20,16 @@ type HCLParser struct {
 
 // Variables returns the variable store used by this parser.
 func (hp *HCLParser) Variables() *HCLVars {
-
 	return hp.variables
 }
 
 // Result returns the evaluated cty value after Parse has been called.
 func (hp *HCLParser) Result() cty.Value {
-
 	return hp.result
 }
 
 // New creates an HCLParser for the given expression and variable store.
 func New(expression hcl.Expression, hv *HCLVars) *HCLParser {
-
 	return &HCLParser{
 		variables:  hv,
 		expression: expression,
@@ -48,7 +45,6 @@ func (hp *HCLParser) Parse() error {
 	}
 
 	if expression.IsNull() {
-
 		return nil
 	}
 
@@ -56,7 +52,6 @@ func (hp *HCLParser) Parse() error {
 	case *hclsyntax.LiteralValueExpr:
 		value, err := NewLiteralValueExpr(expType).Parse()
 		if err != nil {
-
 			return err
 		}
 
@@ -67,7 +62,6 @@ func (hp *HCLParser) Parse() error {
 		value, diags := expType.Value(nil)
 
 		if diags.HasErrors() {
-
 			return diags
 		}
 
@@ -77,7 +71,6 @@ func (hp *HCLParser) Parse() error {
 	case *hclsyntax.ScopeTraversalExpr:
 		value, err := NewScopeTraversalExpr(expType, hp.variables).Parse()
 		if err != nil {
-
 			return err
 		}
 
@@ -87,7 +80,6 @@ func (hp *HCLParser) Parse() error {
 	case *hclsyntax.TemplateExpr:
 		value, err := NewTemplateExpr(expType).Parse()
 		if err != nil {
-
 			return err
 		}
 
@@ -98,7 +90,6 @@ func (hp *HCLParser) Parse() error {
 		value, diags := expType.Value(nil)
 
 		if diags.HasErrors() {
-
 			return diags
 		}
 
@@ -108,7 +99,6 @@ func (hp *HCLParser) Parse() error {
 	case *hclsyntax.BinaryOpExpr:
 		value, err := NewBinaryOpExpr(expType, hp.variables).Parse()
 		if err != nil {
-
 			return err
 		}
 
@@ -119,7 +109,6 @@ func (hp *HCLParser) Parse() error {
 		value, diags := expType.Value(nil)
 
 		if diags.HasErrors() {
-
 			return diags
 		}
 
@@ -130,7 +119,6 @@ func (hp *HCLParser) Parse() error {
 		value, diags := expType.Value(nil)
 
 		if diags.HasErrors() {
-
 			return diags
 		}
 
@@ -141,7 +129,6 @@ func (hp *HCLParser) Parse() error {
 		value, diags := expType.Value(nil)
 
 		if diags.HasErrors() {
-
 			return diags
 		}
 
@@ -151,7 +138,6 @@ func (hp *HCLParser) Parse() error {
 	case *hclsyntax.ObjectConsExpr:
 		value, err := NewExpression(expType).Parse()
 		if err != nil {
-
 			return err
 		}
 
@@ -162,7 +148,6 @@ func (hp *HCLParser) Parse() error {
 		value, diags := expType.Value(nil)
 
 		if diags.HasErrors() {
-
 			return diags
 		}
 

@@ -40,16 +40,12 @@ var validPermissionShorthands = map[string]struct{}{
 // Accepts a string shorthand ("read-all"/"write-all"), an empty map (all none), or
 // a map of scope→level.
 func ValidatePermissions(raw any) error {
-
 	if raw == nil {
-
 		return nil
 	}
 
 	if s, ok := raw.(string); ok {
-
 		if _, valid := validPermissionShorthands[s]; !valid {
-
 			return fmt.Errorf("invalid permissions shorthand %q, expected 'read-all' or 'write-all'", s)
 		}
 
@@ -59,26 +55,21 @@ func ValidatePermissions(raw any) error {
 	m, ok := toStringMap(raw)
 
 	if !ok {
-
 		return fmt.Errorf("permissions must be a string or an object")
 	}
 
 	for scope, levelRaw := range m {
-
 		if _, known := knownPermissionScopes[scope]; !known {
-
 			return fmt.Errorf("unknown permissions scope %q", scope)
 		}
 
 		level, ok := levelRaw.(string)
 
 		if !ok {
-
 			return fmt.Errorf("permissions scope %q must have a string value", scope)
 		}
 
 		if _, valid := validPermissionLevels[level]; !valid {
-
 			return fmt.Errorf("invalid permission level %q for scope %q, expected 'read', 'write', or 'none'", level, scope)
 		}
 	}
@@ -97,7 +88,6 @@ func toStringMap(v any) (map[string]any, bool) {
 			ks, ok := k.(string)
 
 			if !ok {
-
 				return nil, false
 			}
 			out[ks] = v

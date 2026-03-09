@@ -66,10 +66,9 @@ provider/
 - Sentinel errors live in `errors.go` within each package. Use `errCamelCase` naming.
 - No `testify` or assertion libraries — tests use stdlib `testing` only.
 - Prefer visual separation between logic blocks:
-  - Add an empty line before `return` statements.
-  - Add an empty line before `if` statements, except immediate error-guard `if err != nil` / diagnostics guards.
-  - Add an empty line before `for` loops, except when tightly coupled to the line above (for example `switch`/`case` flows).
-  - Separate most adjacent code blocks with a blank line unless tightly coupled (for example `switch`/`case` flows).
+  - Add an empty line before `return`, non-error-guard `if`, and `for` when they are not the first statement in their current block.
+  - Do not add a blank line before those statements when they are the first statement in the current block (`func`, `if`/`else`, `for`, `switch`/`case`, or nested block).
+  - Keep adjacent logical blocks separated by one blank line, except tightly coupled `switch`/`case` style flows.
 
 ### HCL <-> YAML conversion
 

@@ -18,7 +18,6 @@ type BinaryOpExpr struct {
 
 // NewBinaryOpExpr creates a BinaryOpExpr for the given expression and variable store.
 func NewBinaryOpExpr(expression *hclsyntax.BinaryOpExpr, hv *HCLVars) *BinaryOpExpr {
-
 	return &BinaryOpExpr{
 		variables:  hv,
 		expression: expression,
@@ -29,13 +28,11 @@ func NewBinaryOpExpr(expression *hclsyntax.BinaryOpExpr, hv *HCLVars) *BinaryOpE
 func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 	lhs, err := boe.parseLHS()
 	if err != nil {
-
 		return cty.NilVal, err
 	}
 
 	rhs, err := boe.parseRHS()
 	if err != nil {
-
 		return cty.NilVal, err
 	}
 
@@ -57,7 +54,6 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 		return cty.NumberIntVal(lVal * rVal), nil
 	case hclsyntax.OpDivide:
 		if rhs.IsNull() || rhs.AsBigFloat().Sign() == 0 {
-
 			return cty.NilVal, fmt.Errorf("division by zero")
 		}
 
@@ -83,12 +79,10 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 }
 
 func (boe *BinaryOpExpr) parseLHS() (cty.Value, error) {
-
 	return parseExpression(boe.expression.LHS, boe.variables)
 }
 
 func (boe *BinaryOpExpr) parseRHS() (cty.Value, error) {
-
 	return parseExpression(boe.expression.RHS, boe.variables)
 }
 
@@ -100,7 +94,6 @@ func parseExpression(expr hclsyntax.Expression, hv *HCLVars) (cty.Value, error) 
 		val, diags := e.Value(nil)
 
 		if diags.HasErrors() {
-
 			return cty.NilVal, diags
 		}
 

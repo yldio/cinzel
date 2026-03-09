@@ -17,7 +17,6 @@ func ToStringAnyMap(value any) (map[string]any, bool) {
 			ks, ok := k.(string)
 
 			if !ok {
-
 				return nil, false
 			}
 

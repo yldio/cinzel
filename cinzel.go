@@ -29,7 +29,6 @@ func run(writer io.Writer, v string) error {
 }
 
 func main() {
-
 	if err := run(os.Stdout, version); err != nil {
 		os.Exit(1)
 	}

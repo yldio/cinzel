@@ -17,7 +17,6 @@ import (
 func Marshal[T any](input T) ([]byte, error) {
 	converted, err := Convert(input)
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -26,16 +25,12 @@ func Marshal[T any](input T) ([]byte, error) {
 
 // Convert transforms a typed value into a plain any suitable for YAML marshaling.
 func Convert[T any](input T) (any, error) {
-
 	return convert(reflect.ValueOf(input))
 }
 
 func convert(val reflect.Value) (any, error) {
-
 	if val.Kind() == reflect.Pointer {
-
 		if val.IsNil() {
-
 			return nil, nil
 		}
 
@@ -78,14 +73,12 @@ func convert(val reflect.Value) (any, error) {
 				// types via go-yaml so the rest of the pipeline handles it uniformly.
 				yamlBytes, err := ctyyaml.Marshal(ctyVal)
 				if err != nil {
-
 					return nil, err
 				}
 
 				var value any
 
 				if err := yaml.Unmarshal(yamlBytes, &value); err != nil {
-
 					return nil, err
 				}
 
@@ -93,7 +86,6 @@ func convert(val reflect.Value) (any, error) {
 			} else {
 				convertedValue, err := convert(field)
 				if err != nil {
-
 					return nil, err
 				}
 
@@ -111,7 +103,6 @@ func convert(val reflect.Value) (any, error) {
 		for i := range val.Len() {
 			elem, err := convert(val.Index(i))
 			if err != nil {
-
 				return nil, err
 			}
 			list = append(list, elem)
@@ -125,7 +116,6 @@ func convert(val reflect.Value) (any, error) {
 		for _, key := range val.MapKeys() {
 			value, err := convert(val.MapIndex(key))
 			if err != nil {
-
 				return nil, err
 			}
 			result[key.Interface()] = value
@@ -135,7 +125,6 @@ func convert(val reflect.Value) (any, error) {
 
 	default:
 		if val.CanInterface() {
-
 			return val.Interface(), nil
 		}
 
@@ -144,9 +133,7 @@ func convert(val reflect.Value) (any, error) {
 }
 
 func stripTag(tag string) string {
-
 	if tag == "" {
-
 		return tag
 	}
 

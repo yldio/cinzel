@@ -61,7 +61,6 @@ func TestDefaultOutputDirectories(t *testing.T) {
 }
 
 func TestResolveInputPathValidation(t *testing.T) {
-
 	if _, err := resolveInputPath(provider.ProviderOps{}); err == nil {
 		t.Fatal("expected error when file and directory are empty")
 	}
@@ -192,7 +191,6 @@ include {
 	}
 
 	for _, check := range checks {
-
 		if !strings.Contains(out, check) {
 			t.Fatalf("expected output to contain %q, got:\n%s", check, out)
 		}
@@ -304,7 +302,6 @@ test:
 	}
 
 	for _, check := range checks {
-
 		if !strings.Contains(out, check) {
 			t.Fatalf("expected output to contain %q, got:\n%s", check, out)
 		}

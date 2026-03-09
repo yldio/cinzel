@@ -15,7 +15,6 @@ type LiteralValueExpr struct {
 
 // NewLiteralValueExpr creates a LiteralValueExpr for the given HCL literal.
 func NewLiteralValueExpr(expression *hclsyntax.LiteralValueExpr) *LiteralValueExpr {
-
 	return &LiteralValueExpr{
 		expression: expression,
 	}
@@ -23,6 +22,5 @@ func NewLiteralValueExpr(expression *hclsyntax.LiteralValueExpr) *LiteralValueEx
 
 // Parse returns the literal's cty value directly.
 func (lve *LiteralValueExpr) Parse() (cty.Value, error) {
-
 	return lve.expression.Val, nil
 }

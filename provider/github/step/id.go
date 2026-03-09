@@ -17,7 +17,6 @@ func (s *Step) parseId(value cty.Value) error {
 		re := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
 
 		if !re.MatchString(value.AsString()) {
-
 			return fmt.Errorf("unsupported type, expected string that must start with a letter or _ and contain only alphanumeric characters, -, or _")
 		}
 
@@ -33,7 +32,6 @@ func (config *StepConfig) parseId(hv *hclparser.HCLVars) (cty.Value, error) {
 	hp := hclparser.New(config.Id, hv)
 
 	if err := hp.Parse(); err != nil {
-
 		return cty.NilVal, err
 	}
 

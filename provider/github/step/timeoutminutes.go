@@ -17,14 +17,12 @@ func (s *Step) parseTimeoutMinutes(value cty.Value) error {
 		bf := value.AsBigFloat()
 
 		if !bf.IsInt() {
-
 			return fmt.Errorf("unsupported type, expected positive number")
 		}
 
 		intVal, acc := bf.Uint64()
 
 		if acc != big.Exact {
-
 			return fmt.Errorf("unsupported type, expected positive number")
 		}
 
@@ -40,7 +38,6 @@ func (config *StepConfig) parseTimeoutMinutes(hv *hclparser.HCLVars) (cty.Value,
 	hp := hclparser.New(config.TimeoutMinutes, hv)
 
 	if err := hp.Parse(); err != nil {
-
 		return cty.NilVal, err
 	}
 

@@ -18,9 +18,7 @@ type VariableConfig struct {
 
 // Parse registers all variable values into the given HCLVars store.
 func (config *VariablesConfig) Parse(hv *HCLVars) error {
-
 	if config == nil {
-
 		return nil
 	}
 

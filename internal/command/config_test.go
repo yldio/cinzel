@@ -31,13 +31,9 @@ func (p *captureProvider) Unparse(opts provider.ProviderOps) error {
 
 	return nil
 }
-
-func (p *captureProvider) GetProviderName() string { return "github" }
-
-func (p *captureProvider) GetDescription() string { return "github" }
-
-func (p *captureProvider) GetParseDescription() string { return "parse" }
-
+func (p *captureProvider) GetProviderName() string       { return "github" }
+func (p *captureProvider) GetDescription() string        { return "github" }
+func (p *captureProvider) GetParseDescription() string   { return "parse" }
 func (p *captureProvider) GetUnparseDescription() string { return "unparse" }
 
 func TestConfigSetsParseOutputDirectory(t *testing.T) {
@@ -394,7 +390,6 @@ func withTempWorkingDir(t *testing.T, fn func()) {
 	}
 
 	t.Cleanup(func() {
-
 		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
 			t.Fatalf("Chdir(%q) restore error = %v", originalDir, chdirErr)
 		}

@@ -53,7 +53,6 @@ func (config *UsesConfig) parseAction(hv *hclparser.HCLVars) (cty.Value, error) 
 	hp := hclparser.New(config.Action, hv)
 
 	if err := hp.Parse(); err != nil {
-
 		return cty.NilVal, err
 	}
 
@@ -64,7 +63,6 @@ func (config *UsesConfig) parseVersion(hv *hclparser.HCLVars) (cty.Value, error)
 	hp := hclparser.New(config.Version, hv)
 
 	if err := hp.Parse(); err != nil {
-
 		return cty.NilVal, err
 	}
 
@@ -73,14 +71,11 @@ func (config *UsesConfig) parseVersion(hv *hclparser.HCLVars) (cty.Value, error)
 
 // Parse resolves the uses block into a single "action@version" cty string value.
 func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
-
 	if config == nil {
-
 		return cty.NilVal, nil
 	}
 
 	if len(*config) != 1 {
-
 		return cty.NilVal, errors.New("should only exist one uses")
 	}
 
@@ -90,31 +85,24 @@ func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 
 	action, err := c.parseAction(hv)
 	if err != nil {
-
 		return cty.NilVal, err
 	}
 
 	if action != cty.NilVal {
-
 		if err := parsedUses.parseAction(action); err != nil {
-
 			return cty.NilVal, err
 		}
 	} else {
-
 		return cty.NilVal, errors.New("action must be set")
 	}
 
 	version, err := c.parseVersion(hv)
 	if err != nil {
-
 		return cty.NilVal, err
 	}
 
 	if version != cty.NilVal {
-
 		if err := parsedUses.parseVersion(version); err != nil {
-
 			return cty.NilVal, err
 		}
 	}

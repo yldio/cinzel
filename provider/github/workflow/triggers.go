@@ -34,14 +34,11 @@ var onEventBlockRuleIndex = buildOnEventBlockRuleIndex(onEventBlockRules)
 
 // NormalizeOnEvent applies rename rules to an event's configuration map (e.g. input to inputs).
 func NormalizeOnEvent(event string, value map[string]any) map[string]any {
-
 	if len(value) == 0 {
-
 		return value
 	}
 
 	for from, to := range triggerRenameIndex[event] {
-
 		if v, ok := value[from]; ok {
 			value[to] = v
 			delete(value, from)
@@ -56,14 +53,12 @@ func TriggerBlockTypeForEventKey(event string, key string) (string, bool) {
 	rules, ok := onEventBlockRuleIndex[event]
 
 	if !ok {
-
 		return "", false
 	}
 
 	blockType, ok := rules[key]
 
 	if ok {
-
 		return blockType, true
 	}
 
@@ -74,7 +69,6 @@ func buildTriggerRenameIndex(rules []triggerRenameRule) map[string]map[string]st
 	index := make(map[string]map[string]string)
 
 	for _, rule := range rules {
-
 		if _, ok := index[rule.event]; !ok {
 			index[rule.event] = make(map[string]string)
 		}
@@ -89,7 +83,6 @@ func buildOnEventBlockRuleIndex(rules []onEventBlockRule) map[string]map[string]
 	index := make(map[string]map[string]string)
 
 	for _, rule := range rules {
-
 		if _, ok := index[rule.event]; !ok {
 			index[rule.event] = make(map[string]string)
 		}

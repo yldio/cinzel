@@ -12,7 +12,6 @@ type Writer struct{}
 
 // New returns a new Writer instance.
 func New() *Writer {
-
 	return &Writer{}
 }
 
@@ -20,7 +19,6 @@ func New() *Writer {
 func (writer *Writer) Do(filePath string, content []byte) error {
 	file, err := os.Create(filePath)
 	if err != nil {
-
 		return err
 	}
 
@@ -28,7 +26,6 @@ func (writer *Writer) Do(filePath string, content []byte) error {
 
 	_, err = file.Write(content)
 	if err != nil {
-
 		return err
 	}
 

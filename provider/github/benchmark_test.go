@@ -31,7 +31,6 @@ func BenchmarkParseWorkflow(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if err := p.Parse(provider.ProviderOps{File: input, OutputDirectory: outputDir}); err != nil {
 			b.Fatal(err)
 		}
@@ -47,7 +46,6 @@ func BenchmarkUnparseWorkflow(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if err := p.Unparse(provider.ProviderOps{File: input, OutputDirectory: outputDir}); err != nil {
 			b.Fatal(err)
 		}
@@ -65,7 +63,6 @@ func BenchmarkRoundtripWorkflow(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if err := p.Parse(provider.ProviderOps{File: inputHCL, OutputDirectory: parseDir}); err != nil {
 			b.Fatal(err)
 		}
@@ -154,7 +151,6 @@ func BenchmarkWorkflowToHCLInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-
 		if _, err := workflowToHCL(*doc, "workflow_call"); err != nil {
 			b.Fatal(err)
 		}

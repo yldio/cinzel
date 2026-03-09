@@ -13,7 +13,6 @@ import (
 func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 	ctyValue, err := anyToCty(raw)
 	if err != nil {
-
 		return err
 	}
 
@@ -23,9 +22,7 @@ func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 }
 
 func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, refs []string) error {
-
 	if len(refs) == 0 {
-
 		return nil
 	}
 
@@ -47,14 +44,11 @@ func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, 
 }
 
 func writeScopedReferenceListAttribute(body *hclwrite.Body, attr string, roots []string, refs []string) error {
-
 	if len(roots) != len(refs) {
-
 		return fmt.Errorf("reference roots and refs length mismatch")
 	}
 
 	if len(refs) == 0 {
-
 		return nil
 	}
 

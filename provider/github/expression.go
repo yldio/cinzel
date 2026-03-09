@@ -11,9 +11,7 @@ import (
 // validateExpressions walks the workflow map and checks all string values
 // for well-formed ${{ }} expressions (balanced delimiters, non-empty body).
 func validateExpressions(workflow map[string]any) error {
-
 	return walkStrings(workflow, "", func(path, value string) error {
-
 		return validateExpressionSyntax(path, value)
 	})
 }
@@ -34,14 +32,12 @@ func validateExpressionSyntax(path, s string) error {
 		end := strings.Index(after, "}}")
 
 		if end < 0 {
-
 			return fmt.Errorf("%s: unclosed expression '${{' (missing '}}') in %q", path, s)
 		}
 
 		body := strings.TrimSpace(after[:end])
 
 		if body == "" {
-
 			return fmt.Errorf("%s: empty expression '${{ }}' in %q", path, s)
 		}
 
@@ -62,9 +58,7 @@ func validateExpressionSyntax(path, s string) error {
 		if openIdx < 0 || closeIdx < openIdx {
 			// }} appears before any ${{ — could be a false positive in non-expression contexts.
 			// Only flag if the string contains at least one ${{ somewhere.
-
 			if strings.Contains(s, "${{") {
-
 				return fmt.Errorf("%s: orphaned '}}' without matching '${{' in %q", path, s)
 			}
 			break
@@ -96,7 +90,6 @@ func walkStrings(v any, path string, fn func(path, value string) error) error {
 			}
 
 			if err := walkStrings(child, childPath, fn); err != nil {
-
 				return err
 			}
 		}
@@ -105,7 +98,6 @@ func walkStrings(v any, path string, fn func(path, value string) error) error {
 			childPath := fmt.Sprintf("%s[%d]", path, i)
 
 			if err := walkStrings(child, childPath, fn); err != nil {
-
 				return err
 			}
 		}

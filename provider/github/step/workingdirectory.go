@@ -25,7 +25,6 @@ func (config *StepConfig) parseWorkingDirectory(hv *hclparser.HCLVars) (cty.Valu
 	hp := hclparser.New(config.WorkingDirectory, hv)
 
 	if err := hp.Parse(); err != nil {
-
 		return cty.NilVal, err
 	}
 

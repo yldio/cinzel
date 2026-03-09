@@ -23,7 +23,6 @@ func TestListFilesWithExtensions(t *testing.T) {
 	}
 
 	for _, f := range []string{rootYAML, nestedYML, other} {
-
 		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}

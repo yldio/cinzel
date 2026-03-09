@@ -14,9 +14,7 @@ import (
 // classifyActionDocument checks whether a pre-parsed YAML map looks like a
 // GitHub Action definition. Returns the map if so, nil otherwise.
 func classifyActionDocument(doc map[string]any) map[string]any {
-
 	if isActionDocument(doc) {
-
 		return doc
 	}
 
@@ -35,9 +33,7 @@ func isActionDocument(doc map[string]any) bool {
 }
 
 func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
-
 	if err := validateActionDocument(doc); err != nil {
-
 		return nil, err
 	}
 
@@ -54,13 +50,10 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	var stepRefs []string
 
 	if runs, ok := toStringAnyMap(doc["runs"]); ok {
-
 		if using, _ := runs["using"].(string); using == "composite" {
-
 			if stepsRaw, ok := runs["steps"]; ok {
 				refs, err := writeActionSteps(root, stepsRaw)
 				if err != nil {
-
 					return nil, err
 				}
 				stepRefs = refs
@@ -85,7 +78,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			}
 
 			if err := writeAttributeAny(actionBody, toHCLKey(key), doc[key]); err != nil {
-
 				return nil, err
 			}
 		}
@@ -97,12 +89,10 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		inputs, mapOK := toStringAnyMap(inputsRaw)
 
 		if !mapOK {
-
 			return nil, errors.New("action 'inputs' must be an object")
 		}
 
 		for _, name := range sortedKeys(inputs) {
-
 			if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
 				actionBody.AppendNewline()
 			}
@@ -110,7 +100,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			inputMap, ok := toStringAnyMap(inputs[name])
 
 			if !ok {
-
 				return nil, fmt.Errorf("action input '%s' must be an object", name)
 			}
 
@@ -118,9 +107,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			inputBody := inputBlock.Body()
 
 			for _, attr := range sortedKeys(inputMap) {
-
 				if err := writeAttributeAny(inputBody, toHCLKey(attr), inputMap[attr]); err != nil {
-
 					return nil, err
 				}
 			}
@@ -133,12 +120,10 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		outputs, mapOK := toStringAnyMap(outputsRaw)
 
 		if !mapOK {
-
 			return nil, errors.New("action 'outputs' must be an object")
 		}
 
 		for _, name := range sortedKeys(outputs) {
-
 			if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
 				actionBody.AppendNewline()
 			}
@@ -146,7 +131,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			outputMap, ok := toStringAnyMap(outputs[name])
 
 			if !ok {
-
 				return nil, fmt.Errorf("action output '%s' must be an object", name)
 			}
 
@@ -154,9 +138,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			outputBody := outputBlock.Body()
 
 			for _, attr := range sortedKeys(outputMap) {
-
 				if err := writeAttributeAny(outputBody, toHCLKey(attr), outputMap[attr]); err != nil {
-
 					return nil, err
 				}
 			}
@@ -169,7 +151,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		runsMap, mapOK := toStringAnyMap(runsRaw)
 
 		if !mapOK {
-
 			return nil, errors.New("action 'runs' must be an object")
 		}
 
@@ -181,16 +162,13 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		runsBody := runsBlock.Body()
 
 		for _, key := range sortedKeys(runsMap) {
-
 			if key == "steps" {
 				// Steps are written as top-level step blocks, referenced here.
 				continue
 			}
 
 			if key == "env" {
-
 				if err := writeNameValueBlocks(runsBody, "env", runsMap[key]); err != nil {
-
 					return nil, err
 				}
 				continue
@@ -201,19 +179,16 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			}
 
 			if err := writeAttributeAny(runsBody, toHCLKey(key), runsMap[key]); err != nil {
-
 				return nil, err
 			}
 		}
 
 		if len(stepRefs) > 0 {
-
 			if len(runsBody.Attributes()) > 0 || len(runsBody.Blocks()) > 0 {
 				runsBody.AppendNewline()
 			}
 
 			if err := writeReferenceListAttribute(runsBody, "steps", "step", stepRefs); err != nil {
-
 				return nil, err
 			}
 		}
@@ -225,7 +200,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		brandingMap, mapOK := toStringAnyMap(brandingRaw)
 
 		if !mapOK {
-
 			return nil, errors.New("action 'branding' must be an object")
 		}
 
@@ -237,9 +211,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		brandingBody := brandingBlock.Body()
 
 		for _, attr := range sortedKeys(brandingMap) {
-
 			if err := writeAttributeAny(brandingBody, toHCLKey(attr), brandingMap[attr]); err != nil {
-
 				return nil, err
 			}
 		}
@@ -252,7 +224,6 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
-
 		return nil, errors.New("action runs.steps must be a list")
 	}
 
@@ -263,21 +234,18 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 		stepObj, ok := toStringAnyMap(item)
 
 		if !ok {
-
 			return nil, errors.New("action step must be an object")
 		}
 
 		stepID := stepIdentifier("action", idx, stepObj, used)
 		parsedStep, err := stepFromMap(stepObj)
 		if err != nil {
-
 			return nil, err
 		}
 
 		parsedStep.Update(stepID)
 
 		if err := parsedStep.Decode(root, "step"); err != nil {
-
 			return nil, err
 		}
 
@@ -288,35 +256,29 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 }
 
 func validateActionDocument(doc map[string]any) error {
-
 	if err := strictValidateYAMLShape(doc, &actionYAMLShape{}); err != nil {
-
 		return err
 	}
 
 	if _, ok := doc["name"]; !ok {
-
 		return errors.New("action must define 'name'")
 	}
 
 	runsRaw, ok := doc["runs"]
 
 	if !ok {
-
 		return errors.New("action must define 'runs'")
 	}
 
 	runs, ok := toStringAnyMap(runsRaw)
 
 	if !ok {
-
 		return errors.New("action 'runs' must be an object")
 	}
 
 	using, ok := runs["using"].(string)
 
 	if !ok || using == "" {
-
 		return errors.New("action 'runs.using' must be a non-empty string")
 	}
 

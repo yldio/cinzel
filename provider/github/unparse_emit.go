@@ -27,7 +27,6 @@ func buildWorkflowJobIndex(jobs map[string]any) ([]workflowJobEntry, []string, m
 		jobMap, ok := toStringAnyMap(jobs[jobName])
 
 		if !ok {
-
 			return nil, nil, nil, fmt.Errorf("job '%s' must be an object", jobName)
 		}
 
@@ -49,14 +48,12 @@ func buildWorkflowJobIndex(jobs map[string]any) ([]workflowJobEntry, []string, m
 
 func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) error {
 	appendSection := func() {
-
 		if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
 			body.AppendNewline()
 		}
 	}
 
 	for _, key := range sortedKeys(doc.Raw) {
-
 		if key == "jobs" {
 			continue
 		}
@@ -69,7 +66,6 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 			events := doc.On
 
 			if len(events) == 0 {
-
 				return errors.New("workflow 'on' must be an object")
 			}
 
@@ -77,23 +73,19 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 				eventBlock := body.AppendNewBlock("on", []string{eventName})
 
 				if err := writeOnEventBody(eventName, events[eventName], eventBlock.Body()); err != nil {
-
 					return err
 				}
 			}
 		case "env":
 			if err := writeNameValueBlocks(body, "env", value); err != nil {
-
 				return err
 			}
 		case "permissions", "defaults", "concurrency":
 			if err := writeNestedMapAsBlock(body, key, value); err != nil {
-
 				return err
 			}
 		default:
 			if err := writeAttributeAny(body, toHCLKey(key), value); err != nil {
-
 				return err
 			}
 		}
@@ -103,7 +95,6 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 }
 
 func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, generatedVariables map[string]any) error {
-
 	for _, job := range jobs {
 		jobName := job.Name
 		jobMap := job.Body
@@ -116,7 +107,6 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
 
 		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, generatedVariables); err != nil {
-
 			return fmt.Errorf("error in job '%s': %w", jobName, err)
 		}
 	}
@@ -125,14 +115,11 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 }
 
 func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]any) error {
-
 	if len(generatedVariables) == 0 {
-
 		return nil
 	}
 
 	for _, varName := range sortedKeys(generatedVariables) {
-
 		if len(root.Blocks()) > 0 || len(root.Attributes()) > 0 {
 			root.AppendNewline()
 		}
@@ -140,7 +127,6 @@ func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]
 		vBlock := root.AppendNewBlock("variable", []string{varName})
 
 		if err := writeAttributeAny(vBlock.Body(), "value", generatedVariables[varName]); err != nil {
-
 			return err
 		}
 	}
@@ -153,7 +139,6 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	case "steps":
 		refs, err := writeJobSteps(root, jobID, value)
 		if err != nil {
-
 			return err
 		}
 		*stepRefs = append(*stepRefs, refs...)
@@ -164,7 +149,6 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	case "needs":
 		refs, err := normalizeNeeds(value, jobIDMap)
 		if err != nil {
-
 			return err
 		}
 
@@ -179,7 +163,6 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 		return writeServicesBlocks(body, value)
 	case "secrets":
 		if str, ok := value.(string); ok {
-
 			return writeAttributeAny(body, "secrets", str)
 		}
 
@@ -197,7 +180,6 @@ func writeJobSteps(root *hclwrite.Body, jobID string, raw any) ([]string, error)
 	items, ok := raw.([]any)
 
 	if !ok {
-
 		return nil, errors.New("job 'steps' must be a list")
 	}
 
@@ -208,21 +190,18 @@ func writeJobSteps(root *hclwrite.Body, jobID string, raw any) ([]string, error)
 		stepObj, ok := toStringAnyMap(item)
 
 		if !ok {
-
 			return nil, errors.New("job step must be an object")
 		}
 
 		stepID := stepIdentifier(jobID, idx, stepObj, used)
 		parsedStep, err := stepFromMap(stepObj)
 		if err != nil {
-
 			return nil, err
 		}
 
 		parsedStep.Update(stepID)
 
 		if err := parsedStep.Decode(root, "step"); err != nil {
-
 			return nil, err
 		}
 

@@ -16,7 +16,6 @@ var pipelineKeyOrder = []string{"stages", "variables", "workflow", "default", "i
 func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 	root, err := pipelineMapNode(pipeline)
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -27,12 +26,10 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 	enc.SetIndent(2)
 
 	if err := enc.Encode(doc); err != nil {
-
 		return nil, err
 	}
 
 	if err := enc.Close(); err != nil {
-
 		return nil, err
 	}
 
@@ -51,7 +48,6 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 		}
 
 		if err := appendMappingPair(node, key, val); err != nil {
-
 			return nil, err
 		}
 		seen[key] = struct{}{}
@@ -60,7 +56,6 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	jobs := make([]string, 0)
 
 	for key, val := range pipeline {
-
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -72,9 +67,7 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	sort.Strings(jobs)
 
 	for _, job := range jobs {
-
 		if err := appendMappingPair(node, job, pipeline[job]); err != nil {
-
 			return nil, err
 		}
 		seen[job] = struct{}{}
@@ -83,7 +76,6 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	remaining := make([]string, 0)
 
 	for key := range pipeline {
-
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -92,9 +84,7 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	sort.Strings(remaining)
 
 	for _, key := range remaining {
-
 		if err := appendMappingPair(node, key, pipeline[key]); err != nil {
-
 			return nil, err
 		}
 	}
@@ -105,7 +95,6 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 func appendMappingPair(node *yamlv3.Node, key string, value any) error {
 	valueNode, err := toYAMLNode(value)
 	if err != nil {
-
 		return err
 	}
 	keyNode := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: key}
@@ -128,7 +117,6 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 		return node, nil
 	case bool:
 		if v {
-
 			return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!bool", Value: "true"}, nil
 		}
 
@@ -141,7 +129,6 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 		for _, item := range v {
 			child, err := toYAMLNode(item)
 			if err != nil {
-
 				return nil, err
 			}
 			node.Content = append(node.Content, child)
@@ -157,7 +144,6 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 			key, ok := rawKey.(string)
 
 			if !ok {
-
 				return nil, fmt.Errorf("unsupported non-string YAML key type %T", rawKey)
 			}
 			m[key] = rawValue
@@ -180,9 +166,7 @@ func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
 
 	for _, key := range keys {
-
 		if err := appendMappingPair(node, key, mapping[key]); err != nil {
-
 			return nil, err
 		}
 	}
@@ -191,10 +175,8 @@ func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
 }
 
 func stringNeedsQuoting(v string) bool {
-
 	if v == "" || v == "true" || v == "false" || v == "null" || v == "~" ||
 		v == "yes" || v == "no" || v == "on" || v == "off" {
-
 		return true
 	}
 

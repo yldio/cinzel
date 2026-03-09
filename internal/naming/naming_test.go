@@ -6,7 +6,6 @@ package naming
 import "testing"
 
 func TestSanitizeIdentifier(t *testing.T) {
-
 	if got := SanitizeIdentifier("build-test"); got != "build_test" {
 		t.Fatalf("expected build_test, got %s", got)
 	}
@@ -17,7 +16,6 @@ func TestSanitizeIdentifier(t *testing.T) {
 }
 
 func TestUniqueIdentifier(t *testing.T) {
-
 	if got := UniqueIdentifier("job", []string{"build", "test"}); got != "job" {
 		t.Fatalf("expected job, got %s", got)
 	}
@@ -28,7 +26,6 @@ func TestUniqueIdentifier(t *testing.T) {
 }
 
 func TestKeyMapping(t *testing.T) {
-
 	if got := ToHCLKey("runs-on"); got != "runs_on" {
 		t.Fatalf("expected runs_on, got %s", got)
 	}

@@ -80,7 +80,6 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 	}
 
 	for _, input := range inputs {
-
 		if strings.HasSuffix(input, ".roundtrip.golden.yaml") {
 			continue
 		}
