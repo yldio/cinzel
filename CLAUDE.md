@@ -65,6 +65,11 @@ provider/
 - Use `maputil.SortedKeys()` for deterministic iteration over maps. Never iterate maps directly when output order matters.
 - Sentinel errors live in `errors.go` within each package. Use `errCamelCase` naming.
 - No `testify` or assertion libraries — tests use stdlib `testing` only.
+- Prefer visual separation between logic blocks:
+  - Add an empty line before `return` statements.
+  - Add an empty line before `if` statements, except immediate error-guard `if err != nil` / diagnostics guards.
+  - Add an empty line before `for` loops, except when tightly coupled to the line above (for example `switch`/`case` flows).
+  - Separate most adjacent code blocks with a blank line unless tightly coupled (for example `switch`/`case` flows).
 
 ### HCL <-> YAML conversion
 
