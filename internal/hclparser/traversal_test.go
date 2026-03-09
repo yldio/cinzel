@@ -14,6 +14,7 @@ func TestParseCtyValueString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if val != "hello" {
 		t.Fatalf("expected hello, got %v", val)
 	}
@@ -24,6 +25,7 @@ func TestParseCtyValueNumber(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if val != int32(42) {
 		t.Fatalf("expected int32(42), got %v (%T)", val, val)
 	}
@@ -34,6 +36,7 @@ func TestParseCtyValueBool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if val != true {
 		t.Fatalf("expected true, got %v", val)
 	}
@@ -46,9 +49,11 @@ func TestParseCtyValueTuple(t *testing.T) {
 		t.Fatal(err)
 	}
 	list, ok := val.([]string)
+
 	if !ok {
 		t.Fatalf("expected []string, got %T", val)
 	}
+
 	if len(list) != 2 || list[0] != "a" || list[1] != "b" {
 		t.Fatalf("expected [a b], got %v", list)
 	}
@@ -59,6 +64,7 @@ func TestParseCtyValueDynamic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if val != nil {
 		t.Fatalf("expected nil for dynamic, got %v", val)
 	}
@@ -66,6 +72,7 @@ func TestParseCtyValueDynamic(t *testing.T) {
 
 func TestParseCtyValueTypeRestriction(t *testing.T) {
 	_, err := ParseCtyValue(cty.StringVal("hello"), []string{"number", "bool"})
+
 	if err == nil {
 		t.Fatal("expected type restriction error")
 	}
@@ -78,9 +85,11 @@ func TestParseCtyValueFloatFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	f, ok := val.(float32)
+
 	if !ok {
 		t.Fatalf("expected float32, got %T (%v)", val, val)
 	}
+
 	if f < 3.13 || f > 3.15 {
 		t.Fatalf("expected ~3.14, got %v", f)
 	}

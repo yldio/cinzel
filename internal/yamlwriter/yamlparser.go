@@ -21,6 +21,7 @@ type Writer[T Updater] struct {
 
 // New returns a Writer that will process the given content items.
 func New[T Updater](content []T) *Writer[T] {
+
 	return &Writer[T]{
 		content: content,
 	}
@@ -31,12 +32,15 @@ func (config *Writer[T]) Do() (map[string][]byte, error) {
 	yamls := make(map[string][]byte)
 
 	for _, c := range config.content {
+
 		if err := c.Validation(); err != nil {
+
 			return map[string][]byte{}, err
 		}
 
 		out, err := Marshal(c)
 		if err != nil {
+
 			return map[string][]byte{}, err
 		}
 

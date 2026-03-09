@@ -11,7 +11,9 @@ import (
 
 // FromHCL reads HCL files from path, parses them, and returns a merged HCL body.
 func (read *Reader[T]) FromHCL(path string, recursive bool) (hcl.Body, error) {
+
 	if err := read.readPath(path, recursive, []string{".hcl"}); err != nil {
+
 		return nil, err
 	}
 
@@ -20,7 +22,9 @@ func (read *Reader[T]) FromHCL(path string, recursive bool) (hcl.Body, error) {
 
 	for _, hclFile := range read.files {
 		file, diags := parser.ParseHCLFile(hclFile)
+
 		if diags.HasErrors() {
+
 			return nil, cinzelerror.ProcessHCLDiags(diags)
 		}
 

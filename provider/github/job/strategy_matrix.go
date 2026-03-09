@@ -25,17 +25,22 @@ type MatrixAxis struct {
 // NormalizeStrategyMatrix flattens HCL "variable" blocks into top-level matrix keys.
 func NormalizeStrategyMatrix(matrix map[string]any) (map[string]any, error) {
 	raw, hasVariables := matrix["variable"]
+
 	if !hasVariables {
+
 		return matrix, nil
 	}
 
 	variables, err := matrixVariablesFromRaw(raw)
 	if err != nil {
+
 		return nil, err
 	}
 
 	for _, variable := range variables {
+
 		if _, exists := matrix[variable.Name]; exists {
+
 			return nil, fmt.Errorf("strategy.matrix contains duplicate key '%s'", variable.Name)
 		}
 
@@ -43,6 +48,7 @@ func NormalizeStrategyMatrix(matrix map[string]any) (map[string]any, error) {
 	}
 
 	delete(matrix, "variable")
+
 	return matrix, nil
 }
 
@@ -50,6 +56,7 @@ func NormalizeStrategyMatrix(matrix map[string]any) (map[string]any, error) {
 func AxesFromMap(mapping map[string]any) []MatrixAxis {
 	keys := maputil.SortedKeys(mapping)
 	axes := make([]MatrixAxis, 0, len(keys))
+
 	for _, key := range keys {
 		axes = append(axes, MatrixAxis{Name: key, Value: mapping[key]})
 	}
@@ -63,11 +70,14 @@ func matrixVariablesFromRaw(raw any) ([]MatrixVariable, error) {
 		value, valueOK := entry["value"]
 
 		if nameOK || valueOK {
+
 			if !nameOK || name == "" {
+
 				return nil, errors.New("strategy.matrix.variable entries require a non-empty name")
 			}
 
 			if !valueOK {
+
 				return nil, errors.New("strategy.matrix.variable entries require a value")
 			}
 
@@ -75,6 +85,7 @@ func matrixVariablesFromRaw(raw any) ([]MatrixVariable, error) {
 		}
 
 		out := make([]MatrixVariable, 0, len(entry))
+
 		for key, item := range entry {
 			out = append(out, MatrixVariable{Name: key, Value: item})
 		}
@@ -85,14 +96,18 @@ func matrixVariablesFromRaw(raw any) ([]MatrixVariable, error) {
 	switch v := raw.(type) {
 	case []any:
 		out := make([]MatrixVariable, 0, len(v))
+
 		for _, item := range v {
 			entry, ok := maputil.ToStringAnyMap(item)
+
 			if !ok {
+
 				return nil, errors.New("strategy.matrix.variable entries must be objects")
 			}
 
 			normalized, err := toVariables(entry)
 			if err != nil {
+
 				return nil, err
 			}
 

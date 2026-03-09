@@ -23,6 +23,7 @@ func (ctyVal *ctyVal) Parse(allowedTypes []string) (any, error) {
 	allowedTypes = append(allowedTypes, "dynamic")
 
 	if len(allowedTypes) > 1 && !slices.Contains(allowedTypes, valueType) {
+
 		return nil, fmt.Errorf("%s only allows types %s", value, strings.Join(allowedTypes, ","))
 	}
 
@@ -47,6 +48,7 @@ func (ctyVal *ctyVal) ParseAsString() (any, error) {
 	value := cty.Value(*ctyVal)
 
 	if err := gocty.FromCtyValue(value, &val); err != nil {
+
 		return "", err
 	}
 
@@ -63,6 +65,7 @@ func (ctyVal *ctyVal) ParseAsNumber() (any, error) {
 
 		err := gocty.FromCtyValue(value, &floatVal)
 		if err != nil {
+
 			return nil, err
 		}
 
@@ -78,6 +81,7 @@ func (ctyVal *ctyVal) ParseAsBool() (any, error) {
 
 	err := gocty.FromCtyValue(value, &val)
 	if err != nil {
+
 		return nil, err
 	}
 
@@ -93,6 +97,7 @@ func (ctyVal *ctyVal) ParseAsTuple() (any, error) {
 
 		err := gocty.FromCtyValue(item, &itemVal)
 		if err != nil {
+
 			return nil, err
 		}
 

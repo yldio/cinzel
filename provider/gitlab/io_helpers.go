@@ -6,15 +6,19 @@ package gitlab
 import "github.com/yldio/cinzel/provider"
 
 func resolveInputPath(opts provider.ProviderOps) (string, error) {
+
 	if opts.File == "" && opts.Directory == "" {
+
 		return "", errInputPathRequired
 	}
 
 	if opts.File != "" && opts.Directory != "" {
+
 		return "", errInputPathConflict
 	}
 
 	if opts.File != "" {
+
 		return opts.File, nil
 	}
 
@@ -22,7 +26,9 @@ func resolveInputPath(opts provider.ProviderOps) (string, error) {
 }
 
 func resolveParseOutputDirectory(opts provider.ProviderOps) string {
+
 	if opts.OutputDirectory != "" {
+
 		return opts.OutputDirectory
 	}
 
@@ -30,7 +36,9 @@ func resolveParseOutputDirectory(opts provider.ProviderOps) string {
 }
 
 func resolveUnparseOutputDirectory(opts provider.ProviderOps) string {
+
 	if opts.OutputDirectory != "" {
+
 		return opts.OutputDirectory
 	}
 

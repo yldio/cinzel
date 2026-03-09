@@ -62,11 +62,13 @@ func TestParseFixtureMatrixInvalid(t *testing.T) {
 			}
 
 			parseErr := New().Parse(provider.ProviderOps{File: input, OutputDirectory: t.TempDir()})
+
 			if parseErr == nil {
 				t.Fatal("expected parse error")
 			}
 
 			expectedErr := strings.TrimSpace(string(expectedErrBytes))
+
 			if !strings.Contains(parseErr.Error(), expectedErr) {
 				t.Fatalf("expected error containing %q, got %q", expectedErr, parseErr.Error())
 			}
@@ -81,6 +83,7 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 	}
 
 	for _, input := range inputs {
+
 		if strings.HasSuffix(input, ".roundtrip.golden.yaml") {
 			continue
 		}
@@ -96,6 +99,7 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 			}
 
 			hclPath := filepath.Join(unparseDir, name+".hcl")
+
 			if err := New().Parse(provider.ProviderOps{File: hclPath, OutputDirectory: parseDir}); err != nil {
 				t.Fatal(err)
 			}
@@ -118,11 +122,14 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 func singleYAMLFileInDir(dir string) (string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+
 		return "", err
 	}
 
 	paths := make([]string, 0, len(entries))
+
 	for _, entry := range entries {
+
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
 			continue
 		}
@@ -131,6 +138,7 @@ func singleYAMLFileInDir(dir string) (string, error) {
 	}
 
 	if len(paths) != 1 {
+
 		return "", os.ErrNotExist
 	}
 
@@ -152,11 +160,13 @@ func TestUnparseFixtureMatrixInvalid(t *testing.T) {
 			}
 
 			unparseErr := New().Unparse(provider.ProviderOps{File: input, OutputDirectory: t.TempDir()})
+
 			if unparseErr == nil {
 				t.Fatal("expected unparse error")
 			}
 
 			expectedErr := strings.TrimSpace(string(expectedErrBytes))
+
 			if !strings.Contains(unparseErr.Error(), expectedErr) {
 				t.Fatalf("expected error containing %q, got %q", expectedErr, unparseErr.Error())
 			}

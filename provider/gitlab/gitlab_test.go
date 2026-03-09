@@ -27,6 +27,7 @@ func TestProviderWiringSmoke(t *testing.T) {
 
 	parseHelpOut := new(bytes.Buffer)
 	parseCLI := command.New(parseHelpOut, "v.test")
+
 	if err := parseCLI.Execute([]string{"cinzel", "gitlab", "parse", "--help"}, []provider.Provider{p}); err != nil {
 		t.Fatalf("parse help execute error = %v", err)
 	}
@@ -37,6 +38,7 @@ func TestProviderWiringSmoke(t *testing.T) {
 
 	unparseHelpOut := new(bytes.Buffer)
 	unparseCLI := command.New(unparseHelpOut, "v.test")
+
 	if err := unparseCLI.Execute([]string{"cinzel", "gitlab", "unparse", "--help"}, []provider.Provider{p}); err != nil {
 		t.Fatalf("unparse help execute error = %v", err)
 	}
@@ -59,6 +61,7 @@ func TestDefaultOutputDirectories(t *testing.T) {
 }
 
 func TestResolveInputPathValidation(t *testing.T) {
+
 	if _, err := resolveInputPath(provider.ProviderOps{}); err == nil {
 		t.Fatal("expected error when file and directory are empty")
 	}
@@ -70,11 +73,13 @@ func TestResolveInputPathValidation(t *testing.T) {
 
 func TestDollarBracedEscapePrototype(t *testing.T) {
 	expr, diags := hclsyntax.ParseExpression([]byte(`"$${CI_VARIABLE}"`), "", hcl.Pos{})
+
 	if diags.HasErrors() {
 		t.Fatalf("ParseExpression() diagnostics = %v", diags)
 	}
 
 	hp := hclparser.New(expr, hclparser.NewHCLVars())
+
 	if err := hp.Parse(); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -150,6 +155,7 @@ workflow {
 	}
 
 	p := New()
+
 	if err := p.Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -180,6 +186,7 @@ workflow {
 	}
 
 	for _, check := range checks {
+
 		if !strings.Contains(out, check) {
 			t.Fatalf("expected output to contain %q, got:\n%s", check, out)
 		}
@@ -258,6 +265,7 @@ test:
 	}
 
 	p := New()
+
 	if err := p.Unparse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
 		t.Fatalf("Unparse() error = %v", err)
 	}
@@ -286,6 +294,7 @@ test:
 	}
 
 	for _, check := range checks {
+
 		if !strings.Contains(out, check) {
 			t.Fatalf("expected output to contain %q, got:\n%s", check, out)
 		}
@@ -310,6 +319,7 @@ job "build" {
 	}
 
 	err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: tmpDir})
+
 	if err == nil {
 		t.Fatal("expected parse error for stages job references")
 	}
@@ -360,6 +370,7 @@ func captureStdout(t *testing.T, fn func()) string {
 
 	os.Stdout = w
 	fn()
+
 	if err := w.Close(); err != nil {
 		t.Fatalf("stdout close error = %v", err)
 	}

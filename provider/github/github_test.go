@@ -94,6 +94,7 @@ workflow "ci" {
 		}
 
 		out := string(b)
+
 		if !strings.Contains(out, "jobs:") {
 			t.Fatalf("expected jobs section in workflow output, got: %q", out)
 		}
@@ -206,6 +207,7 @@ workflow "pr" {
 		}
 
 		out := string(outBytes)
+
 		if !strings.Contains(out, "pull_request:\n") {
 			t.Fatalf("expected pull_request key without inline object, got:\n%s", out)
 		}
@@ -270,6 +272,7 @@ workflow "ci" {
 		}
 
 		out := string(b)
+
 		if !strings.Contains(out, "workflow_call:") {
 			t.Fatalf("expected workflow_call trigger in output, got: %q", out)
 		}
@@ -340,6 +343,7 @@ workflow "ci" {
 		}
 
 		out := string(outBytes)
+
 		if !strings.Contains(out, "goos:") || !strings.Contains(out, "goarch:") {
 			t.Fatalf("expected matrix keys goos/goarch, got:\n%s", out)
 		}
@@ -397,6 +401,7 @@ workflow "pr" {
 		}
 
 		out := string(outBytes)
+
 		if !strings.Contains(out, "goos:") {
 			t.Fatalf("expected single matrix variable to be normalized into key, got:\n%s", out)
 		}
@@ -437,6 +442,7 @@ workflow "pr" {
 		}
 
 		out := string(b)
+
 		if !strings.Contains(out, "build:") {
 			t.Fatalf("expected step identifier in yaml output, got: %q", out)
 		}
@@ -561,6 +567,7 @@ jobs:
 		}
 
 		yamlOut := string(yamlBytes)
+
 		if !strings.Contains(yamlOut, "jobs:") {
 			t.Fatalf("expected jobs section after roundtrip parse, got: %q", yamlOut)
 		}
@@ -609,6 +616,7 @@ jobs:
 		}
 
 		hclOut := string(hclBytes)
+
 		if !strings.Contains(hclOut, "variable {") {
 			t.Fatalf("expected matrix variable block, got:\n%s", hclOut)
 		}
@@ -678,6 +686,7 @@ jobs:
 		}
 
 		hclOut := string(hclBytes)
+
 		if !strings.Contains(hclOut, "runs_on {\n    runners = \"ubuntu-latest\"\n  }\n\n  strategy {") {
 			t.Fatalf("expected single blank line between runs_on and strategy, got:\n%s", hclOut)
 		}
@@ -716,6 +725,7 @@ jobs:
 		}
 
 		hclOut := string(hclBytes)
+
 		if !strings.Contains(hclOut, "filename = \"pull-request\"\n\n  name") {
 			t.Fatalf("expected blank line between filename and name, got:\n%s", hclOut)
 		}
@@ -781,6 +791,7 @@ workflow "ci" {
 		}
 
 		out := string(outBytes)
+
 		if !strings.Contains(out, "needs:\n      - build") {
 			t.Fatalf("expected YAML needs mapped from depends_on, got:\n%s", out)
 		}
@@ -821,6 +832,7 @@ jobs:
 		}
 
 		out := string(outBytes)
+
 		if !strings.Contains(out, "depends_on = [") {
 			t.Fatalf("expected depends_on in HCL output, got:\n%s", out)
 		}
@@ -833,11 +845,13 @@ jobs:
 
 func TestResolveInputPath(t *testing.T) {
 	_, err := resolveInputPath(provider.ProviderOps{})
+
 	if err == nil {
 		t.Fatal("expected validation error when no input is set")
 	}
 
 	_, err = resolveInputPath(provider.ProviderOps{File: "a", Directory: "b"})
+
 	if err == nil {
 		t.Fatal("expected validation error when both file and directory are set")
 	}

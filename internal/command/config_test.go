@@ -144,6 +144,7 @@ func TestInvalidActiveProviderFieldTypeFails(t *testing.T) {
 
 		app, _, p := newConfigTestApp(t)
 		err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+
 		if err == nil {
 			t.Fatalf("Execute() error = nil, want error")
 		}
@@ -160,6 +161,7 @@ func TestConfigFileAndDirectoryConflictFails(t *testing.T) {
 
 		app, _, p := newConfigTestApp(t)
 		err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+
 		if err == nil {
 			t.Fatalf("Execute() error = nil, want error")
 		}
@@ -265,6 +267,7 @@ workflow "ci" {
 		})
 
 		want := "# file: .github/workflows/ci.yaml"
+
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
 		}
@@ -309,6 +312,7 @@ workflow "ci" {
 		})
 
 		want := "# file: custom/ci.yaml"
+
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
 		}
@@ -318,6 +322,7 @@ workflow "ci" {
 func TestDryRunUsesConfigDirectoryWithoutCLIInput(t *testing.T) {
 	withTempWorkingDir(t, func() {
 		inputDir := "cinzel"
+
 		if err := os.Mkdir(inputDir, 0o755); err != nil {
 			t.Fatalf("Mkdir(%q) error = %v", inputDir, err)
 		}
@@ -357,6 +362,7 @@ workflow "ci" {
 		})
 
 		want := "# file: .github/workflows/ci.yaml"
+
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
 		}
@@ -388,6 +394,7 @@ func withTempWorkingDir(t *testing.T, fn func()) {
 	}
 
 	t.Cleanup(func() {
+
 		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
 			t.Fatalf("Chdir(%q) restore error = %v", originalDir, chdirErr)
 		}

@@ -56,11 +56,13 @@ func TestEnv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			keyExpr, diags := hclsyntax.ParseExpression(tt.haveKey, "key.hcl", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.FailNow()
 			}
 
 			valueExpr, diags := hclsyntax.ParseExpression(tt.haveValue, "value.hcl", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.FailNow()
 			}
@@ -80,6 +82,7 @@ func TestEnv(t *testing.T) {
 			}
 
 			iter := val.ElementIterator()
+
 			for iter.Next() {
 				key, value := iter.Element()
 

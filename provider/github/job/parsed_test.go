@@ -12,15 +12,19 @@ func TestNewParsed(t *testing.T) {
 	}
 
 	p := NewParsed("build", body)
+
 	if p.ID != "build" {
 		t.Fatalf("expected build, got %s", p.ID)
 	}
+
 	if len(p.StepRefs) != 2 {
 		t.Fatalf("expected 2 step refs, got %d", len(p.StepRefs))
 	}
+
 	if _, ok := p.Body["stepsRefs"]; ok {
 		t.Fatal("expected stepsRefs to be removed from body")
 	}
+
 	if _, ok := p.Body["runs-on"]; !ok {
 		t.Fatal("expected runs-on to remain in body")
 	}
@@ -32,6 +36,7 @@ func TestNewParsedNoStepRefs(t *testing.T) {
 	}
 
 	p := NewParsed("deploy", body)
+
 	if len(p.StepRefs) != 0 {
 		t.Fatalf("expected 0 step refs, got %d", len(p.StepRefs))
 	}

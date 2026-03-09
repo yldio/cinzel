@@ -17,6 +17,7 @@ func TestHCLVarsAddAndGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if val.AsString() != "hello" {
 		t.Fatalf("expected hello, got %s", val.AsString())
 	}
@@ -25,6 +26,7 @@ func TestHCLVarsAddAndGet(t *testing.T) {
 func TestHCLVarsGetValueByKeyMissing(t *testing.T) {
 	hv := NewHCLVars()
 	_, err := hv.GetValueByKey("missing")
+
 	if err == nil {
 		t.Fatal("expected error for missing variable")
 	}
@@ -39,6 +41,7 @@ func TestHCLVarsGetValueDispatch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if val.AsString() != "test" {
 			t.Fatalf("expected test, got %s", val.AsString())
 		}
@@ -51,6 +54,7 @@ func TestHCLVarsGetValueDispatch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if val.AsString() != "b" {
 			t.Fatalf("expected b, got %s", val.AsString())
 		}
@@ -66,6 +70,7 @@ func TestHCLVarsGetValueByIndex(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if val.AsString() != "first" {
 			t.Fatalf("expected first, got %s", val.AsString())
 		}
@@ -73,6 +78,7 @@ func TestHCLVarsGetValueByIndex(t *testing.T) {
 
 	t.Run("out of range index", func(t *testing.T) {
 		_, err := hv.GetValueByIndex("items", 5)
+
 		if err == nil {
 			t.Fatal("expected out of range error")
 		}
@@ -80,6 +86,7 @@ func TestHCLVarsGetValueByIndex(t *testing.T) {
 
 	t.Run("negative index", func(t *testing.T) {
 		_, err := hv.GetValueByIndex("items", -1)
+
 		if err == nil {
 			t.Fatal("expected out of range error for negative index")
 		}
@@ -91,6 +98,7 @@ func TestHCLVarsGetValueByIndex(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if val.AsString() != "hello" {
 			t.Fatalf("expected hello, got %s", val.AsString())
 		}
@@ -98,6 +106,7 @@ func TestHCLVarsGetValueByIndex(t *testing.T) {
 
 	t.Run("missing key", func(t *testing.T) {
 		_, err := hv.GetValueByIndex("missing", 0)
+
 		if err == nil {
 			t.Fatal("expected error for missing key")
 		}

@@ -26,6 +26,7 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 	for _, a := range actions {
 		content, err := parseActionBody(a.Body, hv, stepMap)
 		if err != nil {
+
 			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
 		}
 
@@ -47,29 +48,35 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 
 func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
+
 	if !ok {
+
 		return nil, errUnsupportedBodyType
 	}
 
 	if err := validateHCLSchema("action", sb); err != nil {
+
 		return nil, err
 	}
 
 	out := make(map[string]any)
 
 	// Parse attributes in sorted order for deterministic output.
+
 	for _, name := range maputil.SortedKeys(sb.Attributes) {
 		attr := sb.Attributes[name]
 		switch name {
 		case "filename":
 			val, err := parseAttr(attr.Expr, hv)
 			if err != nil {
+
 				return nil, err
 			}
 			out["_filename"] = val
 		default:
 			val, err := parseAttr(attr.Expr, hv)
 			if err != nil {
+
 				return nil, err
 			}
 			out[naming.ToYAMLKey(name)] = val
@@ -77,15 +84,18 @@ func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]an
 	}
 
 	// Parse blocks.
+
 	for _, block := range sb.Blocks {
 		switch block.Type {
 		case "input":
 			if len(block.Labels) != 1 {
+
 				return nil, errors.New("input block must have exactly one label")
 			}
 
 			inputMap, err := parseActionBlockAttrs(block.Body, hv, "action.input")
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -94,11 +104,13 @@ func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]an
 
 		case "output":
 			if len(block.Labels) != 1 {
+
 				return nil, errors.New("output block must have exactly one label")
 			}
 
 			outputMap, err := parseActionBlockAttrs(block.Body, hv, "action.output")
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -108,6 +120,7 @@ func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]an
 		case "runs":
 			runsMap, err := parseActionRunsBlock(block.Body, hv, stepMap)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -116,6 +129,7 @@ func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]an
 		case "branding":
 			brandingMap, err := parseActionBlockAttrs(block.Body, hv, "action.branding")
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -131,11 +145,14 @@ func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]an
 
 func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
+
 	if !ok {
+
 		return nil, errUnsupportedBodyType
 	}
 
 	if err := validateHCLSchema("action.runs", sb); err != nil {
+
 		return nil, err
 	}
 
@@ -143,17 +160,22 @@ func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[stri
 
 	for _, name := range maputil.SortedKeys(sb.Attributes) {
 		attr := sb.Attributes[name]
+
 		if name == "steps" {
 			// Steps are references: steps = [step.x, step.y]
 			refs, err := parseReferenceList(attr.Expr, "step")
 			if err != nil {
+
 				return nil, err
 			}
 
 			steps := make([]any, 0, len(refs))
+
 			for _, ref := range refs {
 				stepVal, exists := stepMap[ref]
+
 				if !exists {
+
 					return nil, fmt.Errorf("cannot find step '%s'", ref)
 				}
 				steps = append(steps, stepVal)
@@ -165,6 +187,7 @@ func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[stri
 
 		val, err := parseAttr(attr.Expr, hv)
 		if err != nil {
+
 			return nil, err
 		}
 
@@ -172,13 +195,17 @@ func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[stri
 	}
 
 	// Handle nested blocks inside runs (e.g., env for docker actions).
+
 	for _, block := range sb.Blocks {
+
 		if block.Type != "env" {
+
 			return nil, fmt.Errorf("unknown block '%s' in action.runs", block.Type)
 		}
 
 		key, value, err := parseNamedBlock(block.Body, hv)
 		if err != nil {
+
 			return nil, err
 		}
 
@@ -191,18 +218,23 @@ func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[stri
 
 func parseActionBlockAttrs(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
+
 	if !ok {
+
 		return nil, errUnsupportedBlockBody
 	}
 
 	if err := validateHCLSchema(scope, sb); err != nil {
+
 		return nil, err
 	}
 
 	out := make(map[string]any)
+
 	for _, name := range maputil.SortedKeys(sb.Attributes) {
 		val, err := parseAttr(sb.Attributes[name].Expr, hv)
 		if err != nil {
+
 			return nil, err
 		}
 		out[naming.ToYAMLKey(name)] = val

@@ -13,7 +13,9 @@ import (
 )
 
 func ctyToAny(val cty.Value) (any, error) {
+
 	if !val.IsKnown() || val.IsNull() {
+
 		return nil, nil
 	}
 
@@ -29,10 +31,12 @@ func ctyToAny(val cty.Value) (any, error) {
 	case t.IsListType() || t.IsTupleType() || t.IsSetType():
 		out := make([]any, 0, val.LengthInt())
 		it := val.ElementIterator()
+
 		for it.Next() {
 			_, child := it.Element()
 			childAny, err := ctyToAny(child)
 			if err != nil {
+
 				return nil, err
 			}
 			out = append(out, childAny)
@@ -41,9 +45,11 @@ func ctyToAny(val cty.Value) (any, error) {
 		return out, nil
 	case t.IsMapType() || t.IsObjectType():
 		out := make(map[string]any, len(val.AsValueMap()))
+
 		for key, child := range val.AsValueMap() {
 			childAny, err := ctyToAny(child)
 			if err != nil {
+
 				return nil, err
 			}
 			out[key] = childAny
@@ -56,12 +62,16 @@ func ctyToAny(val cty.Value) (any, error) {
 }
 
 func anyToCty(value any) (cty.Value, error) {
+
 	if value == nil {
+
 		return cty.NullVal(cty.DynamicPseudoType), nil
 	}
 
 	if v, ok := value.(cty.Value); ok {
+
 		if !v.IsKnown() {
+
 			return cty.NullVal(cty.DynamicPseudoType), nil
 		}
 
@@ -69,6 +79,7 @@ func anyToCty(value any) (cty.Value, error) {
 	}
 
 	if v, ok := anyToCtyDirect(value); ok {
+
 		return v, nil
 	}
 
@@ -107,9 +118,12 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 		return cty.NumberFloatVal(v), true
 	case []any:
 		vals := make([]cty.Value, 0, len(v))
+
 		for _, item := range v {
 			child, ok := anyToCtyDirect(item)
+
 			if !ok {
+
 				return cty.NilVal, false
 			}
 			vals = append(vals, child)
@@ -118,9 +132,12 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 		return cty.TupleVal(vals), true
 	case map[string]any:
 		vals := make(map[string]cty.Value, len(v))
+
 		for key, item := range v {
 			child, ok := anyToCtyDirect(item)
+
 			if !ok {
+
 				return cty.NilVal, false
 			}
 			vals[key] = child
@@ -130,12 +147,16 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 	}
 
 	rv := reflect.ValueOf(value)
+
 	if !rv.IsValid() {
+
 		return cty.NullVal(cty.DynamicPseudoType), true
 	}
 
 	if rv.Kind() == reflect.Pointer {
+
 		if rv.IsNil() {
+
 			return cty.NullVal(cty.DynamicPseudoType), true
 		}
 
@@ -144,9 +165,12 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 
 	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
 		vals := make([]cty.Value, 0, rv.Len())
+
 		for i := 0; i < rv.Len(); i++ {
 			child, ok := anyToCtyDirect(rv.Index(i).Interface())
+
 			if !ok {
+
 				return cty.NilVal, false
 			}
 			vals = append(vals, child)
@@ -158,9 +182,12 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 	if rv.Kind() == reflect.Map && rv.Type().Key().Kind() == reflect.String {
 		vals := make(map[string]cty.Value, rv.Len())
 		iter := rv.MapRange()
+
 		for iter.Next() {
 			child, ok := anyToCtyDirect(iter.Value().Interface())
+
 			if !ok {
+
 				return cty.NilVal, false
 			}
 			vals[iter.Key().String()] = child
@@ -174,22 +201,28 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 
 func ctyNumberToAny(val cty.Value) any {
 	bf := val.AsBigFloat()
+
 	if i, acc := bf.Int64(); acc == big.Exact {
+
 		return i
 	}
 
 	f, _ := bf.Float64()
+
 	return f
 }
 
 func ctyToAnyViaYAML(val cty.Value) (any, error) {
 	bytes, err := ctyyaml.Marshal(val)
 	if err != nil {
+
 		return nil, err
 	}
 
 	var out any
+
 	if err := yaml.Unmarshal(bytes, &out); err != nil {
+
 		return nil, err
 	}
 
@@ -199,15 +232,18 @@ func ctyToAnyViaYAML(val cty.Value) (any, error) {
 func anyToCtyViaYAML(value any) (cty.Value, error) {
 	bytes, err := yaml.Marshal(value)
 	if err != nil {
+
 		return cty.NilVal, err
 	}
 
 	val, err := ctyyaml.Unmarshal(bytes, cty.DynamicPseudoType)
 	if err != nil {
+
 		return cty.NilVal, err
 	}
 
 	if !val.IsKnown() {
+
 		return cty.NullVal(cty.DynamicPseudoType), nil
 	}
 

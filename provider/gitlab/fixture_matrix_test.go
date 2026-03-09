@@ -24,6 +24,7 @@ func TestParseFixtureMatrixValid(t *testing.T) {
 		name := strings.TrimSuffix(filepath.Base(input), ".hcl")
 		t.Run(name, func(t *testing.T) {
 			outDir := t.TempDir()
+
 			if err := New().Parse(provider.ProviderOps{File: input, OutputDirectory: outDir}); err != nil {
 				t.Fatal(err)
 			}
@@ -58,11 +59,13 @@ func TestParseFixtureMatrixInvalid(t *testing.T) {
 			}
 
 			parseErr := New().Parse(provider.ProviderOps{File: input, OutputDirectory: t.TempDir()})
+
 			if parseErr == nil {
 				t.Fatal("expected parse error")
 			}
 
 			expectedErr := strings.TrimSpace(string(expectedErrBytes))
+
 			if !strings.Contains(parseErr.Error(), expectedErr) {
 				t.Fatalf("expected error containing %q, got %q", expectedErr, parseErr.Error())
 			}
@@ -77,6 +80,7 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 	}
 
 	for _, input := range inputs {
+
 		if strings.HasSuffix(input, ".roundtrip.golden.yaml") {
 			continue
 		}
@@ -92,6 +96,7 @@ func TestUnparseFixtureMatrixValid(t *testing.T) {
 			}
 
 			hclPath := filepath.Join(unparseDir, name+".hcl")
+
 			if err := New().Parse(provider.ProviderOps{File: hclPath, OutputDirectory: parseDir}); err != nil {
 				t.Fatal(err)
 			}
@@ -126,11 +131,13 @@ func TestUnparseFixtureMatrixInvalid(t *testing.T) {
 			}
 
 			unparseErr := New().Unparse(provider.ProviderOps{File: input, OutputDirectory: t.TempDir()})
+
 			if unparseErr == nil {
 				t.Fatal("expected unparse error")
 			}
 
 			expectedErr := strings.TrimSpace(string(expectedErrBytes))
+
 			if !strings.Contains(unparseErr.Error(), expectedErr) {
 				t.Fatalf("expected error containing %q, got %q", expectedErr, unparseErr.Error())
 			}
@@ -142,11 +149,13 @@ func assertYAMLSemanticEqual(t *testing.T, got []byte, expected []byte) {
 	t.Helper()
 
 	var gotDoc any
+
 	if err := yaml.Unmarshal(got, &gotDoc); err != nil {
 		t.Fatalf("failed to unmarshal actual YAML: %v\n---\n%s", err, string(got))
 	}
 
 	var expectedDoc any
+
 	if err := yaml.Unmarshal(expected, &expectedDoc); err != nil {
 		t.Fatalf("failed to unmarshal expected YAML: %v\n---\n%s", err, string(expected))
 	}

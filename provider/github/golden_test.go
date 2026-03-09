@@ -145,11 +145,13 @@ func assertYAMLSemanticEqual(t *testing.T, got []byte, expected []byte) {
 	t.Helper()
 
 	var gotValue any
+
 	if err := yaml.Unmarshal(got, &gotValue); err != nil {
 		t.Fatalf("failed to decode generated yaml: %v", err)
 	}
 
 	var expectedValue any
+
 	if err := yaml.Unmarshal(expected, &expectedValue); err != nil {
 		t.Fatalf("failed to decode expected yaml: %v", err)
 	}

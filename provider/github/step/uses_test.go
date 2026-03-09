@@ -39,6 +39,7 @@ func TestStepUsesSuccess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression(tt.have, "example.hcl", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.FailNow()
 			}
@@ -96,6 +97,7 @@ func TestStepUsesFailure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression(tt.have, "example.hcl", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.FailNow()
 			}

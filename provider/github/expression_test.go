@@ -27,15 +27,19 @@ func TestValidateExpressionSyntax(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateExpressionSyntax("test", tt.input)
+
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("expected no error, got %v", err)
 				}
+
 				return
 			}
+
 			if err == nil {
 				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
 			}
+
 			if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
 			}
@@ -57,6 +61,7 @@ func TestValidateExpressions(t *testing.T) {
 				},
 			},
 		}
+
 		if err := validateExpressions(wf); err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -73,9 +78,11 @@ func TestValidateExpressions(t *testing.T) {
 			},
 		}
 		err := validateExpressions(wf)
+
 		if err == nil {
 			t.Fatal("expected error for unclosed expression")
 		}
+
 		if !strings.Contains(err.Error(), "unclosed expression") {
 			t.Fatalf("unexpected error: %v", err)
 		}

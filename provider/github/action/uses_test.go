@@ -19,11 +19,13 @@ func TestUses(t *testing.T) {
 		expect := "my-action@v1.1.1"
 
 		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
 
 		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
@@ -51,6 +53,7 @@ func TestUses(t *testing.T) {
 		action := []byte(`"./.github/actions/my-action"`)
 
 		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
@@ -78,6 +81,7 @@ func TestUses(t *testing.T) {
 		expected := "action must be set"
 
 		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
@@ -91,6 +95,7 @@ func TestUses(t *testing.T) {
 		hv := hclparser.NewHCLVars()
 
 		val, err := config.Parse(hv)
+
 		if err.Error() != expected {
 			t.FailNow()
 		}
@@ -106,11 +111,13 @@ func TestUses(t *testing.T) {
 		expected := "unsupported type, expected string, found number"
 
 		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
 
 		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
@@ -125,6 +132,7 @@ func TestUses(t *testing.T) {
 		hv := hclparser.NewHCLVars()
 
 		val, err := config.Parse(hv)
+
 		if err.Error() != expected {
 			t.FailNow()
 		}
@@ -140,11 +148,13 @@ func TestUses(t *testing.T) {
 		expected := "unsupported type, expected string, found number"
 
 		actionExpr, diags := hclsyntax.ParseExpression(action, "action.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
 
 		versionExpr, diags := hclsyntax.ParseExpression(version, "version.hcl", hcl.Pos{})
+
 		if diags.HasErrors() {
 			t.FailNow()
 		}
@@ -159,6 +169,7 @@ func TestUses(t *testing.T) {
 		hv := hclparser.NewHCLVars()
 
 		val, err := config.Parse(hv)
+
 		if err.Error() != expected {
 			t.FailNow()
 		}

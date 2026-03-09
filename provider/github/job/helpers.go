@@ -5,7 +5,9 @@ package job
 
 func nonEmptyString(v any) (string, bool) {
 	s, ok := v.(string)
+
 	if !ok || s == "" {
+
 		return "", false
 	}
 

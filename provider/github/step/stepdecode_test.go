@@ -29,18 +29,21 @@ func TestStepDecodeEmptyStep(t *testing.T) {
 	}
 
 	var s Step
+
 	if err := s.PreDecode(val.AsValueMap()["my-step"]); err != nil {
 		t.Fatal(err)
 	}
 	s.Update("my-step")
 
 	f := hclwrite.NewEmptyFile()
+
 	if err := s.Decode(f.Body(), "step"); err != nil {
 		t.Fatal(err)
 	}
 
 	got := string(hclwrite.Format(f.Bytes()))
 	want := "step \"my-step\" {\n}\n"
+
 	if got != want {
 		t.Fatalf("unexpected output:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
@@ -71,12 +74,14 @@ func TestStepDecodeWithEnvOrdering(t *testing.T) {
 	stepVal := val.AsValueMap()["my-step"]
 
 	var s Step
+
 	if err := s.PreDecode(stepVal); err != nil {
 		t.Fatal(err)
 	}
 	s.Update("my-step")
 
 	f := hclwrite.NewEmptyFile()
+
 	if err := s.Decode(f.Body(), "step"); err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +96,7 @@ func TestStepDecodeWithEnvOrdering(t *testing.T) {
 	if alphaWith < 0 || mangoWith < 0 || zebraWith < 0 {
 		t.Fatalf("missing expected with block names in output:\n%s", out)
 	}
+
 	if !(alphaWith < mangoWith && mangoWith < zebraWith) {
 		t.Fatalf("with blocks not in alphabetical order in output:\n%s", out)
 	}
@@ -103,6 +109,7 @@ func TestStepDecodeWithEnvOrdering(t *testing.T) {
 	if alphaEnv < 0 || mangoEnv < 0 || zebraEnv < 0 {
 		t.Fatalf("missing expected env block names in output:\n%s", out)
 	}
+
 	if !(alphaEnv < mangoEnv && mangoEnv < zebraEnv) {
 		t.Fatalf("env blocks not in alphabetical order in output:\n%s", out)
 	}
@@ -126,12 +133,14 @@ func TestStepDecodeLocalAction(t *testing.T) {
 	stepVal := val.AsValueMap()["my-step"]
 
 	var s Step
+
 	if err := s.PreDecode(stepVal); err != nil {
 		t.Fatal(err)
 	}
 	s.Update("my-step")
 
 	f := hclwrite.NewEmptyFile()
+
 	if err := s.Decode(f.Body(), "step"); err != nil {
 		t.Fatal(err)
 	}
@@ -141,6 +150,7 @@ func TestStepDecodeLocalAction(t *testing.T) {
 	if !strings.Contains(out, `action = "./.github/actions/my-local-action"`) {
 		t.Fatalf("expected local action in uses block, got:\n%s", out)
 	}
+
 	if strings.Contains(out, "version") {
 		t.Fatalf("expected no version for local action, got:\n%s", out)
 	}
@@ -162,6 +172,7 @@ func TestStepDecodeFailure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression(tt.have, "example.hcl", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.FailNow()
 			}

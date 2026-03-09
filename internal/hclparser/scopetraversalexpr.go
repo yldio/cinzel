@@ -20,6 +20,7 @@ type ScopeTraversalExpr struct {
 
 // NewScopeTraversalExpr creates a ScopeTraversalExpr for the given traversal expression and variable store.
 func NewScopeTraversalExpr(expression *hclsyntax.ScopeTraversalExpr, hv *HCLVars) *ScopeTraversalExpr {
+
 	return &ScopeTraversalExpr{
 		variables:  hv,
 		expression: expression,
@@ -35,7 +36,9 @@ type VariableRef struct {
 // Parse walks the traversal segments, extracts the attribute name and optional index, and looks up the value.
 func (ste *ScopeTraversalExpr) Parse() (cty.Value, error) {
 	exprs, diags := hcl.AbsTraversalForExpr(ste.expression)
+
 	if diags.HasErrors() {
+
 		return cty.NilVal, cinzelerror.ProcessHCLDiags(diags)
 	}
 
@@ -58,6 +61,7 @@ func (ste *ScopeTraversalExpr) Parse() (cty.Value, error) {
 
 	variableValue, err := ste.variables.GetValue(variableRef.Attr, variableRef.Index)
 	if err != nil {
+
 		return cty.NilVal, err
 	}
 

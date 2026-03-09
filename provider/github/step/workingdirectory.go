@@ -14,6 +14,7 @@ func (s *Step) parseWorkingDirectory(value cty.Value) error {
 	switch value.Type() {
 	case cty.String:
 		s.WorkingDirectory = value
+
 		return nil
 	default:
 		return fmt.Errorf("unsupported type, expected string, found %s", value.Type().FriendlyName())
@@ -24,6 +25,7 @@ func (config *StepConfig) parseWorkingDirectory(hv *hclparser.HCLVars) (cty.Valu
 	hp := hclparser.New(config.WorkingDirectory, hv)
 
 	if err := hp.Parse(); err != nil {
+
 		return cty.NilVal, err
 	}
 

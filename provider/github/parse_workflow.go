@@ -25,38 +25,50 @@ import (
 func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []ActionYAMLFile, error) {
 	var cfg parseConfig
 	diags := gohcl.DecodeBody(body, nil, &cfg)
+
 	if diags.HasErrors() {
+
 		return nil, nil, nil, cinzelerror.ProcessHCLDiags(diags)
 	}
 
 	hv := hclparser.NewHCLVars()
+
 	if err := cfg.Variables.Parse(hv); err != nil {
+
 		return nil, nil, nil, err
 	}
 
 	parsedSteps, err := cfg.Steps.Parse(hv)
 	if err != nil {
+
 		return nil, nil, nil, err
 	}
 
 	stepMap, err := stepsToMap(parsedSteps)
 	if err != nil {
+
 		return nil, nil, nil, err
 	}
 
 	parsedJobs := make(map[string]ghjob.Parsed)
+
 	for _, j := range cfg.Jobs {
 		jobContent, err := parseBodyMap(j.Body, hv, "job")
 		if err != nil {
+
 			return nil, nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
 		}
 
 		job := ghjob.NewParsed(j.ID, jobContent)
+
 		if len(job.StepRefs) > 0 {
 			steps := make([]any, 0, len(job.StepRefs))
+
 			for _, stepID := range job.StepRefs {
 				stepVal, exists := stepMap[stepID]
+
 				if !exists {
+
 					return nil, nil, nil, fmt.Errorf("error in job '%s': cannot find step '%s'", j.ID, stepID)
 				}
 
@@ -70,30 +82,39 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	}
 
 	if err := validateParsedJobs(parsedJobs); err != nil {
+
 		return nil, nil, nil, err
 	}
 
 	parsedWorkflows := make([]WorkflowYAMLFile, 0, len(cfg.Workflows))
+
 	for _, wf := range cfg.Workflows {
 		wfContent, err := parseBodyMap(wf.Body, hv, "workflow")
 		if err != nil {
+
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
 		}
 
 		workflow := ghworkflow.NewParsed(wf.ID, wfContent)
+
 		if workflow.Filename == "" {
+
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, cinzelerror.ErrWorkflowFilenameRequired)
 		}
 
 		if err := validateParsedWorkflow(workflow); err != nil {
+
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
 		}
 
 		if len(workflow.JobRefs) > 0 {
 			jobs := make(map[string]any)
+
 			for _, jobID := range workflow.JobRefs {
 				jobContent, exists := parsedJobs[jobID]
+
 				if !exists {
+
 					return nil, nil, nil, fmt.Errorf("error in workflow '%s': cannot find job '%s'", wf.ID, jobID)
 				}
 
@@ -111,6 +132,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 
 	parsedActions, err := parseHCLActions(cfg.Actions, hv, stepMap)
 	if err != nil {
+
 		return nil, nil, nil, err
 	}
 
@@ -119,11 +141,14 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 
 func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
+
 	if !ok {
+
 		return nil, errUnsupportedBodyType
 	}
 
 	if err := validateHCLSchema(scope, sb); err != nil {
+
 		return nil, err
 	}
 
@@ -138,22 +163,26 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case scope == "workflow" && name == "jobs":
 			refs, err := parseReferenceList(attr.Expr, "job")
 			if err != nil {
+
 				return nil, err
 			}
 			out["jobsRefs"] = refs
 		case scope == "job" && name == "steps":
 			refs, err := parseReferenceList(attr.Expr, "step")
 			if err != nil {
+
 				return nil, err
 			}
 			out["stepsRefs"] = refs
 		case scope == "job" && name == "depends_on":
 			refs, err := parseReferenceList(attr.Expr, "job")
 			if err != nil {
+
 				return nil, err
 			}
 
 			deps := make([]any, 0, len(refs))
+
 			for _, ref := range refs {
 				deps = append(deps, ref)
 			}
@@ -162,6 +191,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		default:
 			val, err := parseAttr(attr.Expr, hv)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -173,12 +203,14 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		switch {
 		case scope == "workflow" && block.Type == "on":
 			if len(block.Labels) != 1 {
+
 				return nil, errors.New("on block must have exactly one label")
 			}
 
 			onMap := getOrCreateMap(out, "on")
 			eventValue, err := parseBodyMap(block.Body, hv, "on")
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -195,6 +227,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "uses":
 			usesValue, err := parseUsesBlock(block.Body, hv)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -202,6 +235,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "with":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -210,6 +244,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "env":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -218,6 +253,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "output" && scope == "job":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -226,6 +262,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "secret" && scope == "job":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -233,11 +270,13 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			secretsMap[key] = value
 		case block.Type == "service" && scope == "job":
 			if len(block.Labels) != 1 {
+
 				return nil, errors.New("service block must have exactly one label")
 			}
 
 			serviceVal, err := parseBodyMap(block.Body, hv, "service")
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -246,6 +285,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "runs_on" && scope == "job":
 			runsOnValue, err := parseBodyMap(block.Body, hv, "runs_on")
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -257,11 +297,13 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "matrix" && scope == "strategy":
 			matrixValue, err := parseBodyMap(block.Body, hv, "matrix")
 			if err != nil {
+
 				return nil, err
 			}
 
 			normalized, err := ghjob.NormalizeStrategyMatrix(matrixValue)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -269,6 +311,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		default:
 			child, err := parseBodyMap(block.Body, hv, block.Type)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -281,14 +324,18 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 
 func parseUsesBlock(body hcl.Body, hv *hclparser.HCLVars) (string, error) {
 	sb, ok := body.(*hclsyntax.Body)
+
 	if !ok {
+
 		return "", errUnsupportedUsesBody
 	}
 
 	var cfg action.UsesConfig
+
 	if attr, ok := sb.Attributes["action"]; ok {
 		cfg.Action = attr.Expr
 	}
+
 	if attr, ok := sb.Attributes["version"]; ok {
 		cfg.Version = attr.Expr
 	}
@@ -296,6 +343,7 @@ func parseUsesBlock(body hcl.Body, hv *hclparser.HCLVars) (string, error) {
 	list := action.UsesListConfig{cfg}
 	val, err := list.Parse(hv)
 	if err != nil {
+
 		return "", err
 	}
 
@@ -304,32 +352,42 @@ func parseUsesBlock(body hcl.Body, hv *hclparser.HCLVars) (string, error) {
 
 func parseNamedBlock(body hcl.Body, hv *hclparser.HCLVars) (string, any, error) {
 	sb, ok := body.(*hclsyntax.Body)
+
 	if !ok {
+
 		return "", nil, errUnsupportedBlockBody
 	}
 
 	nameAttr, ok := sb.Attributes["name"]
+
 	if !ok {
+
 		return "", nil, errNamedBlockMissingName
 	}
 
 	valueAttr, ok := sb.Attributes["value"]
+
 	if !ok {
+
 		return "", nil, errNamedBlockMissingValue
 	}
 
 	rawName, err := parseAttr(nameAttr.Expr, hv)
 	if err != nil {
+
 		return "", nil, err
 	}
 
 	name, ok := rawName.(string)
+
 	if !ok || name == "" {
+
 		return "", nil, errors.New("'name' attribute must be a non-empty string")
 	}
 
 	value, err := parseAttr(valueAttr.Expr, hv)
 	if err != nil {
+
 		return "", nil, err
 	}
 
@@ -338,11 +396,14 @@ func parseNamedBlock(body hcl.Body, hv *hclparser.HCLVars) (string, any, error) 
 
 func parseAttr(expr hcl.Expression, hv *hclparser.HCLVars) (any, error) {
 	hp := hclparser.New(expr, hv)
+
 	if err := hp.Parse(); err != nil {
+
 		return nil, err
 	}
 
 	if hp.Result() == cty.NilVal {
+
 		return nil, nil
 	}
 
@@ -350,7 +411,9 @@ func parseAttr(expr hcl.Expression, hv *hclparser.HCLVars) (any, error) {
 }
 
 func parseReferenceList(expr hcl.Expression, expectedRoot string) ([]string, error) {
+
 	if expr == nil {
+
 		return nil, nil
 	}
 
@@ -358,20 +421,25 @@ func parseReferenceList(expr hcl.Expression, expectedRoot string) ([]string, err
 	case *hclsyntax.ScopeTraversalExpr:
 		ref, err := parseReference(e, expectedRoot)
 		if err != nil {
+
 			return nil, err
 		}
 
 		return []string{ref}, nil
 	case *hclsyntax.TupleConsExpr:
 		refs := make([]string, 0, len(e.Exprs))
+
 		for _, item := range e.Exprs {
 			traversal, ok := item.(*hclsyntax.ScopeTraversalExpr)
+
 			if !ok {
+
 				return nil, fmt.Errorf("expected a %s reference", expectedRoot)
 			}
 
 			ref, err := parseReference(traversal, expectedRoot)
 			if err != nil {
+
 				return nil, err
 			}
 
@@ -386,21 +454,28 @@ func parseReferenceList(expr hcl.Expression, expectedRoot string) ([]string, err
 
 func parseReference(expr *hclsyntax.ScopeTraversalExpr, expectedRoot string) (string, error) {
 	traversal, diags := hcl.AbsTraversalForExpr(expr)
+
 	if diags.HasErrors() {
+
 		return "", cinzelerror.ProcessHCLDiags(diags)
 	}
 
 	if len(traversal) < 2 {
+
 		return "", fmt.Errorf("invalid %s reference", expectedRoot)
 	}
 
 	root, ok := traversal[0].(hcl.TraverseRoot)
+
 	if !ok || root.Name != expectedRoot {
+
 		return "", fmt.Errorf("invalid reference root, expected '%s'", expectedRoot)
 	}
 
 	attr, ok := traversal[1].(hcl.TraverseAttr)
+
 	if !ok {
+
 		return "", fmt.Errorf("invalid %s reference attribute", expectedRoot)
 	}
 
@@ -408,14 +483,17 @@ func parseReference(expr *hclsyntax.ScopeTraversalExpr, expectedRoot string) (st
 }
 
 func addGenericBlock(target map[string]any, key string, labels []string, value any) {
+
 	if len(labels) == 1 {
 		mapping, ok := target[key].(map[string]any)
+
 		if !ok || mapping == nil {
 			mapping = map[string]any{}
 		}
 
 		mapping[labels[0]] = value
 		target[key] = mapping
+
 		return
 	}
 
@@ -426,6 +504,7 @@ func addGenericBlock(target map[string]any, key string, labels []string, value a
 		default:
 			target[key] = []any{casted, value}
 		}
+
 		return
 	}
 
@@ -434,23 +513,29 @@ func addGenericBlock(target map[string]any, key string, labels []string, value a
 
 func getOrCreateMap(target map[string]any, key string) map[string]any {
 	existing, ok := target[key]
+
 	if ok {
 		mapping, castOK := existing.(map[string]any)
+
 		if castOK {
+
 			return mapping
 		}
 	}
 
 	mapping := map[string]any{}
 	target[key] = mapping
+
 	return mapping
 }
 
 func stepsToMap(steps step.Steps) (map[string]any, error) {
 	out := make(map[string]any, len(steps))
+
 	for stepID, parsedStep := range steps {
 		converted, err := yamlwriter.Convert(parsedStep)
 		if err != nil {
+
 			return nil, err
 		}
 

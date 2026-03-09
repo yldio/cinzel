@@ -22,7 +22,9 @@ func (s *Step) parseUses(value cty.Value) error {
 }
 
 func (config *StepConfig) parseUses(hv *hclparser.HCLVars) (cty.Value, error) {
+
 	if config.Uses == nil {
+
 		return cty.NilVal, nil
 	}
 

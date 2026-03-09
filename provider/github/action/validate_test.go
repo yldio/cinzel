@@ -25,6 +25,7 @@ func TestValidateUsesRef(t *testing.T) {
 
 	for _, tt := range valid {
 		t.Run(tt.name, func(t *testing.T) {
+
 			if err := ValidateUsesRef(tt.uses); err != nil {
 				t.Fatalf("expected valid, got %v", err)
 			}
@@ -48,9 +49,11 @@ func TestValidateUsesRef(t *testing.T) {
 	for _, tt := range invalid {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateUsesRef(tt.uses)
+
 			if err == nil {
 				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
 			}
+
 			if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
 			}

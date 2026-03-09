@@ -16,6 +16,7 @@ type HCLVars struct {
 
 // NewHCLVars creates an empty HCLVars store.
 func NewHCLVars() *HCLVars {
+
 	return &HCLVars{
 		variables: map[string]cty.Value{},
 	}
@@ -28,7 +29,9 @@ func (av *HCLVars) Add(key string, value cty.Value) {
 
 // GetValue retrieves a variable by key, optionally indexing into a list.
 func (av *HCLVars) GetValue(attr string, idx *int64) (cty.Value, error) {
+
 	if idx == nil {
+
 		return av.GetValueByKey(attr)
 	}
 
@@ -38,7 +41,9 @@ func (av *HCLVars) GetValue(attr string, idx *int64) (cty.Value, error) {
 // GetValueByKey returns the variable value for the given key.
 func (av *HCLVars) GetValueByKey(key string) (cty.Value, error) {
 	value, ok := av.variables[key]
+
 	if ok {
+
 		return value, nil
 	}
 
@@ -49,20 +54,26 @@ func (av *HCLVars) GetValueByKey(key string) (cty.Value, error) {
 func (av *HCLVars) GetValueByIndex(key string, idx int64) (cty.Value, error) {
 	value, err := av.GetValueByKey(key)
 	if err != nil {
+
 		return cty.NilVal, err
 	}
 
 	t := value.Type()
+
 	if !t.IsListType() && !t.IsTupleType() && !t.IsSetType() {
+
 		return value, nil
 	}
 
 	if !value.IsKnown() || value.IsNull() {
+
 		return cty.NilVal, fmt.Errorf("variable %q is null or unknown", key)
 	}
 
 	length := int64(value.LengthInt())
+
 	if idx < 0 || idx >= length {
+
 		return cty.NilVal, fmt.Errorf("index %d out of range for variable %q (length %d)", idx, key, length)
 	}
 

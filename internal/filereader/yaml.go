@@ -17,7 +17,9 @@ import (
 
 // FromYaml reads YAML files from path and unmarshals each into a value of type T.
 func (read *Reader[T]) FromYaml(path string, recursive bool) ([]T, error) {
+
 	if err := read.readPath(path, recursive, []string{".yaml", ".yml"}); err != nil {
+
 		return nil, err
 	}
 
@@ -26,12 +28,14 @@ func (read *Reader[T]) FromYaml(path string, recursive bool) ([]T, error) {
 	for _, yamlFile := range read.files {
 		yamlBytes, err := os.ReadFile(yamlFile)
 		if err != nil {
+
 			return nil, err
 		}
 
 		var item T
 
 		if err := yaml.Unmarshal(yamlBytes, &item); err != nil {
+
 			return nil, err
 		}
 
@@ -53,23 +57,29 @@ func (read *Reader[T]) CtyYaml(content []byte) (T, error) {
 
 	val, err := ctyyaml.Unmarshal(content, ctyType)
 	if err != nil {
+
 		return item, err
 	}
 
 	if val.IsNull() || !val.IsKnown() {
+
 		return item, nil
 	}
 
 	if !val.Type().IsMapType() {
+
 		return item, fmt.Errorf("expected a map type, got: %s", val.Type().FriendlyName())
 	}
 
 	for k, v := range val.AsValueMap() {
+
 		if v.IsNull() || !v.IsKnown() {
+
 			return item, nil
 		}
 
 		if err := gocty.FromCtyValue(v, &item); err != nil {
+
 			return item, err
 		}
 

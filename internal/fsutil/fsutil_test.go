@@ -23,6 +23,7 @@ func TestListFilesWithExtensions(t *testing.T) {
 	}
 
 	for _, f := range []string{rootYAML, nestedYML, other} {
+
 		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -54,11 +55,13 @@ func TestListFilesWithExtensions(t *testing.T) {
 func TestListFilesWithExtensionsFileValidation(t *testing.T) {
 	tmp := t.TempDir()
 	bad := filepath.Join(tmp, "a.txt")
+
 	if err := os.WriteFile(bad, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	_, err := ListFilesWithExtensions(bad, false, ".yaml", ".yml")
+
 	if err == nil {
 		t.Fatal("expected extension validation error")
 	}
@@ -85,6 +88,7 @@ func TestWriteFile(t *testing.T) {
 func TestParseHCLInputNoFiles(t *testing.T) {
 	tmp := t.TempDir()
 	_, err := ParseHCLInput(tmp, false)
+
 	if !errors.Is(err, ErrNoHCLFiles) {
 		t.Fatalf("expected ErrNoHCLFiles, got %v", err)
 	}

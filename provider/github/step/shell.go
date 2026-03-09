@@ -14,6 +14,7 @@ func (s *Step) parseShell(value cty.Value) error {
 	switch value.Type() {
 	case cty.String:
 		s.Shell = value
+
 		return nil
 	default:
 		return fmt.Errorf("unsupported type, expected string, found %s", value.Type().FriendlyName())
@@ -24,6 +25,7 @@ func (config *StepConfig) parseShell(hv *hclparser.HCLVars) (cty.Value, error) {
 	hp := hclparser.New(config.Shell, hv)
 
 	if err := hp.Parse(); err != nil {
+
 		return cty.NilVal, err
 	}
 

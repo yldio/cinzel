@@ -11,7 +11,9 @@ import (
 
 func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[string]any) error {
 	mapping, ok := toStringAnyMap(raw)
+
 	if !ok {
+
 		return writeAttributeAny(body, "strategy", raw)
 	}
 
@@ -19,19 +21,24 @@ func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[str
 	strategyBody := strategyBlock.Body()
 
 	for _, key := range sortedKeys(mapping) {
+
 		if len(strategyBody.Attributes()) > 0 || len(strategyBody.Blocks()) > 0 {
 			strategyBody.AppendNewline()
 		}
 
 		value := mapping[key]
+
 		if key == "matrix" {
+
 			if err := writeMatrixBlock(strategyBody, value, generatedVariables); err != nil {
+
 				return err
 			}
 			continue
 		}
 
 		if err := writeAttributeAny(strategyBody, toHCLKey(key), value); err != nil {
+
 			return err
 		}
 	}
@@ -41,25 +48,32 @@ func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[str
 
 func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[string]any) error {
 	mapping, ok := toStringAnyMap(raw)
+
 	if !ok {
+
 		return writeAttributeAny(body, "matrix", raw)
 	}
 
 	matrixBlock := body.AppendNewBlock("matrix", nil)
 	matrixBody := matrixBlock.Body()
 	existingNames := make(map[string]struct{}, len(generatedVariables))
+
 	for name := range generatedVariables {
 		existingNames[name] = struct{}{}
 	}
 
 	axes := ghjob.AxesFromMap(mapping)
+
 	for _, axis := range axes {
+
 		if len(matrixBody.Attributes()) > 0 || len(matrixBody.Blocks()) > 0 {
 			matrixBody.AppendNewline()
 		}
 
 		if axis.Name == "include" || axis.Name == "exclude" {
+
 			if err := writeAttributeAny(matrixBody, toHCLKey(axis.Name), axis.Value); err != nil {
+
 				return err
 			}
 			continue
@@ -78,6 +92,7 @@ func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[strin
 		}
 
 		if err := writeAttributeAny(matrixBody, axis.Name, axis.Value); err != nil {
+
 			return err
 		}
 	}

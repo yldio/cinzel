@@ -65,6 +65,7 @@ func TestFilereader(t *testing.T) {
 		fileReader := New[test.HclBody]()
 
 		hclBody, err := fileReader.FromHCL(filePath[0], false)
+
 		if err.Error() != message {
 			t.Fatal(err.Error())
 		}
@@ -117,6 +118,7 @@ func TestFilereader(t *testing.T) {
 		fileReader := New[test.YamlBody]()
 
 		yamlBody, err := fileReader.FromYaml(filePath[0], false)
+
 		if err.Error() != message {
 			t.Fatal(err.Error())
 		}

@@ -7,9 +7,11 @@ import "testing"
 
 func TestAxesFromMap(t *testing.T) {
 	axes := AxesFromMap(map[string]any{"b": 2, "a": 1})
+
 	if len(axes) != 2 {
 		t.Fatalf("expected 2 axes, got %d", len(axes))
 	}
+
 	if axes[0].Name != "a" {
 		t.Fatalf("expected sorted order, first key should be a, got %s", axes[0].Name)
 	}
@@ -21,6 +23,7 @@ func TestNormalizeStrategyMatrixNoVariable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if _, ok := norm["os"]; !ok {
 		t.Fatal("expected os key to remain")
 	}
@@ -32,6 +35,7 @@ func TestNormalizeStrategyMatrixDuplicate(t *testing.T) {
 		"variable": []any{map[string]any{"name": "os", "value": []any{"darwin"}}},
 	}
 	_, err := NormalizeStrategyMatrix(matrix)
+
 	if err == nil {
 		t.Fatal("expected duplicate key error")
 	}
@@ -42,6 +46,7 @@ func TestNormalizeStrategyMatrixInvalidVariable(t *testing.T) {
 		"variable": "not-valid",
 	}
 	_, err := NormalizeStrategyMatrix(matrix)
+
 	if err == nil {
 		t.Fatal("expected error for invalid variable type")
 	}

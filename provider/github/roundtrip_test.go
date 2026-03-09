@@ -36,16 +36,19 @@ func TestWorkflowRoundtripFixtures(t *testing.T) {
 			parse2Dir := filepath.Join(tmpDir, "parse2")
 
 			p := New()
+
 			if err := p.Parse(provider.ProviderOps{File: inputHCL, OutputDirectory: parse1Dir}); err != nil {
 				t.Fatal(err)
 			}
 
 			yamlFile := filepath.Join(parse1Dir, fixture+".yaml")
+
 			if err := p.Unparse(provider.ProviderOps{File: yamlFile, OutputDirectory: unparseDir}); err != nil {
 				t.Fatal(err)
 			}
 
 			hclFile := filepath.Join(unparseDir, fixture+".hcl")
+
 			if err := p.Parse(provider.ProviderOps{File: hclFile, OutputDirectory: parse2Dir}); err != nil {
 				t.Fatal(err)
 			}
@@ -69,11 +72,13 @@ func assertYAMLValueEqual(t *testing.T, expected []byte, got []byte) {
 	t.Helper()
 
 	var expectedValue any
+
 	if err := yaml.Unmarshal(expected, &expectedValue); err != nil {
 		t.Fatalf("failed to unmarshal expected YAML: %v", err)
 	}
 
 	var gotValue any
+
 	if err := yaml.Unmarshal(got, &gotValue); err != nil {
 		t.Fatalf("failed to unmarshal generated YAML: %v", err)
 	}
@@ -100,16 +105,19 @@ func TestActionRoundtripFixtures(t *testing.T) {
 			parse2Dir := filepath.Join(tmpDir, "parse2")
 
 			p := New()
+
 			if err := p.Parse(provider.ProviderOps{File: inputHCL, OutputDirectory: parse1Dir}); err != nil {
 				t.Fatal(err)
 			}
 
 			actionYAML := filepath.Join(parse1Dir, fixture, "action.yml")
+
 			if err := p.Unparse(provider.ProviderOps{File: actionYAML, OutputDirectory: unparseDir}); err != nil {
 				t.Fatal(err)
 			}
 
 			hclFile := filepath.Join(unparseDir, "action.hcl")
+
 			if err := p.Parse(provider.ProviderOps{File: hclFile, OutputDirectory: parse2Dir}); err != nil {
 				t.Fatal(err)
 			}
@@ -178,11 +186,13 @@ workflow "wf" {
 	}
 
 	p := New()
+
 	if err := p.Parse(provider.ProviderOps{File: inputHCL, OutputDirectory: parse1Dir}); err != nil {
 		t.Fatal(err)
 	}
 
 	yamlFile := filepath.Join(parse1Dir, "expressions.yaml")
+
 	if err := p.Unparse(provider.ProviderOps{File: yamlFile, OutputDirectory: unparseDir}); err != nil {
 		t.Fatal(err)
 	}

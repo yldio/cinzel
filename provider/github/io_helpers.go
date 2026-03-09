@@ -16,15 +16,19 @@ import (
 )
 
 func resolveInputPath(opts provider.ProviderOps) (string, error) {
+
 	if opts.File == "" && opts.Directory == "" {
+
 		return "", errInputPathRequired
 	}
 
 	if opts.File != "" && opts.Directory != "" {
+
 		return "", errInputPathConflict
 	}
 
 	if opts.File != "" {
+
 		return opts.File, nil
 	}
 
@@ -32,7 +36,9 @@ func resolveInputPath(opts provider.ProviderOps) (string, error) {
 }
 
 func resolveParseOutputDirectory(opts provider.ProviderOps) string {
+
 	if opts.OutputDirectory != "" {
+
 		return opts.OutputDirectory
 	}
 
@@ -40,7 +46,9 @@ func resolveParseOutputDirectory(opts provider.ProviderOps) string {
 }
 
 func resolveUnparseOutputDirectory(opts provider.ProviderOps) string {
+
 	if opts.OutputDirectory != "" {
+
 		return opts.OutputDirectory
 	}
 
@@ -48,12 +56,16 @@ func resolveUnparseOutputDirectory(opts provider.ProviderOps) string {
 }
 
 func resolveParseFilename(opts provider.ProviderOps) string {
+
 	if opts.File == "" {
+
 		return "steps.yaml"
 	}
 
 	name := strings.TrimSuffix(filepath.Base(opts.File), filepath.Ext(opts.File))
+
 	if name == "" {
+
 		return "steps.yaml"
 	}
 
@@ -64,28 +76,35 @@ func parseStepsFromYAML(content []byte) ([]step.Step, error) {
 	typ := cty.Map(cty.DynamicPseudoType)
 	val, err := ctyyaml.Unmarshal(content, typ)
 	if err != nil {
+
 		return nil, err
 	}
 
 	if val.IsNull() || !val.IsKnown() {
+
 		return nil, nil
 	}
 
 	if !val.Type().IsMapType() {
+
 		return nil, fmt.Errorf("expected top-level map, found %s", val.Type().FriendlyName())
 	}
 
 	rawMap := val.AsValueMap()
 	ids := make([]string, 0, len(rawMap))
+
 	for id := range rawMap {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 
 	steps := make([]step.Step, 0, len(ids))
+
 	for _, id := range ids {
 		var s step.Step
+
 		if err := s.PreDecode(rawMap[id]); err != nil {
+
 			return nil, err
 		}
 

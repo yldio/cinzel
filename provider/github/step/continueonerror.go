@@ -14,9 +14,11 @@ func (s *Step) parseContinueOnError(value cty.Value) error {
 	switch value.Type() {
 	case cty.String:
 		s.ContinueOnError = value
+
 		return nil
 	case cty.Bool:
 		s.ContinueOnError = value
+
 		return nil
 	default:
 		return fmt.Errorf("unsupported type, expected string or bool, found %s", value.Type().FriendlyName())
@@ -27,6 +29,7 @@ func (config *StepConfig) parseContinueOnError(hv *hclparser.HCLVars) (cty.Value
 	hp := hclparser.New(config.ContinueOnError, hv)
 
 	if err := hp.Parse(); err != nil {
+
 		return cty.NilVal, err
 	}
 

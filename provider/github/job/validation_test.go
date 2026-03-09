@@ -33,6 +33,7 @@ func TestValidateModel(t *testing.T) {
 			Uses:      "org/repo/.github/workflows/ci.yml@main",
 			HasRunsOn: true,
 		}, "runs-on")
+
 		if err == nil {
 			t.Fatal("expected error for uses with runs-on")
 		}
@@ -43,6 +44,7 @@ func TestValidateModel(t *testing.T) {
 			Uses:      "org/repo/.github/workflows/ci.yml@main",
 			StepCount: 1,
 		}, "runs-on")
+
 		if err == nil {
 			t.Fatal("expected error for uses with steps")
 		}
@@ -54,6 +56,7 @@ func TestValidateModel(t *testing.T) {
 			StepCount: 1,
 			HasWith:   true,
 		}, "runs-on")
+
 		if err == nil {
 			t.Fatal("expected error for with without uses")
 		}
@@ -65,6 +68,7 @@ func TestValidateModel(t *testing.T) {
 			StepCount:  1,
 			HasSecrets: true,
 		}, "runs-on")
+
 		if err == nil {
 			t.Fatal("expected error for secrets without uses")
 		}
@@ -74,6 +78,7 @@ func TestValidateModel(t *testing.T) {
 		err := ValidateModel(ValidationModel{
 			StepCount: 1,
 		}, "runs-on")
+
 		if err == nil {
 			t.Fatal("expected error for missing runs-on")
 		}
@@ -84,6 +89,7 @@ func TestValidateModel(t *testing.T) {
 			HasRunsOn: true,
 			StepCount: 0,
 		}, "runs-on")
+
 		if err == nil {
 			t.Fatal("expected error for zero steps")
 		}
@@ -95,6 +101,7 @@ func TestModelFromYAMLStepsTypeValidation(t *testing.T) {
 		"runs-on": "ubuntu-latest",
 		"steps":   map[string]any{"run": "echo hi"},
 	})
+
 	if err == nil {
 		t.Fatal("expected steps type error")
 	}
@@ -110,6 +117,7 @@ func TestNeedsFromYAML(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if needs != nil {
 			t.Fatalf("expected nil, got %v", needs)
 		}
@@ -120,6 +128,7 @@ func TestNeedsFromYAML(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if len(needs) != 1 || needs[0] != "build" {
 			t.Fatalf("expected [build], got %v", needs)
 		}
@@ -130,6 +139,7 @@ func TestNeedsFromYAML(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if len(needs) != 2 {
 			t.Fatalf("expected 2, got %d", len(needs))
 		}
@@ -137,6 +147,7 @@ func TestNeedsFromYAML(t *testing.T) {
 
 	t.Run("empty string", func(t *testing.T) {
 		_, err := NeedsFromYAML("")
+
 		if err == nil {
 			t.Fatal("expected error for empty string")
 		}
@@ -144,6 +155,7 @@ func TestNeedsFromYAML(t *testing.T) {
 
 	t.Run("invalid type", func(t *testing.T) {
 		_, err := NeedsFromYAML(123)
+
 		if err == nil {
 			t.Fatal("expected error for invalid type")
 		}
@@ -163,9 +175,11 @@ func TestModelFromParsed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if !m.HasRunsOn {
 			t.Fatal("expected HasRunsOn true")
 		}
+
 		if m.StepCount != 1 {
 			t.Fatalf("expected 1 step, got %d", m.StepCount)
 		}
@@ -182,6 +196,7 @@ func TestModelFromParsed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if m.Uses != "org/repo/.github/workflows/ci.yml@main" {
 			t.Fatalf("expected uses value, got %q", m.Uses)
 		}
@@ -190,6 +205,7 @@ func TestModelFromParsed(t *testing.T) {
 
 func TestNeedsFromYAMLEmptyEntry(t *testing.T) {
 	_, err := NeedsFromYAML([]any{"build", ""})
+
 	if err == nil {
 		t.Fatal("expected empty needs entry error")
 	}
@@ -204,6 +220,7 @@ func TestValidateNeedsReferences(t *testing.T) {
 		err := ValidateNeedsReferences([]string{"build", "build"}, map[string]ValidationModel{
 			"build": {ID: "build"},
 		})
+
 		if err == nil {
 			t.Fatal("expected duplicate need error")
 		}
@@ -217,6 +234,7 @@ func TestValidateNeedsReferences(t *testing.T) {
 		err := ValidateNeedsReferences([]string{"missing"}, map[string]ValidationModel{
 			"build": {ID: "build"},
 		})
+
 		if err == nil {
 			t.Fatal("expected unknown need error")
 		}
@@ -232,6 +250,7 @@ func TestValidateNeedsCycles(t *testing.T) {
 		err := ValidateNeedsCycles(map[string]ValidationModel{
 			"build": {ID: "build", Needs: []string{"build"}},
 		})
+
 		if err == nil {
 			t.Fatal("expected cycle error")
 		}
@@ -247,6 +266,7 @@ func TestValidateNeedsCycles(t *testing.T) {
 			"b": {ID: "b", Needs: []string{"c"}},
 			"c": {ID: "c", Needs: []string{"a"}},
 		})
+
 		if err == nil {
 			t.Fatal("expected cycle error")
 		}

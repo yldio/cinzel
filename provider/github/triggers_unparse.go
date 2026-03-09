@@ -11,12 +11,16 @@ import (
 )
 
 func writeOnEventBody(event string, raw any, body *hclwrite.Body) error {
+
 	if raw == nil {
+
 		return nil
 	}
 
 	eventMap, ok := toStringAnyMap(raw)
+
 	if !ok {
+
 		return writeAttributeAny(body, toHCLKey(event), raw)
 	}
 
@@ -24,13 +28,16 @@ func writeOnEventBody(event string, raw any, body *hclwrite.Body) error {
 		value := eventMap[key]
 
 		if blockType, ok := ghworkflow.TriggerBlockTypeForEventKey(event, key); ok {
+
 			if err := writeLabeledBlocks(body, blockType, value); err != nil {
+
 				return err
 			}
 			continue
 		}
 
 		if err := writeAttributeAny(body, toHCLKey(key), value); err != nil {
+
 			return err
 		}
 	}
@@ -40,7 +47,9 @@ func writeOnEventBody(event string, raw any, body *hclwrite.Body) error {
 
 func writeLabeledBlocks(body *hclwrite.Body, blockType string, raw any) error {
 	items, ok := toStringAnyMap(raw)
+
 	if !ok {
+
 		return fmt.Errorf("%s must be an object", blockType)
 	}
 
@@ -49,12 +58,16 @@ func writeLabeledBlocks(body *hclwrite.Body, blockType string, raw any) error {
 		childBody := child.Body()
 
 		childMap, ok := toStringAnyMap(items[label])
+
 		if !ok {
+
 			return fmt.Errorf("%s '%s' must be an object", blockType, label)
 		}
 
 		for _, key := range sortedKeys(childMap) {
+
 			if err := writeAttributeAny(childBody, toHCLKey(key), childMap[key]); err != nil {
+
 				return err
 			}
 		}

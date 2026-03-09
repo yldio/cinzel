@@ -14,6 +14,7 @@ type Parsed struct {
 // NewParsed creates a Parsed workflow, extracting filename and job references from the body.
 func NewParsed(id string, body map[string]any) Parsed {
 	w := Parsed{ID: id, Body: body}
+
 	if filename, ok := body["filename"].(string); ok {
 		w.Filename = filename
 	}

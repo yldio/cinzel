@@ -15,6 +15,7 @@ type Parsed struct {
 // NewParsed creates a Parsed job, extracting step references from the body.
 func NewParsed(id string, body map[string]any) Parsed {
 	j := Parsed{ID: id, Body: body}
+
 	if refs, ok := body["stepsRefs"].([]string); ok {
 		j.StepRefs = refs
 		delete(j.Body, "stepsRefs")
@@ -39,6 +40,7 @@ func ModelFromParsed(p Parsed) (ValidationModel, error) {
 	uses, _ := nonEmptyString(p.Body["uses"])
 	needs, err := NeedsFromYAML(p.Body["needs"])
 	if err != nil {
+
 		return ValidationModel{}, err
 	}
 
@@ -53,6 +55,7 @@ func ModelFromParsed(p Parsed) (ValidationModel, error) {
 
 	stepCount, err := stepCountFromRaw(p.Body)
 	if err != nil {
+
 		return ValidationModel{}, err
 	}
 	m.StepCount = stepCount
@@ -65,6 +68,7 @@ func ModelFromYAML(id string, raw map[string]any) (ValidationModel, error) {
 	uses, _ := nonEmptyString(raw["uses"])
 	needs, err := NeedsFromYAML(raw["needs"])
 	if err != nil {
+
 		return ValidationModel{}, err
 	}
 
@@ -79,6 +83,7 @@ func ModelFromYAML(id string, raw map[string]any) (ValidationModel, error) {
 
 	stepCount, err := stepCountFromRaw(raw)
 	if err != nil {
+
 		return ValidationModel{}, err
 	}
 	m.StepCount = stepCount
@@ -88,12 +93,16 @@ func ModelFromYAML(id string, raw map[string]any) (ValidationModel, error) {
 
 func stepCountFromRaw(raw map[string]any) (int, error) {
 	stepsRaw, exists := raw["steps"]
+
 	if !exists || stepsRaw == nil {
+
 		return 0, nil
 	}
 
 	steps, ok := stepsRaw.([]any)
+
 	if !ok {
+
 		return 0, fmt.Errorf("'steps' must be a list")
 	}
 

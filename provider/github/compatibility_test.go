@@ -42,6 +42,7 @@ workflow "wf" {
 	}
 
 	p := New()
+
 	if err := p.Parse(provider.ProviderOps{File: hclIn, OutputDirectory: parseDir}); err != nil {
 		t.Fatal(err)
 	}
@@ -53,6 +54,7 @@ workflow "wf" {
 	}
 
 	yamlOutStr := string(yamlBytes)
+
 	if !strings.Contains(yamlOutStr, "on:") || !strings.Contains(yamlOutStr, "jobs:") {
 		t.Fatalf("expected workflow yaml output, got:\n%s", yamlOutStr)
 	}

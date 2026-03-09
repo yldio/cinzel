@@ -23,6 +23,7 @@ func (config *StepConfig) parseIgnoreId(hv *hclparser.HCLVars) (cty.Value, error
 	hp := hclparser.New(config.IgnoreId, hv)
 
 	if err := hp.Parse(); err != nil {
+
 		return cty.NilVal, err
 	}
 

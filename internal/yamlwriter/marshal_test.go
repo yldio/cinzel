@@ -23,6 +23,7 @@ func TestMarshalPrimitiveAndNilPointer(t *testing.T) {
 	}
 
 	content := string(out)
+
 	if !strings.Contains(content, "name: cinzel") {
 		t.Fatalf("expected name in yaml output, got: %q", content)
 	}
@@ -47,6 +48,7 @@ func TestConvertCtyValue(t *testing.T) {
 	}
 
 	m, ok := result.(map[string]any)
+
 	if !ok {
 		t.Fatalf("expected map, got %T", result)
 	}
@@ -67,6 +69,7 @@ func TestConvertCtyNilVal(t *testing.T) {
 	}
 
 	m, ok := result.(map[string]any)
+
 	if !ok {
 		t.Fatalf("expected map, got %T", result)
 	}
@@ -83,6 +86,7 @@ func TestConvertSlice(t *testing.T) {
 	}
 
 	list, ok := result.([]any)
+
 	if !ok {
 		t.Fatalf("expected []any, got %T", result)
 	}
@@ -99,6 +103,7 @@ func TestConvertMap(t *testing.T) {
 	}
 
 	m, ok := result.(map[any]any)
+
 	if !ok {
 		t.Fatalf("expected map[any]any, got %T", result)
 	}
@@ -120,6 +125,7 @@ func TestConvertDashTag(t *testing.T) {
 	}
 
 	m, ok := result.(map[string]any)
+
 	if !ok {
 		t.Fatalf("expected map, got %T", result)
 	}
@@ -127,6 +133,7 @@ func TestConvertDashTag(t *testing.T) {
 	if _, exists := m["Hidden"]; exists {
 		t.Fatal("expected hidden field to be omitted")
 	}
+
 	if _, exists := m["-"]; exists {
 		t.Fatal("expected dash-tagged field to be omitted")
 	}
@@ -144,6 +151,7 @@ func TestConvertPointer(t *testing.T) {
 	}
 
 	m, ok := result.(map[string]any)
+
 	if !ok {
 		t.Fatalf("expected map, got %T", result)
 	}

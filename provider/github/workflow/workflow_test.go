@@ -17,9 +17,11 @@ func TestNormalizeOnEvent(t *testing.T) {
 	if _, ok := out["inputs"]; !ok {
 		t.Fatalf("expected inputs key after normalization, got %#v", out)
 	}
+
 	if _, ok := out["outputs"]; !ok {
 		t.Fatalf("expected outputs key after normalization, got %#v", out)
 	}
+
 	if _, ok := out["secrets"]; !ok {
 		t.Fatalf("expected secrets key after normalization, got %#v", out)
 	}
@@ -40,9 +42,11 @@ func TestTriggerBlockTypeForEventKey(t *testing.T) {
 
 	for _, tt := range tests {
 		got, ok := TriggerBlockTypeForEventKey(tt.event, tt.key)
+
 		if ok != tt.expectOK {
 			t.Fatalf("expected ok=%v, got %v", tt.expectOK, ok)
 		}
+
 		if got != tt.expect {
 			t.Fatalf("expected block type %q, got %q", tt.expect, got)
 		}
@@ -56,6 +60,7 @@ func TestValidateModel(t *testing.T) {
 	}
 
 	err = ValidateModel(ValidationModel{HasOn: false, OnCount: 0, JobRefs: []string{"build"}})
+
 	if err == nil {
 		t.Fatal("expected error for missing on")
 	}
@@ -64,6 +69,7 @@ func TestValidateModel(t *testing.T) {
 func TestNewYAMLDocument(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
@@ -84,6 +90,7 @@ func TestNewYAMLDocument(t *testing.T) {
 func TestNormalizeOnShorthandString(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
@@ -100,6 +107,7 @@ func TestNormalizeOnShorthandString(t *testing.T) {
 func TestNormalizeOnShorthandList(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
@@ -120,6 +128,7 @@ func TestNormalizeOnShorthandList(t *testing.T) {
 func TestNormalizeOnSchedule(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
@@ -134,11 +143,13 @@ func TestNormalizeOnSchedule(t *testing.T) {
 	}
 
 	schedule, ok := on["schedule"].(map[string]any)
+
 	if !ok {
 		t.Fatalf("expected schedule object, got %#v", on["schedule"])
 	}
 
 	cron, ok := schedule["cron"].([]any)
+
 	if !ok || len(cron) != 2 {
 		t.Fatalf("expected two cron values, got %#v", schedule["cron"])
 	}
@@ -146,6 +157,7 @@ func TestNormalizeOnSchedule(t *testing.T) {
 
 func TestValidateModelDuplicateJobRefs(t *testing.T) {
 	err := ValidateModel(ValidationModel{HasOn: true, OnCount: 1, JobRefs: []string{"build", "build"}})
+
 	if err == nil {
 		t.Fatal("expected error for duplicate job refs")
 	}
@@ -153,6 +165,7 @@ func TestValidateModelDuplicateJobRefs(t *testing.T) {
 
 func TestValidateModelNoJobs(t *testing.T) {
 	err := ValidateModel(ValidationModel{HasOn: true, OnCount: 1, JobRefs: []string{}})
+
 	if err == nil {
 		t.Fatal("expected error for no jobs")
 	}
@@ -166,18 +179,23 @@ func TestNewParsed(t *testing.T) {
 	}
 
 	p := NewParsed("my_workflow", body)
+
 	if p.Filename != "ci" {
 		t.Fatalf("expected ci, got %s", p.Filename)
 	}
+
 	if len(p.JobRefs) != 2 {
 		t.Fatalf("expected 2 job refs, got %d", len(p.JobRefs))
 	}
+
 	if _, ok := p.Body["filename"]; ok {
 		t.Fatal("expected filename to be removed from body")
 	}
+
 	if _, ok := p.Body["jobsRefs"]; ok {
 		t.Fatal("expected jobsRefs to be removed from body")
 	}
+
 	if _, ok := p.Body["on"]; !ok {
 		t.Fatal("expected on to remain in body")
 	}
@@ -189,6 +207,7 @@ func TestDenormalizeScheduleEvent(t *testing.T) {
 			"cron": []any{"0 0 * * *", "0 12 * * 1"},
 		}
 		items := DenormalizeScheduleEvent(normalized)
+
 		if len(items) != 2 {
 			t.Fatalf("expected 2 items, got %d", len(items))
 		}
@@ -199,6 +218,7 @@ func TestDenormalizeScheduleEvent(t *testing.T) {
 			"cron": "0 0 * * *",
 		}
 		items := DenormalizeScheduleEvent(normalized)
+
 		if len(items) != 1 {
 			t.Fatalf("expected 1 item, got %d", len(items))
 		}
@@ -207,6 +227,7 @@ func TestDenormalizeScheduleEvent(t *testing.T) {
 	t.Run("no cron key", func(t *testing.T) {
 		normalized := map[string]any{"other": "val"}
 		items := DenormalizeScheduleEvent(normalized)
+
 		if len(items) != 1 {
 			t.Fatalf("expected 1 item (passthrough), got %d", len(items))
 		}
@@ -216,6 +237,7 @@ func TestDenormalizeScheduleEvent(t *testing.T) {
 func TestNewYAMLDocumentNoWorkflow(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
@@ -223,6 +245,7 @@ func TestNewYAMLDocumentNoWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if ok {
 		t.Fatal("expected not a workflow document")
 	}
@@ -231,10 +254,12 @@ func TestNewYAMLDocumentNoWorkflow(t *testing.T) {
 func TestNormalizeOnEmptyString(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
 	_, err := NormalizeOn("", mapper)
+
 	if err == nil {
 		t.Fatal("expected error for empty string event")
 	}
@@ -243,10 +268,12 @@ func TestNormalizeOnEmptyString(t *testing.T) {
 func TestNormalizeOnEmptyListEntry(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
 	_, err := NormalizeOn([]any{"push", ""}, mapper)
+
 	if err == nil {
 		t.Fatal("expected error for empty list entry")
 	}
@@ -255,6 +282,7 @@ func TestNormalizeOnEmptyListEntry(t *testing.T) {
 func TestNormalizeOnBoolEvent(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
@@ -271,10 +299,12 @@ func TestNormalizeOnBoolEvent(t *testing.T) {
 func TestNormalizeOnInvalidShape(t *testing.T) {
 	mapper := func(v any) (map[string]any, bool) {
 		m, ok := v.(map[string]any)
+
 		return m, ok
 	}
 
 	_, err := NormalizeOn(123, mapper)
+
 	if err == nil {
 		t.Fatal("expected error for invalid on shape")
 	}

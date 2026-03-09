@@ -24,6 +24,7 @@ func (config *WithConfig) parseName(hv *hclparser.HCLVars) (cty.Value, error) {
 	hp := hclparser.New(config.Name, hv)
 
 	if err := hp.Parse(); err != nil {
+
 		return cty.NilVal, err
 	}
 
@@ -34,6 +35,7 @@ func (config *WithConfig) parseValue(hv *hclparser.HCLVars) (cty.Value, error) {
 	hp := hclparser.New(config.Value, hv)
 
 	if err := hp.Parse(); err != nil {
+
 		return cty.NilVal, err
 	}
 
@@ -42,7 +44,9 @@ func (config *WithConfig) parseValue(hv *hclparser.HCLVars) (cty.Value, error) {
 
 // Parse resolves with blocks into a cty object mapping names to values.
 func (config *WithListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
+
 	if config == nil {
+
 		return cty.NilVal, nil
 	}
 
@@ -51,21 +55,25 @@ func (config *WithListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 	for _, w := range *config {
 		name, err := w.parseName(hv)
 		if err != nil {
+
 			return cty.NilVal, err
 		}
 
 		if name == cty.NilVal {
+
 			return cty.NilVal, errors.New("name must be set")
 		}
 
 		value, err := w.parseValue(hv)
 		if err != nil {
+
 			return cty.NilVal, err
 		}
 
 		if value != cty.NilVal {
 			mapping[name.AsString()] = value
 		} else {
+
 			return cty.NilVal, errors.New("value must be set")
 		}
 	}

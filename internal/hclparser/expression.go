@@ -15,6 +15,7 @@ type Expression struct {
 
 // NewExpression creates an Expression wrapper for the given HCL expression.
 func NewExpression(expression hcl.Expression) *Expression {
+
 	return &Expression{
 		expression: expression,
 	}
@@ -23,7 +24,9 @@ func NewExpression(expression hcl.Expression) *Expression {
 // Parse evaluates the expression and returns its cty value.
 func (e *Expression) Parse() (cty.Value, error) {
 	val, diags := e.expression.Value(nil)
+
 	if diags.HasErrors() {
+
 		return cty.NilVal, diags
 	}
 

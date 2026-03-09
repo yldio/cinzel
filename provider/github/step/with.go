@@ -11,8 +11,10 @@ import (
 )
 
 func (s *Step) parseWith(value cty.Value) error {
+
 	if value.Type().IsObjectType() {
 		s.With = value
+
 		return nil
 	}
 
@@ -20,7 +22,9 @@ func (s *Step) parseWith(value cty.Value) error {
 }
 
 func (config *StepConfig) parseWith(hv *hclparser.HCLVars) (cty.Value, error) {
+
 	if config.With == nil {
+
 		return cty.NilVal, nil
 	}
 

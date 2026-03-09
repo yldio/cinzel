@@ -134,17 +134,24 @@ var allowedActionRunsYAMLKeys = map[string]struct{}{
 }
 
 func validateHCLSchema(scope string, body *hclsyntax.Body) error {
+
 	if allowedAttrs, ok := allowedHCLAttributesByScope[scope]; ok {
+
 		for _, name := range maputil.SortedKeys(body.Attributes) {
+
 			if _, allowed := allowedAttrs[name]; !allowed {
+
 				return fmt.Errorf("unknown attribute '%s' in %s", name, scope)
 			}
 		}
 	}
 
 	if allowedBlocks, ok := allowedHCLBlocksByScope[scope]; ok {
+
 		for _, block := range body.Blocks {
+
 			if _, allowed := allowedBlocks[block.Type]; !allowed {
+
 				return fmt.Errorf("unknown block '%s' in %s", block.Type, scope)
 			}
 		}
@@ -154,8 +161,11 @@ func validateHCLSchema(scope string, body *hclsyntax.Body) error {
 }
 
 func validateAllowedYAMLKeys(path string, input map[string]any, allowed map[string]struct{}) error {
+
 	for _, key := range maputil.SortedKeys(input) {
+
 		if _, ok := allowed[key]; !ok {
+
 			return fmt.Errorf("unknown key '%s' in %s", key, path)
 		}
 	}

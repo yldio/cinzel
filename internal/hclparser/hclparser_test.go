@@ -39,6 +39,7 @@ func TestParsers(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			exp, diags := hclsyntax.ParseExpression(test.have, "", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}
@@ -88,16 +89,19 @@ func TestBinaryOpExprWithVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exp, diags := hclsyntax.ParseExpression(tt.expr, "", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}
 
 			hv := NewHCLVars()
+
 			for k, v := range tt.vars {
 				hv.Add(k, v)
 			}
 
 			hp := New(exp, hv)
+
 			if err := hp.Parse(); err != nil {
 				t.Fatal(err)
 			}
@@ -130,6 +134,7 @@ func TestParserHandlesTupleAndUnaryExpressions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exp, diags := hclsyntax.ParseExpression(tt.expr, "", hcl.Pos{})
+
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}

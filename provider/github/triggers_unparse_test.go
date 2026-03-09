@@ -24,6 +24,7 @@ func TestTriggerBlockTypeForEventKey(t *testing.T) {
 
 	for _, tt := range tests {
 		got, ok := ghworkflow.TriggerBlockTypeForEventKey(tt.event, tt.key)
+
 		if ok != tt.expectOK {
 			t.Fatalf("expected ok=%v, got %v", tt.expectOK, ok)
 		}

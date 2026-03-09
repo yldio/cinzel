@@ -114,6 +114,7 @@ EOF
 			parser := hclparse.NewParser()
 
 			hclFile, diags := parser.ParseHCL(tt.have, "example.hcl")
+
 			if diags.HasErrors() {
 				t.FailNow()
 			}

@@ -292,6 +292,7 @@ action "bad" {
 			}
 
 			err := New().Parse(provider.ProviderOps{File: input, OutputDirectory: tmpDir})
+
 			if err == nil {
 				t.Fatal("expected parse error but got nil")
 			}
@@ -513,6 +514,7 @@ jobs:
 			}
 
 			err := New().Unparse(provider.ProviderOps{File: input, OutputDirectory: tmpDir})
+
 			if err == nil {
 				t.Fatal("expected unparse error but got nil")
 			}
@@ -565,6 +567,7 @@ runs:
 			}
 
 			err := New().Unparse(provider.ProviderOps{File: input, OutputDirectory: tmpDir})
+
 			if err == nil {
 				t.Fatal("expected unparse error but got nil")
 			}

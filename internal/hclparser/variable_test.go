@@ -18,6 +18,7 @@ func TestVariableConfigParse(t *testing.T) {
 		}
 
 		hv := NewHCLVars()
+
 		if err := config.Parse(hv); err != nil {
 			t.Fatal(err)
 		}
@@ -26,6 +27,7 @@ func TestVariableConfigParse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if val.AsString() != "value1" {
 			t.Fatalf("expected value1, got %s", val.AsString())
 		}
@@ -34,6 +36,7 @@ func TestVariableConfigParse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if val.True() != true {
 			t.Fatal("expected true")
 		}
@@ -43,6 +46,7 @@ func TestVariableConfigParse(t *testing.T) {
 			t.Fatal(err)
 		}
 		i, _ := val.AsBigFloat().Int64()
+
 		if i != 42 {
 			t.Fatalf("expected 42, got %d", i)
 		}
@@ -51,6 +55,7 @@ func TestVariableConfigParse(t *testing.T) {
 	t.Run("nil config is a no-op", func(t *testing.T) {
 		var config *VariablesConfig
 		hv := NewHCLVars()
+
 		if err := config.Parse(hv); err != nil {
 			t.Fatalf("expected nil config to be a no-op, got %v", err)
 		}
@@ -59,6 +64,7 @@ func TestVariableConfigParse(t *testing.T) {
 	t.Run("empty config is a no-op", func(t *testing.T) {
 		config := &VariablesConfig{}
 		hv := NewHCLVars()
+
 		if err := config.Parse(hv); err != nil {
 			t.Fatalf("expected empty config to be a no-op, got %v", err)
 		}

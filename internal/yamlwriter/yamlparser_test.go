@@ -31,6 +31,7 @@ func TestWriterDo(t *testing.T) {
 	}
 
 	content := string(result["test.yaml"])
+
 	if content == "" {
 		t.Fatal("expected non-empty YAML content")
 	}
@@ -54,6 +55,7 @@ func TestWriterDoMultiple(t *testing.T) {
 	if _, ok := result["first.yaml"]; !ok {
 		t.Fatal("expected first.yaml")
 	}
+
 	if _, ok := result["second.yaml"]; !ok {
 		t.Fatal("expected second.yaml")
 	}
@@ -77,6 +79,7 @@ func TestWriterDoValidationError(t *testing.T) {
 	})
 
 	_, err := w.Do()
+
 	if err == nil {
 		t.Fatal("expected validation error")
 	}

@@ -25,6 +25,7 @@ func TestValidateCron(t *testing.T) {
 
 	for _, tt := range valid {
 		t.Run(tt.name, func(t *testing.T) {
+
 			if err := ValidateCron(tt.expr); err != nil {
 				t.Fatalf("expected valid, got %v", err)
 			}
@@ -51,9 +52,11 @@ func TestValidateCron(t *testing.T) {
 	for _, tt := range invalid {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateCron(tt.expr)
+
 			if err == nil {
 				t.Fatal("expected error")
 			}
+
 			if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
 			}
@@ -78,6 +81,7 @@ func TestValidateSchedule(t *testing.T) {
 
 	t.Run("invalid cron in list", func(t *testing.T) {
 		err := ValidateSchedule(map[string]any{"cron": []any{"0 0 * * *", "bad"}})
+
 		if err == nil {
 			t.Fatal("expected error")
 		}
