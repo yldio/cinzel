@@ -7,12 +7,12 @@ job "build" {
     runners = "ubuntu-latest"
   }
 
-  depends_on = [job.build]
+  needs = [job.release]
   steps = [step.echo]
 }
 
 workflow "ci" {
-  filename = "self-need"
+  filename = "legacy-needs"
   on "push" {}
   jobs = [job.build]
 }

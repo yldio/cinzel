@@ -117,6 +117,10 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 }
 
 func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
+	if err := validateAllowedYAMLKeys("workflow_yaml", doc.Raw, allowedWorkflowYAMLKeys); err != nil {
+		return withPath("workflow_yaml", err)
+	}
+
 	hasOn := doc.HasOn
 	jobsRaw := doc.Jobs
 	if jobsRaw == nil {
@@ -162,6 +166,27 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		jobMap, ok := toStringAnyMap(jobAny)
 		if !ok {
 			return withPath("jobs."+jobID, fmt.Errorf("must be an object"))
+		}
+
+		if err := validateAllowedYAMLKeys("jobs."+jobID, jobMap, allowedJobYAMLKeys); err != nil {
+			return withPath("jobs."+jobID, err)
+		}
+
+		stepsRaw, hasSteps := jobMap["steps"]
+		if hasSteps {
+			steps, isList := stepsRaw.([]any)
+			if isList {
+				for i, stepAny := range steps {
+					stepMap, isMap := toStringAnyMap(stepAny)
+					if !isMap {
+						continue
+					}
+
+					if err := validateAllowedYAMLKeys(fmt.Sprintf("jobs.%s.steps[%d]", jobID, i), stepMap, allowedStepYAMLKeys); err != nil {
+						return withPath(fmt.Sprintf("jobs.%s.steps[%d]", jobID, i), err)
+					}
+				}
+			}
 		}
 
 		model, err := ghjob.ModelFromYAML(jobID, jobMap)

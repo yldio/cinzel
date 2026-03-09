@@ -1,7 +1,7 @@
 ---
 title: "feat: Rename GitHub HCL needs to depends_on"
 type: feat
-status: active
+status: completed
 date: 2026-03-09
 origin: docs/brainstorms/gitlab-provider.md
 ---
@@ -24,7 +24,7 @@ Adopt `depends_on` as the only supported GitHub HCL dependency attribute.
 
 - Parse direction (HCL -> YAML):
   - Accept only `depends_on`.
-  - Reject legacy `needs` with a clear migration error.
+  - Reject `needs` with a clear parse error.
 - Unparse direction (YAML -> HCL):
   - Always emit `depends_on`.
 - YAML output/input remains `needs:` (GitHub Actions schema).
@@ -39,41 +39,40 @@ Adopt `depends_on` as the only supported GitHub HCL dependency attribute.
 ## System-Wide Impact
 
 - **Interaction graph**: HCL job attribute parsing -> job model -> YAML marshalling (`needs:`) and reverse unparse path.
-- **Error propagation**: conflicting attributes (`needs` + `depends_on`) should fail at validation with actionable messaging.
+- **Error propagation**: `needs` usage should fail at parse with actionable error messaging.
 - **API surface parity**: align naming with GitLab plan and future cross-provider docs.
 - **Integration scenarios**:
-  - Existing fixtures with `needs` still parse correctly.
+  - HCL fixtures using `needs` fail with clear parse errors.
   - Unparse of YAML `needs` emits HCL `depends_on`.
   - Roundtrip remains semantically stable.
 
 ## Acceptance Criteria
 
-- [ ] GitHub HCL parse accepts `depends_on` and maps to YAML `needs`.
-- [ ] Legacy `needs` is rejected in parse with a clear migration error.
-- [ ] Defining both `needs` and `depends_on` in one job returns a clear error.
-- [ ] GitHub unparse emits `depends_on` (not `needs`) in HCL output.
-- [ ] Golden tests and roundtrip tests are updated and passing.
-- [ ] Fixture matrix includes valid/invalid cases for aliasing and conflicts.
-- [ ] Provider README/docs reflect canonical `depends_on` usage.
-- [ ] Documentation explicitly distinguishes HCL `depends_on` from GitHub YAML `needs:` and includes a one-block before/after migration example.
+- [x] GitHub HCL parse accepts `depends_on` and maps to YAML `needs`.
+- [x] HCL `needs` is rejected in parse with a clear error.
+- [x] Any HCL `needs` usage is rejected consistently.
+- [x] GitHub unparse emits `depends_on` (not `needs`) in HCL output.
+- [x] Golden tests and roundtrip tests are updated and passing.
+- [x] Fixture matrix includes valid/invalid cases for aliasing and conflicts.
+- [x] Provider README/docs reflect canonical `depends_on` usage.
+- [x] Documentation explicitly distinguishes HCL `depends_on` from GitHub YAML `needs:`.
 
 ## Implementation Phases
 
 ### Phase 1: Schema and Validation
 
 - Add `depends_on` to GitHub job schema.
-- Remove legacy `needs` from supported HCL schema.
-- Add explicit validation errors for `needs` usage and for (`needs` + `depends_on`) conflicts.
+- Remove `needs` from supported HCL schema.
+- Add explicit parse errors for `needs` usage.
 
 ### Phase 2: Parse/Unparse Behavior
 
-- Parse both aliases to one internal dependency representation.
+- Parse only `depends_on` and reject `needs`.
 - Ensure unparse writes only `depends_on`.
 
 ### Phase 3: Tests and Docs
 
 - Update/expand fixtures and matrix tests.
-- Add migration note to docs showing old/new syntax.
 - Add explicit "Terminology distinction" subsection in provider docs:
   - HCL attribute: `depends_on`
   - GitHub YAML key: `needs`
@@ -83,8 +82,8 @@ Adopt `depends_on` as the only supported GitHub HCL dependency attribute.
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Breaks existing HCL using `needs` | Medium | Return explicit migration error with old/new syntax example |
-| Ambiguous behavior when both are set | Medium | Explicit validation error |
+| Existing HCL uses `needs` | Medium | Return explicit parse error and enforce `depends_on` only |
+| Ambiguous dependency naming in HCL | Medium | Support only `depends_on` and reject `needs` |
 | Test churn from expected output changes | Low | Update golden fixtures and roundtrip assertions together |
 
 ## Sources & References

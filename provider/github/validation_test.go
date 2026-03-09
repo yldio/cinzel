@@ -33,6 +33,38 @@ workflow "ci" {
 			errContains: "at least one trigger",
 		},
 		{
+			name: "unknown workflow attribute",
+			content: `step "s" { run = "echo hi" }
+job "build" {
+  runs_on { runners = "ubuntu-latest" }
+  steps = [step.s]
+}
+workflow "ci" {
+  filename = "ci"
+  unknown = "x"
+  on "push" {}
+  jobs = [job.build]
+}
+`,
+			errContains: "unknown attribute 'unknown' in workflow",
+		},
+		{
+			name: "unknown job block",
+			content: `step "s" { run = "echo hi" }
+job "build" {
+  runs_on { runners = "ubuntu-latest" }
+  mystery {}
+  steps = [step.s]
+}
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`,
+			errContains: "unknown block 'mystery' in job",
+		},
+		{
 			name: "workflow missing jobs",
 			content: `workflow "ci" {
   filename = "ci"
@@ -90,11 +122,11 @@ workflow "ci" {
 			errContains: "cannot be defined together",
 		},
 		{
-			name: "needs missing job",
+			name: "depends_on missing job",
 			content: `step "s" { run = "echo hi" }
 job "build" {
   runs_on { runners = "ubuntu-latest" }
-  needs = [job.missing]
+  depends_on = [job.missing]
   steps = [step.s]
 }
 workflow "ci" {
@@ -106,7 +138,7 @@ workflow "ci" {
 			errContains: "cannot find needed job",
 		},
 		{
-			name: "duplicate needs",
+			name: "duplicate depends_on",
 			content: `step "s" { run = "echo hi" }
 job "build" {
   runs_on { runners = "ubuntu-latest" }
@@ -114,7 +146,7 @@ job "build" {
 }
 job "release" {
   runs_on { runners = "ubuntu-latest" }
-  needs = [job.build, job.build]
+  depends_on = [job.build, job.build]
   steps = [step.s]
 }
 workflow "ci" {
@@ -126,11 +158,11 @@ workflow "ci" {
 			errContains: "duplicate needed job",
 		},
 		{
-			name: "job needs itself",
+			name: "job depends_on itself",
 			content: `step "s" { run = "echo hi" }
 job "build" {
   runs_on { runners = "ubuntu-latest" }
-  needs = [job.build]
+  depends_on = [job.build]
   steps = [step.s]
 }
 workflow "ci" {
@@ -177,6 +209,77 @@ workflow "ci" {
 `,
 			errContains: "invalid permission level",
 		},
+		{
+			name: "legacy needs rejected",
+			content: `step "s" { run = "echo hi" }
+job "build" {
+  runs_on { runners = "ubuntu-latest" }
+  needs = [job.release]
+  steps = [step.s]
+}
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`,
+			errContains: "unknown attribute 'needs' in job",
+		},
+		{
+			name: "unknown job attribute rejected",
+			content: `step "s" { run = "echo hi" }
+job "build" {
+  runs_on { runners = "ubuntu-latest" }
+  myprop = "x"
+  steps = [step.s]
+}
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`,
+			errContains: "unknown attribute 'myprop' in job",
+		},
+		{
+			name: "unknown action attribute",
+			content: `step "echo" {
+  run = "echo hi"
+}
+
+action "bad" {
+  filename = "bad"
+  name = "Bad"
+  random = "x"
+
+  runs {
+    using = "composite"
+    steps = [step.echo]
+  }
+}
+`,
+			errContains: "unknown attribute 'random' in action",
+		},
+		{
+			name: "unknown action block",
+			content: `step "echo" {
+  run = "echo hi"
+}
+
+action "bad" {
+  filename = "bad"
+  name = "Bad"
+
+  random {}
+
+  runs {
+    using = "composite"
+    steps = [step.echo]
+  }
+}
+`,
+			errContains: "unknown block 'random' in action",
+		},
 	}
 
 	for _, tt := range tests {
@@ -207,6 +310,20 @@ func TestUnparseValidationErrors(t *testing.T) {
 		errContains string
 	}{
 		{
+			name: "workflow unknown top-level key",
+			content: `name: CI
+unknown: true
+on:
+  push: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+`,
+			errContains: "unknown key 'unknown' in workflow_yaml",
+		},
+		{
 			name: "workflow has jobs but no on",
 			content: `jobs:
   build:
@@ -222,6 +339,32 @@ func TestUnparseValidationErrors(t *testing.T) {
   push: {}
 `,
 			errContains: "workflow_yaml: workflow YAML must define both 'on' and 'jobs'",
+		},
+		{
+			name: "job unknown key in yaml",
+			content: `on:
+  push: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    mystery: true
+    steps:
+      - run: echo hi
+`,
+			errContains: "unknown key 'mystery' in jobs.build",
+		},
+		{
+			name: "step unknown key in yaml",
+			content: `on:
+  push: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+        mystery: true
+`,
+			errContains: "unknown key 'mystery' in jobs.build.steps[0]",
 		},
 		{
 			name: "job has with without uses",
@@ -364,6 +507,58 @@ jobs:
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			input := filepath.Join(tmpDir, "in.yaml")
+
+			if err := os.WriteFile(input, []byte(tt.content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			err := New().Unparse(provider.ProviderOps{File: input, OutputDirectory: tmpDir})
+			if err == nil {
+				t.Fatal("expected unparse error but got nil")
+			}
+
+			if !strings.Contains(err.Error(), tt.errContains) {
+				t.Fatalf("expected error containing %q, got %q", tt.errContains, err.Error())
+			}
+		})
+	}
+}
+
+func TestUnparseActionValidationErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		errContains string
+	}{
+		{
+			name: "action unknown top-level key",
+			content: `name: My Action
+description: desc
+unknown: true
+runs:
+  using: composite
+  steps:
+    - run: echo hi
+`,
+			errContains: "unknown key 'unknown' in action_yaml",
+		},
+		{
+			name: "action unknown runs key",
+			content: `name: My Action
+runs:
+  using: composite
+  unknown: true
+  steps:
+    - run: echo hi
+`,
+			errContains: "unknown key 'unknown' in action_yaml.runs",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			input := filepath.Join(tmpDir, "action.yaml")
 
 			if err := os.WriteFile(input, []byte(tt.content), 0o644); err != nil {
 				t.Fatal(err)

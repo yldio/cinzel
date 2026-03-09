@@ -115,6 +115,13 @@ Actions are written to `<output-directory>/<filename>/action.yml` during parse.
 - YAML unparse generates stable HCL identifiers (sanitized when YAML keys contain `-`).
 - Document type is auto-detected during unparse: workflow (has `on`/`jobs`), action (has `name`/`runs`, no `on`/`jobs`), or step-only.
 
+### Terminology distinction
+
+- HCL attribute: `depends_on`
+- GitHub YAML key: `needs`
+- Mapping rule: `depends_on` <-> `needs:`
+- HCL `needs` is not supported.
+
 ## Validation rules
 
 The same rules are enforced in both directions (HCL → YAML and YAML → HCL):
@@ -145,7 +152,7 @@ Test coverage includes golden fixtures, a fixture-driven compatibility matrix un
 
 ## Coverage
 
-- HCL `workflow`, `job`, `step`, and `action` reference graph with explicit references (`workflow.jobs`, `job.steps`, `job.needs`, `action.runs.steps`).
+- HCL `workflow`, `job`, `step`, and `action` reference graph with explicit references (`workflow.jobs`, `job.steps`, `job.depends_on`, `action.runs.steps`).
 - Action support for all `runs.using` types: `composite`, `node20`, and `docker`, in both parse and unparse directions.
 - `action` blocks support `input`, `output`, `runs`, and `branding` sub-blocks, written to `<filename>/action.yml`.
 - Common workflow triggers and event maps, including empty event blocks for trigger-only events.

@@ -37,7 +37,10 @@ type ValidationModel struct {
 // ModelFromParsed builds a ValidationModel from a Parsed job.
 func ModelFromParsed(p Parsed) (ValidationModel, error) {
 	uses, _ := nonEmptyString(p.Body["uses"])
-	needs, _ := p.Body["needs"].([]string)
+	needs, err := NeedsFromYAML(p.Body["needs"])
+	if err != nil {
+		return ValidationModel{}, err
+	}
 
 	m := ValidationModel{
 		ID:         p.ID,

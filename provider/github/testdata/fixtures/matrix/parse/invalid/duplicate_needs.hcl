@@ -15,7 +15,7 @@ job "release" {
     runners = "ubuntu-latest"
   }
 
-  needs = [job.build, job.build]
+  depends_on = [job.build, job.build]
   steps = [step.echo]
 }
 

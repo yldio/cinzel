@@ -144,7 +144,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 		if err != nil {
 			return err
 		}
-		return writeReferenceListAttribute(body, "needs", "job", refs)
+		return writeReferenceListAttribute(body, "depends_on", "job", refs)
 	case "env":
 		return writeNameValueBlocks(body, "env", value)
 	case "with":

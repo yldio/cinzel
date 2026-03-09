@@ -239,6 +239,10 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 }
 
 func validateActionDocument(doc map[string]any) error {
+	if err := validateAllowedYAMLKeys("action_yaml", doc, allowedActionYAMLKeys); err != nil {
+		return err
+	}
+
 	if _, ok := doc["name"]; !ok {
 		return errors.New("action must define 'name'")
 	}
@@ -251,6 +255,10 @@ func validateActionDocument(doc map[string]any) error {
 	runs, ok := toStringAnyMap(runsRaw)
 	if !ok {
 		return errors.New("action 'runs' must be an object")
+	}
+
+	if err := validateAllowedYAMLKeys("action_yaml.runs", runs, allowedActionRunsYAMLKeys); err != nil {
+		return err
 	}
 
 	using, ok := runs["using"].(string)

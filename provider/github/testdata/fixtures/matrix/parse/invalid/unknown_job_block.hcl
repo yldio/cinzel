@@ -7,12 +7,12 @@ job "build" {
     runners = "ubuntu-latest"
   }
 
-  depends_on = [job.build]
+  mystery {}
   steps = [step.echo]
 }
 
 workflow "ci" {
-  filename = "self-need"
+  filename = "unknown-job-block"
   on "push" {}
   jobs = [job.build]
 }

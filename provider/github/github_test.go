@@ -732,6 +732,103 @@ jobs:
 			t.Fatalf("expected blank line between job properties, got:\n%s", hclOut)
 		}
 	})
+
+	t.Run("maps depends_on in HCL to needs in YAML", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "depends-on.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		content := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+
+  steps = [step.echo]
+}
+
+job "release" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+
+  depends_on = [job.build]
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "depends-on"
+  on "push" {}
+  jobs = [job.build, job.release]
+}
+`
+
+		if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		outBytes, err := os.ReadFile(filepath.Join(outputDir, "depends-on.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := string(outBytes)
+		if !strings.Contains(out, "needs:\n      - build") {
+			t.Fatalf("expected YAML needs mapped from depends_on, got:\n%s", out)
+		}
+	})
+
+	t.Run("maps YAML needs to depends_on in HCL", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "needs.yaml")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		content := `on:
+  push: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo build
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - run: echo release
+`
+
+		if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := New().Unparse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		outBytes, err := os.ReadFile(filepath.Join(outputDir, "needs.hcl"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := string(outBytes)
+		if !strings.Contains(out, "depends_on = [") {
+			t.Fatalf("expected depends_on in HCL output, got:\n%s", out)
+		}
+
+		if strings.Contains(out, "needs = [") {
+			t.Fatalf("did not expect needs in HCL output, got:\n%s", out)
+		}
+	})
 }
 
 func TestResolveInputPath(t *testing.T) {

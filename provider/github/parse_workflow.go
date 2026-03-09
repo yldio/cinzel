@@ -123,6 +123,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		return nil, errUnsupportedBodyType
 	}
 
+	if err := validateHCLSchema(scope, sb); err != nil {
+		return nil, err
+	}
+
 	out := make(map[string]any)
 
 	attrNames := maputil.SortedKeys(sb.Attributes)
@@ -143,12 +147,18 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 			out["stepsRefs"] = refs
-		case scope == "job" && name == "needs":
+		case scope == "job" && name == "depends_on":
 			refs, err := parseReferenceList(attr.Expr, "job")
 			if err != nil {
 				return nil, err
 			}
-			out["needs"] = refs
+
+			deps := make([]any, 0, len(refs))
+			for _, ref := range refs {
+				deps = append(deps, ref)
+			}
+
+			out["needs"] = deps
 		default:
 			val, err := parseAttr(attr.Expr, hv)
 			if err != nil {
