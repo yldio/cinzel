@@ -1,0 +1,12 @@
+stages:
+  - build
+workflow:
+  name: Main pipeline
+  rules:
+    - if: '${CI_COMMIT_BRANCH} == "main"'
+      when: always
+    - when: never
+build:
+  script:
+    - echo build
+  stage: build

@@ -1,0 +1,19 @@
+stages:
+  - test
+test:
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - coverage.out
+  cache:
+    key: go-modules
+    paths:
+      - vendor/
+    when: always
+  rules:
+    - if: '${CI_PIPELINE_SOURCE} == "merge_request_event"'
+      when: on_success
+    - when: never
+  script:
+    - go test ./...
+  stage: test

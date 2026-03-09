@@ -1,0 +1,15 @@
+stages:
+  - build
+  - test
+variables:
+  DEPLOY_ENV:
+    description: Target environment
+    value: production
+build:
+  script:
+    - go build ./...
+  stage: build
+test:
+  script:
+    - go test ./...
+  stage: test
