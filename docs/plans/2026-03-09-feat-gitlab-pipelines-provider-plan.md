@@ -3,7 +3,7 @@ title: "GitLab CI/CD Pipelines Provider"
 type: feat
 status: active
 date: 2026-03-09
-origin: docs/brainstorms/gitlab-provider.md
+origin: docs/brainstorms/2026-03-09-gitlab-provider.md
 ---
 
 # GitLab CI/CD Pipelines Provider
@@ -25,7 +25,7 @@ Implement `provider/gitlab/` following the same structural patterns as `provider
 - [x] `.cinzelrc.yaml` command-scoped config foundation completed (`docs/plans/2026-03-09-feat-cinzelrc-provider-config-precedence-plan.md`).
 - [x] HCL dependency keyword alignment to `depends_on` completed in GitHub provider (`docs/plans/2026-03-09-feat-rename-github-needs-to-depends-on-plan.md`).
 - [x] Strict schema validation baseline established in GitHub provider parse/unparse contracts (`docs/plans/2026-03-09-feat-github-strict-block-schema-enforcement-plan.md`).
-- [ ] GitLab provider implementation remains pending (this plan).
+- [x] GitLab provider implementation completed.
 
 ### HCL Shape
 
@@ -97,7 +97,7 @@ workflow {
 
 ### Critical design decisions resolved in brainstorm
 
-1. **Provider-specific HCL** — no shared `step` blocks across providers (see brainstorm: `docs/brainstorms/gitlab-provider.md`)
+1. **Provider-specific HCL** — no shared `step` blocks across providers (see brainstorm: `docs/brainstorms/2026-03-09-gitlab-provider.md`)
 2. **Provider selection implicit from CLI** — no `ci = "gitlab"` attribute
 3. **`template` block** for hidden jobs — `.go_base:` in YAML ↔ `template "go_base"` in HCL
 4. **`variable` with explicit `name`** — HCL label is internal, `name` attribute is the YAML key
@@ -198,11 +198,11 @@ GitLab's `workflow` is optional pipeline-level config (rules, name). Unlike GitH
 
 ### Phase 4: Testing & Documentation
 
-- [ ] Golden tests for all v0.1 features (`testdata/fixtures/pipelines/`)
+- [x] Golden tests for all v0.1 features (`testdata/fixtures/pipelines/`)
 - [x] Roundtrip tests proving HCL → YAML → HCL → YAML semantic stability
 - [x] Fixture matrix: `testdata/fixtures/matrix/{parse,unparse}/{valid,invalid}/`
 - [x] Invalid input tests with `.error.txt` expected messages
-- [ ] Benchmark tests: `BenchmarkParsePipeline`, `BenchmarkUnparsePipeline`, `BenchmarkRoundtripPipeline`
+- [x] Benchmark tests: `BenchmarkParsePipeline`, `BenchmarkUnparsePipeline`, `BenchmarkRoundtripPipeline`
 - [x] `provider/gitlab/README.md` with HCL schema reference
 - [x] Root `README.md` updated with GitLab provider entry
 
@@ -293,7 +293,7 @@ Test files:
 
 ## Alternative Approaches Considered
 
-1. **Shared `step` abstraction across providers** — rejected because GitLab has no step concept; forced abstraction would be leaky (see brainstorm: `docs/brainstorms/gitlab-provider.md`, decision 1)
+1. **Shared `step` abstraction across providers** — rejected because GitLab has no step concept; forced abstraction would be leaky (see brainstorm: `docs/brainstorms/2026-03-09-gitlab-provider.md`, decision 1)
 2. **`ci = "gitlab"` attribute in HCL** — rejected because CLI subcommand already identifies the provider (see brainstorm: decision 2)
 3. **`job ".my_template"` for hidden jobs** — rejected because HCL identifiers can't start with `.` and the intent should be explicit in the block type (see brainstorm: decision 3)
 4. **`needs` keyword** — replaced with `depends_on` to align with HCL conventions (Terraform uses `depends_on`); see brainstorm update
@@ -302,7 +302,7 @@ Test files:
 
 ### Origin
 
-- **Brainstorm document:** [docs/brainstorms/gitlab-provider.md](docs/brainstorms/gitlab-provider.md) — Key decisions carried forward: provider-specific HCL (no shared abstractions), `template` block for hidden jobs, `depends_on` over `needs`, repeated `rule` blocks, `$${VAR}` escape pattern.
+- **Brainstorm document:** [docs/brainstorms/2026-03-09-gitlab-provider.md](docs/brainstorms/2026-03-09-gitlab-provider.md) — Key decisions carried forward: provider-specific HCL (no shared abstractions), `template` block for hidden jobs, `depends_on` over `needs`, repeated `rule` blocks, `$${VAR}` escape pattern.
 
 ### Internal References
 

@@ -3,14 +3,14 @@ title: "feat: Rename GitHub HCL needs to depends_on"
 type: feat
 status: completed
 date: 2026-03-09
-origin: docs/brainstorms/gitlab-provider.md
+origin: docs/brainstorms/2026-03-09-gitlab-provider.md
 ---
 
 # feat: Rename GitHub HCL needs to depends_on
 
 ## Overview
 
-Rename the GitHub provider's HCL dependency attribute from `needs` to `depends_on` for consistency with the brainstorm decision and Terraform-style HCL conventions (see brainstorm: docs/brainstorms/gitlab-provider.md).
+Rename the GitHub provider's HCL dependency attribute from `needs` to `depends_on` for consistency with the brainstorm decision and Terraform-style HCL conventions (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
 
 ## Problem Statement / Motivation
 
@@ -88,6 +88,6 @@ Adopt `depends_on` as the only supported GitHub HCL dependency attribute.
 
 ## Sources & References
 
-- **Origin brainstorm:** [docs/brainstorms/gitlab-provider.md](docs/brainstorms/gitlab-provider.md) — decision to use `depends_on` in HCL.
+- **Origin brainstorm:** [docs/brainstorms/2026-03-09-gitlab-provider.md](docs/brainstorms/2026-03-09-gitlab-provider.md) — decision to use `depends_on` in HCL.
 - **Related plan:** [docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md](docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md)
 - **Configuration foundation plan:** [docs/plans/2026-03-09-feat-cinzelrc-provider-config-precedence-plan.md](docs/plans/2026-03-09-feat-cinzelrc-provider-config-precedence-plan.md)

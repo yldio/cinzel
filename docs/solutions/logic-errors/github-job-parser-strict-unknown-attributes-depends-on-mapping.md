@@ -81,6 +81,6 @@ Current behavior:
 ## Related References
 
 - `docs/plans/2026-03-09-feat-rename-github-needs-to-depends-on-plan.md`
-- `docs/brainstorms/gitlab-provider.md`
+- `docs/brainstorms/2026-03-09-gitlab-provider.md`
 - `docs/solutions/logic-errors/config-input-precedence-ignored-for-parse.md`
 - `docs/solutions/patterns/critical-patterns.md`

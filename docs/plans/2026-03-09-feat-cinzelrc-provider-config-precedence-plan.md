@@ -3,30 +3,30 @@ title: "feat: Add .cinzelrc.yaml config foundation"
 type: feat
 status: completed
 date: 2026-03-09
-origin: docs/brainstorms/gitlab-provider.md
+origin: docs/brainstorms/2026-03-09-gitlab-provider.md
 ---
 
 # feat: Add .cinzelrc.yaml config foundation
 
 ## Overview
 
-Introduce project-level `.cinzelrc.yaml` config with deterministic precedence before GitLab provider implementation. This gives provider-specific output defaults and a stable config path GitLab can use from day one (see brainstorm: docs/brainstorms/gitlab-provider.md).
+Introduce project-level `.cinzelrc.yaml` config with deterministic precedence before GitLab provider implementation. This gives provider-specific output defaults and a stable config path GitLab can use from day one (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
 
 ## Problem Statement / Motivation
 
-The brainstorm decided on `.cinzelrc.yaml` and precedence (`CLI > config > provider defaults`), but the current GitLab plan deferred it to v0.2. That sequencing risks rework and delays team-level output conventions. Implementing config first reduces churn and follows the original decision (see brainstorm: docs/brainstorms/gitlab-provider.md).
+The brainstorm decided on `.cinzelrc.yaml` and precedence (`CLI > config > provider defaults`), but the current GitLab plan deferred it to v0.2. That sequencing risks rework and delays team-level output conventions. Implementing config first reduces churn and follows the original decision (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
 
 ## Brainstorm Carry-Forward Matrix
 
 This plan is config-first, but it preserves all brainstorm conclusions and scope boundaries:
 
-1. **Provider-specific HCL** remains unchanged; `.cinzelrc.yaml` stores provider preferences only and does not introduce cross-provider HCL abstractions (see brainstorm: docs/brainstorms/gitlab-provider.md).
-2. **Provider selection remains implicit from CLI** (`cinzel github ...`, `cinzel gitlab ...`); config does not add `ci = "..."` in HCL (see brainstorm: docs/brainstorms/gitlab-provider.md).
-3. **`template` block decision** remains valid but out-of-scope for this plan; config work must not block future template mapping (see brainstorm: docs/brainstorms/gitlab-provider.md).
-4. **`variable name` decision** remains provider-schema behavior and is unaffected; config does not redefine variable semantics (see brainstorm: docs/brainstorms/gitlab-provider.md).
-5. **Repeated singular `rule` blocks** remain the target model for GitLab HCL and are not altered by config introduction (see brainstorm: docs/brainstorms/gitlab-provider.md).
-6. **`depends_on` naming** remains the HCL dependency keyword; config is orthogonal to dependency graph semantics (see brainstorm: docs/brainstorms/gitlab-provider.md).
-7. **`.cinzelrc.yaml` with precedence** is brought forward from deferred scope into immediate scope by this plan (see brainstorm: docs/brainstorms/gitlab-provider.md).
+1. **Provider-specific HCL** remains unchanged; `.cinzelrc.yaml` stores provider preferences only and does not introduce cross-provider HCL abstractions (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
+2. **Provider selection remains implicit from CLI** (`cinzel github ...`, `cinzel gitlab ...`); config does not add `ci = "..."` in HCL (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
+3. **`template` block decision** remains valid but out-of-scope for this plan; config work must not block future template mapping (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
+4. **`variable name` decision** remains provider-schema behavior and is unaffected; config does not redefine variable semantics (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
+5. **Repeated singular `rule` blocks** remain the target model for GitLab HCL and are not altered by config introduction (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
+6. **`depends_on` naming** remains the HCL dependency keyword; config is orthogonal to dependency graph semantics (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
+7. **`.cinzelrc.yaml` with precedence** is brought forward from deferred scope into immediate scope by this plan (see brainstorm: docs/brainstorms/2026-03-09-gitlab-provider.md).
 
 ## Proposed Solution
 
@@ -198,7 +198,7 @@ Planned touchpoints:
 
 ### Origin
 
-- **Brainstorm document:** [docs/brainstorms/gitlab-provider.md](docs/brainstorms/gitlab-provider.md) — carried forward decisions on provider-specific HCL, CLI-driven provider selection, repeated `rule` blocks, `depends_on`, and `.cinzelrc.yaml` precedence.
+- **Brainstorm document:** [docs/brainstorms/2026-03-09-gitlab-provider.md](docs/brainstorms/2026-03-09-gitlab-provider.md) — carried forward decisions on provider-specific HCL, CLI-driven provider selection, repeated `rule` blocks, `depends_on`, and `.cinzelrc.yaml` precedence.
 
 ### Internal References
 
