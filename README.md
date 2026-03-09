@@ -8,8 +8,9 @@
   - [Table of Contents](#table-of-contents)
   - [About](#about)
   - [Installation and usage](#installation-and-usage)
-  - [Providers](#providers)
-    - [GitHub Actions](#github-actions)
+- [Providers](#providers)
+  - [GitHub Actions](#github-actions)
+  - [GitLab CI/CD Pipelines](#gitlab-cicd-pipelines)
   - [Changelog](#changelog)
   - [Code of Conduct](#code-of-conduct)
   - [Contributing](#contributing)
@@ -66,6 +67,10 @@ Providers are the CI/CD platforms that `cinzel` can convert between HCL and YAML
 ### GitHub Actions
 
 See [`provider/github/README.md`](provider/github/README.md) for the full HCL schema reference and feature coverage.
+
+### GitLab CI/CD Pipelines
+
+See [`provider/gitlab/README.md`](provider/gitlab/README.md) for the GitLab HCL schema and conversion coverage.
 
 ## Changelog
 

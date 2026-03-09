@@ -10,6 +10,7 @@ import (
 	"github.com/yldio/cinzel/internal/command"
 	"github.com/yldio/cinzel/provider"
 	"github.com/yldio/cinzel/provider/github"
+	"github.com/yldio/cinzel/provider/gitlab"
 )
 
 var (
@@ -21,6 +22,7 @@ func run(writer io.Writer, v string) error {
 
 	providers := []provider.Provider{
 		github.New(),
+		gitlab.New(),
 	}
 
 	return cmd.Execute(os.Args, providers)

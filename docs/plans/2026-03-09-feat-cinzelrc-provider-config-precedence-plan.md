@@ -127,7 +127,7 @@ This plan incorporates these spec-flow gaps/edge cases:
 - [x] Integration tests cover parse/unparse behavior with and without config.
 - [x] Tests explicitly document and lock expected v1 config-resolution behavior.
 - [x] Dry-run tests verify displayed file paths reflect resolved output directory.
-- [ ] Test fixtures are named and committed for each permutation (example: `internal/command/testdata/config/cli-overrides-config.yaml`).
+- [x] Test fixtures are named and committed for each permutation (example: `internal/command/testdata/config/cli-overrides-config.yaml`).
 - [x] Tests include "flag set but empty" permutations for parse/unparse.
 
 ## Success Metrics

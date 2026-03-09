@@ -20,6 +20,13 @@ cinzel currently only supports GitHub Actions. The `provider.Provider` interface
 
 Implement `provider/gitlab/` following the same structural patterns as `provider/github/` but with GitLab-specific HCL schema, YAML marshalling, and validation. The provider will be wired into the CLI via `cinzel gitlab parse` and `cinzel gitlab unparse`.
 
+## Prerequisites Status
+
+- [x] `.cinzelrc.yaml` command-scoped config foundation completed (`docs/plans/2026-03-09-feat-cinzelrc-provider-config-precedence-plan.md`).
+- [x] HCL dependency keyword alignment to `depends_on` completed in GitHub provider (`docs/plans/2026-03-09-feat-rename-github-needs-to-depends-on-plan.md`).
+- [x] Strict schema validation baseline established in GitHub provider parse/unparse contracts (`docs/plans/2026-03-09-feat-github-strict-block-schema-enforcement-plan.md`).
+- [ ] GitLab provider implementation remains pending (this plan).
+
 ### HCL Shape
 
 ```hcl
@@ -115,7 +122,7 @@ GitLab YAML uses underscores (`before_script`, `allow_failure`). The existing `n
 
 GitLab outputs one `.gitlab-ci.yml`. When `--directory` provides multiple HCL files, they must merge into a single output. Duplicate job names across files produce an error.
 
-**Resolution:** Parse all HCL files, collect all jobs/variables/stages into one document, validate for duplicates, then marshal to a single file. Default output: `./.gitlab-ci.yml`.
+**Resolution:** Parse all HCL files, collect all jobs/variables/stages into one document, validate for duplicates, then marshal to a single file. Default output path: `.gitlab-ci.yml` (under output directory `.`).
 
 #### 4. Out-of-scope features during unparse (IMPORTANT)
 
@@ -153,51 +160,51 @@ GitLab's `workflow` is optional pipeline-level config (rules, name). Unlike GitH
 
 ### Phase 1: Foundation
 
-- [ ] `provider/gitlab/` package exists with `doc.go`, `gitlab.go`, `config.go`, `errors.go`, `models.go`
-- [ ] `gitlab.New()` returns a `provider.Provider` implementation
-- [ ] `cinzel gitlab parse --help` and `cinzel gitlab unparse --help` work
-- [ ] Default output directories: parse → `.` (producing `.gitlab-ci.yml`), unparse → `./cinzel`
-- [ ] Provider smoke test passes (`TestProviderWiringSmoke`)
-- [ ] `$${VAR}` escape prototype verified — HCL parser handles it identically to `$${{ }}` (hard gate for Phase 2)
+- [x] `provider/gitlab/` package exists with `doc.go`, `gitlab.go`, `config.go`, `errors.go`, `models.go`
+- [x] `gitlab.New()` returns a `provider.Provider` implementation
+- [x] `cinzel gitlab parse --help` and `cinzel gitlab unparse --help` work
+- [x] Default output directories: parse → `.` (producing `.gitlab-ci.yml`), unparse → `./cinzel`
+- [x] Provider smoke test passes (`TestProviderWiringSmoke`)
+- [x] `$${VAR}` escape prototype verified — HCL parser handles it identically to `$${{ }}` (hard gate for Phase 2)
 
 ### Phase 2: Parse (HCL → YAML)
 
-- [ ] `stages` top-level attribute → `stages:` YAML list
-- [ ] `variable` blocks → `variables:` map with optional `description`
-- [ ] `job` blocks → top-level YAML jobs with `script`, `image`, `stage`, `before_script`, `after_script`, `tags`
-- [ ] `rule` blocks → `rules:` list within jobs (ordered, first-match-wins). Supported attributes: `if`, `when`, `allow_failure`, `changes` (as string list), `exists` (as string list). The object form of `changes` (`paths`/`compare_to`) is deferred to v0.2.
-- [ ] `artifacts` block → `artifacts:` with `paths`, `exclude`, `expire_in`, `name`, `untracked`, `when`. Nested `reports` sub-key is passed through as a generic block.
-- [ ] `cache` block → `cache:` with `key`, `paths`, `untracked`, `when`, `policy`
-- [ ] `depends_on` → `needs:` simple string list
-- [ ] `workflow` block → `workflow:` with `rules` and optional `name`
-- [ ] `$${VAR}` escape → `${VAR}` in YAML output
-- [ ] `$VAR` passes through unchanged
-- [ ] YAML key ordering: `stages`, `variables`, `workflow`, `default`, then jobs alphabetically
-- [ ] Validation: job requires `script`, `stage` must reference declared stage, no duplicate job names, no `depends_on` cycles
-- [ ] Multiple HCL files merge into single `.gitlab-ci.yml`
-- [ ] `--dry-run` prints to stdout
+- [x] `stages` top-level attribute → `stages:` YAML list
+- [x] `variable` blocks → `variables:` map with optional `description`
+- [x] `job` blocks → top-level YAML jobs with `script`, `image`, `stage`, `before_script`, `after_script`, `tags`
+- [x] `rule` blocks → `rules:` list within jobs (ordered, first-match-wins). Supported attributes: `if`, `when`, `allow_failure`, `changes` (as string list), `exists` (as string list). The object form of `changes` (`paths`/`compare_to`) is deferred to v0.2.
+- [x] `artifacts` block → `artifacts:` with `paths`, `exclude`, `expire_in`, `name`, `untracked`, `when`. Nested `reports` sub-key is passed through as a generic block.
+- [x] `cache` block → `cache:` with `key`, `paths`, `untracked`, `when`, `policy`
+- [x] `depends_on` → `needs:` simple string list
+- [x] `workflow` block → `workflow:` with `rules` and optional `name`
+- [x] `$${VAR}` escape → `${VAR}` in YAML output
+- [x] `$VAR` passes through unchanged
+- [x] YAML key ordering: `stages`, `variables`, `workflow`, `default`, then jobs alphabetically
+- [x] Validation: job requires `script`, `stage` must reference declared stage, no duplicate job names, no `depends_on` cycles
+- [x] Multiple HCL files merge into single `.gitlab-ci.yml`
+- [x] `--dry-run` prints to stdout
 
 ### Phase 3: Unparse (YAML → HCL)
 
-- [ ] Document classification: identifies GitLab CI YAML via heuristic
-- [ ] Reserved keywords (`stages`, `variables`, `workflow`, `default`) → appropriate HCL blocks/attributes
-- [ ] Top-level keys with `script` → `job` blocks
-- [ ] Hidden jobs (`.name:`) → generic pass-through blocks (idiomatic `template` blocks deferred to v0.2)
-- [ ] `needs:` → `depends_on = [job.x]` reference list
-- [ ] `rules:` → repeated `rule` blocks
-- [ ] `${VAR}` in YAML → `$${VAR}` in HCL
-- [ ] Out-of-scope features (`extends`, `include`, `default`, `trigger`, `services`, `parallel`) → generic pass-through HCL attributes/blocks with warning to stderr
-- [ ] `--dry-run` prints to stdout
+- [x] Document classification: identifies GitLab CI YAML via heuristic
+- [x] Reserved keywords (`stages`, `variables`, `workflow`, `default`) → appropriate HCL blocks/attributes
+- [x] Top-level keys with `script` → `job` blocks
+- [x] Hidden jobs (`.name:`) → generic pass-through blocks (idiomatic `template` blocks deferred to v0.2)
+- [x] `needs:` → `depends_on = [job.x]` reference list
+- [x] `rules:` → repeated `rule` blocks
+- [x] `${VAR}` in YAML → `$${VAR}` in HCL
+- [x] Out-of-scope features (`extends`, `include`, `default`, `trigger`, `services`, `parallel`) → generic pass-through HCL attributes/blocks with warning to stderr
+- [x] `--dry-run` prints to stdout
 
 ### Phase 4: Testing & Documentation
 
 - [ ] Golden tests for all v0.1 features (`testdata/fixtures/pipelines/`)
-- [ ] Roundtrip tests proving HCL → YAML → HCL → YAML semantic stability
-- [ ] Fixture matrix: `testdata/fixtures/matrix/{parse,unparse}/{valid,invalid}/`
-- [ ] Invalid input tests with `.error.txt` expected messages
+- [x] Roundtrip tests proving HCL → YAML → HCL → YAML semantic stability
+- [x] Fixture matrix: `testdata/fixtures/matrix/{parse,unparse}/{valid,invalid}/`
+- [x] Invalid input tests with `.error.txt` expected messages
 - [ ] Benchmark tests: `BenchmarkParsePipeline`, `BenchmarkUnparsePipeline`, `BenchmarkRoundtripPipeline`
-- [ ] `provider/gitlab/README.md` with HCL schema reference
-- [ ] Root `README.md` updated with GitLab provider entry
+- [x] `provider/gitlab/README.md` with HCL schema reference
+- [x] Root `README.md` updated with GitLab provider entry
 
 ## Success Metrics
 

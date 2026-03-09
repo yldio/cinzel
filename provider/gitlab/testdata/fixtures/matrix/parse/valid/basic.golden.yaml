@@ -1,0 +1,17 @@
+stages:
+  - build
+  - test
+workflow:
+  rules:
+    - if: "${CI_COMMIT_BRANCH} == \"main\""
+      when: always
+build:
+  script:
+    - echo build
+  stage: build
+test:
+  needs:
+    - build
+  script:
+    - echo test
+  stage: test
