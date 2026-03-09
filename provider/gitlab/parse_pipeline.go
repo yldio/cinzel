@@ -86,6 +86,16 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		pipeline["workflow"] = workflowMap
 	}
 
+	if len(cfg.Includes) > 0 {
+		includes, err := parseIncludeBlocks(cfg.Includes, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		pipeline["include"] = includes
+	}
+
 	for _, t := range cfg.Templates {
 		templateMap, err := parseBodyMap(t.Body, hv, "job")
 		if err != nil {
@@ -144,6 +154,26 @@ func parseVariableBlocks(blocks []hclVariableBlock, hv *hclparser.HCLVars) (map[
 	return result, nil
 }
 
+func parseIncludeBlocks(blocks []hclIncludeBlock, hv *hclparser.HCLVars) (any, error) {
+	includes := make([]any, 0, len(blocks))
+
+	for _, b := range blocks {
+		m, err := parseBodyMap(b.Body, hv, "include")
+		if err != nil {
+
+			return nil, fmt.Errorf("error in include block: %w", err)
+		}
+		includes = append(includes, m)
+	}
+
+	if len(includes) == 1 {
+
+		return includes[0], nil
+	}
+
+	return includes, nil
+}
+
 func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
 
@@ -169,6 +199,18 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				arr = append(arr, ref)
 			}
 			out["needs"] = arr
+		case scope == "job" && name == "extends":
+			refs, err := parseExtendsReferenceList(attr.Expr)
+			if err != nil {
+
+				return nil, err
+			}
+			arr := make([]any, 0, len(refs))
+
+			for _, ref := range refs {
+				arr = append(arr, ref)
+			}
+			out["extends"] = arr
 		default:
 			v, err := parseAttr(attr.Expr, hv)
 			if err != nil {
@@ -299,6 +341,83 @@ func parseReference(expr *hclsyntax.ScopeTraversalExpr, expectedRoot string) (st
 	}
 
 	return attr.Name, nil
+}
+
+func parseExtendsReferenceList(expr hcl.Expression) ([]string, error) {
+
+	if expr == nil {
+
+		return nil, nil
+	}
+
+	switch e := expr.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		ref, err := parseExtendsReference(e)
+		if err != nil {
+
+			return nil, err
+		}
+
+		return []string{ref}, nil
+	case *hclsyntax.TupleConsExpr:
+		refs := make([]string, 0, len(e.Exprs))
+
+		for _, item := range e.Exprs {
+			traversal, ok := item.(*hclsyntax.ScopeTraversalExpr)
+
+			if !ok {
+
+				return nil, fmt.Errorf("expected job/template references for extends")
+			}
+			ref, err := parseExtendsReference(traversal)
+			if err != nil {
+
+				return nil, err
+			}
+			refs = append(refs, ref)
+		}
+
+		return refs, nil
+	default:
+		return nil, fmt.Errorf("expected job/template references for extends")
+	}
+}
+
+func parseExtendsReference(expr *hclsyntax.ScopeTraversalExpr) (string, error) {
+	traversal, diags := hcl.AbsTraversalForExpr(expr)
+
+	if diags.HasErrors() {
+
+		return "", cinzelerror.ProcessHCLDiags(diags)
+	}
+
+	if len(traversal) < 2 {
+
+		return "", fmt.Errorf("invalid extends reference")
+	}
+
+	root, ok := traversal[0].(hcl.TraverseRoot)
+
+	if !ok {
+
+		return "", fmt.Errorf("invalid extends reference root")
+	}
+
+	attr, ok := traversal[1].(hcl.TraverseAttr)
+
+	if !ok {
+
+		return "", fmt.Errorf("invalid extends reference attribute")
+	}
+
+	switch root.Name {
+	case "template":
+		return "." + attr.Name, nil
+	case "job":
+		return attr.Name, nil
+	default:
+		return "", fmt.Errorf("invalid extends reference root, expected 'template' or 'job'")
+	}
 }
 
 func addGenericBlock(target map[string]any, key string, labels []string, value any) {

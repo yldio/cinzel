@@ -199,9 +199,44 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		}
 	}
 
+	if rawInclude, ok := doc["include"]; ok {
+		if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
+			body.AppendNewline()
+		}
+
+		if err := writeIncludeBlocks(body, rawInclude); err != nil {
+
+			return nil, err
+		}
+	}
+
 	jobNames := make([]string, 0)
 	jobIDMap := make(map[string]string)
+	templateIDMap := make(map[string]string)
 	usedIDs := make([]string, 0)
+	usedTemplateIDs := make([]string, 0)
+
+	for _, key := range sortedKeys(doc) {
+
+		if !strings.HasPrefix(key, ".") {
+			continue
+		}
+
+		_, ok := toStringAnyMap(doc[key])
+		if !ok {
+			continue
+		}
+
+		tplID := naming.SanitizeIdentifier(strings.TrimPrefix(key, "."))
+
+		if tplID == "" {
+			tplID = "template"
+		}
+
+		tplID = naming.UniqueIdentifier(tplID, usedTemplateIDs)
+		usedTemplateIDs = append(usedTemplateIDs, tplID)
+		templateIDMap[key] = tplID
+	}
 
 	for _, key := range sortedKeys(doc) {
 
@@ -234,7 +269,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		jobMap, _ := toStringAnyMap(doc[name])
 		jb := body.AppendNewBlock("job", []string{jobIDMap[name]})
 
-		if err := writeJobBlock(jb.Body(), jobMap, jobIDMap); err != nil {
+		if err := writeJobBlock(jb.Body(), jobMap, jobIDMap, templateIDMap); err != nil {
 
 			return nil, fmt.Errorf("error in job '%s': %w", name, err)
 		}
@@ -257,10 +292,14 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
 				body.AppendNewline()
 			}
-			tplID := naming.SanitizeIdentifier(strings.TrimPrefix(key, "."))
+			tplID := templateIDMap[key]
 
 			if tplID == "" {
-				tplID = "template"
+				tplID = naming.SanitizeIdentifier(strings.TrimPrefix(key, "."))
+
+				if tplID == "" {
+					tplID = "template"
+				}
 			}
 			tb := body.AppendNewBlock("template", []string{tplID})
 
@@ -296,7 +335,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 	return hclwrite.Format(f.Bytes()), nil
 }
 
-func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string) error {
+func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string) error {
 
 	for _, key := range sortedKeys(job) {
 		value := job[key]
@@ -367,6 +406,56 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 
 				return err
 			}
+		case "extends":
+			refsAny, isList := value.([]any)
+			if !isList {
+				if single, ok := value.(string); ok {
+					refsAny = []any{single}
+				} else {
+
+					return fmt.Errorf("extends must be a string or list")
+				}
+			}
+
+			roots := make([]string, 0, len(refsAny))
+			refs := make([]string, 0, len(refsAny))
+
+			for _, item := range refsAny {
+				extendsName, ok := item.(string)
+				if !ok || extendsName == "" {
+
+					return fmt.Errorf("extends entries must be non-empty strings")
+				}
+
+				if strings.HasPrefix(extendsName, ".") {
+					roots = append(roots, "template")
+					rest := strings.TrimPrefix(extendsName, ".")
+					templateID := templateIDMap[extendsName]
+					if templateID == "" {
+						templateID = naming.SanitizeIdentifier(rest)
+						if templateID == "" {
+							templateID = "template"
+						}
+					}
+					refs = append(refs, templateID)
+					continue
+				}
+
+				roots = append(roots, "job")
+				refID, exists := jobIDMap[extendsName]
+				if !exists {
+					refID = naming.SanitizeIdentifier(extendsName)
+					if refID == "" {
+						refID = "job"
+					}
+				}
+				refs = append(refs, refID)
+			}
+
+			if err := writeScopedReferenceListAttribute(body, "extends", roots, refs); err != nil {
+
+				return err
+			}
 		default:
 			if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
 
@@ -400,6 +489,49 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any) error {
 	}
 
 	return nil
+}
+
+func writeIncludeBlocks(body *hclwrite.Body, raw any) error {
+	switch include := raw.(type) {
+	case string:
+		ib := body.AppendNewBlock("include", nil)
+
+		if err := writeAttributeAny(ib.Body(), "local", escapeGitLabVariables(include)); err != nil {
+
+			return err
+		}
+
+		return nil
+	case map[string]any:
+		ib := body.AppendNewBlock("include", nil)
+
+		return writeGenericMap(ib.Body(), include)
+	case []any:
+		for _, item := range include {
+			switch v := item.(type) {
+			case string:
+				ib := body.AppendNewBlock("include", nil)
+
+				if err := writeAttributeAny(ib.Body(), "local", escapeGitLabVariables(v)); err != nil {
+
+					return err
+				}
+			case map[string]any:
+				ib := body.AppendNewBlock("include", nil)
+
+				if err := writeGenericMap(ib.Body(), v); err != nil {
+
+					return err
+				}
+			default:
+				return fmt.Errorf("include entries must be strings or objects")
+			}
+		}
+
+		return nil
+	default:
+		return fmt.Errorf("include must be a string, object, or list")
+	}
 }
 
 func escapeGitLabVariables(value any) any {
@@ -447,6 +579,8 @@ func sortedKeys(m map[string]any) []string {
 func isReservedTopLevelKey(key string) bool {
 	switch key {
 	case "stages", "variables", "workflow", "default":
+		return true
+	case "include":
 		return true
 	default:
 		return false

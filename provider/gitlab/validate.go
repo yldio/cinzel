@@ -28,6 +28,8 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 	}
 
 	for jobName, rawJob := range jobs {
+		isTemplate := len(jobName) > 0 && jobName[0] == '.'
+
 		jobMap, ok := rawJob.(map[string]any)
 
 		if !ok {
@@ -37,19 +39,19 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 
 		script, ok := jobMap["script"]
 
-		if !ok {
+		if !ok && !isTemplate {
 
 			return fmt.Errorf("job '%s' must define 'script'", jobName)
 		}
 
 		scriptList, ok := script.([]any)
 
-		if !ok || len(scriptList) == 0 {
+		if !isTemplate && (!ok || len(scriptList) == 0) {
 
 			return fmt.Errorf("job '%s' script must be a non-empty list", jobName)
 		}
 
-		if len(stagesSet) > 0 {
+		if len(stagesSet) > 0 && !isTemplate {
 			stageRaw, ok := jobMap["stage"]
 
 			if !ok {

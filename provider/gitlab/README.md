@@ -42,6 +42,7 @@ job "build" {
 }
 
 job "test" {
+  extends    = [template.go_base]
   stage      = "test"
   depends_on = [job.build]
   script     = ["go test ./..."]
@@ -58,6 +59,14 @@ workflow {
     when = "always"
   }
 }
+
+include {
+  local = ".gitlab/base.yml"
+}
+
+template "go_base" {
+  image = "golang:1.26"
+}
 ```
 
 ## Notes
@@ -66,3 +75,5 @@ workflow {
 - `$${VAR}` in HCL becomes `${VAR}` in YAML.
 - `${VAR}` in YAML becomes `$${VAR}` in HCL output.
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
+- `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
+- Repeated `include {}` blocks map to YAML `include:` entries.

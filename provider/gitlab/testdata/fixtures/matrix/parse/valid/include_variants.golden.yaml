@@ -1,0 +1,9 @@
+stages:
+  - build
+build:
+  script:
+    - echo build
+  stage: build
+include:
+  - local: .gitlab/base.yml
+  - template: Jobs/Build.gitlab-ci.yml

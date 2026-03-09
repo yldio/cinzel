@@ -26,10 +26,15 @@ type hclTemplateBlock struct {
 	Body hcl.Body `hcl:",remain"`
 }
 
+type hclIncludeBlock struct {
+	Body hcl.Body `hcl:",remain"`
+}
+
 type parseConfig struct {
 	Stages    []string           `hcl:"stages,optional"`
 	Variables []hclVariableBlock `hcl:"variable,block"`
 	Jobs      []hclJobBlock      `hcl:"job,block"`
 	Workflow  []hclWorkflowBlock `hcl:"workflow,block"`
 	Templates []hclTemplateBlock `hcl:"template,block"`
+	Includes  []hclIncludeBlock  `hcl:"include,block"`
 }

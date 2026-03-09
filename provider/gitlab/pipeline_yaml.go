@@ -11,7 +11,7 @@ import (
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
-var pipelineKeyOrder = []string{"stages", "variables", "workflow", "default"}
+var pipelineKeyOrder = []string{"stages", "variables", "workflow", "default", "include"}
 
 func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 	root, err := pipelineMapNode(pipeline)

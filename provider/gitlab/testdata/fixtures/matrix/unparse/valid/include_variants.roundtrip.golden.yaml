@@ -1,0 +1,11 @@
+stages:
+  - build
+build:
+  script:
+    - echo build
+  stage: build
+include:
+  - local: .gitlab/base.yml
+  - file: .gitlab-ci.yml
+    project: group/platform
+    ref: main

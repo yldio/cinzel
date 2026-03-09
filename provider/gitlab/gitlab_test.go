@@ -148,6 +148,10 @@ workflow {
     when = "always"
   }
 }
+
+include {
+  local = ".gitlab/base.yml"
+}
 `
 
 	if err := os.WriteFile(inputFile, []byte(hclIn), 0o644); err != nil {
@@ -183,6 +187,8 @@ workflow {
 		"reports:",
 		"cache:",
 		"workflow:",
+		"include:",
+		"local: .gitlab/base.yml",
 	}
 
 	for _, check := range checks {
@@ -249,6 +255,8 @@ build:
     - go build -o app ./...
 test:
   stage: test
+  extends:
+    - .go_base
   needs:
     - build
   script:
@@ -283,6 +291,8 @@ test:
 		"DEPLOY_ENV",
 		"job \"build\"",
 		"job \"test\"",
+		"extends = [",
+		"template.go_base",
 		"depends_on = [",
 		"job.build",
 		"workflow {",

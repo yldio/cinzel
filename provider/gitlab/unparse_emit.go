@@ -45,3 +45,32 @@ func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, 
 
 	return nil
 }
+
+func writeScopedReferenceListAttribute(body *hclwrite.Body, attr string, roots []string, refs []string) error {
+
+	if len(roots) != len(refs) {
+
+		return fmt.Errorf("reference roots and refs length mismatch")
+	}
+
+	if len(refs) == 0 {
+
+		return nil
+	}
+
+	tokens := hclwrite.Tokens{{Type: hclsyntax.TokenOBrack, Bytes: []byte("[")}, {Type: hclsyntax.TokenNewline, Bytes: []byte("\n")}}
+
+	for i, ref := range refs {
+		tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenIdent, Bytes: []byte(fmt.Sprintf("%s.%s", roots[i], ref))})
+		tokens = append(tokens,
+			&hclwrite.Token{Type: hclsyntax.TokenComma, Bytes: []byte(",")},
+			&hclwrite.Token{Type: hclsyntax.TokenNewline, Bytes: []byte("\n")},
+		)
+	}
+
+	tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenCBrack, Bytes: []byte("]")})
+
+	body.SetAttributeRaw(attr, tokens)
+
+	return nil
+}

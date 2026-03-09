@@ -1,0 +1,10 @@
+stages:
+  - build
+.go_base:
+  image: golang:1.26
+build:
+  extends:
+    - .go_base
+  stage: build
+  script:
+    - go build ./...
