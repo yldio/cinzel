@@ -1,1 +1,1 @@
-unknown block 'mystery' in job
+Blocks of type "mystery" are not expected here.

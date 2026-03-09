@@ -53,7 +53,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	parsedJobs := make(map[string]ghjob.Parsed)
 
 	for _, j := range cfg.Jobs {
-		jobContent, err := parseBodyMap(j.Body, hv, "job")
+		jobContent, err := parseJobConfig(j, hv)
 		if err != nil {
 
 			return nil, nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
@@ -89,7 +89,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	parsedWorkflows := make([]WorkflowYAMLFile, 0, len(cfg.Workflows))
 
 	for _, wf := range cfg.Workflows {
-		wfContent, err := parseBodyMap(wf.Body, hv, "workflow")
+		wfContent, err := parseWorkflowConfig(wf, hv)
 		if err != nil {
 
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
@@ -139,17 +139,354 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	return parsedWorkflows, stepMap, parsedActions, nil
 }
 
+func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, error) {
+	out := make(map[string]any)
+
+	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "if", cfg.If, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "uses", cfg.Uses, hv); err != nil {
+
+		return nil, err
+	}
+
+	if refs, err := parseReferenceList(cfg.Steps, "step"); err != nil {
+
+		return nil, err
+	} else if len(refs) > 0 {
+		out["stepsRefs"] = refs
+	}
+
+	if refs, err := parseReferenceList(cfg.DependsOn, "job"); err != nil {
+
+		return nil, err
+	} else if len(refs) > 0 {
+		deps := make([]any, 0, len(refs))
+
+		for _, ref := range refs {
+			deps = append(deps, ref)
+		}
+
+		out["needs"] = deps
+	}
+
+	if err := setOptionalYAMLAttr(out, "secrets", cfg.Secrets, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "continue-on-error", cfg.ContinueOnError, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "timeout-minutes", cfg.TimeoutMinutes, hv); err != nil {
+
+		return nil, err
+	}
+
+	for _, usesBlock := range cfg.UsesBlocks {
+		usesValue, err := parseUsesBlockFromConfig(usesBlock, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["uses"] = usesValue
+	}
+
+	for _, block := range cfg.WithBlocks {
+		key, value, err := parseNamedConfig(block, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		withMap := getOrCreateMap(out, "with")
+		withMap[key] = value
+	}
+
+	for _, block := range cfg.EnvBlocks {
+		key, value, err := parseNamedConfig(block, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		envMap := getOrCreateMap(out, "env")
+		envMap[key] = value
+	}
+
+	for _, block := range cfg.OutputBlocks {
+		key, value, err := parseNamedConfig(block, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		outputsMap := getOrCreateMap(out, "outputs")
+		outputsMap[key] = value
+	}
+
+	for _, block := range cfg.SecretBlocks {
+		key, value, err := parseNamedConfig(block, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		secretsMap := getOrCreateMap(out, "secrets")
+		secretsMap[key] = value
+	}
+
+	for _, block := range cfg.ServiceBlocks {
+		serviceVal, err := parseBodyMap(block.Body, hv, "service")
+		if err != nil {
+
+			return nil, err
+		}
+
+		servicesMap := getOrCreateMap(out, "services")
+		servicesMap[block.ID] = serviceVal
+	}
+
+	for _, block := range cfg.RunsOnBlocks {
+		runsOnValue, err := parseBodyMap(block.Body, hv, "runs_on")
+		if err != nil {
+
+			return nil, err
+		}
+
+		if runners, ok := runsOnValue["runners"]; ok && len(runsOnValue) == 1 {
+			out["runs-on"] = runners
+		} else {
+			out["runs-on"] = runsOnValue
+		}
+	}
+
+	for _, block := range cfg.StrategyBlocks {
+		strategyValue, err := parseBodyMap(block.Body, hv, "strategy")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["strategy"] = strategyValue
+	}
+
+	for _, block := range cfg.Permissions {
+		child, err := parseBodyMap(block.Body, hv, "permissions")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["permissions"] = child
+	}
+
+	for _, block := range cfg.Defaults {
+		child, err := parseBodyMap(block.Body, hv, "defaults")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["defaults"] = child
+	}
+
+	for _, block := range cfg.Concurrency {
+		child, err := parseBodyMap(block.Body, hv, "concurrency")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["concurrency"] = child
+	}
+
+	for _, block := range cfg.Container {
+		child, err := parseBodyMap(block.Body, hv, "container")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["container"] = child
+	}
+
+	for _, block := range cfg.Environment {
+		child, err := parseBodyMap(block.Body, hv, "environment")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["environment"] = child
+	}
+
+	return out, nil
+}
+
+func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[string]any, error) {
+	out := make(map[string]any)
+
+	if err := setOptionalYAMLAttr(out, "filename", cfg.Filename, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "run-name", cfg.RunName, hv); err != nil {
+
+		return nil, err
+	}
+
+	if refs, err := parseReferenceList(cfg.Jobs, "job"); err != nil {
+
+		return nil, err
+	} else if len(refs) > 0 {
+		out["jobsRefs"] = refs
+	}
+
+	if err := setOptionalYAMLAttr(out, "permissions", cfg.Permissions, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "concurrency", cfg.Concurrency, hv); err != nil {
+
+		return nil, err
+	}
+
+	for _, on := range cfg.On {
+		eventValue, err := parseBodyMap(on.Body, hv, "on")
+		if err != nil {
+
+			return nil, err
+		}
+
+		eventName := on.ID
+		eventValue = ghworkflow.NormalizeOnEvent(eventName, eventValue)
+
+		onMap := getOrCreateMap(out, "on")
+		if eventName == "schedule" {
+			onMap[eventName] = ghworkflow.DenormalizeScheduleEvent(eventValue)
+		} else if len(eventValue) == 0 {
+			onMap[eventName] = map[string]any{}
+		} else {
+			onMap[eventName] = eventValue
+		}
+	}
+
+	for _, block := range cfg.Env {
+		key, value, err := parseNamedConfig(block, hv)
+		if err != nil {
+
+			return nil, err
+		}
+
+		envMap := getOrCreateMap(out, "env")
+		envMap[key] = value
+	}
+
+	for _, block := range cfg.PermBlocks {
+		child, err := parseBodyMap(block.Body, hv, "permissions")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["permissions"] = child
+	}
+
+	for _, block := range cfg.Defaults {
+		child, err := parseBodyMap(block.Body, hv, "defaults")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["defaults"] = child
+	}
+
+	for _, block := range cfg.ConcBlocks {
+		child, err := parseBodyMap(block.Body, hv, "concurrency")
+		if err != nil {
+
+			return nil, err
+		}
+
+		out["concurrency"] = child
+	}
+
+	return out, nil
+}
+
+func setOptionalYAMLAttr(out map[string]any, yamlKey string, expr hcl.Expression, hv *hclparser.HCLVars) error {
+	val, err := parseAttr(expr, hv)
+	if err != nil {
+
+		return err
+	}
+
+	if val != nil {
+		out[yamlKey] = val
+	}
+
+	return nil
+}
+
+func parseNamedConfig(cfg hclNamedBlock, hv *hclparser.HCLVars) (string, any, error) {
+	rawName, err := parseAttr(cfg.Name, hv)
+	if err != nil {
+
+		return "", nil, err
+	}
+
+	name, ok := rawName.(string)
+
+	if !ok || name == "" {
+
+		return "", nil, errors.New("'name' attribute must be a non-empty string")
+	}
+
+	value, err := parseAttr(cfg.Value, hv)
+	if err != nil {
+
+		return "", nil, err
+	}
+
+	return name, value, nil
+}
+
+func parseUsesBlockFromConfig(cfg hclUsesBlock, hv *hclparser.HCLVars) (string, error) {
+	list := action.UsesListConfig{{Action: cfg.Action, Version: cfg.Version}}
+	val, err := list.Parse(hv)
+	if err != nil {
+
+		return "", err
+	}
+
+	return val.AsString(), nil
+}
+
 func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
 
 	if !ok {
 
 		return nil, errUnsupportedBodyType
-	}
-
-	if err := validateHCLSchema(scope, sb); err != nil {
-
-		return nil, err
 	}
 
 	out := make(map[string]any)
@@ -417,6 +754,11 @@ func parseReferenceList(expr hcl.Expression, expectedRoot string) ([]string, err
 		return nil, nil
 	}
 
+	if isNilOrEmptyCollectionExpr(expr) {
+
+		return nil, nil
+	}
+
 	switch e := expr.(type) {
 	case *hclsyntax.ScopeTraversalExpr:
 		ref, err := parseReference(e, expectedRoot)
@@ -509,6 +851,34 @@ func addGenericBlock(target map[string]any, key string, labels []string, value a
 	}
 
 	target[key] = value
+}
+
+func isNilOrEmptyCollectionExpr(expr hcl.Expression) bool {
+	hp := hclparser.New(expr, hclparser.NewHCLVars())
+
+	if err := hp.Parse(); err != nil {
+
+		return false
+	}
+
+	value := hp.Result()
+
+	if value == cty.NilVal {
+
+		return true
+	}
+
+	if value.IsNull() {
+
+		return true
+	}
+
+	if value.Type().IsTupleType() || value.Type().IsListType() {
+
+		return value.LengthInt() == 0
+	}
+
+	return false
 }
 
 func getOrCreateMap(target map[string]any, key string) map[string]any {

@@ -46,7 +46,7 @@ workflow "ci" {
   jobs = [job.build]
 }
 `,
-			errContains: "unknown attribute 'unknown' in workflow",
+			errContains: "An argument named \"unknown\" is not expected here.",
 		},
 		{
 			name: "unknown job block",
@@ -62,7 +62,7 @@ workflow "ci" {
   jobs = [job.build]
 }
 `,
-			errContains: "unknown block 'mystery' in job",
+			errContains: "Blocks of type \"mystery\" are not expected here.",
 		},
 		{
 			name: "workflow missing jobs",
@@ -223,7 +223,7 @@ workflow "ci" {
   jobs = [job.build]
 }
 `,
-			errContains: "unknown attribute 'needs' in job",
+			errContains: "An argument named \"needs\" is not expected here.",
 		},
 		{
 			name: "unknown job attribute rejected",
@@ -239,7 +239,7 @@ workflow "ci" {
   jobs = [job.build]
 }
 `,
-			errContains: "unknown attribute 'myprop' in job",
+			errContains: "An argument named \"myprop\" is not expected here.",
 		},
 		{
 			name: "unknown action attribute",
@@ -258,7 +258,7 @@ action "bad" {
   }
 }
 `,
-			errContains: "unknown attribute 'random' in action",
+			errContains: "An argument named \"random\" is not expected here.",
 		},
 		{
 			name: "unknown action block",
@@ -278,7 +278,7 @@ action "bad" {
   }
 }
 `,
-			errContains: "unknown block 'random' in action",
+			errContains: "Blocks of type \"random\" are not expected here.",
 		},
 	}
 
@@ -322,7 +322,7 @@ jobs:
     steps:
       - run: echo hi
 `,
-			errContains: "unknown key 'unknown' in workflow_yaml",
+			errContains: "unknown field \"unknown\"",
 		},
 		{
 			name: "workflow has jobs but no on",
@@ -352,7 +352,7 @@ jobs:
     steps:
       - run: echo hi
 `,
-			errContains: "unknown key 'mystery' in jobs.build",
+			errContains: "unknown field \"mystery\"",
 		},
 		{
 			name: "step unknown key in yaml",
@@ -365,7 +365,7 @@ jobs:
       - run: echo hi
         mystery: true
 `,
-			errContains: "unknown key 'mystery' in jobs.build.steps[0]",
+			errContains: "unknown field \"mystery\"",
 		},
 		{
 			name: "job has with without uses",
@@ -405,7 +405,7 @@ jobs:
     steps:
       run: echo hi
 `,
-			errContains: "jobs.build: 'steps' must be a list",
+			errContains: "mapping was used where sequence is expected",
 		},
 		{
 			name: "job duplicate needs",
@@ -542,7 +542,7 @@ runs:
   steps:
     - run: echo hi
 `,
-			errContains: "unknown key 'unknown' in action_yaml",
+			errContains: "unknown field \"unknown\"",
 		},
 		{
 			name: "action unknown runs key",
@@ -553,7 +553,7 @@ runs:
   steps:
     - run: echo hi
 `,
-			errContains: "unknown key 'unknown' in action_yaml.runs",
+			errContains: "unknown field \"unknown\"",
 		},
 	}
 

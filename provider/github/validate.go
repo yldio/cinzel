@@ -6,10 +6,99 @@ package github
 import (
 	"fmt"
 
+	yaml "github.com/goccy/go-yaml"
 	"github.com/yldio/cinzel/provider/github/action"
 	ghjob "github.com/yldio/cinzel/provider/github/job"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
 )
+
+type workflowYAMLShape struct {
+	Name        any                     `yaml:"name,omitempty"`
+	RunName     any                     `yaml:"run-name,omitempty"`
+	On          any                     `yaml:"on,omitempty"`
+	Jobs        map[string]jobYAMLShape `yaml:"jobs,omitempty"`
+	Permissions any                     `yaml:"permissions,omitempty"`
+	Defaults    any                     `yaml:"defaults,omitempty"`
+	Concurrency any                     `yaml:"concurrency,omitempty"`
+	Env         any                     `yaml:"env,omitempty"`
+}
+
+type jobYAMLShape struct {
+	Name            any             `yaml:"name,omitempty"`
+	If              any             `yaml:"if,omitempty"`
+	Uses            any             `yaml:"uses,omitempty"`
+	With            any             `yaml:"with,omitempty"`
+	Secrets         any             `yaml:"secrets,omitempty"`
+	Permissions     any             `yaml:"permissions,omitempty"`
+	Defaults        any             `yaml:"defaults,omitempty"`
+	Concurrency     any             `yaml:"concurrency,omitempty"`
+	Container       any             `yaml:"container,omitempty"`
+	Services        any             `yaml:"services,omitempty"`
+	Environment     any             `yaml:"environment,omitempty"`
+	Strategy        any             `yaml:"strategy,omitempty"`
+	RunsOn          any             `yaml:"runs-on,omitempty"`
+	Steps           []stepYAMLShape `yaml:"steps,omitempty"`
+	Needs           any             `yaml:"needs,omitempty"`
+	TimeoutMinutes  any             `yaml:"timeout-minutes,omitempty"`
+	ContinueOnError any             `yaml:"continue-on-error,omitempty"`
+	Outputs         any             `yaml:"outputs,omitempty"`
+	Env             any             `yaml:"env,omitempty"`
+}
+
+type stepYAMLShape struct {
+	ID              any `yaml:"id,omitempty"`
+	Name            any `yaml:"name,omitempty"`
+	If              any `yaml:"if,omitempty"`
+	Uses            any `yaml:"uses,omitempty"`
+	Run             any `yaml:"run,omitempty"`
+	Shell           any `yaml:"shell,omitempty"`
+	WorkingDir      any `yaml:"working-directory,omitempty"`
+	With            any `yaml:"with,omitempty"`
+	Env             any `yaml:"env,omitempty"`
+	ContinueOnError any `yaml:"continue-on-error,omitempty"`
+	TimeoutMinutes  any `yaml:"timeout-minutes,omitempty"`
+}
+
+type actionYAMLShape struct {
+	Name        any                         `yaml:"name,omitempty"`
+	Description any                         `yaml:"description,omitempty"`
+	Author      any                         `yaml:"author,omitempty"`
+	Inputs      map[string]actionInputYAML  `yaml:"inputs,omitempty"`
+	Outputs     map[string]actionOutputYAML `yaml:"outputs,omitempty"`
+	Runs        actionRunsYAML              `yaml:"runs"`
+	Branding    actionBrandingYAML          `yaml:"branding,omitempty"`
+}
+
+type actionInputYAML struct {
+	Description        any `yaml:"description,omitempty"`
+	Required           any `yaml:"required,omitempty"`
+	Default            any `yaml:"default,omitempty"`
+	DeprecationMessage any `yaml:"deprecationMessage,omitempty"`
+}
+
+type actionOutputYAML struct {
+	Description any `yaml:"description,omitempty"`
+	Value       any `yaml:"value,omitempty"`
+}
+
+type actionRunsYAML struct {
+	Using      any `yaml:"using,omitempty"`
+	Main       any `yaml:"main,omitempty"`
+	Pre        any `yaml:"pre,omitempty"`
+	PreIf      any `yaml:"pre-if,omitempty"`
+	Post       any `yaml:"post,omitempty"`
+	PostIf     any `yaml:"post-if,omitempty"`
+	Image      any `yaml:"image,omitempty"`
+	Args       any `yaml:"args,omitempty"`
+	Entrypoint any `yaml:"entrypoint,omitempty"`
+	Steps      any `yaml:"steps,omitempty"`
+	Env        any `yaml:"env,omitempty"`
+}
+
+type actionBrandingYAML struct {
+	Icon  any `yaml:"icon,omitempty"`
+	Color any `yaml:"color,omitempty"`
+}
 
 // ValidationPathError wraps a validation error with the path to the offending element.
 type ValidationPathError struct {
@@ -144,7 +233,7 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 
 func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 
-	if err := validateAllowedYAMLKeys("workflow_yaml", doc.Raw, allowedWorkflowYAMLKeys); err != nil {
+	if err := strictValidateYAMLShape(doc.Raw, &workflowYAMLShape{}); err != nil {
 
 		return withPath("workflow_yaml", err)
 	}
@@ -213,33 +302,6 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 			return withPath("jobs."+jobID, fmt.Errorf("must be an object"))
 		}
 
-		if err := validateAllowedYAMLKeys("jobs."+jobID, jobMap, allowedJobYAMLKeys); err != nil {
-
-			return withPath("jobs."+jobID, err)
-		}
-
-		stepsRaw, hasSteps := jobMap["steps"]
-
-		if hasSteps {
-			steps, isList := stepsRaw.([]any)
-
-			if isList {
-
-				for i, stepAny := range steps {
-					stepMap, isMap := toStringAnyMap(stepAny)
-
-					if !isMap {
-						continue
-					}
-
-					if err := validateAllowedYAMLKeys(fmt.Sprintf("jobs.%s.steps[%d]", jobID, i), stepMap, allowedStepYAMLKeys); err != nil {
-
-						return withPath(fmt.Sprintf("jobs.%s.steps[%d]", jobID, i), err)
-					}
-				}
-			}
-		}
-
 		model, err := ghjob.ModelFromYAML(jobID, jobMap)
 		if err != nil {
 
@@ -282,6 +344,21 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 	if err := ghjob.ValidateNeedsCycles(jobModels); err != nil {
 
 		return withPath("jobs.needs", err)
+	}
+
+	return nil
+}
+
+func strictValidateYAMLShape(raw map[string]any, target any) error {
+	content, err := yaml.Marshal(raw)
+	if err != nil {
+
+		return err
+	}
+
+	if err := yaml.UnmarshalWithOptions(content, target, yaml.Strict()); err != nil {
+
+		return err
 	}
 
 	return nil

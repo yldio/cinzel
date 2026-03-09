@@ -4,14 +4,9 @@
 package github
 
 import (
-	"errors"
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/yldio/cinzel/internal/hclparser"
-	"github.com/yldio/cinzel/internal/maputil"
-	"github.com/yldio/cinzel/internal/naming"
 )
 
 // ActionYAMLFile pairs an action filename with its marshalled YAML content.
@@ -24,7 +19,7 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 	result := make([]ActionYAMLFile, 0, len(actions))
 
 	for _, a := range actions {
-		content, err := parseActionBody(a.Body, hv, stepMap)
+		content, err := parseActionConfig(a, hv, stepMap)
 		if err != nil {
 
 			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
@@ -46,164 +41,171 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 	return result, nil
 }
 
-func parseActionBody(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
-	sb, ok := body.(*hclsyntax.Body)
+func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
+	out := make(map[string]any)
 
-	if !ok {
-
-		return nil, errUnsupportedBodyType
-	}
-
-	if err := validateHCLSchema("action", sb); err != nil {
+	if err := setOptionalYAMLAttr(out, "_filename", cfg.Filename, hv); err != nil {
 
 		return nil, err
 	}
 
-	out := make(map[string]any)
-
-	// Parse attributes in sorted order for deterministic output.
-
-	for _, name := range maputil.SortedKeys(sb.Attributes) {
-		attr := sb.Attributes[name]
-		switch name {
-		case "filename":
-			val, err := parseAttr(attr.Expr, hv)
-			if err != nil {
-
-				return nil, err
-			}
-			out["_filename"] = val
-		default:
-			val, err := parseAttr(attr.Expr, hv)
-			if err != nil {
-
-				return nil, err
-			}
-			out[naming.ToYAMLKey(name)] = val
-		}
-	}
-
-	// Parse blocks.
-
-	for _, block := range sb.Blocks {
-		switch block.Type {
-		case "input":
-			if len(block.Labels) != 1 {
-
-				return nil, errors.New("input block must have exactly one label")
-			}
-
-			inputMap, err := parseActionBlockAttrs(block.Body, hv, "action.input")
-			if err != nil {
-
-				return nil, err
-			}
-
-			inputs := getOrCreateMap(out, "inputs")
-			inputs[block.Labels[0]] = inputMap
-
-		case "output":
-			if len(block.Labels) != 1 {
-
-				return nil, errors.New("output block must have exactly one label")
-			}
-
-			outputMap, err := parseActionBlockAttrs(block.Body, hv, "action.output")
-			if err != nil {
-
-				return nil, err
-			}
-
-			outputs := getOrCreateMap(out, "outputs")
-			outputs[block.Labels[0]] = outputMap
-
-		case "runs":
-			runsMap, err := parseActionRunsBlock(block.Body, hv, stepMap)
-			if err != nil {
-
-				return nil, err
-			}
-
-			out["runs"] = runsMap
-
-		case "branding":
-			brandingMap, err := parseActionBlockAttrs(block.Body, hv, "action.branding")
-			if err != nil {
-
-				return nil, err
-			}
-
-			out["branding"] = brandingMap
-
-		default:
-			return nil, fmt.Errorf("unknown block '%s' in action", block.Type)
-		}
-	}
-
-	return out, nil
-}
-
-func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
-	sb, ok := body.(*hclsyntax.Body)
-
-	if !ok {
-
-		return nil, errUnsupportedBodyType
-	}
-
-	if err := validateHCLSchema("action.runs", sb); err != nil {
+	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
 
 		return nil, err
 	}
 
-	out := make(map[string]any)
+	if err := setOptionalYAMLAttr(out, "description", cfg.Description, hv); err != nil {
 
-	for _, name := range maputil.SortedKeys(sb.Attributes) {
-		attr := sb.Attributes[name]
+		return nil, err
+	}
 
-		if name == "steps" {
-			// Steps are references: steps = [step.x, step.y]
-			refs, err := parseReferenceList(attr.Expr, "step")
-			if err != nil {
+	if err := setOptionalYAMLAttr(out, "author", cfg.Author, hv); err != nil {
 
-				return nil, err
-			}
+		return nil, err
+	}
 
-			steps := make([]any, 0, len(refs))
+	for _, input := range cfg.Inputs {
+		inputMap := make(map[string]any)
 
-			for _, ref := range refs {
-				stepVal, exists := stepMap[ref]
+		if err := setOptionalYAMLAttr(inputMap, "description", input.Description, hv); err != nil {
 
-				if !exists {
-
-					return nil, fmt.Errorf("cannot find step '%s'", ref)
-				}
-				steps = append(steps, stepVal)
-			}
-
-			out["steps"] = steps
-			continue
+			return nil, err
 		}
 
-		val, err := parseAttr(attr.Expr, hv)
+		if err := setOptionalYAMLAttr(inputMap, "required", input.Required, hv); err != nil {
+
+			return nil, err
+		}
+
+		if err := setOptionalYAMLAttr(inputMap, "default", input.Default, hv); err != nil {
+
+			return nil, err
+		}
+
+		if err := setOptionalYAMLAttr(inputMap, "deprecation-message", input.DeprecationMessage, hv); err != nil {
+
+			return nil, err
+		}
+
+		inputs := getOrCreateMap(out, "inputs")
+		inputs[input.ID] = inputMap
+	}
+
+	for _, output := range cfg.Outputs {
+		outputMap := make(map[string]any)
+
+		if err := setOptionalYAMLAttr(outputMap, "description", output.Description, hv); err != nil {
+
+			return nil, err
+		}
+
+		if err := setOptionalYAMLAttr(outputMap, "value", output.Value, hv); err != nil {
+
+			return nil, err
+		}
+
+		outputs := getOrCreateMap(out, "outputs")
+		outputs[output.ID] = outputMap
+	}
+
+	for _, runs := range cfg.Runs {
+		runsMap, err := parseActionRunsConfig(runs, hv, stepMap)
 		if err != nil {
 
 			return nil, err
 		}
 
-		out[naming.ToYAMLKey(name)] = val
+		out["runs"] = runsMap
 	}
 
-	// Handle nested blocks inside runs (e.g., env for docker actions).
+	for _, branding := range cfg.Branding {
+		brandingMap := make(map[string]any)
 
-	for _, block := range sb.Blocks {
+		if err := setOptionalYAMLAttr(brandingMap, "icon", branding.Icon, hv); err != nil {
 
-		if block.Type != "env" {
-
-			return nil, fmt.Errorf("unknown block '%s' in action.runs", block.Type)
+			return nil, err
 		}
 
-		key, value, err := parseNamedBlock(block.Body, hv)
+		if err := setOptionalYAMLAttr(brandingMap, "color", branding.Color, hv); err != nil {
+
+			return nil, err
+		}
+
+		out["branding"] = brandingMap
+	}
+
+	return out, nil
+}
+
+func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
+	out := make(map[string]any)
+
+	if err := setOptionalYAMLAttr(out, "using", cfg.Using, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "main", cfg.Main, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "pre", cfg.Pre, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "pre-if", cfg.PreIf, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "post", cfg.Post, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "post-if", cfg.PostIf, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "image", cfg.Image, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "args", cfg.Args, hv); err != nil {
+
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "entrypoint", cfg.Entrypoint, hv); err != nil {
+
+		return nil, err
+	}
+
+	if refs, err := parseReferenceList(cfg.Steps, "step"); err != nil {
+
+		return nil, err
+	} else if len(refs) > 0 {
+		steps := make([]any, 0, len(refs))
+
+		for _, ref := range refs {
+			stepVal, exists := stepMap[ref]
+			if !exists {
+
+				return nil, fmt.Errorf("cannot find step '%s'", ref)
+			}
+
+			steps = append(steps, stepVal)
+		}
+
+		out["steps"] = steps
+	}
+
+	for _, env := range cfg.Env {
+		key, value, err := parseNamedConfig(env, hv)
 		if err != nil {
 
 			return nil, err
@@ -211,33 +213,6 @@ func parseActionRunsBlock(body hcl.Body, hv *hclparser.HCLVars, stepMap map[stri
 
 		envMap := getOrCreateMap(out, "env")
 		envMap[key] = value
-	}
-
-	return out, nil
-}
-
-func parseActionBlockAttrs(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
-	sb, ok := body.(*hclsyntax.Body)
-
-	if !ok {
-
-		return nil, errUnsupportedBlockBody
-	}
-
-	if err := validateHCLSchema(scope, sb); err != nil {
-
-		return nil, err
-	}
-
-	out := make(map[string]any)
-
-	for _, name := range maputil.SortedKeys(sb.Attributes) {
-		val, err := parseAttr(sb.Attributes[name].Expr, hv)
-		if err != nil {
-
-			return nil, err
-		}
-		out[naming.ToYAMLKey(name)] = val
 	}
 
 	return out, nil

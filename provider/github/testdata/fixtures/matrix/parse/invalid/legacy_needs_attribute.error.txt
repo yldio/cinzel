@@ -1,1 +1,1 @@
-unknown attribute 'needs' in job
+An argument named "needs" is not expected here.

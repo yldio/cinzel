@@ -289,7 +289,7 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 
 func validateActionDocument(doc map[string]any) error {
 
-	if err := validateAllowedYAMLKeys("action_yaml", doc, allowedActionYAMLKeys); err != nil {
+	if err := strictValidateYAMLShape(doc, &actionYAMLShape{}); err != nil {
 
 		return err
 	}
@@ -311,11 +311,6 @@ func validateActionDocument(doc map[string]any) error {
 	if !ok {
 
 		return errors.New("action 'runs' must be an object")
-	}
-
-	if err := validateAllowedYAMLKeys("action_yaml.runs", runs, allowedActionRunsYAMLKeys); err != nil {
-
-		return err
 	}
 
 	using, ok := runs["using"].(string)
