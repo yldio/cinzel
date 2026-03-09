@@ -4,7 +4,7 @@ module: "GitHub Provider"
 problem_type: "logic_error"
 component: "provider/github parse_workflow"
 severity: "high"
-root_cause: "manual remain-body parsing without unknown-attribute enforcement"
+root_cause: "manual remain-body parsing without typed schema enforcement"
 symptoms:
   - "HCL `needs` accepted or handled inconsistently during rename to `depends_on`"
   - "Unknown job attributes (typos/custom keys) were not uniformly rejected"
@@ -27,13 +27,13 @@ The parser uses `hcl:",remain"` plus manual attribute handling, so unknown field
 
 ## Root Cause
 
-`provider/github/parse_workflow.go` parsed job attributes manually but did not enforce an explicit allowlist for all supported job attributes before conversion.
+`provider/github/parse_workflow.go` parsed job attributes manually while schema strictness lived outside typed decode contracts.
 
 Because of that, strict unknown-attribute rejection depended on ad-hoc handling instead of a schema-first rule.
 
 ## Solution
 
-1. Added strict job attribute allowlist validation in `provider/github/parse_workflow.go`.
+1. Migrated parse strictness to typed HCL schema decode in `provider/github/config.go` + parser flow.
 2. Kept canonical mapping behavior:
    - HCL parse: `depends_on` -> YAML `needs`
    - YAML unparse: `needs` -> HCL `depends_on`
@@ -71,7 +71,7 @@ Current behavior:
 
 ## Prevention
 
-- For any parser using `hcl:",remain"`, always add explicit allowlists for attrs/blocks.
+- Prefer typed HCL schema decode over allowlist tables for attrs/blocks.
 - Reject unrecognized fields generically instead of special-casing specific deprecated names.
 - Add negative tests for both:
   - deprecated/renamed keys

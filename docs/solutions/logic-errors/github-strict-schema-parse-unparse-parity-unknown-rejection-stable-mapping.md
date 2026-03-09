@@ -4,7 +4,7 @@ module: "GitHub Provider"
 problem_type: "logic_error"
 component: "provider/github schema validation"
 severity: "high"
-root_cause: "inconsistent strictness between manual HCL parsing and YAML unparse validation"
+root_cause: "inconsistent strictness between manual HCL parsing and non-typed unparse validation"
 symptoms:
   - "Unknown HCL attributes or blocks were accepted in some parse paths"
   - "Unknown YAML keys could pass through unparse paths"
@@ -32,21 +32,19 @@ Goal: make strict schema behavior symmetric in both directions without regressin
 ## Root Cause
 
 - HCL parse used manual `remain`-style processing in places, without a single shared strict schema gate.
-- YAML unparse validation lacked complete key allowlists across workflow/job/step/action scopes.
+- YAML unparse validation was not contract-driven by strict typed decode across workflow/job/step/action scopes.
 - Strictness was not centralized, so behavior drifted by code path.
 
 ## Solution Implemented
 
-1. Added shared strict schema validators in `provider/github/schema_validation.go`:
-   - `validateHCLSchema(scope, body)` for HCL attrs/blocks
-   - `validateAllowedYAMLKeys(path, input, allowed)` for YAML keys
-2. Enforced parse-side strictness in:
+1. Enforced parse-side strictness via typed HCL decode contracts in:
    - `provider/github/parse_workflow.go`
    - `provider/github/parse_action.go`
-3. Enforced unparse-side strictness in:
-   - `provider/github/validate.go` (workflow/job/step YAML keys)
-   - `provider/github/unparse_action.go` (action top-level + runs keys)
-4. Preserved mapping and semantics:
+   - `provider/github/config.go`
+2. Enforced unparse-side strictness via strict typed YAML decode in:
+   - `provider/github/validate.go`
+   - `provider/github/unparse_action.go`
+3. Preserved mapping and semantics:
    - HCL `depends_on` -> YAML `needs`
    - YAML `needs` -> HCL `depends_on`
    - HCL `needs` rejected as unknown attribute
@@ -70,12 +68,12 @@ Validation commands passed:
 - `go test ./provider/github`
 - `go test ./...`
 
-Implementation commit: `54fcba7`
+Implementation note: this document originally referenced `provider/github/schema_validation.go`; current implementation removed that file in favor of typed parse contracts and strict YAML decode.
 
 ## Prevention Guidance
 
-- Any parser using manual/remaining-body handling must call a shared schema validator before conversion.
-- Keep strict schema allowlists centralized; avoid per-path ad-hoc checks.
+- Use typed decode contracts as the schema source of truth; avoid allowlist schema tables.
+- Keep `hcl:",remain"` only for intentional pass-through islands.
 - For every new accepted key/block, add:
   - one valid case
   - one nearby typo/unknown invalid case

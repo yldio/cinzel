@@ -24,7 +24,7 @@ Proceeding without external research. This is an internal parser-contract change
 
 - Existing strictness baseline already exists for some job attributes: `provider/github/parse_workflow.go`.
 - Remaining permissive paths exist in generic block handling and action parsing: `provider/github/parse_workflow.go`, `provider/github/parse_action.go`.
-- Unparse currently relies more on semantic validation and generic writers than explicit schema allowlists: `provider/github/unparse_emit.go`, `provider/github/unparse_workflow.go`.
+- Unparse historically relied more on semantic validation and generic writers than strict typed schema decode: `provider/github/unparse_emit.go`, `provider/github/unparse_workflow.go`.
 - Dependency mapping contract to preserve:
   - HCL parse `depends_on` -> YAML `needs` (`provider/github/parse_workflow.go`)
   - YAML unparse `needs` -> HCL `depends_on` (`provider/github/unparse_emit.go`)
@@ -49,7 +49,7 @@ Adopt a central typed schema registry (chosen in brainstorm) and enforce it cons
 ### Schema boundary rule
 
 - Paths explicitly documented as free-form containers remain free-form (for example `env`, `with`, and matrix axis maps where applicable).
-- Everything else follows explicit typed allowlists.
+- Everything else follows explicit typed schema decode contracts.
 
 ## Technical Approach
 
@@ -154,7 +154,7 @@ From spec-flow output, this plan explicitly addresses:
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Over-strict validation breaks legitimate free-form maps | High | Define/lock free-form path allowlist in schema boundary rules |
+| Over-strict validation breaks legitimate free-form maps | High | Define/lock free-form path boundaries in typed schema contracts |
 | Parse/unparse drift in strictness behavior | Medium | Shared schema registry and parity tests |
 | Error-message churn causing flaky fixtures | Medium | Stable path format + deterministic order |
 | Reference handling regressions | High | Dedicated reference and expression roundtrip tests |
