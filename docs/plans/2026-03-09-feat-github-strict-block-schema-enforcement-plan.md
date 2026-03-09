@@ -115,11 +115,11 @@ From spec-flow output, this plan explicitly addresses:
 - Classification/strictness ordering.
 - Reference preservation invariants.
 
-## Open Questions (flagged for planning resolution)
+## Open Questions (resolved)
 
-- Should unknown-field errors fail-fast on first violation or aggregate multiple violations per document?
-- What exact path format should be canonicalized for fixture stability (`job.<id>.<field>` vs other variants)?
-- Which nested maps are permanently free-form vs strictly typed in v1 (matrix/services edge paths)?
+- Unknown-field errors are fail-fast (first violation), consistent with current validation pipeline behavior.
+- Canonical path format for strict-schema errors follows existing path-first style (for example `jobs.build`, `jobs.build.steps[0]`, `workflow_yaml`) with stable unknown-field wording.
+- Nested free-form policy in v1: only explicitly designated container paths are free-form (for example known value maps like `env`/`with`/matrix axis values); all other keys/blocks are strict by schema.
 
 ## Acceptance Criteria
 
