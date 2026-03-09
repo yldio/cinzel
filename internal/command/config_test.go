@@ -41,7 +41,6 @@ func (p *captureProvider) GetParseDescription() string { return "parse" }
 func (p *captureProvider) GetUnparseDescription() string { return "unparse" }
 
 func TestConfigSetsParseOutputDirectory(t *testing.T) {
-	t.Setenv("PWD", "")
 	withTempWorkingDir(t, func() {
 		writeFile(t, configFilename, []byte("github:\n  parse:\n    output-directory: .github/workflows\n"))
 
@@ -53,6 +52,26 @@ func TestConfigSetsParseOutputDirectory(t *testing.T) {
 
 		if p.parseOpts.OutputDirectory != ".github/workflows" {
 			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, ".github/workflows")
+		}
+	})
+}
+
+func TestConfigSetsParseDirectory(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    directory: ./cinzel\n"))
+
+		app, _, p := newConfigTestApp(t)
+		err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		if p.parseOpts.Directory != "./cinzel" {
+			t.Fatalf("parse directory = %q, want %q", p.parseOpts.Directory, "./cinzel")
+		}
+
+		if p.parseOpts.File != "" {
+			t.Fatalf("parse file = %q, want empty string", p.parseOpts.File)
 		}
 	})
 }
@@ -131,6 +150,42 @@ func TestInvalidActiveProviderFieldTypeFails(t *testing.T) {
 
 		if p.parseOpts.OutputDirectory != "" {
 			t.Fatalf("parse output-directory = %q, want empty string", p.parseOpts.OutputDirectory)
+		}
+	})
+}
+
+func TestConfigFileAndDirectoryConflictFails(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    file: ./cinzel/workflow.hcl\n    directory: ./cinzel\n"))
+
+		app, _, p := newConfigTestApp(t)
+		err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+		if err == nil {
+			t.Fatalf("Execute() error = nil, want error")
+		}
+
+		if p.parseOpts.File != "" || p.parseOpts.Directory != "" {
+			t.Fatalf("parse opts should be zero on config error, got file=%q directory=%q", p.parseOpts.File, p.parseOpts.Directory)
+		}
+	})
+}
+
+func TestCLIFileOverridesConfigDirectory(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    directory: ./cinzel\n"))
+
+		app, _, p := newConfigTestApp(t)
+		err := app.Execute([]string{"cinzel", "github", "parse", "--file", "./one.hcl"}, []provider.Provider{p})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		if p.parseOpts.File != "./one.hcl" {
+			t.Fatalf("parse file = %q, want %q", p.parseOpts.File, "./one.hcl")
+		}
+
+		if p.parseOpts.Directory != "" {
+			t.Fatalf("parse directory = %q, want empty string", p.parseOpts.Directory)
 		}
 	})
 }
@@ -254,6 +309,54 @@ workflow "ci" {
 		})
 
 		want := "# file: custom/ci.yaml"
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
+		}
+	})
+}
+
+func TestDryRunUsesConfigDirectoryWithoutCLIInput(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		inputDir := "cinzel"
+		if err := os.Mkdir(inputDir, 0o755); err != nil {
+			t.Fatalf("Mkdir(%q) error = %v", inputDir, err)
+		}
+
+		writeFile(t, filepath.Join(inputDir, "workflow.hcl"), []byte(`
+step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "ci"
+
+  on "push" {}
+
+  jobs = [job.build]
+}
+`))
+
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    directory: ./cinzel\n    output-directory: .github/workflows\n"))
+
+		out := new(bytes.Buffer)
+		app := New(out, "v.test")
+
+		stdout := captureStdout(t, func() {
+			err := app.Execute([]string{"cinzel", "github", "parse", "--dry-run"}, []provider.Provider{githubprovider.New()})
+			if err != nil {
+				t.Fatalf("Execute() error = %v", err)
+			}
+		})
+
+		want := "# file: .github/workflows/ci.yaml"
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
 		}

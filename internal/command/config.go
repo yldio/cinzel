@@ -16,6 +16,10 @@ import (
 const configFilename = ".cinzelrc.yaml"
 
 type providerCommandConfig struct {
+	file            string
+	hasFile         bool
+	directory       string
+	hasDirectory    bool
 	outputDirectory string
 	hasOutputDir    bool
 }
@@ -36,6 +40,17 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 
 	if !cmd.IsSet("output-directory") && conf.hasOutputDir {
 		opts.OutputDirectory = conf.outputDirectory
+	}
+
+	hasCLIFileInput := cmd.IsSet("file") || cmd.IsSet("directory")
+	if !hasCLIFileInput {
+		if conf.hasFile {
+			opts.File = conf.file
+		}
+
+		if conf.hasDirectory {
+			opts.Directory = conf.directory
+		}
 	}
 
 	return opts, warnings, nil
@@ -98,6 +113,18 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 		valueNode := commandNode.Content[i+1]
 
 		switch keyNode.Value {
+		case "file":
+			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
+				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.file must be string", path, providerName, commandName)
+			}
+			config.file = valueNode.Value
+			config.hasFile = true
+		case "directory":
+			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
+				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.directory must be string", path, providerName, commandName)
+			}
+			config.directory = valueNode.Value
+			config.hasDirectory = true
 		case "output-directory":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.output-directory must be string", path, providerName, commandName)
@@ -115,6 +142,10 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 		default:
 			warnings = append(warnings, fmt.Sprintf("%s.%s.%s.%s: unknown key", path, providerName, commandName, keyNode.Value))
 		}
+	}
+
+	if config.hasFile && config.hasDirectory {
+		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s cannot set both file and directory", path, providerName, commandName)
 	}
 
 	sort.Strings(warnings)
