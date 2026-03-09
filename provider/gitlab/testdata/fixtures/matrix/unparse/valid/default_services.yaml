@@ -1,0 +1,13 @@
+stages:
+  - test
+default:
+  image: alpine:3.20
+  services:
+    - name: postgres:16
+      alias: db
+test:
+  stage: test
+  script:
+    - echo test
+  services:
+    - redis:7

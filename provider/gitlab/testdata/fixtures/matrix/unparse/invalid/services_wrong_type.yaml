@@ -1,0 +1,8 @@
+stages:
+  - test
+test:
+  stage: test
+  script:
+    - echo test
+  services:
+    name: redis:7

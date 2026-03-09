@@ -64,6 +64,15 @@ include {
   local = ".gitlab/base.yml"
 }
 
+default {
+  image = "alpine:3.20"
+
+  service {
+    name  = "postgres:16"
+    alias = "db"
+  }
+}
+
 template "go_base" {
   image = "golang:1.26"
 }
@@ -77,3 +86,4 @@ template "go_base" {
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
 - Repeated `include {}` blocks map to YAML `include:` entries.
+- Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.

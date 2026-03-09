@@ -406,6 +406,11 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 
 				return err
 			}
+		case "services":
+			if err := writeServicesBlocks(body, value); err != nil {
+
+				return err
+			}
 		case "extends":
 			refsAny, isList := value.([]any)
 			if !isList {
@@ -472,6 +477,14 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any) error {
 	for _, key := range sortedKeys(mapping) {
 		value := mapping[key]
 
+		if key == "services" {
+			if err := writeServicesBlocks(body, value); err != nil {
+
+				return err
+			}
+			continue
+		}
+
 		if nested, ok := toStringAnyMap(value); ok {
 			b := body.AppendNewBlock(key, nil)
 
@@ -485,6 +498,35 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any) error {
 		if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
 
 			return err
+		}
+	}
+
+	return nil
+}
+
+func writeServicesBlocks(body *hclwrite.Body, raw any) error {
+	services, ok := raw.([]any)
+	if !ok {
+
+		return fmt.Errorf("services must be a list")
+	}
+
+	for _, item := range services {
+		sb := body.AppendNewBlock("service", nil)
+
+		switch service := item.(type) {
+		case string:
+			if err := writeAttributeAny(sb.Body(), "name", escapeGitLabVariables(service)); err != nil {
+
+				return err
+			}
+		case map[string]any:
+			if err := writeGenericMap(sb.Body(), service); err != nil {
+
+				return err
+			}
+		default:
+			return fmt.Errorf("services entries must be strings or objects")
 		}
 	}
 
