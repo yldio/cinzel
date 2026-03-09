@@ -83,7 +83,14 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 				Name:  "parse",
 				Usage: p.GetParseDescription(),
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					opts := toProviderOpts(cmd)
+					opts, warnings, err := toProviderOpts(cmd, p.GetProviderName(), "parse")
+					if err != nil {
+						return err
+					}
+
+					for _, warning := range warnings {
+						_, _ = fmt.Fprintf(cmd.Root().ErrWriter, "warning: %s\n", warning)
+					}
 
 					if err := p.Parse(opts); err != nil {
 						return err
@@ -126,7 +133,14 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 				Name:  "unparse",
 				Usage: p.GetUnparseDescription(),
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					opts := toProviderOpts(cmd)
+					opts, warnings, err := toProviderOpts(cmd, p.GetProviderName(), "unparse")
+					if err != nil {
+						return err
+					}
+
+					for _, warning := range warnings {
+						_, _ = fmt.Fprintf(cmd.Root().ErrWriter, "warning: %s\n", warning)
+					}
 
 					if err := p.Unparse(opts); err != nil {
 						return err
@@ -166,15 +180,5 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 				},
 			},
 		},
-	}
-}
-
-func toProviderOpts(cmd *cli.Command) provider.ProviderOps {
-	return provider.ProviderOps{
-		File:            cmd.String("file"),
-		Directory:       cmd.String("directory"),
-		OutputDirectory: cmd.String("output-directory"),
-		Recursive:       cmd.Bool("recursive"),
-		DryRun:          cmd.Bool("dry-run"),
 	}
 }

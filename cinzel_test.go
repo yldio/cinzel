@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestActo(t *testing.T) {
+func TestCinzel(t *testing.T) {
 	t.Run("shows unknown version", func(t *testing.T) {
 		os.Args = []string{"cinzel", "-v"}
 
