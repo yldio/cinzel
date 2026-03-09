@@ -25,6 +25,7 @@ type mockProvider struct {
 	HasError bool
 }
 
+// Parse writes a parse marker unless error mode is enabled.
 func (p *mockProvider) Parse(opts provider.ProviderOps) error {
 	if p.HasError {
 		return errors.New("parse error")
@@ -35,6 +36,7 @@ func (p *mockProvider) Parse(opts provider.ProviderOps) error {
 	return err
 }
 
+// Unparse writes an unparse marker unless error mode is enabled.
 func (p *mockProvider) Unparse(opts provider.ProviderOps) error {
 	if p.HasError {
 		return errors.New("unparse error")
@@ -45,18 +47,22 @@ func (p *mockProvider) Unparse(opts provider.ProviderOps) error {
 	return err
 }
 
+// GetProviderName returns the mock provider name.
 func (p *mockProvider) GetProviderName() string {
 	return "mock-provider"
 }
 
+// GetDescription returns the mock provider description.
 func (p *mockProvider) GetDescription() string {
 	return "mock-provider description"
 }
 
+// GetParseDescription returns the mock parse description.
 func (p *mockProvider) GetParseDescription() string {
 	return "mock-provider parse"
 }
 
+// GetUnparseDescription returns the mock unparse description.
 func (p *mockProvider) GetUnparseDescription() string {
 	return "mock-provider unparse"
 }

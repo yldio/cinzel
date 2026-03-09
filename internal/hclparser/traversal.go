@@ -15,6 +15,7 @@ import (
 
 type ctyVal cty.Value
 
+// Parse converts the underlying cty value into a Go value constrained by allowed type names.
 func (ctyVal *ctyVal) Parse(allowedTypes []string) (any, error) {
 	value := cty.Value(*ctyVal)
 
@@ -42,6 +43,7 @@ func (ctyVal *ctyVal) Parse(allowedTypes []string) (any, error) {
 	}
 }
 
+// ParseAsString converts the underlying cty value to a string.
 func (ctyVal *ctyVal) ParseAsString() (any, error) {
 	var val string
 	value := cty.Value(*ctyVal)
@@ -53,6 +55,7 @@ func (ctyVal *ctyVal) ParseAsString() (any, error) {
 	return val, nil
 }
 
+// ParseAsNumber converts the underlying cty value to an integer or float.
 func (ctyVal *ctyVal) ParseAsNumber() (any, error) {
 	var intVal int32
 	value := cty.Value(*ctyVal)
@@ -72,6 +75,7 @@ func (ctyVal *ctyVal) ParseAsNumber() (any, error) {
 	return intVal, nil
 }
 
+// ParseAsBool converts the underlying cty value to a boolean.
 func (ctyVal *ctyVal) ParseAsBool() (any, error) {
 	var val bool
 	value := cty.Value(*ctyVal)
@@ -84,6 +88,7 @@ func (ctyVal *ctyVal) ParseAsBool() (any, error) {
 	return val, nil
 }
 
+// ParseAsTuple converts the underlying cty tuple value into a string slice.
 func (ctyVal *ctyVal) ParseAsTuple() (any, error) {
 	var val []string
 	value := cty.Value(*ctyVal)

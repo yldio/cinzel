@@ -67,7 +67,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	actionBody.SetAttributeValue("filename", cty.StringVal(filename))
 
 	// Write top-level attributes in a stable order.
-
 	for _, key := range sortedKeys(doc) {
 		switch key {
 		case "runs", "inputs", "outputs", "branding":
@@ -84,7 +83,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	}
 
 	// Write input blocks.
-
 	if inputsRaw, ok := doc["inputs"]; ok {
 		inputs, mapOK := toStringAnyMap(inputsRaw)
 
@@ -115,7 +113,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	}
 
 	// Write output blocks.
-
 	if outputsRaw, ok := doc["outputs"]; ok {
 		outputs, mapOK := toStringAnyMap(outputsRaw)
 
@@ -146,7 +143,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	}
 
 	// Write runs block.
-
 	if runsRaw, ok := doc["runs"]; ok {
 		runsMap, mapOK := toStringAnyMap(runsRaw)
 
@@ -195,7 +191,6 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	}
 
 	// Write branding block.
-
 	if brandingRaw, ok := doc["branding"]; ok {
 		brandingMap, mapOK := toStringAnyMap(brandingRaw)
 

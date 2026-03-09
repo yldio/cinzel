@@ -54,7 +54,6 @@ func validateCronField(field string, spec cronFieldSpec) error {
 	}
 
 	// Handle step on wildcard: */n
-
 	if strings.HasPrefix(field, "*/") {
 		return validateCronNumber(field[2:], spec)
 	}
