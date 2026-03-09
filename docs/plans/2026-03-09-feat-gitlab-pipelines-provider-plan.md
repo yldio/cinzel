@@ -1,7 +1,7 @@
 ---
 title: "GitLab CI/CD Pipelines Provider"
 type: feat
-status: active
+status: completed
 date: 2026-03-09
 origin: docs/brainstorms/2026-03-09-gitlab-provider.md
 ---
@@ -124,11 +124,11 @@ GitLab outputs one `.gitlab-ci.yml`. When `--directory` provides multiple HCL fi
 
 **Resolution:** Parse all HCL files, collect all jobs/variables/stages into one document, validate for duplicates, then marshal to a single file. Default output path: `.gitlab-ci.yml` (under output directory `.`).
 
-#### 4. Out-of-scope features during unparse (IMPORTANT)
+#### 4. Extended feature handling during unparse (IMPORTANT)
 
-Real `.gitlab-ci.yml` files contain v0.2 features (`extends`, `include`, `default`, hidden jobs). Erroring would make v0.1 unusable.
+Real `.gitlab-ci.yml` files contain features beyond the minimal baseline (`extends`, `include`, `default`, hidden jobs, `services`).
 
-**Resolution:** Pass through unknown top-level keys as generic HCL attributes/blocks. Hidden jobs (`.name`) become generic blocks with sanitized identifiers. A warning is emitted but processing continues. This preserves data for roundtrips even if the HCL is not fully idiomatic.
+**Resolution:** Implemented explicit support for `template`/`extends`, repeated `include` blocks, `default`, and repeated `service` blocks while retaining safe pass-through behavior for still-unsupported keys.
 
 #### 5. Document classification (IMPORTANT)
 
@@ -189,11 +189,11 @@ GitLab's `workflow` is optional pipeline-level config (rules, name). Unlike GitH
 - [x] Document classification: identifies GitLab CI YAML via heuristic
 - [x] Reserved keywords (`stages`, `variables`, `workflow`, `default`) → appropriate HCL blocks/attributes
 - [x] Top-level keys with `script` → `job` blocks
-- [x] Hidden jobs (`.name:`) → generic pass-through blocks (idiomatic `template` blocks deferred to v0.2)
+- [x] Hidden jobs (`.name:`) ↔ `template` blocks
 - [x] `needs:` → `depends_on = [job.x]` reference list
 - [x] `rules:` → repeated `rule` blocks
 - [x] `${VAR}` in YAML → `$${VAR}` in HCL
-- [x] Out-of-scope features (`extends`, `include`, `default`, `trigger`, `services`, `parallel`) → generic pass-through HCL attributes/blocks with warning to stderr
+- [x] Explicit unparse support for `extends`, `include`, `default`, `services`; remaining out-of-scope keys continue via generic pass-through with warning
 - [x] `--dry-run` prints to stdout
 
 ### Phase 4: Testing & Documentation

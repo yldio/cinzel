@@ -114,6 +114,8 @@ Actions are written to `<output-directory>/<filename>/action.yml` during parse.
 - `workflow.jobs`, `job.steps`, and `action.runs.steps` are explicit references (`job.<id>` and `step.<id>`).
 - YAML unparse generates stable HCL identifiers (sanitized when YAML keys contain `-`).
 - Document type is auto-detected during unparse: workflow (has `on`/`jobs`), action (has `name`/`runs`, no `on`/`jobs`), or step-only.
+- Parse schema is defined by typed HCL structs in `provider/github/config.go`; avoid schema key allowlist tables.
+- Unparse schema validation uses strict typed YAML decode (`goccy/go-yaml` strict mode), not manual key allowlists.
 
 ### Terminology distinction
 

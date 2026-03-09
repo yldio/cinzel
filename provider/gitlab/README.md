@@ -87,3 +87,5 @@ template "go_base" {
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
 - Repeated `include {}` blocks map to YAML `include:` entries.
 - Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.
+- Parse schema is defined by typed HCL structs in `provider/gitlab/config.go`; `hcl:",remain"` is used only for intentional pass-through islands.
+- Unparse schema validation favors strict typed YAML decode over manual key allowlist tables.

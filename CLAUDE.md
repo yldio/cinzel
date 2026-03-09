@@ -80,6 +80,15 @@ provider/
 - Actions write to `<output-dir>/<filename>/action.yml`. Workflows write to `<output-dir>/<filename>.yaml`.
 - All `runs.using` types (composite, node20, docker) work in both directions. Only composite needs special handling for `steps` reference resolution; all other attributes flow through generic parsing.
 
+### Schema contracts (critical)
+
+- Provider parse schema must be defined by typed HCL structs in `provider/<name>/config.go` (HCL tags are the source of truth).
+- Avoid ad-hoc "allowed attribute/key" maps for schema enforcement. They drift from parser contracts and create duplicate maintenance.
+- `hcl:",remain"` is allowed only for intentional pass-through islands (for example deeply nested free-form sections), not as the default parse strategy.
+- For unparse YAML validation, prefer strict typed decode (`goccy/go-yaml` strict mode) over hand-maintained key allowlists.
+- Decoder-native diagnostics are acceptable and preferred. Tests should assert stable substrings from strict decoder errors instead of custom-normalized wording.
+- When adding fields, update typed structs first, then conversion logic, then fixtures/tests. Never add schema keys in validation-only tables.
+
 ### YAML output
 
 - Uses `gopkg.in/yaml.v3` node-level marshalling for precise control.
