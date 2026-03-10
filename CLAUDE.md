@@ -65,13 +65,13 @@ provider/
 - Every exported Go declaration (functions, methods, types, constants, variables) must have a Go doc comment that starts with the declaration name.
 - Doc comments must be directly attached to the declaration they document (no blank line between comment and declaration).
 - Keep comments directly attached to the code they describe (avoid empty lines between a comment block and the following statement/declaration).
-- Use `maputil.SortedKeys()` for deterministic iteration over maps. Never iterate maps directly when output order matters.
 - Sentinel errors live in `errors.go` within each package. Use `errCamelCase` naming.
 - No `testify` or assertion libraries — tests use stdlib `testing` only.
 - Prefer visual separation between logic blocks:
   - Add an empty line before `return`, non-error-guard `if`, and `for` when they are not the first statement in their current block.
   - Do not add a blank line before those statements when they are the first statement in the current block (`func`, `if`/`else`, `for`, `switch`/`case`, or nested block).
   - Keep adjacent logical blocks separated by one blank line, except tightly coupled `switch`/`case` style flows.
+  - Add an empty line between setup assignments and the first decision branch when it improves scanability.
 
 ### HCL <-> YAML conversion
 

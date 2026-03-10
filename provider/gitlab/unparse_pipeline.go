@@ -193,6 +193,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		}
 
 		_, ok := toStringAnyMap(doc[key])
+
 		if !ok {
 			continue
 		}
@@ -361,6 +362,7 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			}
 		case "extends":
 			refsAny, isList := value.([]any)
+
 			if !isList {
 				if single, ok := value.(string); ok {
 					refsAny = []any{single}
@@ -374,6 +376,7 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 
 			for _, item := range refsAny {
 				extendsName, ok := item.(string)
+
 				if !ok || extendsName == "" {
 					return fmt.Errorf("extends entries must be non-empty strings")
 				}
@@ -382,8 +385,10 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 					roots = append(roots, "template")
 					rest := strings.TrimPrefix(extendsName, ".")
 					templateID := templateIDMap[extendsName]
+
 					if templateID == "" {
 						templateID = naming.SanitizeIdentifier(rest)
+
 						if templateID == "" {
 							templateID = "template"
 						}
@@ -394,8 +399,10 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 
 				roots = append(roots, "job")
 				refID, exists := jobIDMap[extendsName]
+
 				if !exists {
 					refID = naming.SanitizeIdentifier(extendsName)
+
 					if refID == "" {
 						refID = "job"
 					}
@@ -446,6 +453,7 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any) error {
 
 func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 	services, ok := raw.([]any)
+
 	if !ok {
 		return fmt.Errorf("services must be a list")
 	}

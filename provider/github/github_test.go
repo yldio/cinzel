@@ -482,6 +482,7 @@ workflow "pr" {
 		}
 
 		out := string(b)
+
 		if !strings.Contains(out, `step "build"`) {
 			t.Fatalf("expected step block in hcl output, got: %q", out)
 		}
@@ -531,6 +532,7 @@ jobs:
 		}
 
 		hclOut := string(hclBytes)
+
 		if !strings.Contains(hclOut, `workflow "ci"`) {
 			t.Fatalf("expected workflow block in unparsed output, got: %q", hclOut)
 		}

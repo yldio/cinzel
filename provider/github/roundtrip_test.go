@@ -204,6 +204,7 @@ workflow "wf" {
 	}
 
 	hclOut := string(hclBytes)
+
 	if !strings.Contains(hclOut, `run_name = "$${{ github.workflow }} #$${{ github.run_number }}"`) {
 		t.Fatalf("expected escaped workflow expression in HCL, got:\n%s", hclOut)
 	}

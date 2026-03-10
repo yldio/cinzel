@@ -72,6 +72,7 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 
 	if rawDefault, ok := pipeline["default"]; ok {
 		defaultMap, ok := rawDefault.(map[string]any)
+
 		if !ok {
 			return fmt.Errorf("default must be an object")
 		}
@@ -152,6 +153,7 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 
 func validateServices(raw any, owner string) error {
 	services, ok := raw.([]any)
+
 	if !ok {
 		return fmt.Errorf("%s services must be a list", owner)
 	}
@@ -168,10 +170,12 @@ func validateServices(raw any, owner string) error {
 			}
 		case map[string]any:
 			nameRaw, ok := service["name"]
+
 			if !ok {
 				return fmt.Errorf("%s service entries must include 'name'", owner)
 			}
 			name, ok := nameRaw.(string)
+
 			if !ok || name == "" {
 				return fmt.Errorf("%s service name must be a non-empty string", owner)
 			}

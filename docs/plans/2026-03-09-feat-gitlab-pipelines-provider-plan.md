@@ -219,7 +219,7 @@ GitLab's `workflow` is optional pipeline-level config (rules, name). Unlike GitH
 |------|--------|------------|
 | `${}` escape doesn't work identically to `$${{ }}` | Blocks all expression handling | Prototype early in Phase 1 |
 | `naming.ToYAMLKey` accidentally used | Corrupts all GitLab output | Provider does not import `naming.ToYAMLKey` — CI lint can verify |
-| Single-file merge produces non-deterministic output | Flaky tests | Use `maputil.SortedKeys()` from day one |
+| Single-file merge produces non-deterministic output | Flaky tests | Use deterministic key-order helpers from day one |
 | Document classification false positives | Wrong provider handles a file | Classification only runs when user explicitly uses `cinzel gitlab unparse` |
 | `conversion.go` duplication | Maintenance burden | Extract to `internal/conversion/` if patterns match after implementation |
 

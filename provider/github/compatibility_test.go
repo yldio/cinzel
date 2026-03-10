@@ -69,6 +69,7 @@ workflow "wf" {
 	}
 
 	hclOutStr := string(hclOut)
+
 	if !strings.Contains(hclOutStr, `workflow "smoke"`) || !strings.Contains(hclOutStr, `job "build"`) {
 		t.Fatalf("expected workflow and job blocks in hcl output, got:\n%s", hclOutStr)
 	}

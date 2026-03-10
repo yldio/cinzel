@@ -308,6 +308,7 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		return nil, fmt.Errorf("depends_on: %w", err)
 	} else if len(refs) > 0 {
 		arr := make([]any, 0, len(refs))
+
 		for _, ref := range refs {
 			arr = append(arr, ref)
 		}
@@ -318,6 +319,7 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		return nil, fmt.Errorf("extends: %w", err)
 	} else if len(refs) > 0 {
 		arr := make([]any, 0, len(refs))
+
 		for _, ref := range refs {
 			arr = append(arr, ref)
 		}

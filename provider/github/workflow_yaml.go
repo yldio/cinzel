@@ -163,6 +163,7 @@ func stringNeedsQuoting(v string) bool {
 	}
 
 	// If it parses as a number, it needs quoting to stay a string.
+
 	if _, err := fmt.Sscanf(v, "%f", new(float64)); err == nil {
 		// Extra check: "v" must be fully numeric (Sscanf can match a prefix).
 		isNumeric := true
@@ -180,6 +181,7 @@ func stringNeedsQuoting(v string) bool {
 	}
 
 	// Characters that are special in YAML and require quoting.
+
 	for _, c := range v {
 		switch c {
 		case ':', '#', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '`':
@@ -188,6 +190,7 @@ func stringNeedsQuoting(v string) bool {
 	}
 
 	// Strings starting with YAML indicators.
+
 	if len(v) > 0 {
 		switch v[0] {
 		case '?', '-', '"', '\'':

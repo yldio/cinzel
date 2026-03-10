@@ -19,11 +19,13 @@ func ValidateUsesRef(uses string) error {
 	}
 
 	// Local action
+
 	if strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../") {
 		return nil
 	}
 
 	// Docker action
+
 	if strings.HasPrefix(uses, "docker://") {
 		image := uses[len("docker://"):]
 

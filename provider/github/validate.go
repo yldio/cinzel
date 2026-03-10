@@ -140,6 +140,7 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 	}
 
 	// Validate workflow-level permissions.
+
 	if perms, ok := workflow.Body["permissions"]; ok {
 		if err := ghworkflow.ValidatePermissions(perms); err != nil {
 			return withPath("workflow."+workflow.ID+".permissions", err)
@@ -147,6 +148,7 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 	}
 
 	// Validate schedule cron expressions.
+
 	if schedule, ok := onMap["schedule"]; ok {
 		if scheduleMap, mapOK := toStringAnyMap(schedule); mapOK {
 			if err := ghworkflow.ValidateSchedule(scheduleMap); err != nil {
@@ -156,6 +158,7 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 	}
 
 	// Validate ${{ }} expression syntax.
+
 	if err := validateExpressions(workflow.Body); err != nil {
 		return err
 	}
@@ -177,6 +180,7 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 		}
 
 		// Validate job-level permissions.
+
 		if perms, ok := job.Body["permissions"]; ok {
 			if err := ghworkflow.ValidatePermissions(perms); err != nil {
 				return withPath("job."+id+".permissions", err)
@@ -184,6 +188,7 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 		}
 
 		// Validate job-level uses (reusable workflow reference).
+
 		if model.Uses != "" {
 			if err := action.ValidateUsesRef(model.Uses); err != nil {
 				return withPath("job."+id+".uses", err)
@@ -233,6 +238,7 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 	}
 
 	// Validate workflow-level permissions.
+
 	if perms, ok := doc.Raw["permissions"]; ok {
 		if err := ghworkflow.ValidatePermissions(perms); err != nil {
 			return withPath("workflow_yaml.permissions", err)
@@ -240,6 +246,7 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 	}
 
 	// Validate schedule cron expressions.
+
 	if schedule, ok := doc.On["schedule"]; ok {
 		if scheduleMap, mapOK := toStringAnyMap(schedule); mapOK {
 			if err := ghworkflow.ValidateSchedule(scheduleMap); err != nil {
@@ -249,6 +256,7 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 	}
 
 	// Validate ${{ }} expression syntax across the entire workflow.
+
 	if err := validateExpressions(doc.Raw); err != nil {
 		return err
 	}
@@ -272,6 +280,7 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		}
 
 		// Validate job-level permissions.
+
 		if perms, ok := jobMap["permissions"]; ok {
 			if err := ghworkflow.ValidatePermissions(perms); err != nil {
 				return withPath("jobs."+jobID+".permissions", err)
@@ -279,6 +288,7 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		}
 
 		// Validate step uses references.
+
 		if err := validateJobStepUses(jobID, jobMap); err != nil {
 			return err
 		}

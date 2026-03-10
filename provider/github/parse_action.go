@@ -169,6 +169,7 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 
 		for _, ref := range refs {
 			stepVal, exists := stepMap[ref]
+
 			if !exists {
 				return nil, fmt.Errorf("cannot find step '%s'", ref)
 			}

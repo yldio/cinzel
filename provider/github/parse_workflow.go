@@ -340,6 +340,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 		eventValue = ghworkflow.NormalizeOnEvent(eventName, eventValue)
 
 		onMap := getOrCreateMap(out, "on")
+
 		if eventName == "schedule" {
 			onMap[eventName] = ghworkflow.DenormalizeScheduleEvent(eventValue)
 		} else if len(eventValue) == 0 {

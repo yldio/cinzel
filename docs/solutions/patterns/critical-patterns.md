@@ -23,7 +23,7 @@ updated_date: "2026-03-08"
 
 ### 1. Deterministic map iteration
 
-Always use `maputil.SortedKeys()` or the local `sortedKeys()` helper when iterating maps whose output is user-visible or tested against golden files.
+Always use deterministic key-order iteration helpers (for example a local `sortedKeys()` helper) when iterating maps whose output is user-visible or tested against golden files.
 
 ```go
 // WRONG — non-deterministic output
@@ -32,7 +32,7 @@ for name, attr := range sb.Attributes {
 }
 
 // RIGHT — deterministic output
-for _, name := range maputil.SortedKeys(sb.Attributes) {
+for _, name := range sortedKeys(sb.Attributes) {
     attr := sb.Attributes[name]
     out[name] = processAttr(attr)
 }
