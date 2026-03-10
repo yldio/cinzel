@@ -6,7 +6,7 @@
 
 - **Module**: `github.com/yldio/cinzel`
 - **Go version**: 1.26
-- **License**: AGPL-3.0-or-later
+- **License**: Apache-2.0
 - **Task runner**: [mise](https://mise.jdx.dev/)
 
 ## Quick reference

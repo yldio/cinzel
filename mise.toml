@@ -58,7 +58,7 @@ depends = ["test"]
 run = "go tool cover -html=${COVERAGE_REPORT_PATH} -o ${COVERAGE_HTML_PATH}"
 
 [tasks.license]
-run = "go tool addlicense -v -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' -l mit -s=only -c 'YLD Limited' ."
+run = "go tool addlicense -v -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' -l apache -s=only -c 'YLD Limited' ."
 
 [tasks.license-check]
 run = "go tool addlicense -check -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' ."

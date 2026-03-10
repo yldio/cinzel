@@ -46,16 +46,25 @@ go install github.com/yldio/cinzel@latest
 
 ### Quick start
 
-Transform HCL `workflow`/`job`/`step` blocks into GitHub workflow YAML:
+Use the provider command shape:
+
+```sh
+cinzel <provider> parse --file <input.hcl> --output-directory <out-dir>
+cinzel <provider> unparse --file <input.yaml> --output-directory <out-dir>
+```
+
+Example: GitHub Actions parse/unparse:
 
 ```sh
 cinzel github parse --file ./test.hcl --output-directory .github/workflows
+cinzel github unparse --file ./.github/workflows/test.yaml --output-directory ./cinzel
 ```
 
-Transform GitHub workflow YAML back into HCL:
+Example: GitLab CI/CD parse/unparse:
 
 ```sh
-cinzel github unparse --file ./.github/workflows/test.yaml --output-directory ./cinzel
+cinzel gitlab parse --file ./pipeline.hcl --output-directory .
+cinzel gitlab unparse --file ./.gitlab-ci.yml --output-directory ./cinzel
 ```
 
 Use `--dry-run` to print generated content to stdout.
@@ -90,4 +99,4 @@ Please make sure to update tests as appropriate.
 
 ## License
 
-This project is licensed under the AGPL-3.0-or-later license. See [LICENSE](./LICENSE) for details.
+This project is licensed under the Apache-2.0 license. See [LICENSE](./LICENSE) for details.
