@@ -3,6 +3,11 @@
 name: Release
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (for example v1.2.3)
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -31,6 +36,7 @@ jobs:
         name: Bump version and push tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
         with:
+          custom_tag: "${{ github.event.inputs.tag }}"
           github_token: "${{ secrets.GITHUB_TOKEN }}"
       - env:
           GITHUB_REPO: "${{ github.repository }}"

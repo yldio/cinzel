@@ -90,6 +90,11 @@ step "tag_version" {
     name  = "github_token"
     value = "$${{ secrets.GITHUB_TOKEN }}"
   }
+
+  with {
+    name  = "custom_tag"
+    value = "$${{ github.event.inputs.tag }}"
+  }
 }
 
 step "create_release" {

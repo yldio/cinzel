@@ -72,7 +72,13 @@ workflow "release" {
     contents = "read"
   }
 
-  on "workflow_dispatch" {}
+  on "workflow_dispatch" {
+    input "tag" {
+      description = "Release tag to publish (for example v1.2.3)"
+      type        = "string"
+      required    = true
+    }
+  }
 
   jobs = [
     job.manual-release,
