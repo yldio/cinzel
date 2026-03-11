@@ -34,7 +34,7 @@ Fallback model:
 
 Current workflow secret contract:
 
-- `HOMEBREW_TAP_GITHUB_TOKEN`: token used by GoReleaser brew integration
+- `HOMEBREW_TAP_GITHUB_TOKEN`: token used by GoReleaser Homebrew cask integration
 
 ## Permission matrix
 
@@ -52,15 +52,9 @@ Tap repository token permissions:
 
 1. Release workflow starts on `release.published`.
 2. GoReleaser builds archives and computes checksums.
-3. GoReleaser renders the Homebrew formula update.
+3. GoReleaser renders the Homebrew cask update.
 4. GoReleaser pushes/update branch and creates or updates a PR in `yldio/homebrew-cinzel`.
-5. Workflow summary publishes checksum and generated formula artifact context.
-
-## Dry-run validation
-
-Use `workflow_dispatch` to validate release behavior without publishing:
-
-- GoReleaser args: `release --clean --snapshot --skip=publish --skip=announce --skip=validate`
+5. Workflow summary publishes checksum and generated Homebrew Ruby artifact context.
 
 Recommended pre-merge checks:
 
@@ -73,13 +67,13 @@ Recommended pre-merge checks:
 
 Tap PR creation failure:
 
-- Symptom: GoReleaser step fails during brew publish/PR update
-- Effect: GitHub release artifacts stay published; tap formula is not updated
+- Symptom: GoReleaser step fails during Homebrew cask publish/PR update
+- Effect: GitHub release artifacts stay published; tap cask is not updated
 - Recovery: fix token/repo access and rerun the release workflow for the same tag
 
-No-op formula update:
+No-op Homebrew update:
 
-- Symptom: rerun has no formula change
+- Symptom: rerun has no Homebrew Ruby artifact change
 - Effect: no new PR churn should be created
 - Recovery: none required
 

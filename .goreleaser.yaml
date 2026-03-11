@@ -38,8 +38,10 @@ release:
   draft: false
   prerelease: auto
 
-brews:
+homebrew_casks:
   - name: cinzel
+    binaries:
+      - cinzel
     repository:
       owner: yldio
       name: homebrew-cinzel
@@ -47,5 +49,3 @@ brews:
     homepage: https://github.com/yldio/cinzel
     description: Bidirectional converter between HCL and CI/CD YAML
     license: Apache-2.0
-    install: |
-      bin.install "cinzel"

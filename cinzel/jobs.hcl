@@ -43,7 +43,7 @@ job "merge" {
 
 job "release-packages" {
   name = "Release packages"
-  if   = "$${{ github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && !github.event.release.draft) }}"
+  if   = "$${{ !github.event.release.prerelease && !github.event.release.draft }}"
 
   timeout_minutes = 20
 

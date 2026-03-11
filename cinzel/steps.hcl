@@ -127,7 +127,7 @@ step "goreleaser" {
 
   with {
     name  = "args"
-    value = "$${{ github.event_name == 'workflow_dispatch' && 'release --clean --snapshot --skip=publish --skip=announce --skip=validate' || 'release --clean' }}"
+    value = "release --clean"
   }
 
   env {
@@ -174,20 +174,20 @@ fi
   fi
 
   echo
-  echo "### Formula output"
+  echo "### Homebrew artifact output"
 
-  formula_found="false"
-  for formula in dist/*.rb; do
-    if [ -f "$formula" ]; then
-      formula_found="true"
+  ruby_found="false"
+  for ruby_artifact in dist/*.rb; do
+    if [ -f "$ruby_artifact" ]; then
+      ruby_found="true"
       echo
-      echo "- Generated formula: $formula"
+      echo "- Generated Homebrew Ruby artifact: $ruby_artifact"
     fi
   done
 
-  if [ "$formula_found" = "false" ]; then
+  if [ "$ruby_found" = "false" ]; then
     echo
-    echo "no generated formula files found under dist/*.rb"
+    echo "no generated Homebrew Ruby artifacts found under dist/*.rb"
   fi
 } >> "$summary_path"
 EOF

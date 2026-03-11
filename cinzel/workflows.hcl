@@ -48,7 +48,7 @@ workflow "release" {
   }
 
   concurrency {
-    group              = "release-$${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.release.tag_name }}"
+    group              = "release-$${{ github.event.release.tag_name }}"
     cancel_in_progress = true
   }
 
@@ -57,8 +57,6 @@ workflow "release" {
       "published"
     ]
   }
-
-  on "workflow_dispatch" {}
 
   jobs = [
     job.release-packages,

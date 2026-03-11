@@ -33,7 +33,7 @@ Install `cinzel` using one of these options:
 
 ```sh
 brew tap yldio/cinzel
-brew install cinzel
+brew install --cask cinzel
 ```
 
 - Install from source with Go:
