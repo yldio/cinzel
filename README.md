@@ -32,6 +32,7 @@ Install `cinzel` using one of these options:
 - Install with Homebrew:
 
 ```sh
+brew tap yldio/cinzel
 brew install cinzel
 ```
 
@@ -73,6 +74,8 @@ cinzel gitlab unparse --file ./.gitlab-ci.yml --output-directory ./cinzel
 ```
 
 Use `--dry-run` to print generated content to stdout.
+
+For release operator details about Homebrew automation, see [`docs/release/homebrew.md`](docs/release/homebrew.md).
 
 ## Providers
 

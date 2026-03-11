@@ -141,6 +141,58 @@ step "goreleaser" {
   }
 }
 
+step "release_observability" {
+  name = "Release observability summary"
+  if   = "$${{ always() }}"
+  run  = <<EOF
+set -e
+
+summary_path="$GITHUB_STEP_SUMMARY"
+
+if [ -z "$summary_path" ]; then
+  echo "GITHUB_STEP_SUMMARY is not available"
+  exit 0
+fi
+
+{
+  echo "## Release artifact summary"
+  echo
+  echo "- Event: $GITHUB_EVENT_NAME"
+  echo "- Ref: $GITHUB_REF"
+  echo "- SHA: $GITHUB_SHA"
+  echo
+  echo "### Checksums"
+
+  if [ -f "dist/checksums.txt" ]; then
+    echo
+    echo '```text'
+    cat "dist/checksums.txt"
+    echo '```'
+  else
+    echo
+    echo "checksums file not found at dist/checksums.txt"
+  fi
+
+  echo
+  echo "### Formula output"
+
+  formula_found="false"
+  for formula in dist/*.rb; do
+    if [ -f "$formula" ]; then
+      formula_found="true"
+      echo
+      echo "- Generated formula: $formula"
+    fi
+  done
+
+  if [ "$formula_found" = "false" ]; then
+    echo
+    echo "no generated formula files found under dist/*.rb"
+  fi
+} >> "$summary_path"
+EOF
+}
+
 step "changelog" {
   // orhun/git-cliff-action v4.7.1
   uses {

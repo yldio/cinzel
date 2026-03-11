@@ -59,6 +59,7 @@ job "release-packages" {
     step.checkout_release,
     step.mise_setup,
     step.goreleaser,
+    step.release_observability,
   ]
 }
 

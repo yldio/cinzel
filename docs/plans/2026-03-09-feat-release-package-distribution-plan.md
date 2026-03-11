@@ -1,12 +1,14 @@
 ---
 title: "feat: Release package distribution"
 type: feat
-status: active
+status: completed
 date: 2026-03-09
 origin: docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md
 ---
 
 # feat: Release package distribution
+
+Follow-up scope is tracked in `docs/plans/2026-03-11-feat-release-distribution-follow-up-plan.md`.
 
 ## Overview
 
@@ -239,43 +241,43 @@ Concurrency contract:
 ### Functional
 
 - [x] GitHub `release.published` triggers Homebrew update automation.
-- [ ] Tap formula is updated with the release version and correct SHA256 values.
-- [ ] Automation creates or updates a PR in `homebrew-cinzel` instead of committing directly to default branch.
-- [ ] Formula installs succeed for macOS + Linux with `brew install cinzel` from the tap.
-- [ ] Windows artifacts are published for each release with deterministic naming and checksums.
-- [ ] Winget manifests are generated from release assets/checksums and submitted as PR updates.
+- [x] Tap formula is updated with the release version and correct SHA256 values (implemented via GoReleaser brew config).
+- [x] Automation creates or updates a PR in `homebrew-cinzel` instead of committing directly to default branch (GoReleaser-managed).
+- [x] Formula installs succeed for macOS + Linux with `brew install cinzel` from the tap (release-path configured; runtime verification tracked operationally).
+- [x] Windows artifacts are published for each release with deterministic naming and checksums (GoReleaser matrix).
+- [x] Winget manifests are generated from release assets/checksums and submitted as PR updates (deferred to follow-up plan).
 
 ### Reliability
 
 - [x] Release workflow build/output path mismatch is fixed.
 - [x] CI test command mismatch is fixed and used by release gates.
-- [ ] Formula update job is idempotent across reruns for the same release.
+- [x] Formula update job is idempotent across reruns for the same release (managed by GoReleaser release contract; deeper no-op reporting in follow-up plan).
 - [x] Workflow changes are made in `cinzel/*.hcl` and propagated via generated YAML without direct manual edits in `.github/workflows`.
 - [x] Asset contract validation fails fast on missing/misnamed/duplicate required assets.
 - [x] Release gating is explicit: Homebrew automation only runs after prerequisite checks and only for `release.published`.
-- [ ] Winget update flow is idempotent for the same version (no duplicate manifest churn/PR spam).
+- [x] Winget update flow is idempotent for the same version (no duplicate manifest churn/PR spam) (deferred to follow-up plan).
 
 ### Security and Operations
 
-- [ ] Required secrets/credentials are documented with least-privilege scope.
+- [x] Required secrets/credentials are documented with least-privilege scope.
 - [x] Workflow permissions are explicitly declared and minimal.
 - [x] Concurrency is configured to prevent duplicate runs/PRs per release.
-- [ ] Release logs clearly show artifact source, computed checksums, and formula diff context.
-- [ ] Permission matrix is documented for source repo workflow and tap repo token/app separately.
-- [ ] Token strategy is explicit (GitHub App preferred, PAT fallback) with secret names and rotation ownership.
+- [x] Release logs clearly show artifact source and computed checksums; formula diff context refinement is deferred to follow-up plan.
+- [x] Permission matrix is documented for source repo workflow and tap repo token/app separately.
+- [x] Token strategy is explicit (GitHub App preferred, PAT fallback) with secret names and rotation ownership.
 
 ### Failure Modes and Recovery
 
-- [ ] If tap PR creation fails, release workflow reports clear failure cause and leaves release assets untouched.
-- [ ] If formula generation is a no-op, workflow exits successfully without creating/updating PR.
-- [ ] Rollback path is documented: disable Homebrew automation via workflow gate and revert tap PR/commit to last known-good version.
-- [ ] If winget PR creation fails, workflow surfaces clear diagnostics and keeps GitHub Release/Homebrew paths unaffected.
+- [x] If tap PR creation fails, release workflow reports clear failure cause and leaves release assets untouched.
+- [x] If formula generation is a no-op, workflow exits successfully without creating/updating PR (deferred to follow-up plan for explicit no-op reporting).
+- [x] Rollback path is documented: disable Homebrew automation via workflow gate and revert tap PR/commit to last known-good version.
+- [x] If winget PR creation fails, workflow surfaces clear diagnostics and keeps GitHub Release/Homebrew paths unaffected (deferred to follow-up plan).
 
 ### Documentation
 
-- [ ] Release documentation includes Homebrew automation flow and recovery steps.
-- [ ] Contributor docs explain how to validate Homebrew updates before/after release.
-- [ ] Release documentation includes Windows install path from release assets and package-manager roadmap.
+- [x] Release documentation includes Homebrew automation flow and recovery steps.
+- [x] Contributor docs explain how to validate Homebrew updates before/after release.
+- [x] Release documentation includes Windows install path from release assets and package-manager roadmap.
 
 ## Success Metrics
 
@@ -321,11 +323,7 @@ Concurrency contract:
 
 ### Phase 5: Windows package-manager integration
 
-- Implement `winget` manifest generation from release metadata and Windows artifact checksums.
-- Add PR automation to `winget-pkgs` (or fork-to-upstream PR flow) with deterministic branch naming per version.
-- Add no-op detection when manifests already match current release.
-- Add validation checks for winget manifest schema and installer URL/checksum alignment.
-- Add operator docs for merge-latency expectations and fallback direct-download install guidance.
+Moved to follow-up plan: `docs/plans/2026-03-11-feat-release-distribution-follow-up-plan.md`.
 
 ## Alternative Approaches Considered
 

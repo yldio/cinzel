@@ -38,4 +38,8 @@ jobs:
           args: "${{ github.event_name == 'workflow_dispatch' && 'release --clean --snapshot --skip=publish --skip=announce --skip=validate' || 'release --clean' }}"
           distribution: goreleaser
           version: latest
+      - id: release_observability
+        if: "${{ always() }}"
+        name: Release observability summary
+        run: "set -e\n\nsummary_path=\"$GITHUB_STEP_SUMMARY\"\n\nif [ -z \"$summary_path\" ]; then\n  echo \"GITHUB_STEP_SUMMARY is not available\"\n  exit 0\nfi\n\n{\n  echo \"## Release artifact summary\"\n  echo\n  echo \"- Event: $GITHUB_EVENT_NAME\"\n  echo \"- Ref: $GITHUB_REF\"\n  echo \"- SHA: $GITHUB_SHA\"\n  echo\n  echo \"### Checksums\"\n\n  if [ -f \"dist/checksums.txt\" ]; then\n    echo\n    echo '```text'\n    cat \"dist/checksums.txt\"\n    echo '```'\n  else\n    echo\n    echo \"checksums file not found at dist/checksums.txt\"\n  fi\n\n  echo\n  echo \"### Formula output\"\n\n  formula_found=\"false\"\n  for formula in dist/*.rb; do\n    if [ -f \"$formula\" ]; then\n      formula_found=\"true\"\n      echo\n      echo \"- Generated formula: $formula\"\n    fi\n  done\n\n  if [ \"$formula_found\" = \"false\" ]; then\n    echo\n    echo \"no generated formula files found under dist/*.rb\"\n  fi\n} >> \"$summary_path\"\n"
     timeout-minutes: 20
