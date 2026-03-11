@@ -156,11 +156,7 @@ step "commit_release" {
 
 step "tests" {
   name = "Tests"
-  run  = <<EOF
-mise run test-ci
-short_sha=$(git rev-parse --short "$GITHUB_SHA")
-echo "tag=dev-$short_sha" >> $GITHUB_OUTPUT
-EOF
+  run  = "mise run test-ci"
 }
 
 step "coverage" {

@@ -24,7 +24,7 @@ jobs:
           install: "true"
       - id: tests
         name: Tests
-        run: "mise run test-ci\nshort_sha=$(git rev-parse --short \"$GITHUB_SHA\")\necho \"tag=dev-$short_sha\" >> $GITHUB_OUTPUT\n"
+        run: mise run test-ci
       - id: tag_version
         name: Bump version and push tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
