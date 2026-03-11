@@ -62,3 +62,19 @@ workflow "release" {
     job.release-packages,
   ]
 }
+
+workflow "release_manual" {
+  filename = "release-manual"
+
+  name = "Manual Release"
+
+  permissions {
+    contents = "read"
+  }
+
+  on "workflow_dispatch" {}
+
+  jobs = [
+    job.manual-release,
+  ]
+}

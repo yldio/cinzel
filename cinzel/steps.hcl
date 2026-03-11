@@ -86,6 +86,72 @@ step "create_release" {
     name  = "github_token"
     value = "$${{ secrets.GITHUB_TOKEN }}"
   }
+
+  with {
+    name  = "tag"
+    value = "$${{ steps.tag_version.outputs.new_tag }}"
+  }
+
+  with {
+    name  = "body"
+    value = "$${{ steps.git_cliff.outputs.content }}"
+  }
+}
+
+step "git_cliff_changelog" {
+  id   = "git_cliff"
+  name = "Generate changelog"
+
+  // orhun/git-cliff-action v4.7.1
+  uses {
+    action  = "orhun/git-cliff-action"
+    version = "c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72"
+  }
+
+  with {
+    name  = "config"
+    value = "cliff.toml"
+  }
+
+  with {
+    name  = "args"
+    value = "--verbose --tag $${{ steps.tag_version.outputs.new_tag }}"
+  }
+
+  env {
+    name  = "OUTPUT"
+    value = "CHANGELOG.md"
+  }
+
+  env {
+    name  = "GITHUB_REPO"
+    value = "$${{ github.repository }}"
+  }
+}
+
+step "commit_release" {
+  name = "Commit release changelog"
+
+  // stefanzweifel/git-auto-commit-action v7.1.0
+  uses {
+    action  = "stefanzweifel/git-auto-commit-action"
+    version = "04702edda442b2e678b25b537cec683a1493fcb9"
+  }
+
+  with {
+    name  = "commit_message"
+    value = "chore(release): prepare for $${{ steps.tag_version.outputs.new_tag }}"
+  }
+
+  with {
+    name  = "file_pattern"
+    value = "CHANGELOG.md"
+  }
+
+  with {
+    name  = "branch"
+    value = "$${{ github.ref_name }}"
+  }
 }
 
 step "tests" {
@@ -127,7 +193,7 @@ step "goreleaser" {
 
   with {
     name  = "args"
-    value = "release --clean"
+    value = "release --clean --release-notes ./release-notes.md"
   }
 
   env {
@@ -141,77 +207,7 @@ step "goreleaser" {
   }
 }
 
-step "release_observability" {
-  name = "Release observability summary"
-  if   = "$${{ always() }}"
-  run  = <<EOF
-set -e
-
-summary_path="$GITHUB_STEP_SUMMARY"
-
-if [ -z "$summary_path" ]; then
-  echo "GITHUB_STEP_SUMMARY is not available"
-  exit 0
-fi
-
-{
-  echo "## Release artifact summary"
-  echo
-  echo "- Event: $GITHUB_EVENT_NAME"
-  echo "- Ref: $GITHUB_REF"
-  echo "- SHA: $GITHUB_SHA"
-  echo
-  echo "### Checksums"
-
-  if [ -f "dist/checksums.txt" ]; then
-    echo
-    echo '```text'
-    cat "dist/checksums.txt"
-    echo '```'
-  else
-    echo
-    echo "checksums file not found at dist/checksums.txt"
-  fi
-
-  echo
-  echo "### Homebrew artifact output"
-
-  ruby_found="false"
-  for ruby_artifact in dist/*.rb; do
-    if [ -f "$ruby_artifact" ]; then
-      ruby_found="true"
-      echo
-      echo "- Generated Homebrew Ruby artifact: $ruby_artifact"
-    fi
-  done
-
-  if [ "$ruby_found" = "false" ]; then
-    echo
-    echo "no generated Homebrew Ruby artifacts found under dist/*.rb"
-  fi
-} >> "$summary_path"
-EOF
-}
-
-step "changelog" {
-  // orhun/git-cliff-action v4.7.1
-  uses {
-    action  = "orhun/git-cliff-action"
-    version = "c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72"
-  }
-
-  with {
-    name  = "config"
-    value = "cliff.toml"
-  }
-
-  env {
-    name  = "OUTPUT"
-    value = "CHANGELOG.md"
-  }
-
-  env {
-    name  = "GITHUB_REPO"
-    value = "$${{ github.repository }}"
-  }
+step "release_notes" {
+  name = "Generate release notes"
+  run  = "git cliff --offline --current --strip header --output ./release-notes.md"
 }

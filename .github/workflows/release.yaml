@@ -28,17 +28,16 @@ jobs:
         with:
           cache: "true"
           install: "true"
+      - id: release_notes
+        name: Generate release notes
+        run: git cliff --offline --current --strip header --output ./release-notes.md
       - env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           HOMEBREW_TAP_GITHUB_TOKEN: "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"
         id: goreleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
         with:
-          args: release --clean
+          args: release --clean --release-notes ./release-notes.md
           distribution: goreleaser
           version: v2.14.3
-      - id: release_observability
-        if: "${{ always() }}"
-        name: Release observability summary
-        run: "set -e\n\nsummary_path=\"$GITHUB_STEP_SUMMARY\"\n\nif [ -z \"$summary_path\" ]; then\n  echo \"GITHUB_STEP_SUMMARY is not available\"\n  exit 0\nfi\n\n{\n  echo \"## Release artifact summary\"\n  echo\n  echo \"- Event: $GITHUB_EVENT_NAME\"\n  echo \"- Ref: $GITHUB_REF\"\n  echo \"- SHA: $GITHUB_SHA\"\n  echo\n  echo \"### Checksums\"\n\n  if [ -f \"dist/checksums.txt\" ]; then\n    echo\n    echo '```text'\n    cat \"dist/checksums.txt\"\n    echo '```'\n  else\n    echo\n    echo \"checksums file not found at dist/checksums.txt\"\n  fi\n\n  echo\n  echo \"### Homebrew artifact output\"\n\n  ruby_found=\"false\"\n  for ruby_artifact in dist/*.rb; do\n    if [ -f \"$ruby_artifact\" ]; then\n      ruby_found=\"true\"\n      echo\n      echo \"- Generated Homebrew Ruby artifact: $ruby_artifact\"\n    fi\n  done\n\n  if [ \"$ruby_found\" = \"false\" ]; then\n    echo\n    echo \"no generated Homebrew Ruby artifacts found under dist/*.rb\"\n  fi\n} >> \"$summary_path\"\n"
     timeout-minutes: 20

@@ -58,19 +58,31 @@ job "release-packages" {
   steps = [
     step.checkout_release,
     step.mise_setup,
+    step.release_notes,
     step.goreleaser,
-    step.release_observability,
   ]
 }
 
-job "changelog" {
-  name = "Update CHANGELOG"
+job "manual-release" {
+  name = "Manual release"
+
+  timeout_minutes = 20
+
+  permissions {
+    contents = "write"
+  }
 
   runs_on {
     runners = "ubuntu-latest"
   }
 
   steps = [
-    step.changelog
+    step.checkout_release,
+    step.mise_setup,
+    step.tests,
+    step.tag_version,
+    step.git_cliff_changelog,
+    step.commit_release,
+    step.create_release,
   ]
 }
