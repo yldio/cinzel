@@ -116,7 +116,6 @@ provider/
 ### CI/CD
 
 - GitHub Actions workflows in `.github/workflows/`.
-- Docker build via `build/Dockerfile`.
 - `mise run test` runs the key test suites before release.
 
 ## Adding a new provider

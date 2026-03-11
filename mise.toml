@@ -36,21 +36,6 @@ go build -ldflags "-s -w -X main.version=$VERSION" -o ./bin/cinzel ./cinzel.go
 [tasks.changelog]
 run = "git cliff --offline --output CHANGELOG.md"
 
-[tasks.docker-build]
-run = """
-VERSION="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
-VERSION="${VERSION#v}"
-if [ -z "$VERSION" ]; then
-  VERSION="dev-$(git rev-parse --short HEAD)"
-fi
-docker build --file=./build/Dockerfile --build-arg version=$VERSION -t "cinzel:$VERSION" .
-"""
-
-[tasks.docker-run]
-run = """
-docker run --rm -it ${DOCKER_RUN_OPTS:-} cinzel:$VERSION
-"""
-
 [tasks.coverpath]
 run = "mkdir -p ./coverage"
 
