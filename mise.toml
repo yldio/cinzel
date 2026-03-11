@@ -4,7 +4,6 @@ ghalint = "latest"
 go = "1.26"
 
 [env]
-VERSION="0.0.1"
 COVERAGE_PATH="./coverage"
 COVERAGE_REPORT_PATH="{{env.COVERAGE_PATH}}/coverage.out"
 COVERAGE_HTML_PATH="{{env.COVERAGE_PATH}}/coverage.html"
@@ -24,6 +23,10 @@ go tool hclfmt -w ./**/*.hcl
 [tasks.build]
 depends = ["test-ci"]
 run = """
+VERSION="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
+if [ -z "$VERSION" ]; then
+  VERSION="dev-$(git rev-parse --short HEAD)"
+fi
 rm -rf ./bin
 go build -ldflags "-s -w -X main.version=$VERSION" -o ./bin/cinzel ./cinzel.go
 """
@@ -35,6 +38,10 @@ go tool changie
 
 [tasks.docker-build]
 run = """
+VERSION="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
+if [ -z "$VERSION" ]; then
+  VERSION="dev-$(git rev-parse --short HEAD)"
+fi
 docker build --file=./build/Dockerfile --build-arg version=$VERSION -t "cinzel:$VERSION" .
 """
 

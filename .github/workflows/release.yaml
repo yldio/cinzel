@@ -37,7 +37,7 @@ jobs:
         with:
           args: "${{ github.event_name == 'workflow_dispatch' && 'release --clean --snapshot --skip=publish --skip=announce --skip=validate' || 'release --clean' }}"
           distribution: goreleaser
-          version: latest
+          version: v2.14.3
       - id: release_observability
         if: "${{ always() }}"
         name: Release observability summary
