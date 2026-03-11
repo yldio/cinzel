@@ -1,6 +1,7 @@
 [tools]
 actionlint = "latest"
 ghalint = "latest"
+git-cliff = "2.12.0"
 go = "1.26"
 
 [env]
@@ -33,9 +34,7 @@ go build -ldflags "-s -w -X main.version=$VERSION" -o ./bin/cinzel ./cinzel.go
 """
 
 [tasks.changelog]
-run = """
-go tool changie
-"""
+run = "git cliff --offline --output CHANGELOG.md"
 
 [tasks.docker-build]
 run = """

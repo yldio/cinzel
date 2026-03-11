@@ -111,7 +111,7 @@ provider/
 
 - Conventional commits enforced via `commitlint` (types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert).
 - Header max 50 chars, body/footer max 72 chars per line.
-- Changelog managed by `changie`.
+- Changelog managed by `git-cliff`.
 
 ### CI/CD
 

@@ -43,3 +43,17 @@ Choose the **Bug report** Issue template to report a bug.
 This section guides you through submitting an enhancement suggestion for `cinzel`, including completely new features and minor improvements to existing functionality. Following these guidelines helps maintainers and the community understand your suggestion and find related suggestions.
 
 They follow the same principal as [Reporting Bugs](#reporting-bugs), but chosing a different Issue template, in this case **Feature**.
+
+## Changelog entries
+
+`cinzel` changelogs are managed with [git-cliff](https://github.com/orhun/git-cliff).
+
+Generate changelog with `mise`:
+
+- `mise run changelog`
+
+Recommended release flow:
+
+1. Run `mise run changelog`.
+2. Commit the resulting `CHANGELOG.md`.
+3. Publish GitHub release tag `v<next-version>`.

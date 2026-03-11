@@ -38,6 +38,9 @@ release:
   draft: false
   prerelease: auto
 
+changelog:
+  disable: true
+
 homebrew_casks:
   - name: cinzel
     binaries:
