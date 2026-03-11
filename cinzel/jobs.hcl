@@ -77,7 +77,7 @@ job "manual-release" {
   }
 
   steps = [
-    step.checkout_release,
+    step.checkout_release_with_credentials,
     step.mise_setup,
     step.tests,
     step.tag_version,

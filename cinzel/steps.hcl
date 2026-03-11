@@ -36,6 +36,26 @@ step "checkout_release" {
   }
 }
 
+step "checkout_release_with_credentials" {
+  name = "Checkout (full history, push enabled)"
+
+  // actions/checkout v6.0.2
+  uses {
+    action  = "actions/checkout"
+    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+  }
+
+  with {
+    name  = "fetch-depth"
+    value = "0"
+  }
+
+  with {
+    name  = "persist-credentials"
+    value = "true"
+  }
+}
+
 step "mise_setup" {
   name = "Setup mise"
 
