@@ -1,0 +1,51 @@
+# Copyright 2026 YLD Limited
+# SPDX-License-Identifier: Apache-2.0
+
+version: 2
+
+project_name: cinzel
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: cinzel
+    main: .
+    binary: cinzel
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: cinzel
+    ids:
+      - cinzel
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  draft: false
+  prerelease: auto
+
+brews:
+  - name: cinzel
+    repository:
+      owner: yldio
+      name: homebrew-cinzel
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/yldio/cinzel
+    description: Bidirectional converter between HCL and CI/CD YAML
+    license: Apache-2.0
+    install: |
+      bin.install "cinzel"

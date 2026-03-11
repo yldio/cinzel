@@ -1,7 +1,7 @@
 ---
 title: "feat: Release package distribution"
 type: feat
-status: planned
+status: active
 date: 2026-03-09
 origin: docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md
 ---
@@ -143,19 +143,20 @@ Planned touchpoints:
 
 ### Phase 2: Homebrew Update Automation
 
-- Add a release-triggered job to:
-  - read release version and asset URLs,
-  - compute SHA256 checksums,
-  - render/update the `cinzel` formula in the tap repo with OS/arch-aware URL and checksum mapping,
-  - create or update a PR with the formula bump.
+- Switch release packaging and Homebrew publishing to GoReleaser:
+  - build/publish release artifacts for required OS/arch targets,
+  - generate release checksums,
+  - render/update the `cinzel` formula in the tap repo,
+  - open/update tap PR via GoReleaser brew integration.
 - Keep formula updates idempotent so reruns do not create noisy diffs.
 - Ensure generated formula references official release artifacts only.
 
 Planned touchpoints:
 - `cinzel/workflows.hcl`
 - `cinzel/jobs.hcl`
+- `cinzel/steps.hcl`
+- `.goreleaser.yaml`
 - generated workflow outputs under `.github/workflows/*.yaml` (regenerated, not hand-edited)
-- `scripts/release/` (checksum/formula helper scripts)
 - `docs/release/` (operator notes)
 
 ### Phase 3: Secrets, Permissions, and Observability
@@ -188,12 +189,19 @@ Planned touchpoints:
 
 ### Phase 4: Validation and Documentation
 
-- Add dry-run or test-mode coverage for formula rendering/checksum logic.
+- Add dry-run or test-mode coverage for GoReleaser release checks/formula updates.
 - Validate end-to-end behavior on a staged release before production rollout.
 - Document release operator flow, failure modes, and manual fallback process.
 
+Dry-run mode contract:
+
+- Release workflow supports `workflow_dispatch` to run a GoReleaser snapshot dry-run.
+- Dry-run path uses:
+  - `release --clean --snapshot --skip=publish --skip=announce --skip=validate`
+- Production publish path remains `release.published` with `release --clean`.
+
 Planned touchpoints:
-- `scripts/release/*_test.*` (or equivalent test harness)
+- `.goreleaser.yaml`
 - `docs/release/homebrew.md`
 - `README.md`
 
@@ -230,7 +238,7 @@ Concurrency contract:
 
 ### Functional
 
-- [ ] GitHub `release.published` triggers Homebrew update automation.
+- [x] GitHub `release.published` triggers Homebrew update automation.
 - [ ] Tap formula is updated with the release version and correct SHA256 values.
 - [ ] Automation creates or updates a PR in `homebrew-cinzel` instead of committing directly to default branch.
 - [ ] Formula installs succeed for macOS + Linux with `brew install cinzel` from the tap.
@@ -239,19 +247,19 @@ Concurrency contract:
 
 ### Reliability
 
-- [ ] Release workflow build/output path mismatch is fixed.
-- [ ] CI test command mismatch is fixed and used by release gates.
+- [x] Release workflow build/output path mismatch is fixed.
+- [x] CI test command mismatch is fixed and used by release gates.
 - [ ] Formula update job is idempotent across reruns for the same release.
-- [ ] Workflow changes are made in `cinzel/*.hcl` and propagated via generated YAML without direct manual edits in `.github/workflows`.
-- [ ] Asset contract validation fails fast on missing/misnamed/duplicate required assets.
-- [ ] Release gating is explicit: Homebrew automation only runs after prerequisite checks and only for `release.published`.
+- [x] Workflow changes are made in `cinzel/*.hcl` and propagated via generated YAML without direct manual edits in `.github/workflows`.
+- [x] Asset contract validation fails fast on missing/misnamed/duplicate required assets.
+- [x] Release gating is explicit: Homebrew automation only runs after prerequisite checks and only for `release.published`.
 - [ ] Winget update flow is idempotent for the same version (no duplicate manifest churn/PR spam).
 
 ### Security and Operations
 
 - [ ] Required secrets/credentials are documented with least-privilege scope.
-- [ ] Workflow permissions are explicitly declared and minimal.
-- [ ] Concurrency is configured to prevent duplicate runs/PRs per release.
+- [x] Workflow permissions are explicitly declared and minimal.
+- [x] Concurrency is configured to prevent duplicate runs/PRs per release.
 - [ ] Release logs clearly show artifact source, computed checksums, and formula diff context.
 - [ ] Permission matrix is documented for source repo workflow and tap repo token/app separately.
 - [ ] Token strategy is explicit (GitHub App preferred, PAT fallback) with secret names and rotation ownership.

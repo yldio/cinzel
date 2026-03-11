@@ -1,6 +1,9 @@
 name: Pull Request
 on:
   pull_request:
+permissions:
+  contents: read
+  pull-requests: write
 jobs:
   pull_request:
     name: "${{ matrix.os }}"
@@ -8,20 +11,22 @@ jobs:
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v4
-      - id: go_setup
-        if: "${{ matrix.os != 'ubuntu-20.04' }}"
-        name: Setup Go environment
-        uses: actions/setup-go@v5.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          go-version-file: ./go.mod
+          persist-credentials: "false"
+      - id: mise_setup
+        name: Setup mise
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          cache: "true"
+          install: "true"
       - id: tests
         name: Tests
-        run: "make test-ci\nshort_sha=$(git rev-parse --short \"$GITHUB_SHA\")\necho \"tag=dev-$short_sha\" >> $GITHUB_OUTPUT\n"
+        run: "mise run test-ci\nshort_sha=$(git rev-parse --short \"$GITHUB_SHA\")\necho \"tag=dev-$short_sha\" >> $GITHUB_OUTPUT\n"
       - id: coverage
-        if: "${{ matrix.os == 'ubuntu-20.04' }}"
+        if: "${{ matrix.os == 'ubuntu-24.04' }}"
         name: Coverage
-        uses: gwatts/go-coverage-action@v2.0.0
+        uses: gwatts/go-coverage-action@2845595538a59d63d1bf55f109c14e104c6f7cb3
     strategy:
       matrix:
         os:

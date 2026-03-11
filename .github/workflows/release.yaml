@@ -2,37 +2,40 @@ name: Build Release
 on:
   release:
     types:
-      - created
+      - published
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  cancel-in-progress: true
+  group: "release-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.release.tag_name }}"
 jobs:
-  releases-matrix:
-    name: Release Go Binary
+  release-packages:
+    if: "${{ github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && !github.event.release.draft) }}"
+    name: Release packages
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
-      - id: checkout
-        name: Checkout
-        uses: actions/checkout@v4
-      - id: go-release
-        uses: wangyoucao577/go-release-action@v1
+      - id: checkout_release
+        name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          binary_name: cinzel
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
-          goarch: "${{ matrix.goarch }}"
-          goos: "${{ matrix.goos }}"
-          goversion: "1.26"
-          ldflags: "-s -w -X \"main.version={{.Version}}\""
-          project_path: ./cmd/cinzel
-    strategy:
-      matrix:
-        exclude:
-          - goarch: "386"
-            goos: darwin
-          - goarch: arm64
-            goos: windows
-        goarch:
-          - "386"
-          - amd64
-          - arm64
-        goos:
-          - linux
-          - windows
-          - darwin
+          fetch-depth: "0"
+          persist-credentials: "false"
+      - id: mise_setup
+        name: Setup mise
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          cache: "true"
+          install: "true"
+      - env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          HOMEBREW_TAP_GITHUB_TOKEN: "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"
+        id: goreleaser
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
+        with:
+          args: "${{ github.event_name == 'workflow_dispatch' && 'release --clean --snapshot --skip=publish --skip=announce --skip=validate' || 'release --clean' }}"
+          distribution: goreleaser
+          version: latest
+    timeout-minutes: 20
