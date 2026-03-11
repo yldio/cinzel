@@ -115,7 +115,12 @@ step "git_cliff_changelog" {
 
   with {
     name  = "args"
-    value = "--verbose --tag $${{ steps.tag_version.outputs.new_tag }}"
+    value = "--offline --verbose --tag $${{ steps.tag_version.outputs.new_tag }}"
+  }
+
+  with {
+    name  = "github_token"
+    value = "$${{ secrets.GITHUB_TOKEN }}"
   }
 
   env {

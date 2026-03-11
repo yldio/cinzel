@@ -39,8 +39,9 @@ jobs:
         name: Generate changelog
         uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
         with:
-          args: "--verbose --tag ${{ steps.tag_version.outputs.new_tag }}"
+          args: "--offline --verbose --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
       - id: commit_release
         name: Commit release changelog
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
