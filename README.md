@@ -22,7 +22,7 @@
 
 It's a bidirectional converter between [HCL](https://github.com/hashicorp/hcl) and [GitHub Actions](https://github.com/features/actions) [YAML](http://www.yaml.de) — supporting workflows, jobs, steps, and composite actions.
 
-Made with :heart: by [Yld](https://www.yld.com/).
+Made with :heart: by [YLD Limited](https://www.yld.com/).
 
 ## Installation and usage
 
