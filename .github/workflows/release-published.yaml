@@ -1,0 +1,45 @@
+# generated-by: cinzel
+# cinzel-provider: github
+name: Build Release (Published)
+on:
+  release:
+    types:
+      - published
+permissions:
+  contents: read
+concurrency:
+  cancel-in-progress: true
+  group: "release-${{ github.event.release.tag_name }}"
+jobs:
+  release-packages:
+    if: "${{ !github.event.release.prerelease && !github.event.release.draft }}"
+    name: Release packages
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout_release
+        name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: "0"
+          persist-credentials: "false"
+      - id: mise_setup
+        name: Setup mise
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          cache: "true"
+          install: "true"
+      - id: release_notes
+        name: Generate release notes
+        run: git cliff --offline --current --strip header --output ./release-notes.md
+      - env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          HOMEBREW_TAP_GITHUB_TOKEN: "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"
+        id: goreleaser
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
+        with:
+          args: release --clean --release-notes ./release-notes.md
+          distribution: goreleaser
+          version: v2.14.3
+    timeout-minutes: 20

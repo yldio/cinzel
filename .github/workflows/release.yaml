@@ -1,17 +1,13 @@
-name: Build Release
+# generated-by: cinzel
+# cinzel-provider: github
+name: Release
 on:
-  release:
-    types:
-      - published
+  workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  cancel-in-progress: true
-  group: "release-${{ github.event.release.tag_name }}"
 jobs:
-  release-packages:
-    if: "${{ !github.event.release.prerelease && !github.event.release.draft }}"
-    name: Release packages
+  manual-release:
+    name: Manual release
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -28,16 +24,35 @@ jobs:
         with:
           cache: "true"
           install: "true"
-      - id: release_notes
-        name: Generate release notes
-        run: git cliff --offline --current --strip header --output ./release-notes.md
-      - env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          HOMEBREW_TAP_GITHUB_TOKEN: "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"
-        id: goreleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
+      - id: tests
+        name: Tests
+        run: mise run test-ci
+      - id: tag_version
+        name: Bump version and push tag
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
         with:
-          args: release --clean --release-notes ./release-notes.md
-          distribution: goreleaser
-          version: v2.14.3
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+      - env:
+          GITHUB_REPO: "${{ github.repository }}"
+          OUTPUT: CHANGELOG.md
+        id: git_cliff
+        name: Generate changelog
+        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
+        with:
+          args: "--verbose --tag ${{ steps.tag_version.outputs.new_tag }}"
+          config: cliff.toml
+      - id: commit_release
+        name: Commit release changelog
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        with:
+          branch: "${{ github.ref_name }}"
+          commit_message: "chore(release): prepare for ${{ steps.tag_version.outputs.new_tag }}"
+          file_pattern: CHANGELOG.md
+      - id: create_release
+        name: Create a GitHub release
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b
+        with:
+          body: "${{ steps.git_cliff.outputs.content }}"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          tag: "${{ steps.tag_version.outputs.new_tag }}"
     timeout-minutes: 20

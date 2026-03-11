@@ -1,3 +1,5 @@
+# generated-by: cinzel
+# cinzel-provider: github
 name: Merge with Main
 on:
   push:

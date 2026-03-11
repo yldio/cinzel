@@ -38,10 +38,10 @@ workflow "push" {
   ]
 }
 
-workflow "release" {
-  filename = "release"
+workflow "release_published" {
+  filename = "release-published"
 
-  name = "Build Release"
+  name = "Build Release (Published)"
 
   permissions {
     contents = "read"
@@ -63,10 +63,10 @@ workflow "release" {
   ]
 }
 
-workflow "release_manual" {
-  filename = "release-manual"
+workflow "release" {
+  filename = "release"
 
-  name = "Manual Release"
+  name = "Release"
 
   permissions {
     contents = "read"
