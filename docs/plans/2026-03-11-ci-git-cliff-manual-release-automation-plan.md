@@ -33,7 +33,8 @@ Previous changelog flow required multiple custom scripts and version-prep steps 
 
 ### Workflow source (HCL)
 
-- Added `workflow "release_manual"` (`workflow_dispatch`).
+- Added `workflow "release"` (`workflow_dispatch`).
+- Kept published-release packaging in `workflow "release_published"` (`release.published`).
 - Added `job "manual-release"` with this sequence:
   - checkout full history
   - setup mise
@@ -46,7 +47,7 @@ Previous changelog flow required multiple custom scripts and version-prep steps 
 ### Generated workflows
 
 - Regenerated `.github/workflows/release.yaml`.
-- Added generated `.github/workflows/release-manual.yaml`.
+- Added generated `.github/workflows/release-published.yaml`.
 
 ### Documentation and config alignment
 
@@ -69,7 +70,7 @@ Previous changelog flow required multiple custom scripts and version-prep steps 
 - `cinzel/jobs.hcl`
 - `cinzel/steps.hcl`
 - `.github/workflows/release.yaml`
-- `.github/workflows/release-manual.yaml`
+- `.github/workflows/release-published.yaml`
 - `mise.toml`
 - `cliff.toml`
 - `CONTRIBUTING.md`

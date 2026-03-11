@@ -4,7 +4,9 @@ This document describes how `cinzel` release distribution is automated for Homeb
 
 ## Scope
 
-- Source release trigger: GitHub `release.published`
+- Source release triggers:
+  - Manual release orchestration: GitHub `workflow_dispatch` (`release.yaml`)
+  - Published-release packaging: GitHub `release.published` (`release-published.yaml`)
 - Homebrew target: `yldio/cinzel` tap (PR-based updates)
 - Supported Homebrew targets: macOS and Linux
 - Windows distribution: release artifacts now, winget PR flow in a later phase
@@ -50,10 +52,11 @@ Tap repository token permissions:
 
 ## Release flow
 
-1. Release workflow starts on `release.published`.
-2. GoReleaser builds archives and computes checksums.
-3. GoReleaser renders the Homebrew cask update.
-4. GoReleaser pushes/update branch and creates or updates a PR in `yldio/cinzel`.
+1. Manual release workflow (`release.yaml`) creates tag/release metadata and changelog.
+2. Published-release workflow (`release-published.yaml`) starts on `release.published`.
+3. GoReleaser builds archives and computes checksums.
+4. GoReleaser renders the Homebrew cask update.
+5. GoReleaser pushes/update branch and creates or updates a PR in `yldio/cinzel`.
 
 Recommended pre-merge checks:
 

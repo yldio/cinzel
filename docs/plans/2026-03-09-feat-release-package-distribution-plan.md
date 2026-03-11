@@ -10,6 +10,8 @@ origin: docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md
 
 Follow-up scope is tracked in `docs/plans/2026-03-11-feat-release-distribution-follow-up-plan.md`.
 
+Historical note: this completed plan captures the original `homebrew-cinzel` tap direction. Current implementation targets `yldio/cinzel` for Homebrew automation.
+
 ## Overview
 
 Automate Homebrew release distribution for cinzel using a dedicated `homebrew-cinzel` tap, while also formalizing Windows release support via native Windows distribution channels. On GitHub release publication, publish trusted release artifacts, compute SHA256 checksums, update the tap formula, and create or update a PR in the tap repository so users can install with `brew install cinzel` on macOS/Linux, with Windows delivered via release artifacts and a Windows package manager path.

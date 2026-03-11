@@ -7,7 +7,7 @@ severity: "high"
 root_cause: "config_error"
 symptoms:
   - "GoReleaser configuration still used deprecated brews instead of homebrew_casks"
-  - "Release workflow had a second dry-run path (workflow_dispatch + snapshot args) that diverged from published-release behavior"
+  - "Release workflow had diverging manual and published trigger behaviors"
   - "Local VERSION overrides could keep a leading v and drift from release version normalization"
 resolution_type: "workflow_improvement"
 tags:
@@ -30,7 +30,7 @@ In parallel, local build inputs accepted `VERSION=vX.Y.Z` without full normaliza
 ## Root Cause
 
 - Release/distribution config evolved incrementally and left deprecated `brews` in place.
-- Release workflow retained dual behavior (`release.published` and `workflow_dispatch` snapshot mode), reducing determinism.
+- Release workflow retained dual behavior (`release.published` and manual dry-run behavior), reducing determinism.
 - `VERSION` normalization stripped `v` for tag-derived fallback but not for user-provided env overrides.
 
 ## What Didn't Work
@@ -47,7 +47,7 @@ Applied one cohesive migration across release config, workflow source, generated
    - add explicit `binaries: [cinzel]`
    - keep existing tap repo/token metadata
 
-2. Remove release dry-run contract from workflow sources:
+2. Remove release dry-run contract from published-release workflow sources:
    - delete `workflow_dispatch` trigger in `cinzel/workflows.hcl`
    - simplify release concurrency/job conditions to published release context
    - set GoReleaser action args to a single path: `release --clean`
@@ -57,10 +57,9 @@ Applied one cohesive migration across release config, workflow source, generated
    - keep artifact discovery over `dist/*.rb`
 
 4. Normalize local version overrides:
-   - add `VERSION="${VERSION#v}"` in `mise.toml` build and docker-build tasks
+   - add `VERSION="${VERSION#v}"` in local build version paths
 
-5. Regenerate workflows from HCL source of truth:
-   - regenerate `.github/workflows/release.yaml` from `cinzel/*.hcl`
+5. Regenerate workflows from HCL source of truth.
 
 6. Update operator/user docs:
    - Homebrew docs now describe cask integration and no dry-run section
@@ -79,8 +78,12 @@ Executed and validated during the fix:
 Observed outcomes:
 
 - GoReleaser config validates successfully after removing deprecated conflict field.
-- Release workflow no longer contains `workflow_dispatch` or snapshot skip arguments.
+- Published-release workflow no longer contains snapshot skip arguments.
 - CI tests and workflow lint checks pass (only non-blocking local `mise` warning about missing `tmux` surfaced).
+
+## Current State Note
+
+Subsequent changes introduced a dedicated manual release workflow (`workflow_dispatch`) while keeping published-release packaging in a separate workflow file. This solution remains correct for the deprecated `brews` migration and published-path cleanup context, and current release topology now uses both `release.yaml` (manual) and `release-published.yaml` (published packaging).
 
 ## Prevention
 

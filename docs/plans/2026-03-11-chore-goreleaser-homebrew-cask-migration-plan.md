@@ -14,7 +14,7 @@ Migrate release packaging from deprecated GoReleaser `brews` to `homebrew_casks`
 
 ## Current State
 
-- `.goreleaser.yaml` still uses `brews` with PR automation to `yldio/homebrew-cinzel`.
+- `.goreleaser.yaml` still uses `brews` with PR automation to `yldio/cinzel`.
 - Release workflow already delegates publishing to GoReleaser and provides `HOMEBREW_TAP_GITHUB_TOKEN`.
 - Workflow observability reports generated Ruby artifacts as "formula output".
 - Workflow source of truth is `cinzel/*.hcl`; `.github/workflows/*.yaml` is generated output.
@@ -23,7 +23,7 @@ Migrate release packaging from deprecated GoReleaser `brews` to `homebrew_casks`
 
 - Remove deprecated GoReleaser Homebrew config usage.
 - Preserve release behavior (`release.published`) and existing token/automation contracts.
-- Preserve tap automation (branch/PR creation in `yldio/homebrew-cinzel`).
+- Preserve tap automation (branch/PR creation in `yldio/cinzel`).
 - Keep rollback simple if cask rollout introduces install regressions.
 
 ## Non-Goals
@@ -50,7 +50,7 @@ Migrate release packaging from deprecated GoReleaser `brews` to `homebrew_casks`
 
 ### Phase 2: Tap Compatibility and Deprecation Bridge
 
-1. In `yldio/homebrew-cinzel` tap:
+1. In `yldio/cinzel` tap:
 - Ensure cask file path/layout matches what GoReleaser will update.
 - Keep (or add) legacy formula as disabled/deprecated with replacement pointing to cask.
 - Confirm tap still passes `brew audit` for cask output.
@@ -78,7 +78,7 @@ Migrate release packaging from deprecated GoReleaser `brews` to `homebrew_casks`
 
 2. Post-merge release validation:
 - Cut a test release tag in a safe release window.
-- Verify GoReleaser opens/updates PR in `yldio/homebrew-cinzel`.
+- Verify GoReleaser opens/updates PR in `yldio/cinzel`.
 - Verify tap PR contents are cask updates, not formula mutations.
 - Verify install smoke test from tap on macOS.
 
@@ -95,7 +95,7 @@ Migrate release packaging from deprecated GoReleaser `brews` to `homebrew_casks`
 
 - [x] `.goreleaser.yaml` uses `homebrew_casks` and no longer uses `brews`.
 - [x] Release workflow still runs via existing triggers and continues using `HOMEBREW_TAP_GITHUB_TOKEN`.
-- [ ] A release run updates/open PR against `yldio/homebrew-cinzel` through GoReleaser automation.
+- [ ] A release run updates/open PR against `yldio/cinzel` through GoReleaser automation.
 - [x] Release summary reports generated Homebrew Ruby artifacts with cask-accurate wording.
 - [x] Operator docs describe the formula-to-cask transition and rollback path.
 

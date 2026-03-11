@@ -49,7 +49,7 @@ Refactored release integration to a single coherent path:
 
 3. Hardened workflow execution model:
    - release trigger moved to `release.published`
-   - added `workflow_dispatch` dry-run path (snapshot + skip publish/announce/validate)
+   - initially added a `workflow_dispatch` dry-run path (snapshot + skip publish/announce/validate)
    - added release concurrency control keyed by release context
 
 4. Standardized setup path on mise:
@@ -82,7 +82,7 @@ All checks passed.
 
 - Keep `cinzel/*.hcl` as the only editable workflow source; treat generated YAML as outputs.
 - Require SHA-pinned action refs and explicit least-privilege permissions.
-- Keep release dry-run (`workflow_dispatch`) as a first-class contract for safe validation.
+- Keep release workflow behavior explicit and separated by intent (manual dispatch vs published-release packaging).
 - Require setup/cache consistency (`mise-action` with cache enabled) across CI/release jobs.
 - Add guard checks for:
   - unpinned actions
@@ -96,3 +96,7 @@ All checks passed.
 - `docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md`
 - `docs/solutions/logic-errors/license-and-provider-docs-consistency.md`
 - `docs/solutions/logic-errors/style-guidance-rule-interpretation-fix.md`
+
+## Current State Note
+
+Later changes replaced the original dry-run contract with a dedicated manual release workflow and separate published-release packaging workflow. This document captures the integration-hardening phase and should be read alongside current workflow files (`.github/workflows/release.yaml` and `.github/workflows/release-published.yaml`).

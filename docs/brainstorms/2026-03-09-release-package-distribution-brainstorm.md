@@ -6,6 +6,8 @@ date: 2026-03-09
 
 # Release package distribution
 
+Historical note: this brainstorm records the initial `homebrew-cinzel` tap direction. Current implementation targets `yldio/cinzel` for Homebrew automation.
+
 ## What We're Building
 
 Add an automated release-to-Homebrew path using a maintained `homebrew-cinzel` tap.
