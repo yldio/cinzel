@@ -20,26 +20,31 @@
 
 **`cinzel`**, pronounced as "*sin-ZEL*" ([IPA](https://en.wikipedia.org/wiki/International_Phonetic_Alphabet): /sĩˈzɛl/), is the Portuguese word for **chisel**.
 
-It's a bidirectional converter between [HCL](https://github.com/hashicorp/hcl) and [GitHub Actions](https://github.com/features/actions) [YAML](http://www.yaml.de) — supporting workflows, jobs, steps, and composite actions.
+It's a bidirectional converter between [HCL](https://github.com/hashicorp/hcl) and CI/CD pipeline [YAML](http://www.yaml.de), with provider-specific mappings (currently GitHub Actions and GitLab CI/CD).
 
 Made with :heart: by [YLD Limited](https://www.yld.com/).
 
 ## Installation and usage
 
-You can install `cinzel` either by:
+Install `cinzel` using one of these options:
 
-- downloading [the released binary][releases];
-
-- by *Homebrew*;
+- Download a prebuilt binary from [GitHub Releases][releases] (recommended for most users).
+- Install with Homebrew:
 
 ```sh
 brew install cinzel
 ```
 
-- or by `go install`.
+- Install from source with Go:
 
 ```sh
 go install github.com/yldio/cinzel@latest
+```
+
+Confirm installation:
+
+```sh
+cinzel --help
 ```
 
 <!-- For more options on how to install, please go over to the [Wiki](https://github.com/yldio/cinzel/wiki). -->
