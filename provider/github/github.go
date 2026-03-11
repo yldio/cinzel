@@ -68,6 +68,8 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+
 		outputPath := filepath.Join(outputDir, resolveParseFilename(opts))
 
 		if opts.DryRun {
@@ -77,8 +79,17 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return nil
 		}
 
-		return fsutil.WriteFile(outputPath, outputBytes)
+		if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
+			return err
+		}
+
+		currentWorkflowOutputs := map[string]struct{}{}
+		currentWorkflowOutputs[filepath.Clean(outputPath)] = struct{}{}
+
+		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName)
 	}
+
+	currentWorkflowOutputs := make(map[string]struct{}, len(workflows))
 
 	for _, workflowFile := range workflows {
 		outputBytes, err := marshalWorkflowYAML(workflowFile.Content)
@@ -86,7 +97,11 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+
 		outputPath := filepath.Join(outputDir, workflowFile.Filename+".yaml")
+		cleanOutputPath := filepath.Clean(outputPath)
+		currentWorkflowOutputs[cleanOutputPath] = struct{}{}
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
@@ -118,7 +133,11 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		}
 	}
 
-	return nil
+	if opts.DryRun {
+		return nil
+	}
+
+	return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName)
 }
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.

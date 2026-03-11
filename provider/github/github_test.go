@@ -12,6 +12,8 @@ import (
 	"github.com/yldio/cinzel/provider"
 )
 
+const generatedByLine = "# generated-by: cinzel"
+
 func TestGitHubMetadata(t *testing.T) {
 	p := New()
 
@@ -857,4 +859,318 @@ func TestResolveInputPath(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected validation error when both file and directory are set")
 	}
+}
+
+func TestParsePrunesStaleWorkflowOutputs(t *testing.T) {
+	t.Run("removes stale file with matching provider marker", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "workflow.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		content := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+		if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		stalePath := filepath.Join(outputDir, "stale.yaml")
+		staleContent := generatedByLine + "\n# cinzel-provider: github\nname: stale\n"
+		if err := os.WriteFile(stalePath, []byte(staleContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
+			t.Fatalf("expected stale marked workflow to be deleted, stat err=%v", err)
+		}
+
+		ciPath := filepath.Join(outputDir, "ci.yaml")
+		b, err := os.ReadFile(ciPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !strings.Contains(string(b), generatedByLine) {
+			t.Fatalf("expected generated marker header in %s", ciPath)
+		}
+	})
+
+	t.Run("keeps unmarked files and files for other providers", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "workflow.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		content := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+		if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		manualPath := filepath.Join(outputDir, "manual.yaml")
+		if err := os.WriteFile(manualPath, []byte("name: manual\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		otherProviderPath := filepath.Join(outputDir, "gitlab.yaml")
+		otherProviderContent := generatedByLine + "\n# cinzel-provider: gitlab\nname: gitlab\n"
+		if err := os.WriteFile(otherProviderPath, []byte(otherProviderContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := os.Stat(manualPath); err != nil {
+			t.Fatalf("expected unmarked file to be preserved, stat err=%v", err)
+		}
+
+		if _, err := os.Stat(otherProviderPath); err != nil {
+			t.Fatalf("expected other provider file to be preserved, stat err=%v", err)
+		}
+	})
+
+	t.Run("does not delete stale files in dry run", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "workflow.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		content := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+		if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		stalePath := filepath.Join(outputDir, "stale.yaml")
+		staleContent := generatedByLine + "\n# cinzel-provider: github\nname: stale\n"
+		if err := os.WriteFile(stalePath, []byte(staleContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir, DryRun: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := os.Stat(stalePath); err != nil {
+			t.Fatalf("expected stale file to remain in dry run, stat err=%v", err)
+		}
+	})
+
+	t.Run("removes renamed workflow output after successful regeneration", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		firstInputFile := filepath.Join(tmpDir, "first.hcl")
+		secondInputFile := filepath.Join(tmpDir, "second.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		firstContent := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "old-name"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+		secondContent := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "new-name"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+		if err := os.WriteFile(firstInputFile, []byte(firstContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(secondInputFile, []byte(secondContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := New().Parse(provider.ProviderOps{File: firstInputFile, OutputDirectory: outputDir}); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := New().Parse(provider.ProviderOps{File: secondInputFile, OutputDirectory: outputDir}); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := os.Stat(filepath.Join(outputDir, "old-name.yaml")); !os.IsNotExist(err) {
+			t.Fatalf("expected old workflow file to be deleted after rename, stat err=%v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(outputDir, "new-name.yaml")); err != nil {
+			t.Fatalf("expected renamed workflow file to exist, stat err=%v", err)
+		}
+	})
+
+	t.Run("parse failure does not delete stale files", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "invalid.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		invalidContent := `workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [
+`
+
+		if err := os.WriteFile(inputFile, []byte(invalidContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		stalePath := filepath.Join(outputDir, "stale.yaml")
+		staleContent := generatedByLine + "\n# cinzel-provider: github\nname: stale\n"
+		if err := os.WriteFile(stalePath, []byte(staleContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir})
+		if err == nil {
+			t.Fatal("expected parse error for invalid HCL")
+		}
+
+		if _, err := os.Stat(stalePath); err != nil {
+			t.Fatalf("expected stale file to remain on parse failure, stat err=%v", err)
+		}
+	})
+
+	t.Run("idempotent rerun keeps generated workflow output", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "workflow.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		content := `step "echo" {
+  run = "echo hi"
+}
+
+job "build" {
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+  steps = [step.echo]
+}
+
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+		if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
+			t.Fatal(err)
+		}
+
+		firstBytes, err := os.ReadFile(filepath.Join(outputDir, "ci.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
+			t.Fatal(err)
+		}
+
+		secondBytes, err := os.ReadFile(filepath.Join(outputDir, "ci.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if string(firstBytes) != string(secondBytes) {
+			t.Fatalf("expected idempotent parse output on rerun\n--- first ---\n%s\n--- second ---\n%s", string(firstBytes), string(secondBytes))
+		}
+	})
 }

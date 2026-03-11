@@ -182,6 +182,13 @@ Test coverage includes golden fixtures, a fixture-driven compatibility matrix un
 - Parse output uses unquoted `on` (never `"on"`).
 - Parse output uses 2-space YAML indentation.
 - Parse output top-level key order is deliberate (`name`, `on`, `jobs`, then remaining keys).
+- Parse output includes cinzel provider markers in generated YAML headers (`generated-by` and `cinzel-provider`).
+- Parse cleanup prunes stale workflow YAML only when marker ownership matches the current provider.
 - Unparse output formats HCL with clear section separators and trailing commas in reference lists.
 - Identifier normalization is stable: YAML names are sanitized to valid HCL identifiers when needed.
 - Expression escaping is stable in HCL output (`${{ ... }}` in YAML becomes `$${{ ... }}` in HCL string literals).
+
+## Troubleshooting stale files
+
+- If a stale YAML file is not removed, confirm it still has cinzel markers and matches the current provider (`generated-by: cinzel` and `cinzel-provider: github`).
+- If marker checks pass but deletion still fails, confirm output directory write/delete permissions for the current user/CI runner.

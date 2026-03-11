@@ -84,6 +84,7 @@ template "go_base" {
 - `$${VAR}` in HCL becomes `${VAR}` in YAML.
 - `${VAR}` in YAML becomes `$${VAR}` in HCL output.
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
+- Parse output includes cinzel provider markers in YAML headers (`generated-by` and `cinzel-provider`).
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
 - Repeated `include {}` blocks map to YAML `include:` entries.
 - Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.

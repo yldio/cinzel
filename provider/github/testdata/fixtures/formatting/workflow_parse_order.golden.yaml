@@ -1,3 +1,5 @@
+# generated-by: cinzel
+# cinzel-provider: github
 name: Build
 run-name: "Build #1"
 on:

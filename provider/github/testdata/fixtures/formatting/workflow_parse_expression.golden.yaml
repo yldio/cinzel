@@ -1,3 +1,5 @@
+# generated-by: cinzel
+# cinzel-provider: github
 run-name: "${{ github.workflow }} #${{ github.run_number }}"
 on:
   push:

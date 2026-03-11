@@ -63,6 +63,8 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
+	outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+
 	outputPath := filepath.Join(resolveParseOutputDirectory(opts), ".gitlab-ci.yml")
 
 	if opts.DryRun {

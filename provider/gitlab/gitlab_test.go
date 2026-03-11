@@ -171,6 +171,8 @@ include {
 
 	out := string(content)
 	checks := []string{
+		"# generated-by: cinzel",
+		"# cinzel-provider: gitlab",
 		"stages:",
 		"variables:",
 		"DEPLOY_ENV:",
@@ -223,6 +225,10 @@ job "build" {
 
 	if !strings.Contains(out, "# file: .gitlab-ci.yml") {
 		t.Fatalf("expected dry-run path in stdout, got %q", out)
+	}
+
+	if !strings.Contains(out, "# generated-by: cinzel") {
+		t.Fatalf("expected generated marker header in dry-run output, got %q", out)
 	}
 }
 
