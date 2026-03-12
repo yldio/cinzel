@@ -113,7 +113,7 @@ step "tag_version" {
   }
 
   with {
-    name  = "github_token"
+    name  = "token"
     value = "$${{ steps.release_app_token.outputs.token }}"
   }
 
@@ -174,7 +174,7 @@ step "create_release" {
   }
 
   with {
-    name  = "github_token"
+    name  = "token"
     value = "$${{ steps.release_app_token.outputs.token }}"
   }
 
