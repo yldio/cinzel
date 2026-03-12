@@ -1,4 +1,11 @@
 cinzel
+## [0.0.6](https://github.com/yldio/cinzel/compare/v0.0.5..v0.0.6) - 2026-03-12
+
+### 🐛 Bug Fixes
+
+- Use --latest for release notes body - ([c3953b3](https://github.com/yldio/cinzel/commit/c3953b385e0a065f30e3c5b268e6db60520c3aa2))
+
+
 ## [0.0.5](https://github.com/yldio/cinzel/compare/v0.0.4..v0.0.5) - 2026-03-12
 
 ### 🐛 Bug Fixes
