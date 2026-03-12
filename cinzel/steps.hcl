@@ -190,8 +190,8 @@ step "create_release" {
 }
 
 step "git_cliff_changelog" {
-  id   = "git_cliff"
-  name = "Generate changelog"
+  id   = "git_cliff_changelog"
+  name = "Generate full changelog"
 
   // orhun/git-cliff-action v4.7.1
   uses {
@@ -217,6 +217,37 @@ step "git_cliff_changelog" {
   env {
     name  = "OUTPUT"
     value = "CHANGELOG.md"
+  }
+
+  env {
+    name  = "GITHUB_REPO"
+    value = "$${{ github.repository }}"
+  }
+}
+
+step "git_cliff_release_notes" {
+  id   = "git_cliff"
+  name = "Generate release notes"
+
+  // orhun/git-cliff-action v4.7.1
+  uses {
+    action  = "orhun/git-cliff-action"
+    version = "c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72"
+  }
+
+  with {
+    name  = "config"
+    value = "cliff.toml"
+  }
+
+  with {
+    name  = "args"
+    value = "--offline --verbose --latest --tag $${{ steps.tag_version.outputs.new_tag }}"
+  }
+
+  with {
+    name  = "github_token"
+    value = "$${{ steps.release_app_token.outputs.token }}"
   }
 
   env {

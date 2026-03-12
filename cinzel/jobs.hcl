@@ -86,6 +86,7 @@ job "manual-release" {
     step.normalize_release_tag,
     step.tag_version,
     step.git_cliff_changelog,
+    step.git_cliff_release_notes,
     step.commit_release,
     step.create_release,
   ]
