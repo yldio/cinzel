@@ -113,7 +113,7 @@ step "tag_version" {
   }
 
   with {
-    name  = "token"
+    name  = "github_token"
     value = "$${{ steps.release_app_token.outputs.token }}"
   }
 

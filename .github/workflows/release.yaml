@@ -70,7 +70,7 @@ jobs:
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
         with:
           custom_tag: "${{ steps.normalize_release_tag.outputs.tag }}"
-          token: "${{ steps.release_app_token.outputs.token }}"
+          github_token: "${{ steps.release_app_token.outputs.token }}"
       - env:
           GITHUB_REPO: "${{ github.repository }}"
           OUTPUT: CHANGELOG.md
