@@ -47,7 +47,7 @@ homebrew_casks:
       - cinzel
     repository:
       owner: yldio
-      name: cinzel
+      name: homebrew-cinzel
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/yldio/cinzel
     description: Bidirectional converter between HCL and CI/CD YAML
