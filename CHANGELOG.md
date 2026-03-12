@@ -1,4 +1,11 @@
 cinzel
+## [0.0.5](https://github.com/yldio/cinzel/compare/v0.0.4..v0.0.5) - 2026-03-12
+
+### 🐛 Bug Fixes
+
+- Use homebrew-cinzel tap repo name - ([a0d4c0c](https://github.com/yldio/cinzel/commit/a0d4c0ca2324bd7b4fb8a8fade0f336da86aba34))
+
+
 ## [0.0.4](https://github.com/yldio/cinzel/compare/v0.0.3..v0.0.4) - 2026-03-12
 
 ### 📚 Documentation
