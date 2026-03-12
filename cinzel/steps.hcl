@@ -80,6 +80,11 @@ step "release_app_token" {
     name  = "private-key"
     value = "$${{ secrets.RELEASE_PRIVATE_KEY }}"
   }
+
+  with {
+    name  = "repositories"
+    value = "cinzel,homebrew-cinzel"
+  }
 }
 
 step "mise_setup" {
