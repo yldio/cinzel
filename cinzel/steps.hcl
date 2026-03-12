@@ -56,7 +56,7 @@ step "checkout_release_with_credentials" {
   }
 
   with {
-    name  = "token"
+    name  = "github_token"
     value = "$${{ steps.release_app_token.outputs.token }}"
   }
 }

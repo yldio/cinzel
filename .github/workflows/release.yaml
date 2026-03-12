@@ -40,8 +40,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: "0"
+          github_token: "${{ steps.release_app_token.outputs.token }}"
           persist-credentials: "true"
-          token: "${{ steps.release_app_token.outputs.token }}"
       - id: mise_setup
         name: Setup mise
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
