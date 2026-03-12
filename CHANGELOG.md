@@ -1,5 +1,5 @@
 cinzel
-## [0.0.1] - 2026-03-11
+## [0.0.1](https://github.com/yldio/cinzel/compare/v0.0.1..vv0.0.1) - 2026-03-12
 
 ### ⛰️  Features
 
@@ -31,6 +31,7 @@ cinzel
 
 ### 🐛 Bug Fixes
 
+- Stabilize release workflow automation - ([8a1c1d1](https://github.com/yldio/cinzel/commit/8a1c1d1b25ab5d26216eb5d3c3455537df588843))
 - Require explicit manual release tag - ([7af24c1](https://github.com/yldio/cinzel/commit/7af24c1233232365eba6a4b3eff67e47a4bd5119))
 - Allow changelog push in manual release - ([1624886](https://github.com/yldio/cinzel/commit/1624886a666c89ce1ea78589114d603b05ba5605))
 - Harden git-cliff release changelog step - ([3444209](https://github.com/yldio/cinzel/commit/3444209e11f91ccac26812f5b2ba33b168480009))
