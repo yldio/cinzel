@@ -292,4 +292,9 @@ step "goreleaser" {
     name  = "GITHUB_TOKEN"
     value = "$${{ steps.release_app_token.outputs.token }}"
   }
+
+  env {
+    name  = "HOMEBREW_TAP_GITHUB_TOKEN"
+    value = "$${{ steps.release_app_token.outputs.token }}"
+  }
 }

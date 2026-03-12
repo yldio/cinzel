@@ -50,6 +50,7 @@ jobs:
           install: "true"
       - env:
           GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
+          HOMEBREW_TAP_GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
         id: goreleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
         with:
