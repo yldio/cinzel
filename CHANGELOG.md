@@ -1,4 +1,11 @@
 cinzel
+## [0.0.3](https://github.com/yldio/cinzel/compare/v0.0.2..v0.0.3) - 2026-03-12
+
+### 🐛 Bug Fixes
+
+- Map app token for goreleaser homebrew - ([2bfc2b8](https://github.com/yldio/cinzel/commit/2bfc2b83cf88d7790ec551a6193a54865c896982))
+
+
 ## [0.0.2](https://github.com/yldio/cinzel/compare/v0.0.1..v0.0.2) - 2026-03-12
 
 ### 🐛 Bug Fixes
