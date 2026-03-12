@@ -125,7 +125,7 @@ step "tag_version" {
 
 step "normalize_release_tag" {
   id   = "normalize_release_tag"
-  name = "Normalize release tag"
+  name = "Normalize release version"
   run  = <<EOF
 set -euo pipefail
 
@@ -137,7 +137,7 @@ if [ -z "$input_tag" ]; then
   exit 1
 fi
 
-echo "tag=v$input_tag" >> "$GITHUB_OUTPUT"
+echo "tag=$input_tag" >> "$GITHUB_OUTPUT"
 EOF
 }
 

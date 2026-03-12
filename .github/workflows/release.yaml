@@ -52,7 +52,7 @@ jobs:
         name: Tests
         run: mise run test-ci
       - id: normalize_release_tag
-        name: Normalize release tag
+        name: Normalize release version
         run: |
           set -euo pipefail
 
@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
 
-          echo "tag=v$input_tag" >> "$GITHUB_OUTPUT"
+          echo "tag=$input_tag" >> "$GITHUB_OUTPUT"
       - id: tag_version
         name: Bump version and push tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
