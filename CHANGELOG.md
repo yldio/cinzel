@@ -1,4 +1,13 @@
 cinzel
+## [0.0.2](https://github.com/yldio/cinzel/compare/v0.0.1..v0.0.2) - 2026-03-12
+
+### 🐛 Bug Fixes
+
+- Pass github token to tag action - ([2299c71](https://github.com/yldio/cinzel/commit/2299c71c10de0bdd46fadaafe4748fb78e0661e0))
+- Restore github-tag-action token input - ([74b80ff](https://github.com/yldio/cinzel/commit/74b80ffab271ab115f406ee2ac8e1a9a1246e851))
+- Use app token inputs for release actions - ([08bc6f3](https://github.com/yldio/cinzel/commit/08bc6f30e4ffb292a7652d0a43271f32f6c4a50a))
+
+
 ## [0.0.1] - 2026-03-12
 
 ### ⛰️  Features
