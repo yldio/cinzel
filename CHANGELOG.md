@@ -1,4 +1,11 @@
 cinzel
+## [0.0.4](https://github.com/yldio/cinzel/compare/v0.0.3..v0.0.4) - 2026-03-12
+
+### 📚 Documentation
+
+- Capture release auth contract fix - ([d187c10](https://github.com/yldio/cinzel/commit/d187c1003c03ccdd84ba290e55e6f4b3cd054bfc))
+
+
 ## [0.0.3](https://github.com/yldio/cinzel/compare/v0.0.2..v0.0.3) - 2026-03-12
 
 ### 🐛 Bug Fixes
