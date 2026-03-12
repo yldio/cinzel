@@ -1,4 +1,11 @@
 cinzel
+## [0.0.7](https://github.com/yldio/cinzel/compare/v0.0.6..v0.0.7) - 2026-03-12
+
+### 🐛 Bug Fixes
+
+- Scope app token to include homebrew tap - ([3619d49](https://github.com/yldio/cinzel/commit/3619d4939341d14aef6143b2d7c56f762b61d116))
+
+
 ## [0.0.6](https://github.com/yldio/cinzel/compare/v0.0.5..v0.0.6) - 2026-03-12
 
 ### 🐛 Bug Fixes
