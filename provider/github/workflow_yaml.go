@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
 	yamlv3 "gopkg.in/yaml.v3"
 )
@@ -105,6 +106,12 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!null", Value: "null"}, nil
 	case string:
 		node := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: v}
+
+		if strings.Contains(v, "\n") {
+			node.Style = yamlv3.LiteralStyle
+
+			return node, nil
+		}
 
 		if stringNeedsQuoting(v) {
 			node.Style = yamlv3.DoubleQuotedStyle

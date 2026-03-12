@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to publish (for example v1.2.3)
+        description: Release tag to publish (for example 1.2.3)
         required: true
         type: string
 permissions:
@@ -17,12 +17,31 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
+      - env:
+          RELEASE_APP_ID: "${{ secrets.RELEASE_APP_ID }}"
+          RELEASE_PRIVATE_KEY: "${{ secrets.RELEASE_PRIVATE_KEY }}"
+        id: ensure_release_app
+        name: Ensure release app credentials
+        run: |
+          set -euo pipefail
+
+          if [ -z "$RELEASE_APP_ID" ] || [ -z "$RELEASE_PRIVATE_KEY" ]; then
+            echo "RELEASE_APP_ID and RELEASE_PRIVATE_KEY secrets are required for release automation"
+            exit 1
+          fi
+      - id: release_app_token
+        name: Create release app token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: "${{ secrets.RELEASE_APP_ID }}"
+          private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
       - id: checkout_release_with_credentials
         name: "Checkout (full history, push enabled)"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: "0"
           persist-credentials: "true"
+          token: "${{ steps.release_app_token.outputs.token }}"
       - id: mise_setup
         name: Setup mise
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
@@ -32,12 +51,26 @@ jobs:
       - id: tests
         name: Tests
         run: mise run test-ci
+      - id: normalize_release_tag
+        name: Normalize release tag
+        run: |
+          set -euo pipefail
+
+          input_tag="${{ github.event.inputs.tag }}"
+          input_tag="${input_tag#v}"
+
+          if [ -z "$input_tag" ]; then
+            echo "release tag input cannot be empty"
+            exit 1
+          fi
+
+          echo "tag=v$input_tag" >> "$GITHUB_OUTPUT"
       - id: tag_version
         name: Bump version and push tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
         with:
-          custom_tag: "${{ github.event.inputs.tag }}"
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          custom_tag: "${{ steps.normalize_release_tag.outputs.tag }}"
+          github_token: "${{ steps.release_app_token.outputs.token }}"
       - env:
           GITHUB_REPO: "${{ github.repository }}"
           OUTPUT: CHANGELOG.md
@@ -47,7 +80,7 @@ jobs:
         with:
           args: "--offline --verbose --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          github_token: "${{ steps.release_app_token.outputs.token }}"
       - id: commit_release
         name: Commit release changelog
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
@@ -60,6 +93,6 @@ jobs:
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b
         with:
           body: "${{ steps.git_cliff.outputs.content }}"
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          github_token: "${{ steps.release_app_token.outputs.token }}"
           tag: "${{ steps.tag_version.outputs.new_tag }}"
     timeout-minutes: 20

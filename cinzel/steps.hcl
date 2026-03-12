@@ -54,6 +54,32 @@ step "checkout_release_with_credentials" {
     name  = "persist-credentials"
     value = "true"
   }
+
+  with {
+    name  = "token"
+    value = "$${{ steps.release_app_token.outputs.token }}"
+  }
+}
+
+step "release_app_token" {
+  id   = "release_app_token"
+  name = "Create release app token"
+
+  // actions/create-github-app-token v2.2.1
+  uses {
+    action  = "actions/create-github-app-token"
+    version = "29824e69f54612133e76f7eaac726eef6c875baf"
+  }
+
+  with {
+    name  = "app-id"
+    value = "$${{ secrets.RELEASE_APP_ID }}"
+  }
+
+  with {
+    name  = "private-key"
+    value = "$${{ secrets.RELEASE_PRIVATE_KEY }}"
+  }
 }
 
 step "mise_setup" {
@@ -88,12 +114,52 @@ step "tag_version" {
 
   with {
     name  = "github_token"
-    value = "$${{ secrets.GITHUB_TOKEN }}"
+    value = "$${{ steps.release_app_token.outputs.token }}"
   }
 
   with {
     name  = "custom_tag"
-    value = "$${{ github.event.inputs.tag }}"
+    value = "$${{ steps.normalize_release_tag.outputs.tag }}"
+  }
+}
+
+step "normalize_release_tag" {
+  id   = "normalize_release_tag"
+  name = "Normalize release tag"
+  run  = <<EOF
+set -euo pipefail
+
+input_tag="$${{ github.event.inputs.tag }}"
+input_tag="$${input_tag#v}"
+
+if [ -z "$input_tag" ]; then
+  echo "release tag input cannot be empty"
+  exit 1
+fi
+
+echo "tag=v$input_tag" >> "$GITHUB_OUTPUT"
+EOF
+}
+
+step "ensure_release_app" {
+  name = "Ensure release app credentials"
+  run  = <<EOF
+set -euo pipefail
+
+if [ -z "$RELEASE_APP_ID" ] || [ -z "$RELEASE_PRIVATE_KEY" ]; then
+  echo "RELEASE_APP_ID and RELEASE_PRIVATE_KEY secrets are required for release automation"
+  exit 1
+fi
+EOF
+
+  env {
+    name  = "RELEASE_APP_ID"
+    value = "$${{ secrets.RELEASE_APP_ID }}"
+  }
+
+  env {
+    name  = "RELEASE_PRIVATE_KEY"
+    value = "$${{ secrets.RELEASE_PRIVATE_KEY }}"
   }
 }
 
@@ -109,7 +175,7 @@ step "create_release" {
 
   with {
     name  = "github_token"
-    value = "$${{ secrets.GITHUB_TOKEN }}"
+    value = "$${{ steps.release_app_token.outputs.token }}"
   }
 
   with {
@@ -145,7 +211,7 @@ step "git_cliff_changelog" {
 
   with {
     name  = "github_token"
-    value = "$${{ secrets.GITHUB_TOKEN }}"
+    value = "$${{ steps.release_app_token.outputs.token }}"
   }
 
   env {
@@ -219,21 +285,11 @@ step "goreleaser" {
 
   with {
     name  = "args"
-    value = "release --clean --release-notes ./release-notes.md"
+    value = "release --clean"
   }
 
   env {
     name  = "GITHUB_TOKEN"
-    value = "$${{ secrets.GITHUB_TOKEN }}"
+    value = "$${{ steps.release_app_token.outputs.token }}"
   }
-
-  env {
-    name  = "HOMEBREW_TAP_GITHUB_TOKEN"
-    value = "$${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"
-  }
-}
-
-step "release_notes" {
-  name = "Generate release notes"
-  run  = "git cliff --offline --current --strip header --output ./release-notes.md"
 }

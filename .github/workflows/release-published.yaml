@@ -18,6 +18,24 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
+      - env:
+          RELEASE_APP_ID: "${{ secrets.RELEASE_APP_ID }}"
+          RELEASE_PRIVATE_KEY: "${{ secrets.RELEASE_PRIVATE_KEY }}"
+        id: ensure_release_app
+        name: Ensure release app credentials
+        run: |
+          set -euo pipefail
+
+          if [ -z "$RELEASE_APP_ID" ] || [ -z "$RELEASE_PRIVATE_KEY" ]; then
+            echo "RELEASE_APP_ID and RELEASE_PRIVATE_KEY secrets are required for release automation"
+            exit 1
+          fi
+      - id: release_app_token
+        name: Create release app token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: "${{ secrets.RELEASE_APP_ID }}"
+          private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
       - id: checkout_release
         name: Checkout (full history)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -30,16 +48,12 @@ jobs:
         with:
           cache: "true"
           install: "true"
-      - id: release_notes
-        name: Generate release notes
-        run: git cliff --offline --current --strip header --output ./release-notes.md
       - env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          HOMEBREW_TAP_GITHUB_TOKEN: "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}"
+          GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
         id: goreleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
         with:
-          args: release --clean --release-notes ./release-notes.md
+          args: release --clean
           distribution: goreleaser
           version: v2.14.3
     timeout-minutes: 20

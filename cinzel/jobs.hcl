@@ -56,9 +56,10 @@ job "release-packages" {
   }
 
   steps = [
+    step.ensure_release_app,
+    step.release_app_token,
     step.checkout_release,
     step.mise_setup,
-    step.release_notes,
     step.goreleaser,
   ]
 }
@@ -77,9 +78,12 @@ job "manual-release" {
   }
 
   steps = [
+    step.ensure_release_app,
+    step.release_app_token,
     step.checkout_release_with_credentials,
     step.mise_setup,
     step.tests,
+    step.normalize_release_tag,
     step.tag_version,
     step.git_cliff_changelog,
     step.commit_release,
