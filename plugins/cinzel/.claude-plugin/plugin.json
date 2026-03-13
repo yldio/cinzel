@@ -1,0 +1,10 @@
+{
+  "name": "cinzel",
+  "description": "Bidirectional HCL ↔ CI/CD YAML converter",
+  "version": "1.0.0",
+  "author": {
+    "name": "YLD Limited"
+  },
+  "repository": "https://github.com/yldio/cinzel",
+  "license": "Apache-2.0"
+}

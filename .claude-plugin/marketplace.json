@@ -1,0 +1,35 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cinzel-plugin",
+  "description": "Cinzel CLI skills for Claude Code",
+  "metadata": {
+    "description": "Cinzel CLI skills for Claude Code",
+    "version": "0.1.0"
+  },
+  "owner": {
+    "name": "YLD Limited",
+    "url": "https://github.com/yldio",
+    "email": "hello@yld.io"
+  },
+  "plugins": [
+    {
+      "name": "cinzel",
+      "description": "Bidirectional HCL ↔ CI/CD YAML converter",
+      "version": "0.1.0",
+      "author": {
+        "name": "YLD Limited",
+        "url": "https://github.com/yldio"
+      },
+      "homepage": "https://github.com/yldio/cinzel",
+      "source": "./plugins/cinzel",
+      "license": "Apache-2.0",
+      "tags": [
+        "hcl",
+        "yaml",
+        "github-actions",
+        "gitlab-pipelines",
+        "ci-cd"
+      ]
+    }
+  ]
+}
