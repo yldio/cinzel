@@ -52,3 +52,9 @@ homebrew_casks:
     homepage: https://github.com/yldio/cinzel
     description: Bidirectional converter between HCL and CI/CD YAML
     license: Apache-2.0
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/cinzel"]
+          end
