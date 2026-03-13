@@ -1,4 +1,15 @@
 cinzel
+## [0.0.8](https://github.com/yldio/cinzel/compare/v0.0.7..v0.0.8) - 2026-03-13
+
+### ⛰️  Features
+
+- Add Claude Code plugin with parse/unparse skills - ([42d6a2c](https://github.com/yldio/cinzel/commit/42d6a2ce2886db45799b4d6023dd5d4489a93445))
+
+### 🐛 Bug Fixes
+
+- Use --unreleased for release notes body - ([0a52381](https://github.com/yldio/cinzel/commit/0a523819e29877e5dba14c87963869bfbfb9fc12))
+
+
 ## [0.0.7](https://github.com/yldio/cinzel/compare/v0.0.6..v0.0.7) - 2026-03-12
 
 ### 🐛 Bug Fixes
