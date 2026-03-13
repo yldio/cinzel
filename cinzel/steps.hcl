@@ -247,7 +247,7 @@ step "git_cliff_release_notes" {
 
   with {
     name  = "args"
-    value = "--offline --verbose --latest --tag $${{ steps.tag_version.outputs.new_tag }}"
+    value = "--offline --verbose --unreleased --tag $${{ steps.tag_version.outputs.new_tag }}"
   }
 
   with {

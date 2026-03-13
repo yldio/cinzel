@@ -88,7 +88,7 @@ jobs:
         name: Generate release notes
         uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
         with:
-          args: "--offline --verbose --latest --tag ${{ steps.tag_version.outputs.new_tag }}"
+          args: "--offline --verbose --unreleased --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
           github_token: "${{ steps.release_app_token.outputs.token }}"
       - id: commit_release
