@@ -14,8 +14,8 @@ on:
 permissions:
   contents: read
 jobs:
-  manual-release:
-    name: Manual release
+  release:
+    name: Release
     permissions:
       contents: write
     runs-on: ubuntu-latest

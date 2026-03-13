@@ -67,6 +67,6 @@ workflow "release" {
   }
 
   jobs = [
-    job.manual-release,
+    job.release,
   ]
 }
