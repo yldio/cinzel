@@ -279,7 +279,7 @@ step "commit_release" {
 
   with {
     name  = "commit_message"
-    value = "chore(release): prepare for $${{ steps.tag_version.outputs.new_tag }}"
+    value = "chore(release): prepare for $${{ steps.tag_version.outputs.new_tag }} [skip ci]"
   }
 
   with {
@@ -332,31 +332,6 @@ step "calculate_next_version" {
   with {
     name  = "patchList"
     value = "fix, perf, refactor"
-  }
-}
-
-step "dispatch_release" {
-  name = "Dispatch release workflow"
-
-  // benc-uk/workflow-dispatch v1.2.4
-  uses {
-    action  = "benc-uk/workflow-dispatch"
-    version = "e2e5e9a103e331dad343f381a29e654aea3cf8fc"
-  }
-
-  with {
-    name  = "token"
-    value = "$${{ steps.release_app_token.outputs.token }}"
-  }
-
-  with {
-    name  = "workflow"
-    value = "release.yaml"
-  }
-
-  with {
-    name  = "ref"
-    value = "main"
   }
 }
 

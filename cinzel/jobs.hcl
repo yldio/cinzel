@@ -27,26 +27,6 @@ job "pull_request" {
   ]
 }
 
-job "auto_release" {
-  name = "Auto release"
-
-  timeout_minutes = 5
-
-  permissions {
-    actions = "write"
-  }
-
-  runs_on {
-    runners = "ubuntu-latest"
-  }
-
-  steps = [
-    step.ensure_release_app,
-    step.release_app_token,
-    step.dispatch_release,
-  ]
-}
-
 job "release-packages" {
   name = "Release packages"
   if   = "$${{ !github.event.release.prerelease && !github.event.release.draft }}"

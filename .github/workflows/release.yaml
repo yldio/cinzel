@@ -2,6 +2,9 @@
 # cinzel-provider: github
 name: Release
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
@@ -110,7 +113,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           branch: "${{ github.ref_name }}"
-          commit_message: "chore(release): prepare for ${{ steps.tag_version.outputs.new_tag }}"
+          commit_message: "chore(release): prepare for ${{ steps.tag_version.outputs.new_tag }} [skip ci]"
           file_pattern: CHANGELOG.md
       - id: create_release
         name: Create a GitHub release

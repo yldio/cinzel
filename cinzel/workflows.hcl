@@ -18,26 +18,6 @@ workflow "pull_request" {
   ]
 }
 
-workflow "push" {
-  filename = "push"
-
-  name = "Auto Release"
-
-  permissions {
-    contents = "read"
-  }
-
-  on "push" {
-    branches = [
-      "main"
-    ]
-  }
-
-  jobs = [
-    job.auto_release,
-  ]
-}
-
 workflow "release_published" {
   filename = "release-published"
 
@@ -70,6 +50,12 @@ workflow "release" {
 
   permissions {
     contents = "read"
+  }
+
+  on "push" {
+    branches = [
+      "main"
+    ]
   }
 
   on "workflow_dispatch" {
