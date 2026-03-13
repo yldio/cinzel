@@ -21,7 +21,7 @@ workflow "pull_request" {
 workflow "push" {
   filename = "push"
 
-  name = "Merge with Main"
+  name = "Auto Release"
 
   permissions {
     contents = "read"
@@ -34,7 +34,7 @@ workflow "push" {
   }
 
   jobs = [
-    job.merge
+    job.auto_release,
   ]
 }
 
@@ -74,9 +74,9 @@ workflow "release" {
 
   on "workflow_dispatch" {
     input "tag" {
-      description = "Release tag to publish (for example 1.2.3)"
+      description = "Release tag (leave empty for auto-calculation)"
       type        = "string"
-      required    = true
+      required    = false
     }
   }
 

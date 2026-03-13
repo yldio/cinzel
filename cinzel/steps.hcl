@@ -110,6 +110,7 @@ step "mise_setup" {
 step "tag_version" {
   id   = "tag_version"
   name = "Bump version and push tag"
+  if   = "$${{ steps.resolve_release_tag.outputs.skip != 'true' }}"
 
   // mathieudutour/github-tag-action v6.2
   uses {
@@ -124,25 +125,31 @@ step "tag_version" {
 
   with {
     name  = "custom_tag"
-    value = "$${{ steps.normalize_release_tag.outputs.tag }}"
+    value = "$${{ steps.resolve_release_tag.outputs.tag }}"
   }
 }
 
-step "normalize_release_tag" {
-  id   = "normalize_release_tag"
-  name = "Normalize release version"
+step "resolve_release_tag" {
+  id   = "resolve_release_tag"
+  name = "Resolve release tag"
   run  = <<EOF
 set -euo pipefail
 
 input_tag="$${{ github.event.inputs.tag }}"
 input_tag="$${input_tag#v}"
+calculated_tag="$${{ steps.calculate_next_version.outputs.nextStrict }}"
+bump="$${{ steps.calculate_next_version.outputs.bump }}"
 
-if [ -z "$input_tag" ]; then
-  echo "release tag input cannot be empty"
-  exit 1
+if [ -n "$input_tag" ]; then
+  echo "using manual tag: $input_tag"
+  echo "tag=$input_tag" >> "$GITHUB_OUTPUT"
+elif [ "$bump" != "none" ] && [ -n "$calculated_tag" ]; then
+  echo "using calculated tag: $calculated_tag (bump: $bump)"
+  echo "tag=$calculated_tag" >> "$GITHUB_OUTPUT"
+else
+  echo "no releasable commits and no manual tag provided"
+  echo "skip=true" >> "$GITHUB_OUTPUT"
 fi
-
-echo "tag=$input_tag" >> "$GITHUB_OUTPUT"
 EOF
 }
 
@@ -299,6 +306,57 @@ step "coverage" {
   uses {
     action  = "gwatts/go-coverage-action"
     version = "2845595538a59d63d1bf55f109c14e104c6f7cb3"
+  }
+}
+
+step "calculate_next_version" {
+  id   = "calculate_next_version"
+  name = "Calculate next version"
+
+  // ietf-tools/semver-action v1.11.0
+  uses {
+    action  = "ietf-tools/semver-action"
+    version = "c90370b2958652d71c06a3484129a4d423a6d8a8"
+  }
+
+  with {
+    name  = "token"
+    value = "$${{ github.token }}"
+  }
+
+  with {
+    name  = "branch"
+    value = "main"
+  }
+
+  with {
+    name  = "patchList"
+    value = "fix, perf, refactor"
+  }
+}
+
+step "dispatch_release" {
+  name = "Dispatch release workflow"
+
+  // benc-uk/workflow-dispatch v1.2.4
+  uses {
+    action  = "benc-uk/workflow-dispatch"
+    version = "e2e5e9a103e331dad343f381a29e654aea3cf8fc"
+  }
+
+  with {
+    name  = "token"
+    value = "$${{ steps.release_app_token.outputs.token }}"
+  }
+
+  with {
+    name  = "workflow"
+    value = "release.yaml"
+  }
+
+  with {
+    name  = "ref"
+    value = "main"
   }
 }
 

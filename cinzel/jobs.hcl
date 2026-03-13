@@ -27,17 +27,23 @@ job "pull_request" {
   ]
 }
 
-job "merge" {
-  name = "Merge with main"
+job "auto_release" {
+  name = "Auto release"
 
   timeout_minutes = 5
+
+  permissions {
+    actions = "write"
+  }
 
   runs_on {
     runners = "ubuntu-latest"
   }
 
   steps = [
-    step.checkout,
+    step.ensure_release_app,
+    step.release_app_token,
+    step.dispatch_release,
   ]
 }
 
@@ -83,7 +89,8 @@ job "manual-release" {
     step.checkout_release_with_credentials,
     step.mise_setup,
     step.tests,
-    step.normalize_release_tag,
+    step.calculate_next_version,
+    step.resolve_release_tag,
     step.tag_version,
     step.git_cliff_changelog,
     step.git_cliff_release_notes,

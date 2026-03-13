@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to publish (for example 1.2.3)
-        required: true
+        description: Release tag (leave empty for auto-calculation)
+        required: false
         type: string
 permissions:
   contents: read
@@ -52,25 +52,39 @@ jobs:
       - id: tests
         name: Tests
         run: mise run test-ci
-      - id: normalize_release_tag
-        name: Normalize release version
+      - id: calculate_next_version
+        name: Calculate next version
+        uses: ietf-tools/semver-action@c90370b2958652d71c06a3484129a4d423a6d8a8
+        with:
+          branch: main
+          patchList: "fix, perf, refactor"
+          token: "${{ github.token }}"
+      - id: resolve_release_tag
+        name: Resolve release tag
         run: |
           set -euo pipefail
 
           input_tag="${{ github.event.inputs.tag }}"
           input_tag="${input_tag#v}"
+          calculated_tag="${{ steps.calculate_next_version.outputs.nextStrict }}"
+          bump="${{ steps.calculate_next_version.outputs.bump }}"
 
-          if [ -z "$input_tag" ]; then
-            echo "release tag input cannot be empty"
-            exit 1
+          if [ -n "$input_tag" ]; then
+            echo "using manual tag: $input_tag"
+            echo "tag=$input_tag" >> "$GITHUB_OUTPUT"
+          elif [ "$bump" != "none" ] && [ -n "$calculated_tag" ]; then
+            echo "using calculated tag: $calculated_tag (bump: $bump)"
+            echo "tag=$calculated_tag" >> "$GITHUB_OUTPUT"
+          else
+            echo "no releasable commits and no manual tag provided"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
-
-          echo "tag=$input_tag" >> "$GITHUB_OUTPUT"
       - id: tag_version
+        if: "${{ steps.resolve_release_tag.outputs.skip != 'true' }}"
         name: Bump version and push tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
         with:
-          custom_tag: "${{ steps.normalize_release_tag.outputs.tag }}"
+          custom_tag: "${{ steps.resolve_release_tag.outputs.tag }}"
           github_token: "${{ steps.release_app_token.outputs.token }}"
       - env:
           GITHUB_REPO: "${{ github.repository }}"

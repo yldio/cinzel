@@ -1,6 +1,6 @@
 # generated-by: cinzel
 # cinzel-provider: github
-name: Merge with Main
+name: Auto Release
 on:
   push:
     branches:
@@ -8,13 +8,36 @@ on:
 permissions:
   contents: read
 jobs:
-  merge:
-    name: Merge with main
+  auto_release:
+    name: Auto release
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
-      - id: checkout
-        name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - env:
+          RELEASE_APP_ID: "${{ secrets.RELEASE_APP_ID }}"
+          RELEASE_PRIVATE_KEY: "${{ secrets.RELEASE_PRIVATE_KEY }}"
+        id: ensure_release_app
+        name: Ensure release app credentials
+        run: |
+          set -euo pipefail
+
+          if [ -z "$RELEASE_APP_ID" ] || [ -z "$RELEASE_PRIVATE_KEY" ]; then
+            echo "RELEASE_APP_ID and RELEASE_PRIVATE_KEY secrets are required for release automation"
+            exit 1
+          fi
+      - id: release_app_token
+        name: Create release app token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
         with:
-          persist-credentials: "false"
+          app-id: "${{ secrets.RELEASE_APP_ID }}"
+          private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
+          repositories: "cinzel,homebrew-cinzel"
+      - id: dispatch_release
+        name: Dispatch release workflow
+        uses: benc-uk/workflow-dispatch@e2e5e9a103e331dad343f381a29e654aea3cf8fc
+        with:
+          ref: main
+          token: "${{ steps.release_app_token.outputs.token }}"
+          workflow: release.yaml
     timeout-minutes: 5
