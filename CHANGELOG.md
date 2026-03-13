@@ -1,4 +1,16 @@
 cinzel
+## [0.1.0](https://github.com/yldio/cinzel/compare/v0.0.8..v0.1.0) - 2026-03-13
+
+### ⛰️  Features
+
+- Auto-release on push to main - ([71b2105](https://github.com/yldio/cinzel/commit/71b210552dcf5b04ec289193dc4b0a17f5ab5bf5))
+- Auto-release on push to main via semver - ([90f84e0](https://github.com/yldio/cinzel/commit/90f84e003feb508a26f8a7904a0195e6bd5bf1e7))
+
+### 🐛 Bug Fixes
+
+- Strip quarantine flag on macOS cask install - ([29f5708](https://github.com/yldio/cinzel/commit/29f5708b85f655e3ffc73170fe48b488696f8402))
+
+
 ## [0.0.8](https://github.com/yldio/cinzel/compare/v0.0.7..v0.0.8) - 2026-03-13
 
 ### ⛰️  Features
