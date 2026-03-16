@@ -52,44 +52,55 @@ Two levels of YAML config (consistent with existing `.cinzelrc.yaml`):
 
 ```yaml
 ai:
-  provider: anthropic
-  model: claude-sonnet-4-5-20250514
+  default: anthropic
+  providers:
+    anthropic:
+      model: claude-sonnet-4-5-20250514
+    openai:
+      model: gpt-4o
 ```
 
-Non-sensitive settings only. Sets the team's preferred provider and model.
+Non-sensitive settings only. Sets the team's preferred default and models per provider.
 
 **User-level** (`os.UserConfigDir()/cinzel/config.yaml`, never committed):
 
 ```yaml
 ai:
-  provider: anthropic
-  model: claude-sonnet-4-5-20250514
-  api_key: sk-ant-...
+  default: anthropic
+  providers:
+    anthropic:
+      model: claude-sonnet-4-5-20250514
+      api_key: sk-ant-...
+    openai:
+      model: gpt-4o
+      api_key: sk-...
 ```
 
-Holds API keys and personal overrides. Stored as plaintext on the filesystem (same pattern as `~/.config/gh/hosts.yml`, `~/.docker/config.json`).
+Holds API keys and personal overrides. Both providers configured simultaneously — switch between them with `--provider` flag or by changing `default`. Stored as plaintext on the filesystem (same pattern as `~/.config/gh/hosts.yml`, `~/.docker/config.json`).
 
 **Environment variables** (highest precedence, for CI/scripted use):
 
 ```sh
-# Anthropic
-export CINZEL_AI_PROVIDER=anthropic
-export CINZEL_AI_MODEL=claude-sonnet-4-5-20250514
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# or OpenAI
-export CINZEL_AI_PROVIDER=openai
-export CINZEL_AI_MODEL=gpt-4o
+export CINZEL_AI_DEFAULT=anthropic       # which provider to use
+export ANTHROPIC_API_KEY=sk-ant-...      # provider-specific keys
 export OPENAI_API_KEY=sk-...
+```
+
+**CLI flag** (highest precedence, per-invocation):
+
+```sh
+cinzel github assist --prompt "..."                    # uses ai.default
+cinzel github assist --prompt "..." --provider openai  # override for this call
+cinzel github assist --prompt "..." --provider anthropic --model claude-opus-4-20250514  # override both
 ```
 
 **Resolution order** (highest wins):
 
 ```
-env vars → user config.yaml → project .cinzelrc.yaml
+CLI flags → env vars → user config.yaml → project .cinzelrc.yaml
 ```
 
-All config is YAML — no extra parsing layer beyond what cinzel already uses.
+All config is YAML — no extra parsing layer beyond what cinzel already uses. Multiple providers can be configured simultaneously; `default` selects which one is used when no flag is passed.
 
 ### Provider interface
 
