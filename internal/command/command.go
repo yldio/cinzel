@@ -211,8 +211,16 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			dryRun := c.Bool("dry-run")
 			acknowledge := c.Bool("acknowledge")
 
+			aiProviderName := c.String("provider")
+			model := c.String("model")
+
+			aiProvider, err := resolveAIProvider(aiProviderName, "")
+			if err != nil {
+				return err
+			}
+
 			if !acknowledge {
-				if err := confirmCost(cmd.Writer, os.Stdin); err != nil {
+				if err := confirmCost(cmd.Writer, os.Stdin, aiProvider.Name(), model); err != nil {
 					return err
 				}
 			}
@@ -221,7 +229,11 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			systemPrompt := ai.SystemPrompt(p.GetProviderName())
 
-			response, err := ai.Generate(ctx, systemPrompt, prompt, "")
+			response, err := ai.GenerateWithTimeout(ctx, aiProvider, ai.GenerateRequest{
+				SystemPrompt: systemPrompt,
+				UserPrompt:   prompt,
+				Model:        model,
+			})
 			if err != nil {
 				return err
 			}
@@ -251,6 +263,16 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				Name:  "acknowledge",
 				Value: false,
 				Usage: "Bypass the cost confirmation prompt",
+			},
+			&cli.StringFlag{
+				Name:  "provider",
+				Value: "anthropic",
+				Usage: "AI provider: anthropic or openai",
+			},
+			&cli.StringFlag{
+				Name:  "model",
+				Value: "",
+				Usage: "Model override (default: provider-specific)",
 			},
 		},
 	}
@@ -328,8 +350,23 @@ func splitYAMLDocuments(s string) []string {
 	return docs
 }
 
-func confirmCost(w io.Writer, r io.Reader) error {
-	_, _ = fmt.Fprintf(w, "This will call Anthropic (claude-sonnet-4-5-20250514). API usage will incur costs.\nContinue? [y/N] ")
+func resolveAIProvider(name, apiKey string) (ai.Provider, error) {
+	switch strings.ToLower(name) {
+	case "anthropic", "":
+		return ai.NewAnthropic(apiKey)
+	case "openai":
+		return ai.NewOpenAI(apiKey)
+	default:
+		return nil, fmt.Errorf("unknown AI provider %q. Supported: anthropic, openai", name)
+	}
+}
+
+func confirmCost(w io.Writer, r io.Reader, providerName, model string) error {
+	if model == "" {
+		model = "default"
+	}
+
+	_, _ = fmt.Fprintf(w, "This will call %s (%s). API usage will incur costs.\nContinue? [y/N] ", providerName, model)
 
 	scanner := bufio.NewScanner(r)
 	if scanner.Scan() {
