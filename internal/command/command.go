@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/ai"
@@ -330,6 +331,13 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 }
 
 func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir string, dryRun bool) error {
+	tmpDir, err := os.MkdirTemp("", "cinzel-assist-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+
 	docs := splitYAMLDocuments(yamlContent)
 
 	for i, doc := range docs {
@@ -338,36 +346,24 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir stri
 			continue
 		}
 
-		tmpFile, err := os.CreateTemp("", "cinzel-assist-*.yaml")
-		if err != nil {
-			return fmt.Errorf("failed to create temp file: %w", err)
-		}
+		timestamp := time.Now().Format("20060102-150405")
+		tmpPath := filepath.Join(tmpDir, fmt.Sprintf("assist-%s-%d.yaml", timestamp, i))
 
-		tmpPath := tmpFile.Name()
-
-		if _, err := tmpFile.WriteString(doc); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpPath)
-
+		if err := os.WriteFile(tmpPath, []byte(doc), 0600); err != nil {
 			return fmt.Errorf("failed to write temp file: %w", err)
 		}
+	}
 
-		tmpFile.Close()
-
-		err = p.Unparse(provider.ProviderOps{
-			File:            tmpPath,
-			OutputDirectory: outputDir,
-			DryRun:          dryRun,
-		})
-
-		os.Remove(tmpPath)
-
-		if err != nil {
-			return fmt.Errorf(
-				"generated YAML could not be converted to HCL (document %d):\n%s\n\nRaw YAML:\n%s\n\nTry refining your prompt",
-				i+1, err, doc,
-			)
-		}
+	err = p.Unparse(provider.ProviderOps{
+		Directory:       tmpDir,
+		OutputDirectory: outputDir,
+		DryRun:          dryRun,
+	})
+	if err != nil {
+		return fmt.Errorf(
+			"generated YAML could not be converted to HCL:\n%s\n\nRaw YAML:\n%s\n\nTry refining your prompt",
+			err, yamlContent,
+		)
 	}
 
 	if !dryRun {

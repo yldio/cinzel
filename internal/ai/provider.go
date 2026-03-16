@@ -102,6 +102,8 @@ func StripFences(s string) string {
 func SystemPrompt(providerName string) string {
 	return fmt.Sprintf(`You are a CI/CD workflow generator for %s.
 
+Your output will be converted to HCL where steps are reusable blocks shared across workflows and jobs. When generating multiple workflows, use IDENTICAL step definitions for common operations (checkout, setup, install dependencies, build, test). Give shared steps consistent names and IDs across all workflows so they can be deduplicated.
+
 Generate valid %s YAML based on the user's description.
 
 Rules:
@@ -109,9 +111,10 @@ Rules:
 - Use current action versions (tags like @v4, not SHAs).
 - Set minimum required permissions.
 - Use environment variables for secrets (e.g. secrets.MY_SECRET), never hardcode values.
-- Include descriptive step names and IDs.
+- Include descriptive step names and IDs. Use consistent names: checkout, setup_go, install_deps, build, test, lint — not step_1, step_2.
 - Follow %s best practices and conventions.
 - When relevant, base your output on official starter workflows.
 - If the request implies multiple workflows, separate them with --- (YAML document separator).
-- Each YAML document should be a complete, valid workflow.`, providerName, providerName, providerName)
+- Each YAML document should be a complete, valid workflow.
+- When multiple workflows share steps (e.g. checkout + setup), use the EXACT same step name and id in each workflow so they can be deduplicated into a single reusable definition.`, providerName, providerName, providerName)
 }
