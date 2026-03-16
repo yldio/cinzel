@@ -199,8 +199,10 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 		Usage: "Generate HCL workflow definitions from a natural language prompt",
 		Action: func(ctx context.Context, c *cli.Command) error {
 			prompt := c.String("prompt")
-			if prompt == "" {
-				return fmt.Errorf("--prompt is required")
+			refine := c.String("refine")
+
+			if prompt == "" && refine == "" {
+				return fmt.Errorf("--prompt is required (or use --refine to iterate on previous output)")
 			}
 
 			outputDir := c.String("output-directory")
@@ -229,9 +231,42 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			systemPrompt := ai.SystemPrompt(p.GetProviderName())
 
+			if !c.Bool("no-context") {
+				contextDir := c.String("context-dir")
+				if contextDir == "" {
+					contextDir = "cinzel"
+				}
+
+				hclContext, truncated := ai.StripHCLContext(contextDir)
+				if hclContext != "" {
+					systemPrompt += "\n\nExisting HCL structure (values stripped for privacy):\n\n" + hclContext
+				}
+
+				if truncated {
+					_, _ = fmt.Fprintf(cmd.Writer, "warning: HCL context truncated to fit token limit\n")
+				}
+			}
+
+			userPrompt := prompt
+
+			if refine != "" {
+				assistContext, _ := ai.StripHCLContext(outputDir)
+				if assistContext == "" {
+					return fmt.Errorf("nothing to refine — run assist --prompt first to generate initial output in %s", outputDir)
+				}
+
+				systemPrompt += "\n\nPrevious assist output (to be refined):\n\n" + assistContext
+
+				if prompt != "" {
+					userPrompt = refine + "\n\nOriginal request: " + prompt
+				} else {
+					userPrompt = refine
+				}
+			}
+
 			response, err := ai.GenerateWithTimeout(ctx, aiProvider, ai.GenerateRequest{
 				SystemPrompt: systemPrompt,
-				UserPrompt:   prompt,
+				UserPrompt:   userPrompt,
 				Model:        model,
 			})
 			if err != nil {
@@ -244,10 +279,13 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "prompt",
-				Aliases:  []string{"p"},
-				Usage:    "Natural language description of the workflow",
-				Required: true,
+				Name:    "prompt",
+				Aliases: []string{"p"},
+				Usage:   "Natural language description of the workflow",
+			},
+			&cli.StringFlag{
+				Name:  "refine",
+				Usage: "Refine previous assist output with additional instructions",
 			},
 			&cli.StringFlag{
 				Name:  "output-directory",
@@ -273,6 +311,16 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				Name:  "model",
 				Value: "",
 				Usage: "Model override (default: provider-specific)",
+			},
+			&cli.BoolFlag{
+				Name:  "no-context",
+				Value: false,
+				Usage: "Skip injecting existing HCL as context",
+			},
+			&cli.StringFlag{
+				Name:  "context-dir",
+				Value: "",
+				Usage: "Directory to read existing HCL from (default: cinzel)",
 			},
 		},
 	}
