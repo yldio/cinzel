@@ -11,6 +11,7 @@ tool (
 )
 
 require (
+	github.com/anthropics/anthropic-sdk-go v1.27.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/urfave/cli/v3 v3.7.0
@@ -24,6 +25,10 @@ require (
 	github.com/google/addlicense v1.2.0 // indirect
 	github.com/google/licensecheck v0.3.1 // indirect
 	github.com/google/safehtml v0.1.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/pkgsite v0.0.0-20260309224630-59cb58a64684 // indirect
 	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect

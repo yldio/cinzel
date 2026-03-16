@@ -4,12 +4,17 @@
 package command
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"net/mail"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/urfave/cli/v3"
+	"github.com/yldio/cinzel/internal/ai"
 	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/provider"
 )
@@ -181,6 +186,158 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 					},
 				},
 			},
+			cmd.assistCommand(p),
 		},
 	}
+}
+
+const defaultAssistOutputDir = "cinzel/assist"
+
+func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
+	return &cli.Command{
+		Name:  "assist",
+		Usage: "Generate HCL workflow definitions from a natural language prompt",
+		Action: func(ctx context.Context, c *cli.Command) error {
+			prompt := c.String("prompt")
+			if prompt == "" {
+				return fmt.Errorf("--prompt is required")
+			}
+
+			outputDir := c.String("output-directory")
+			if outputDir == "" {
+				outputDir = defaultAssistOutputDir
+			}
+
+			dryRun := c.Bool("dry-run")
+			acknowledge := c.Bool("acknowledge")
+
+			if !acknowledge {
+				if err := confirmCost(cmd.Writer, os.Stdin); err != nil {
+					return err
+				}
+			}
+
+			_, _ = fmt.Fprintf(cmd.Writer, "Generating workflow...\n")
+
+			systemPrompt := ai.SystemPrompt(p.GetProviderName())
+
+			response, err := ai.Generate(ctx, systemPrompt, prompt, "")
+			if err != nil {
+				return err
+			}
+
+			yamlContent := ai.StripFences(response)
+
+			return cmd.unparseAndWrite(p, yamlContent, outputDir, dryRun)
+		},
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "prompt",
+				Aliases:  []string{"p"},
+				Usage:    "Natural language description of the workflow",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:  "output-directory",
+				Value: "",
+				Usage: "Generated HCL files are created in `DIRECTORY` (default: cinzel/assist)",
+			},
+			&cli.BoolFlag{
+				Name:  "dry-run",
+				Value: false,
+				Usage: "Output to stdout instead of writing files",
+			},
+			&cli.BoolFlag{
+				Name:  "acknowledge",
+				Value: false,
+				Usage: "Bypass the cost confirmation prompt",
+			},
+		},
+	}
+}
+
+func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir string, dryRun bool) error {
+	docs := splitYAMLDocuments(yamlContent)
+
+	for i, doc := range docs {
+		doc = strings.TrimSpace(doc)
+		if doc == "" {
+			continue
+		}
+
+		tmpFile, err := os.CreateTemp("", "cinzel-assist-*.yaml")
+		if err != nil {
+			return fmt.Errorf("failed to create temp file: %w", err)
+		}
+
+		tmpPath := tmpFile.Name()
+
+		if _, err := tmpFile.WriteString(doc); err != nil {
+			tmpFile.Close()
+			os.Remove(tmpPath)
+
+			return fmt.Errorf("failed to write temp file: %w", err)
+		}
+
+		tmpFile.Close()
+
+		err = p.Unparse(provider.ProviderOps{
+			File:            tmpPath,
+			OutputDirectory: outputDir,
+			DryRun:          dryRun,
+		})
+
+		os.Remove(tmpPath)
+
+		if err != nil {
+			return fmt.Errorf(
+				"generated YAML could not be converted to HCL (document %d):\n%s\n\nRaw YAML:\n%s\n\nTry refining your prompt",
+				i+1, err, doc,
+			)
+		}
+	}
+
+	if !dryRun {
+		absDir, _ := filepath.Abs(outputDir)
+		_, _ = fmt.Fprintf(cmd.Writer, "HCL files written to %s\n", absDir)
+	}
+
+	return nil
+}
+
+func splitYAMLDocuments(s string) []string {
+	var docs []string
+	var current strings.Builder
+
+	for _, line := range strings.Split(s, "\n") {
+		if strings.TrimSpace(line) == "---" && current.Len() > 0 {
+			docs = append(docs, current.String())
+			current.Reset()
+
+			continue
+		}
+
+		current.WriteString(line)
+		current.WriteString("\n")
+	}
+
+	if strings.TrimSpace(current.String()) != "" {
+		docs = append(docs, current.String())
+	}
+
+	return docs
+}
+
+func confirmCost(w io.Writer, r io.Reader) error {
+	_, _ = fmt.Fprintf(w, "This will call Anthropic (claude-sonnet-4-5-20250514). API usage will incur costs.\nContinue? [y/N] ")
+
+	scanner := bufio.NewScanner(r)
+	if scanner.Scan() {
+		answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+		if answer == "y" || answer == "yes" {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cancelled")
 }
