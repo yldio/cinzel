@@ -46,28 +46,50 @@ Two providers at launch: Anthropic and OpenAI.
 
 ### Configuration
 
-Environment variables (simplest):
+Two levels of YAML config (consistent with existing `.cinzelrc.yaml`):
+
+**Project-level** (`.cinzelrc.yaml`, committed to git):
+
+```yaml
+ai:
+  provider: anthropic
+  model: claude-sonnet-4-5-20250514
+```
+
+Non-sensitive settings only. Sets the team's preferred provider and model.
+
+**User-level** (`os.UserConfigDir()/cinzel/config.yaml`, never committed):
+
+```yaml
+ai:
+  provider: anthropic
+  model: claude-sonnet-4-5-20250514
+  api_key: sk-ant-...
+```
+
+Holds API keys and personal overrides. Stored as plaintext on the filesystem (same pattern as `~/.config/gh/hosts.yml`, `~/.docker/config.json`).
+
+**Environment variables** (highest precedence, for CI/scripted use):
 
 ```sh
-export CINZEL_AI_PROVIDER=anthropic   # anthropic | openai
+# Anthropic
+export CINZEL_AI_PROVIDER=anthropic
 export CINZEL_AI_MODEL=claude-sonnet-4-5-20250514
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# or for OpenAI
+# or OpenAI
 export CINZEL_AI_PROVIDER=openai
 export CINZEL_AI_MODEL=gpt-4o
 export OPENAI_API_KEY=sk-...
 ```
 
-Optional config file (`~/.config/cinzel/config.toml`):
+**Resolution order** (highest wins):
 
-```toml
-[ai]
-provider = "anthropic"
-model = "claude-sonnet-4-5-20250514"
+```
+env vars → user config.yaml → project .cinzelrc.yaml
 ```
 
-API keys always come from environment variables, never stored in config files.
+All config is YAML — no extra parsing layer beyond what cinzel already uses.
 
 ### Provider interface
 
@@ -120,15 +142,19 @@ The system prompt can include a curated example YAML for the provider to anchor 
 ## Flow detail
 
 ```
-1. User runs: cinzel github assist --prompt "..."
-2. cinzel reads existing ./cinzel/*.hcl for context
-3. cinzel selects AI provider from config/env
-4. cinzel builds system prompt for "github" provider + existing HCL context
-5. LLM generates GitHub Actions YAML
-6. cinzel runs unparse (YAML → HCL) internally
-7. If unparse succeeds: write HCL to --output-directory
-8. If unparse fails (retry ≤ 2): feed error back to LLM, go to step 5
-9. If unparse still fails: show error + raw YAML, suggest refining the prompt
+1.  User runs: cinzel github assist --prompt "..."
+2.  cinzel reads existing ./cinzel/*.hcl, redacts sensitive patterns
+3.  cinzel selects AI provider from config/env
+4.  cinzel builds prompt: system prompt + redacted HCL context + user prompt
+5.  Show cost confirmation (or skip with --acknowledge)
+6.  LLM generates provider YAML (show "Generating workflow..." spinner)
+7.  Strip markdown fences if present
+8.  cinzel runs unparse (YAML → HCL) internally
+9.  If unparse fails (retry ≤ 2): feed error back to LLM, go to step 6
+10. If unparse still fails: show error + raw YAML, suggest refining the prompt
+11. Pin action tags to SHAs via GitHub API
+12. Restore redacted values in output
+13. Write HCL to ./cinzel/assist/
 ```
 
 ## Provider-agnostic design
@@ -162,6 +188,30 @@ The AI infrastructure (`internal/ai/`) is completely provider-agnostic.
 | Testing | No unit tests for LLM output | Non-deterministic; validate via unparse success |
 | Context injection | Redacted existing HCL (steps + variables only) | Gives LLM structural awareness without leaking data |
 
+## Starter workflow grounding
+
+The system prompt instructs the LLM to base its output on official starter workflows when relevant. LLMs already know these templates from training data — no need for cinzel to fetch them at runtime. The one gap (stale action versions) is solved by `cinzel pin` in post-processing.
+
+System prompt includes:
+
+```
+When relevant, base your output on official starter workflows:
+- GitHub: github.com/actions/starter-workflows
+- GitLab: gitlab.com/gitlab-org/gitlab/-/tree/master/lib/gitlab/ci/templates
+Use current best practices and action versions from these sources.
+```
+
+### Future enhancement: live template fetching
+
+If LLM output quality proves insufficient without real templates, cinzel could fetch them at runtime:
+
+| Provider | Repository |
+|----------|-----------|
+| GitHub | [actions/starter-workflows](https://github.com/actions/starter-workflows) |
+| GitLab | [gitlab-org/gitlab/.../ci/templates](https://gitlab.com/gitlab-org/gitlab/-/tree/master/lib/gitlab/ci/templates) |
+
+This would involve keyword extraction from the prompt, fetching matching templates via API, caching under `os.UserCacheDir()/cinzel/templates/` (OS-agnostic), and injecting them into the prompt. Deferred because it adds HTTP client, caching, keyword matching, and coupling to external repo structures — significant complexity for marginal gain over what the LLM already knows.
+
 ## Post-processing pipeline
 
 After the LLM generates YAML and unparse converts to HCL, two post-processing steps run:
@@ -191,7 +241,7 @@ If context injection was used, restore redacted values in the output (see Privac
 ### Full assist pipeline
 
 ```
-existing HCL → redact → build prompt → LLM → YAML → strip fences → unparse → HCL → pin SHAs → restore redactions → write to ./cinzel/assist/
+existing HCL → redact → build prompt (system prompt + redacted context + user prompt) → LLM → YAML → strip fences → unparse → HCL → pin SHAs → restore redactions → write to ./cinzel/assist/
 ```
 
 ## Privacy: context redaction
