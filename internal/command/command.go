@@ -331,12 +331,19 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 }
 
 func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir string, dryRun bool) error {
-	tmpDir, err := os.MkdirTemp("", "cinzel-assist-*")
+	tmpYAMLDir, err := os.MkdirTemp("", "cinzel-assist-yaml-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	defer os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpYAMLDir)
+
+	tmpHCLDir, err := os.MkdirTemp("", "cinzel-assist-hcl-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	defer os.RemoveAll(tmpHCLDir)
 
 	docs := splitYAMLDocuments(yamlContent)
 
@@ -346,8 +353,7 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir stri
 			continue
 		}
 
-		timestamp := time.Now().Format("20060102-150405")
-		tmpPath := filepath.Join(tmpDir, fmt.Sprintf("assist-%s-%d.yaml", timestamp, i))
+		tmpPath := filepath.Join(tmpYAMLDir, fmt.Sprintf("workflow-%d.yaml", i))
 
 		if err := os.WriteFile(tmpPath, []byte(doc), 0600); err != nil {
 			return fmt.Errorf("failed to write temp file: %w", err)
@@ -355,9 +361,9 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir stri
 	}
 
 	err = p.Unparse(provider.ProviderOps{
-		Directory:       tmpDir,
-		OutputDirectory: outputDir,
-		DryRun:          dryRun,
+		Directory:       tmpYAMLDir,
+		OutputDirectory: tmpHCLDir,
+		DryRun:          false,
 	})
 	if err != nil {
 		return fmt.Errorf(
@@ -366,12 +372,104 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir stri
 		)
 	}
 
-	if !dryRun {
-		absDir, _ := filepath.Abs(outputDir)
-		_, _ = fmt.Fprintf(cmd.Writer, "HCL files written to %s\n", absDir)
+	merged, err := mergeHCLFiles(tmpHCLDir)
+	if err != nil {
+		return fmt.Errorf("failed to merge HCL files: %w", err)
 	}
 
+	if dryRun {
+		_, _ = fmt.Fprintln(cmd.Writer, merged)
+
+		return nil
+	}
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	timestamp := time.Now().Format("20060102-150405")
+	outPath := filepath.Join(outputDir, fmt.Sprintf("assist-%s.hcl", timestamp))
+
+	if err := os.WriteFile(outPath, []byte(merged), 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	absPath, _ := filepath.Abs(outPath)
+	_, _ = fmt.Fprintf(cmd.Writer, "HCL written to %s\n", absPath)
+
 	return nil
+}
+
+func mergeHCLFiles(dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+
+	seen := make(map[string]bool)
+
+	var parts []string
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".hcl") {
+			continue
+		}
+
+		content, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return "", err
+		}
+
+		for _, block := range splitHCLBlocks(string(content)) {
+			block = strings.TrimSpace(block)
+			if block == "" {
+				continue
+			}
+
+			if seen[block] {
+				continue
+			}
+
+			seen[block] = true
+			parts = append(parts, block)
+		}
+	}
+
+	return strings.Join(parts, "\n\n") + "\n", nil
+}
+
+func splitHCLBlocks(content string) []string {
+	var blocks []string
+	var current strings.Builder
+
+	depth := 0
+
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "" && depth == 0 {
+			if current.Len() > 0 {
+				blocks = append(blocks, current.String())
+				current.Reset()
+			}
+
+			continue
+		}
+
+		if current.Len() > 0 {
+			current.WriteString("\n")
+		}
+
+		current.WriteString(line)
+
+		depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+	}
+
+	if current.Len() > 0 {
+		blocks = append(blocks, current.String())
+	}
+
+	return blocks
 }
 
 func splitYAMLDocuments(s string) []string {
