@@ -29,24 +29,36 @@ type GenerateRequest struct {
 	Model        string
 }
 
+// GenerateResponse holds the LLM response text and token usage.
+type GenerateResponse struct {
+	Text        string
+	InputTokens int64
+	OutputTokens int64
+}
+
+// TotalTokens returns the sum of input and output tokens.
+func (r GenerateResponse) TotalTokens() int64 {
+	return r.InputTokens + r.OutputTokens
+}
+
 // Provider defines the interface for LLM providers.
 type Provider interface {
-	Generate(ctx context.Context, req GenerateRequest) (string, error)
+	Generate(ctx context.Context, req GenerateRequest) (GenerateResponse, error)
 	Name() string
 }
 
 // GenerateWithTimeout calls the provider with a timeout and validates the response.
-func GenerateWithTimeout(ctx context.Context, p Provider, req GenerateRequest) (string, error) {
+func GenerateWithTimeout(ctx context.Context, p Provider, req GenerateRequest) (GenerateResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
 	response, err := p.Generate(ctx, req)
 	if err != nil {
-		return "", classifyError(err, p.Name())
+		return GenerateResponse{}, classifyError(err, p.Name())
 	}
 
-	if strings.TrimSpace(response) == "" {
-		return "", errEmptyResponse
+	if strings.TrimSpace(response.Text) == "" {
+		return GenerateResponse{}, errEmptyResponse
 	}
 
 	return response, nil

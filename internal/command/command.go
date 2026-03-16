@@ -273,7 +273,10 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				return err
 			}
 
-			yamlContent := ai.StripFences(response)
+			_, _ = fmt.Fprintf(cmd.Writer, "Tokens used: %d (input: %d, output: %d)\n",
+				response.TotalTokens(), response.InputTokens, response.OutputTokens)
+
+			yamlContent := ai.StripFences(response.Text)
 
 			return cmd.unparseAndWrite(p, yamlContent, outputDir, dryRun)
 		},

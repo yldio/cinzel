@@ -50,7 +50,7 @@ func (o *OpenAI) Name() string {
 }
 
 // Generate calls the OpenAI Chat Completions API.
-func (o *OpenAI) Generate(ctx context.Context, req GenerateRequest) (string, error) {
+func (o *OpenAI) Generate(ctx context.Context, req GenerateRequest) (GenerateResponse, error) {
 	model := req.Model
 	if model == "" {
 		model = openaiDefaultModel
@@ -66,12 +66,17 @@ func (o *OpenAI) Generate(ctx context.Context, req GenerateRequest) (string, err
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("openai API: %w", err)
+		return GenerateResponse{}, fmt.Errorf("openai API: %w", err)
 	}
 
-	if len(completion.Choices) == 0 {
-		return "", nil
+	var text string
+	if len(completion.Choices) > 0 {
+		text = completion.Choices[0].Message.Content
 	}
 
-	return completion.Choices[0].Message.Content, nil
+	return GenerateResponse{
+		Text:         text,
+		InputTokens:  completion.Usage.PromptTokens,
+		OutputTokens: completion.Usage.CompletionTokens,
+	}, nil
 }

@@ -51,7 +51,7 @@ func (a *Anthropic) Name() string {
 }
 
 // Generate calls the Anthropic Messages API.
-func (a *Anthropic) Generate(ctx context.Context, req GenerateRequest) (string, error) {
+func (a *Anthropic) Generate(ctx context.Context, req GenerateRequest) (GenerateResponse, error) {
 	model := req.Model
 	if model == "" {
 		model = anthropicDefaultModel
@@ -70,10 +70,14 @@ func (a *Anthropic) Generate(ctx context.Context, req GenerateRequest) (string, 
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("anthropic API: %w", err)
+		return GenerateResponse{}, fmt.Errorf("anthropic API: %w", err)
 	}
 
-	return extractAnthropicText(message), nil
+	return GenerateResponse{
+		Text:         extractAnthropicText(message),
+		InputTokens:  message.Usage.InputTokens,
+		OutputTokens: message.Usage.OutputTokens,
+	}, nil
 }
 
 func extractAnthropicText(msg *anthropic.Message) string {
