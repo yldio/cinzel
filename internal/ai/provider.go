@@ -58,6 +58,8 @@ func classifyError(err error, providerName string) error {
 	switch {
 	case strings.Contains(msg, "authentication") || strings.Contains(msg, "401"):
 		return fmt.Errorf("invalid API key for %s: %w", providerName, err)
+	case strings.Contains(msg, "insufficient_quota") || strings.Contains(msg, "billing"):
+		return fmt.Errorf("API quota exceeded for %s. Check your plan and billing at your provider's dashboard: %w", providerName, err)
 	case strings.Contains(msg, "rate_limit") || strings.Contains(msg, "429"):
 		return fmt.Errorf("API rate limited. Try again in a moment: %w", err)
 	case errors.Is(err, context.DeadlineExceeded):
