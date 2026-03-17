@@ -6,6 +6,7 @@ package github
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/yldio/cinzel/provider"
@@ -53,8 +54,11 @@ jobs:
 		t.Fatal(err)
 	}
 
-	if string(gotBytes) != string(expectedBytes) {
-		t.Fatalf("snapshot mismatch\n--- got ---\n%s\n--- expected ---\n%s", string(gotBytes), string(expectedBytes))
+	got := normalizeLineEndings(string(gotBytes))
+	expected := normalizeLineEndings(string(expectedBytes))
+
+	if got != expected {
+		t.Fatalf("snapshot mismatch\n--- got ---\n%s\n--- expected ---\n%s", got, expected)
 	}
 }
 
@@ -97,9 +101,16 @@ func TestParseFormattingSnapshots(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if string(gotBytes) != string(expectedBytes) {
-				t.Fatalf("snapshot mismatch\n--- got ---\n%s\n--- expected ---\n%s", string(gotBytes), string(expectedBytes))
+			got := normalizeLineEndings(string(gotBytes))
+			expected := normalizeLineEndings(string(expectedBytes))
+
+			if got != expected {
+				t.Fatalf("snapshot mismatch\n--- got ---\n%s\n--- expected ---\n%s", got, expected)
 			}
 		})
 	}
+}
+
+func normalizeLineEndings(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
 }
