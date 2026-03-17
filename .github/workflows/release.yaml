@@ -34,7 +34,7 @@ jobs:
           fi
       - id: release_app_token
         name: Create release app token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
         with:
           app-id: "${{ secrets.RELEASE_APP_ID }}"
           private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
@@ -48,7 +48,7 @@ jobs:
           persist-credentials: "true"
       - id: mise_setup
         name: Setup mise
-        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
         with:
           cache: "true"
           install: "true"
@@ -117,7 +117,7 @@ jobs:
           file_pattern: CHANGELOG.md
       - id: create_release
         name: Create a GitHub release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd
         with:
           body: "${{ steps.git_cliff.outputs.content }}"
           tag: "${{ steps.tag_version.outputs.new_tag }}"
