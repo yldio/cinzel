@@ -9,11 +9,6 @@ step "checkout" {
     action  = "actions/checkout"
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
-
-  with {
-    name  = "persist-credentials"
-    value = "false"
-  }
 }
 
 step "checkout_release" {
