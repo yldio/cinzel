@@ -1,7 +1,7 @@
 ---
 title: "feat: cinzel assist — AI-powered workflow generation"
 type: feat
-status: active
+status: implemented
 date: 2026-03-16
 origin: docs/brainstorms/2026-03-16-feat-cinzel-assist-ai-workflow-generation.md
 ---
@@ -20,16 +20,16 @@ Writing CI/CD workflows from scratch requires deep knowledge of provider-specifi
 
 ## Proposed Solution
 
-**v1 pipeline (minimal):**
+**Current pipeline (implemented):**
 
 ```
-prompt → LLM → YAML → strip fences → unparse (via temp file) → HCL → ./cinzel/assist/
+existing HCL → strip string literals → build prompt → LLM → YAML → strip fences → split YAML docs → unparse each → merge/dedup HCL blocks → single timestamped file → ./cinzel/assist/
 ```
 
-**Future pipeline (v2+):**
+**Future pipeline (deferred):**
 
 ```
-existing HCL → strip string literals → build prompt → LLM → YAML → strip fences → unparse → HCL → (optional) pin SHAs → ./cinzel/assist/
+... → (optional) pin SHAs → (optional) retry with error feedback → ./cinzel/assist/
 ```
 
 ## Technical Approach
@@ -42,7 +42,7 @@ existing HCL → strip string literals → build prompt → LLM → YAML → str
 
 ### Implementation Phases
 
-#### Phase 1: End-to-end assist (Anthropic only)
+#### Phase 1: End-to-end assist (Anthropic only) — COMPLETE
 
 **Goal**: `cinzel github assist --prompt "..."` generates HCL files. Minimal viable pipeline.
 
@@ -101,15 +101,24 @@ existing HCL → strip string literals → build prompt → LLM → YAML → str
 - Unparse failure → "Generated YAML could not be converted to HCL:\n{error}\n\nRaw YAML:\n{yaml}\n\nTry refining your prompt."
 - Raw YAML error output must NOT contain any user HCL content (no context injection in v1, so this is inherently safe)
 
-**Files**:
+**Files (actual)**:
 - `internal/ai/doc.go` (NEW)
 - `internal/ai/anthropic.go` (NEW)
-- `internal/command/command.go` (MODIFY — add assist subcommand)
-- `go.mod` (MODIFY — add `github.com/anthropics/anthropic-sdk-go`)
+- `internal/ai/provider.go` (NEW — interface, GenerateResponse, StripFences, SystemPrompt, resolveAPIKey)
+- `internal/ai/openai.go` (NEW)
+- `internal/ai/errors.go` (NEW — consolidated sentinel errors)
+- `internal/ai/strip.go` (NEW — HCL string stripping for context injection)
+- `internal/ai/strip_test.go` (NEW — 12 tests including real fixture)
+- `internal/ai/provider_test.go` (NEW — StripFences tests)
+- `internal/command/assist.go` (NEW — extracted assist logic, ~280 lines)
+- `internal/command/assist_test.go` (NEW — splitYAMLDocuments tests)
+- `internal/command/errors.go` (NEW — errCancelled, errPromptRequired)
+- `internal/command/command.go` (MODIFY — slimmed down, assist extracted)
+- `go.mod` (MODIFY — anthropic-sdk-go + openai-go)
 
-**File count**: 2 new + 2 modified.
+**File count**: 11 new + 2 modified.
 
-#### Phase 2: Context injection + OpenAI
+#### Phase 2: Context injection + OpenAI — COMPLETE (config files deferred)
 
 **Goal**: Existing HCL context improves output quality. OpenAI as second provider. Config file support.
 
@@ -190,7 +199,7 @@ existing HCL → strip string literals → build prompt → LLM → YAML → str
 - `internal/command/config.go` (MODIFY — accept ai: section)
 - `go.mod` (MODIFY — add `github.com/openai/openai-go`)
 
-#### Phase 3: `cinzel pin` (standalone command)
+#### Phase 3: `cinzel pin` (standalone command) — DEFERRED
 
 **Goal**: Resolve action tags to SHAs. Standalone command, independently useful.
 
@@ -225,7 +234,7 @@ existing HCL → strip string literals → build prompt → LLM → YAML → str
 - `internal/pin/pin.go` (NEW)
 - `internal/command/command.go` (MODIFY — register pin command)
 
-#### Phase 4: Retry loop + hardening
+#### Phase 4: Retry loop + hardening — DEFERRED
 
 **Goal**: Improve success rate for complex prompts. Ship only if failure rates warrant it.
 
@@ -250,29 +259,61 @@ existing HCL → strip string literals → build prompt → LLM → YAML → str
 
 ### Interaction Graph
 
-v1: `assist` calls: Anthropic SDK → write temp file → `provider.Unparse()` → `fsutil.WriteFile()`. Isolated pipeline, no interface changes.
+Current: `assist` calls: `ai.Provider.Generate()` → `StripFences()` → split YAML docs → write temp files → `provider.Unparse()` → `mergeHCLFiles()` → `splitHCLBlocksAST()` (dedup) → single output file.
 
-v2+: adds strip string literals → `ai.Provider.Generate()` → optional `pin.Pin()`.
+Future: adds optional `pin.Pin()` and retry loop.
 
 ### Error Propagation
 
-- AI API errors (auth, rate limit, timeout) → user-facing message with actionable instructions
-- Unparse errors → v1: show error + raw YAML. v2+: retry with sanitized error context
-- Pin errors → non-fatal warning, output written with unpinned tags
-- v1 sends no context — inherently safe against data leakage
+- AI API errors classified by type: auth (401), quota exceeded (insufficient_quota), rate limit (429), timeout (DeadlineExceeded)
+- Unparse errors → show truncated raw YAML (max 500 chars) + suggestion to refine prompt
+- Empty LLM response → clear error message
+- Token usage displayed after every successful generation
 
 ### State Lifecycle Risks
 
-- `./cinzel/assist/` overwritten on each run — no orphaned state
+- `./cinzel/assist/` receives timestamped files (`assist-20260316-193045.hcl`) — no overwrite conflicts
 - `--refine` reads from `assist/` — clear error if deleted between runs
-- Temp files cleaned up via `defer os.Remove()` — no leak on error paths
+- Two temp directories cleaned up via `defer os.RemoveAll()` — no leak on error paths
 - No database, no persistent state beyond file output
 
 ### API Surface Parity
 
 - `assist` registered alongside `parse`/`unparse` in `addProvider()` — consistent flag patterns
 - `--output-directory` supported (architecture review #6)
-- `pin` registered as sibling command — same `--file` flag
+
+## Implementation Notes (post-implementation)
+
+Items implemented during development that were not in the original plan:
+
+### HCL block merging and deduplication
+
+Multi-workflow prompts generate separate YAML documents. Each is unparsed independently, producing separate HCL files. `mergeHCLFiles` reads all generated HCL, splits into blocks using `hclwrite.ParseConfig` (AST-based, not brace counting), deduplicates identical blocks, and writes a single output file. This ensures shared steps (checkout, setup) appear once.
+
+### Single timestamped output file
+
+Output is `assist-{timestamp}.hcl` (e.g., `assist-20260316-193045.hcl`) instead of one file per workflow. Avoids overwrite conflicts on repeated runs.
+
+### Token usage display
+
+After generation, prints: `Tokens used: 1247 (input: 892, output: 355)`. Uses `GenerateResponse` struct with `InputTokens`, `OutputTokens`, `TotalTokens()`.
+
+### System prompt for step reuse
+
+Instructs the LLM to use identical step names across workflows so dedup works: "Use consistent names: checkout, setup_go, install_deps — not step_1, step_2."
+
+### Code review findings addressed
+
+From 3 parallel reviews (pattern recognition, performance, security):
+- `splitHCLBlocks` replaced with AST-based `splitHCLBlocksAST` using `hclwrite`
+- Regex `fencePattern` hoisted to package-level `var`
+- Sentinel errors consolidated into `errors.go` per package
+- `resolveAPIKey` shared helper eliminates constructor duplication
+- Attribute ordering made deterministic via `sort.Strings`
+- `truncateAtNewline` for safe context truncation (no mid-rune cuts)
+- Raw YAML in error output truncated to 500 chars
+- `errCancelled` and `errPromptRequired` as sentinel errors
+- Assist logic extracted to `internal/command/assist.go` (~280 lines)
 
 ## Acceptance Criteria
 
