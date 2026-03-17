@@ -64,17 +64,6 @@ func UpgradeFile(ctx context.Context, path string, resolver *GitHubResolver, w i
 			continue
 		}
 
-		// Check if already on the latest major version.
-		if ref.IsTag && ref.Version == latestTag {
-			results = append(results, UpgradeResult{
-				Action:     ref.Action,
-				OldVersion: ref.Version,
-				WasCurrent: true,
-			})
-
-			continue
-		}
-
 		// Resolve the latest tag to a SHA.
 		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], latestTag)
 		if err != nil {
@@ -85,6 +74,17 @@ func UpgradeFile(ctx context.Context, path string, resolver *GitHubResolver, w i
 				OldVersion: ref.Version,
 				NewTag:     latestTag,
 				Error:      err,
+			})
+
+			continue
+		}
+
+		// Already on the latest version — compare by tag or SHA.
+		if (ref.IsTag && ref.Version == latestTag) || (!ref.IsTag && ref.Version == sha) {
+			results = append(results, UpgradeResult{
+				Action:     ref.Action,
+				OldVersion: ref.Version,
+				WasCurrent: true,
 			})
 
 			continue

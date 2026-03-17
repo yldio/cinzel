@@ -39,6 +39,8 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 				}
 			}
 
+			// No cache wrapper — upgrade checks latest releases which should not
+			// be served from a 24h cache.
 			resolver := pin.NewGitHubResolver("")
 
 			var results []pin.UpgradeResult
@@ -82,7 +84,14 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 				parseDir = filepath.Dir(filePath)
 			}
 
-			return cmd.runParseGitHub(parseDir, c.String("output-directory"))
+			outputDir := c.String("output-directory")
+			if outputDir != "" {
+				if err := validateRelativePath(outputDir); err != nil {
+					return fmt.Errorf("--output-directory: %w", err)
+				}
+			}
+
+			return cmd.runParseGitHub(parseDir, outputDir)
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
