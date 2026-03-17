@@ -76,7 +76,7 @@ func (r *GitHubResolver) ResolveTag(ctx context.Context, owner, repo, tag string
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned %d for %s/%s@%s", resp.StatusCode, owner, repo, tag)
+		return "", classifyGitHubError(resp.StatusCode, fmt.Sprintf("%s/%s@%s", owner, repo, tag), r.token == "")
 	}
 
 	var ref struct {
@@ -120,7 +120,7 @@ func (r *GitHubResolver) dereferenceTag(ctx context.Context, owner, repo, tagSHA
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned %d dereferencing tag %s", resp.StatusCode, tagSHA)
+		return "", classifyGitHubError(resp.StatusCode, "tag/"+tagSHA, r.token == "")
 	}
 
 	var tag struct {
@@ -160,7 +160,7 @@ func (r *GitHubResolver) LatestTag(ctx context.Context, owner, repo string) (str
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned %d for %s/%s latest release", resp.StatusCode, owner, repo)
+		return "", classifyGitHubError(resp.StatusCode, fmt.Sprintf("%s/%s latest release", owner, repo), r.token == "")
 	}
 
 	var release struct {
