@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -288,6 +289,11 @@ func TestResolveAIProviderWithKey(t *testing.T) {
 }
 
 func TestValidateRelativePath(t *testing.T) {
+	absPath := "/etc/secrets"
+	if runtime.GOOS == "windows" {
+		absPath = `C:\Windows\System32`
+	}
+
 	tests := []struct {
 		name    string
 		path    string
@@ -296,7 +302,7 @@ func TestValidateRelativePath(t *testing.T) {
 		{name: "valid relative", path: "cinzel/assist", wantErr: nil},
 		{name: "valid simple", path: "output", wantErr: nil},
 		{name: "valid nested", path: "a/b/c", wantErr: nil},
-		{name: "absolute path", path: "/etc/secrets", wantErr: errAbsolutePath},
+		{name: "absolute path", path: absPath, wantErr: errAbsolutePath},
 		{name: "parent traversal", path: "../../../etc", wantErr: errPathTraversal},
 		{name: "hidden traversal", path: "foo/../../bar", wantErr: errPathTraversal},
 		{name: "current dir", path: ".", wantErr: nil},

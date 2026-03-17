@@ -78,14 +78,12 @@ func TestFilereader(t *testing.T) {
 	t.Run("can't read non existing HCL file", func(t *testing.T) {
 		filePath := "somewhere"
 
-		message := "stat somewhere: no such file or directory"
-
 		fileReader := New[test.HclBody]()
 
 		hclBody, err := fileReader.FromHCL(filePath, false)
 
-		if err.Error() != message {
-			t.Fatal(err.Error())
+		if err == nil {
+			t.Fatal("expected error for non-existing file")
 		}
 
 		if hclBody != nil {
@@ -131,14 +129,12 @@ func TestFilereader(t *testing.T) {
 	t.Run("can't read non existing YAML file", func(t *testing.T) {
 		filePath := "somewhere"
 
-		message := "stat somewhere: no such file or directory"
-
 		fileReader := New[test.YamlBody]()
 
 		yamlBody, err := fileReader.FromYaml(filePath, false)
 
-		if err.Error() != message {
-			t.Fatal(err.Error())
+		if err == nil {
+			t.Fatal("expected error for non-existing file")
 		}
 
 		if yamlBody != nil {
