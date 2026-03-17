@@ -136,6 +136,48 @@ func (r *GitHubResolver) dereferenceTag(ctx context.Context, owner, repo, tagSHA
 	return tag.Object.SHA, nil
 }
 
+// LatestTag returns the latest semver tag for a repository by listing tags
+// sorted by version descending.
+func (r *GitHubResolver) LatestTag(ctx context.Context, owner, repo string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", githubAPIBase, owner, repo)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	if r.token != "" {
+		req.Header.Set("Authorization", "Bearer "+r.token)
+	}
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("GitHub API request failed: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned %d for %s/%s latest release", resp.StatusCode, owner, repo)
+	}
+
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("failed to decode release response: %w", err)
+	}
+
+	if release.TagName == "" {
+		return "", fmt.Errorf("no releases found for %s/%s", owner, repo)
+	}
+
+	return release.TagName, nil
+}
+
 // CachedResolver wraps a Resolver with a file-based cache.
 type CachedResolver struct {
 	inner    Resolver

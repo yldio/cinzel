@@ -38,6 +38,7 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 
 	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.assistCommand())
 	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.pinCommand())
+	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.upgradeCommand())
 
 	if err := cmd.Cmd.Run(context.Background(), osArgs); err != nil {
 		_, _ = fmt.Fprintf(cmd.Writer, "%s\n", cinzelerror.New(err).Err.Error())
