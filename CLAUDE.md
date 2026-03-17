@@ -27,6 +27,21 @@ mise run license-check # verify license headers
 cinzel.go                     # CLI entrypoint, wires providers
 internal/
   command/                  # CLI framework (urfave/cli)
+    command.go              # provider registration, parse/unparse commands
+    assist.go               # assist command, LLM pipeline, HCL merge/dedup
+    pin.go                  # pin command (GitHub Actions)
+    upgrade.go              # upgrade command (GitHub Actions)
+    errors.go               # CLI sentinel errors
+  ai/                       # LLM integration
+    provider.go             # AI provider interface, error classification, fence stripping
+    anthropic.go            # Anthropic SDK client
+    openai.go               # OpenAI SDK client
+    strip.go                # HCL string stripping for privacy
+    errors.go               # AI sentinel errors
+  pin/                      # GitHub Actions version management
+    pin.go                  # Resolver interface, SHA resolution, caching, comment upsert
+    upgrade.go              # latest version lookup via GitHub releases API
+    errors.go               # GitHub API error classification
   filereader/               # reads HCL/YAML from disk
   filewriter/               # writes output files
   hclparser/                # HCL expression evaluator
@@ -90,6 +105,24 @@ provider/
 - For unparse YAML validation, prefer strict typed decode (`goccy/go-yaml` strict mode) over hand-maintained key allowlists.
 - Decoder-native diagnostics are acceptable and preferred. Tests should assert stable substrings from strict decoder errors instead of custom-normalized wording.
 - When adding fields, update typed structs first, then conversion logic, then fixtures/tests. Never add schema keys in validation-only tables.
+
+### AI-assisted generation (`cinzel assist`)
+
+- **Pipeline**: prompt → LLM → YAML → strip fences → split YAML docs → temp files → `Unparse` → merge/dedup HCL blocks → single timestamped output.
+- **No Provider interface changes** — uses temp files and existing `Unparse(ProviderOps{Directory})`.
+- **Privacy**: `StripHCLContext` walks HCL AST, replaces all string literal values with `"..."`, strips comments. Block labels preserved (accepted residual risk).
+- **HCL dedup**: `mergeHCLFiles` uses `hclwrite.ParseConfig` (AST-based) to split blocks, dedup by exact match. Handles braces in strings/heredocs correctly.
+- **Auto-pin**: GitHub assist output is automatically pinned to SHAs after generation.
+- **AI providers**: Anthropic (default) and OpenAI via `--ai` flag. Keys from env vars only.
+- **`--refine`**: reads previous `assist/` output as additional context for iterative generation.
+
+### Version management (`cinzel github pin/upgrade`)
+
+- **Pin**: resolves action tags to SHAs via GitHub API. `Resolver` interface with `GitHubResolver` + `CachedResolver` (24h TTL file cache in `os.UserCacheDir()/cinzel/pins/`).
+- **Upgrade**: finds latest release via GitHub API, compares by tag or SHA, updates version + comment.
+- **Comment management**: `upsertUsesComment` adds `// actions/checkout v4` above `uses` blocks, or updates existing comments.
+- **No token required** for public actions. `GITHUB_TOKEN` env var for higher rate limits.
+- **Path validation**: `validateRelativePath` blocks absolute paths and `..` traversal on all user-supplied paths.
 
 ### YAML output
 

@@ -75,6 +75,50 @@ cinzel gitlab unparse --file ./.gitlab-ci.yml --output-directory ./cinzel
 
 Use `--dry-run` to print generated content to stdout.
 
+### AI-assisted generation
+
+Generate HCL workflow definitions from a natural language prompt:
+
+```sh
+cinzel assist --provider github --prompt "golang PR with tests and linting"
+```
+
+This calls an LLM (Anthropic by default), generates valid YAML, converts it to HCL via the unparse pipeline, and writes a single deduplicated file to `./cinzel/assist/`. For GitHub providers, action versions are automatically pinned to SHAs.
+
+Requires an API key:
+
+```sh
+export ANTHROPIC_API_KEY=sk-ant-...
+# or
+export OPENAI_API_KEY=sk-...
+cinzel assist --provider github --ai openai --prompt "..."
+```
+
+Refine previous output:
+
+```sh
+cinzel assist --provider github --refine "add slack notification on failure" --prompt "add to PR workflow"
+```
+
+### Version management (GitHub Actions)
+
+Pin action tags to commit SHAs:
+
+```sh
+cinzel github pin                     # pin all actions in ./cinzel/
+cinzel github pin --dry-run           # preview without writing
+```
+
+Upgrade actions to their latest versions:
+
+```sh
+cinzel github upgrade                 # bump to latest + pin SHAs
+cinzel github upgrade --dry-run       # preview changes
+cinzel github upgrade --parse         # bump + regenerate YAML
+```
+
+No GitHub token is required for public actions. Set `GITHUB_TOKEN` for higher rate limits (5000/hr vs 60/hr).
+
 For release operator details about Homebrew automation, see [`docs/release/homebrew.md`](docs/release/homebrew.md).
 
 ## Providers
