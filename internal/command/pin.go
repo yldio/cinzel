@@ -24,6 +24,18 @@ func (cmd *Cli) pinCommand() *cli.Command {
 				dirPath = "cinzel"
 			}
 
+			if filePath != "" {
+				if err := validateRelativePath(filePath); err != nil {
+					return fmt.Errorf("--file: %w", err)
+				}
+			}
+
+			if dirPath != "" {
+				if err := validateRelativePath(dirPath); err != nil {
+					return fmt.Errorf("--directory: %w", err)
+				}
+			}
+
 			resolver := pin.NewCachedResolver(pin.NewGitHubResolver(""))
 
 			if filePath != "" {

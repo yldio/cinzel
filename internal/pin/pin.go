@@ -212,7 +212,7 @@ type ActionRef struct {
 	IsTag   bool   // true if Version looks like a tag, not a SHA
 }
 
-// IsTag returns true if the version looks like a tag rather than a SHA.
+// isTag returns true if the version looks like a tag rather than a SHA.
 func isTag(version string) bool {
 	return tagPattern.MatchString(version)
 }
