@@ -234,11 +234,9 @@ existing HCL → strip string literals → build prompt → LLM → YAML → str
 - `internal/pin/pin.go` (NEW)
 - `internal/command/command.go` (MODIFY — register pin command)
 
-#### Phase 4: Retry loop + hardening — DEFERRED
+#### Phase 4: Retry loop + hardening — CANCELLED
 
-**Goal**: Improve success rate for complex prompts. Ship only if failure rates warrant it.
-
-**Prerequisite**: Phase 1 shipped, real failure data collected.
+**Cancelled**: `--refine` provides the same capability with user control. Automated retry is uncontrolled, costs 3x on failure, and the user can't steer the correction. With `--refine`, the user sees the error, decides what to change, and gives specific instructions — better outcome at lower cost.
 
 **Tasks**:
 - Implement retry loop in assist:
