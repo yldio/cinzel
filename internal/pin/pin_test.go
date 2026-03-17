@@ -256,6 +256,94 @@ func TestPinFileResolveFails(t *testing.T) {
 	}
 }
 
+func TestPinFileAddsCommentWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "steps.hcl")
+
+	content := `step "setup" {
+  uses {
+    action  = "actions/setup-go"
+    version = "v5"
+  }
+}
+`
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolver := &mockResolver{
+		shas: map[string]string{
+			"actions/setup-go@v5": "def456abc123def456abc123def456abc123def4",
+		},
+	}
+
+	var buf bytes.Buffer
+
+	_, err := PinFile(context.Background(), path, resolver, &buf, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(updated), "// actions/setup-go v5") {
+		t.Errorf("expected comment to be added\ngot:\n%s", string(updated))
+	}
+
+	// Verify indent: comment should have same indent as "uses {"
+	if !strings.Contains(string(updated), "  // actions/setup-go v5\n  uses {") {
+		t.Errorf("comment should have same indent as uses block\ngot:\n%s", string(updated))
+	}
+}
+
+func TestPinFileUpdatesExistingComment(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "steps.hcl")
+
+	content := `step "checkout" {
+  // actions/checkout v3
+  uses {
+    action  = "actions/checkout"
+    version = "v4"
+  }
+}
+`
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolver := &mockResolver{
+		shas: map[string]string{
+			"actions/checkout@v4": "abc123def456abc123def456abc123def456abc1",
+		},
+	}
+
+	var buf bytes.Buffer
+
+	_, err := PinFile(context.Background(), path, resolver, &buf, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(updated), "// actions/checkout v4") {
+		t.Errorf("expected comment to be updated to v4\ngot:\n%s", string(updated))
+	}
+
+	if strings.Contains(string(updated), "// actions/checkout v3") {
+		t.Error("old comment v3 should have been replaced")
+	}
+}
+
 func TestPinDirectory(t *testing.T) {
 	dir := t.TempDir()
 

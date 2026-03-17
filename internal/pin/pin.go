@@ -285,33 +285,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		updated = strings.Replace(updated, oldLine, newLine, 1)
 
 		// Add or update the comment above the uses block.
-		commentLine := fmt.Sprintf("// %s %s", ref.Action, ref.Version)
-		usesLine := fmt.Sprintf(`action  = %q`, ref.Action)
-
-		if idx := strings.Index(updated, usesLine); idx > 0 {
-			// Find the uses block opening before this action line.
-			beforeAction := updated[:idx]
-			usesIdx := strings.LastIndex(beforeAction, "uses {")
-
-			if usesIdx >= 0 {
-				beforeUses := updated[:usesIdx]
-				afterUses := updated[usesIdx:]
-
-				// Check if there's already a comment on the line before uses.
-				lines := strings.Split(beforeUses, "\n")
-				lastLine := strings.TrimSpace(lines[len(lines)-1])
-
-				if lastLine == "" && len(lines) >= 2 {
-					prevLine := strings.TrimSpace(lines[len(lines)-2])
-					if strings.HasPrefix(prevLine, "//") {
-						// Replace existing comment.
-						indent := lines[len(lines)-2][:len(lines[len(lines)-2])-len(strings.TrimLeft(lines[len(lines)-2], " \t"))]
-						lines[len(lines)-2] = indent + commentLine
-						updated = strings.Join(lines, "\n") + afterUses
-					}
-				}
-			}
-		}
+		updated = upsertUsesComment(updated, ref.Action, ref.Version)
 
 		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, sha[:12])
 
@@ -397,4 +371,55 @@ func findActionRefs(content string) []ActionRef {
 	}
 
 	return refs
+}
+
+// upsertUsesComment adds or updates the comment line above a uses block
+// to document the original action and tag. For example:
+//
+//	// actions/checkout v4
+//	uses {
+//	  action  = "actions/checkout"
+//	  version = "abc123..."
+//	}
+func upsertUsesComment(content, action, tag string) string {
+	comment := fmt.Sprintf("// %s %s", action, tag)
+	actionLine := fmt.Sprintf(`action  = %q`, action)
+
+	idx := strings.Index(content, actionLine)
+	if idx <= 0 {
+		return content
+	}
+
+	beforeAction := content[:idx]
+	usesIdx := strings.LastIndex(beforeAction, "uses {")
+
+	if usesIdx < 0 {
+		return content
+	}
+
+	// Find the indent by looking at what's before "uses {" on its line.
+	lineStart := strings.LastIndex(content[:usesIdx], "\n") + 1
+	indent := content[lineStart:usesIdx]
+
+	beforeUses := content[:lineStart]
+	afterUses := content[lineStart:]
+	lines := strings.Split(beforeUses, "\n")
+
+	// Check if the line before uses (skipping blank line) is already a comment.
+	lastIdx := len(lines) - 1
+
+	if lastIdx >= 0 && strings.TrimSpace(lines[lastIdx]) == "" {
+		lastIdx--
+	}
+
+	if lastIdx >= 0 && strings.HasPrefix(strings.TrimSpace(lines[lastIdx]), "//") {
+		// Update existing comment, preserving its indent.
+		existingIndent := lines[lastIdx][:len(lines[lastIdx])-len(strings.TrimLeft(lines[lastIdx], " \t"))]
+		lines[lastIdx] = existingIndent + comment
+
+		return strings.Join(lines, "\n") + afterUses
+	}
+
+	// No existing comment — insert one before uses, same indent.
+	return beforeUses + indent + comment + "\n" + afterUses
 }
