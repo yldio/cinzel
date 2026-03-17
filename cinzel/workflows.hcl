@@ -7,7 +7,7 @@ workflow "pull_request" {
   name = "Pull Request"
 
   permissions {
-    contents      = "read"
+    contents      = "write"
     pull_requests = "write"
   }
 
