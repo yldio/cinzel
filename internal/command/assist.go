@@ -43,6 +43,10 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				outputDir = defaultAssistOutputDir
 			}
 
+			if err := validateRelativePath(outputDir); err != nil {
+				return fmt.Errorf("--output-directory: %w", err)
+			}
+
 			dryRun := c.Bool("dry-run")
 			acknowledge := c.Bool("acknowledge")
 
@@ -68,6 +72,10 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				contextDir := c.String("context-dir")
 				if contextDir == "" {
 					contextDir = "cinzel"
+				}
+
+				if err := validateRelativePath(contextDir); err != nil {
+					return fmt.Errorf("--context-dir: %w", err)
 				}
 
 				hclContext, truncated := ai.StripHCLContext(contextDir)
@@ -361,4 +369,19 @@ func confirmCost(w io.Writer, r io.Reader, providerName, model string) error {
 	}
 
 	return errCancelled
+}
+
+// validateRelativePath ensures a path is relative and does not escape the
+// current working directory via ".." traversal or absolute paths.
+func validateRelativePath(p string) error {
+	if filepath.IsAbs(p) {
+		return errAbsolutePath
+	}
+
+	cleaned := filepath.Clean(p)
+	if strings.HasPrefix(cleaned, "..") {
+		return errPathTraversal
+	}
+
+	return nil
 }

@@ -5,6 +5,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -283,5 +284,38 @@ func TestResolveAIProviderWithKey(t *testing.T) {
 
 	if p.Name() != "openai" {
 		t.Errorf("expected openai, got %s", p.Name())
+	}
+}
+
+func TestValidateRelativePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr error
+	}{
+		{name: "valid relative", path: "cinzel/assist", wantErr: nil},
+		{name: "valid simple", path: "output", wantErr: nil},
+		{name: "valid nested", path: "a/b/c", wantErr: nil},
+		{name: "absolute path", path: "/etc/secrets", wantErr: errAbsolutePath},
+		{name: "parent traversal", path: "../../../etc", wantErr: errPathTraversal},
+		{name: "hidden traversal", path: "foo/../../bar", wantErr: errPathTraversal},
+		{name: "current dir", path: ".", wantErr: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateRelativePath(tt.path)
+			if tt.wantErr == nil && err != nil {
+				t.Errorf("expected no error, got %v", err)
+			}
+
+			if tt.wantErr != nil && err == nil {
+				t.Errorf("expected %v, got nil", tt.wantErr)
+			}
+
+			if tt.wantErr != nil && err != nil && !errors.Is(err, tt.wantErr) {
+				t.Errorf("expected %v, got %v", tt.wantErr, err)
+			}
+		})
 	}
 }
