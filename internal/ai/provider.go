@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ const (
 	DefaultMaxTokens = 4096
 )
 
-var errEmptyResponse = errors.New("LLM returned empty response. Try a more specific prompt")
+var fencePattern = regexp.MustCompile("(?s)```(?:ya?ml)?\\s*\n(.*?)```")
 
 // GenerateRequest holds the parameters for an LLM generation call.
 type GenerateRequest struct {
@@ -31,8 +32,8 @@ type GenerateRequest struct {
 
 // GenerateResponse holds the LLM response text and token usage.
 type GenerateResponse struct {
-	Text        string
-	InputTokens int64
+	Text         string
+	InputTokens  int64
 	OutputTokens int64
 }
 
@@ -81,10 +82,22 @@ func classifyError(err error, providerName string) error {
 	}
 }
 
+// resolveAPIKey returns the provided key, or falls back to the environment
+// variable. Returns missingErr if neither is set.
+func resolveAPIKey(provided, envVar string, missingErr error) (string, error) {
+	if provided != "" {
+		return provided, nil
+	}
+
+	if key := os.Getenv(envVar); key != "" {
+		return key, nil
+	}
+
+	return "", missingErr
+}
+
 // StripFences removes markdown code fences from LLM output, returning clean YAML.
 func StripFences(s string) string {
-	fencePattern := regexp.MustCompile("(?s)```(?:ya?ml)?\\s*\n(.*?)```")
-
 	matches := fencePattern.FindAllStringSubmatch(s, -1)
 	if len(matches) > 0 {
 		var parts []string

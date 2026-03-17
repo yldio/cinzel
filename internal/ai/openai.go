@@ -5,9 +5,7 @@ package ai
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -18,13 +16,6 @@ const (
 	openaiAPIKeyEnvVar = "OPENAI_API_KEY"
 )
 
-var errMissingOpenAIKey = errors.New(
-	"OPENAI_API_KEY environment variable is not set.\n\n" +
-		"Set it with:\n" +
-		"  export OPENAI_API_KEY=sk-...\n\n" +
-		"Get your key at https://platform.openai.com/api-keys",
-)
-
 // OpenAI implements the Provider interface using the OpenAI API.
 type OpenAI struct {
 	apiKey string
@@ -33,15 +24,12 @@ type OpenAI struct {
 // NewOpenAI creates an OpenAI provider, reading the API key from the
 // environment or the provided key string.
 func NewOpenAI(apiKey string) (*OpenAI, error) {
-	if apiKey == "" {
-		apiKey = os.Getenv(openaiAPIKeyEnvVar)
+	key, err := resolveAPIKey(apiKey, openaiAPIKeyEnvVar, errMissingOpenAIKey)
+	if err != nil {
+		return nil, err
 	}
 
-	if apiKey == "" {
-		return nil, errMissingOpenAIKey
-	}
-
-	return &OpenAI{apiKey: apiKey}, nil
+	return &OpenAI{apiKey: key}, nil
 }
 
 // Name returns the provider name.

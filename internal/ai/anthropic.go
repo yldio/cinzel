@@ -5,9 +5,7 @@ package ai
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -19,13 +17,6 @@ const (
 	anthropicAPIKeyEnvVar = "ANTHROPIC_API_KEY"
 )
 
-var errMissingAnthropicKey = errors.New(
-	"ANTHROPIC_API_KEY environment variable is not set.\n\n" +
-		"Set it with:\n" +
-		"  export ANTHROPIC_API_KEY=sk-ant-...\n\n" +
-		"Get your key at https://console.anthropic.com/settings/keys",
-)
-
 // Anthropic implements the Provider interface using the Anthropic API.
 type Anthropic struct {
 	apiKey string
@@ -34,15 +25,12 @@ type Anthropic struct {
 // NewAnthropic creates an Anthropic provider, reading the API key from the
 // environment or the provided key string.
 func NewAnthropic(apiKey string) (*Anthropic, error) {
-	if apiKey == "" {
-		apiKey = os.Getenv(anthropicAPIKeyEnvVar)
+	key, err := resolveAPIKey(apiKey, anthropicAPIKeyEnvVar, errMissingAnthropicKey)
+	if err != nil {
+		return nil, err
 	}
 
-	if apiKey == "" {
-		return nil, errMissingAnthropicKey
-	}
-
-	return &Anthropic{apiKey: apiKey}, nil
+	return &Anthropic{apiKey: key}, nil
 }
 
 // Name returns the provider name.
