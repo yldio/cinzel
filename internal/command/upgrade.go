@@ -6,9 +6,11 @@ package command
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/pin"
+	"github.com/yldio/cinzel/provider"
 )
 
 func (cmd *Cli) upgradeCommand() *cli.Command {
@@ -19,6 +21,7 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 			filePath := c.String("file")
 			dirPath := c.String("directory")
 			dryRun := c.Bool("dry-run")
+			parse := c.Bool("parse")
 
 			if filePath == "" && dirPath == "" {
 				dirPath = "cinzel"
@@ -38,25 +41,48 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 
 			resolver := pin.NewGitHubResolver("")
 
+			var results []pin.UpgradeResult
+
+			var err error
+
 			if filePath != "" {
-				results, err := pin.UpgradeFile(ctx, filePath, resolver, cmd.Writer, dryRun)
-				if err != nil {
-					return err
-				}
-
-				cmd.printUpgradeSummary(results)
-
-				return nil
+				results, err = pin.UpgradeFile(ctx, filePath, resolver, cmd.Writer, dryRun)
+			} else {
+				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun)
 			}
 
-			results, err := pin.UpgradeDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun)
 			if err != nil {
 				return err
 			}
 
 			cmd.printUpgradeSummary(results)
 
-			return nil
+			if !parse || dryRun {
+				return nil
+			}
+
+			// Check if anything was actually upgraded.
+			upgraded := false
+
+			for _, r := range results {
+				if r.Error == nil && !r.WasCurrent {
+					upgraded = true
+
+					break
+				}
+			}
+
+			if !upgraded {
+				return nil
+			}
+
+			parseDir := dirPath
+			if filePath != "" {
+				// If a single file was upgraded, parse its parent directory.
+				parseDir = filepath.Dir(filePath)
+			}
+
+			return cmd.runParseGitHub(parseDir, c.String("output-directory"))
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -76,8 +102,33 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 				Value: false,
 				Usage: "Show what would be upgraded without writing files",
 			},
+			&cli.BoolFlag{
+				Name:  "parse",
+				Value: false,
+				Usage: "Regenerate GitHub Actions YAML files after upgrading",
+			},
+			&cli.StringFlag{
+				Name:  "output-directory",
+				Value: "",
+				Usage: "Output directory for parsed YAML (default: .github/workflows)",
+			},
 		},
 	}
+}
+
+func (cmd *Cli) runParseGitHub(inputDir, outputDir string) error {
+	p, err := cmd.resolveProvider("github")
+	if err != nil {
+		return err
+	}
+
+	_, _ = fmt.Fprintf(cmd.Writer, "\nRegenerating YAML...\n")
+
+	return p.Parse(provider.ProviderOps{
+		Directory:       inputDir,
+		OutputDirectory: outputDir,
+		DryRun:          false,
+	})
 }
 
 func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) {
