@@ -362,9 +362,3 @@ func confirmCost(w io.Writer, r io.Reader, providerName, model string) error {
 
 	return errCancelled
 }
-
-// splitHCLBlocks splits HCL content by top-level blocks using the HCL AST.
-// Deprecated: use splitHCLBlocksAST instead. Kept only if hclwrite is unavailable.
-func splitHCLBlocks(content string) []string {
-	return splitHCLBlocksAST([]byte(content), "input.hcl")
-}
