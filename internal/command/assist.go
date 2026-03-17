@@ -27,7 +27,7 @@ const (
 	maxRawYAMLErrorLen     = 500
 )
 
-func (cmd *Cli) assistCommand() *cli.Command {
+func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 	return &cli.Command{
 		Name:  "assist",
 		Usage: "Generate HCL workflow definitions from a natural language prompt",
@@ -37,13 +37,6 @@ func (cmd *Cli) assistCommand() *cli.Command {
 
 			if prompt == "" && refine == "" {
 				return errPromptRequired
-			}
-
-			providerName := c.String("provider")
-
-			p, err := cmd.resolveProvider(providerName)
-			if err != nil {
-				return err
 			}
 
 			outputDir := c.String("output-directory")
@@ -74,7 +67,7 @@ func (cmd *Cli) assistCommand() *cli.Command {
 
 			_, _ = fmt.Fprintf(cmd.Writer, "Generating workflow...\n")
 
-			systemPrompt := ai.SystemPrompt(providerName)
+			systemPrompt := ai.SystemPrompt(p.GetProviderName())
 
 			if !c.Bool("no-context") {
 				contextDir := c.String("context-dir")
@@ -131,7 +124,7 @@ func (cmd *Cli) assistCommand() *cli.Command {
 				return err
 			}
 
-			if providerName == "github" && !dryRun {
+			if p.GetProviderName() == "github" && !dryRun {
 				_, _ = fmt.Fprintf(cmd.Writer, "Pinning action versions...\n")
 
 				resolver := pin.NewCachedResolver(pin.NewGitHubResolver(""))
@@ -147,11 +140,6 @@ func (cmd *Cli) assistCommand() *cli.Command {
 			return nil
 		},
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "provider",
-				Usage:    "CI/CD provider: github or gitlab",
-				Required: true,
-			},
 			&cli.StringFlag{
 				Name:    "prompt",
 				Aliases: []string{"p"},

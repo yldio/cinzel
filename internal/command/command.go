@@ -36,8 +36,6 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 		cmd.Cmd.Commands = append(cmd.Cmd.Commands, ap)
 	}
 
-	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.assistCommand())
-
 	if err := cmd.Cmd.Run(context.Background(), osArgs); err != nil {
 		_, _ = fmt.Fprintf(cmd.Writer, "%s\n", cinzelerror.New(err).Err.Error())
 
@@ -212,6 +210,8 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 			},
 		},
 	}
+
+	providerCmd.Commands = append(providerCmd.Commands, cmd.assistCommand(p))
 
 	if p.GetProviderName() == "github" {
 		providerCmd.Commands = append(providerCmd.Commands, cmd.pinCommand())
