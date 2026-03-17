@@ -121,7 +121,7 @@ Generate valid %s YAML based on the user's description.
 
 Rules:
 - Output ONLY valid YAML. No markdown code fences, no explanations, no commentary.
-- Use current action versions (tags like @v4, not SHAs).
+- For action versions, use the LATEST major version tag (e.g. actions/checkout@v6, actions/setup-go@v5). Versions will be automatically pinned to SHAs after generation.
 - Set minimum required permissions.
 - Use environment variables for secrets (e.g. secrets.MY_SECRET), never hardcode values.
 - Include descriptive step names and IDs. Use consistent names: checkout, setup_go, install_deps, build, test, lint — not step_1, step_2.

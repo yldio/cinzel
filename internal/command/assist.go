@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/ai"
+	"github.com/yldio/cinzel/internal/pin"
 	"github.com/yldio/cinzel/provider"
 )
 
@@ -26,7 +27,7 @@ const (
 	maxRawYAMLErrorLen     = 500
 )
 
-func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
+func (cmd *Cli) assistCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "assist",
 		Usage: "Generate HCL workflow definitions from a natural language prompt",
@@ -36,6 +37,13 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			if prompt == "" && refine == "" {
 				return errPromptRequired
+			}
+
+			providerName := c.String("provider")
+
+			p, err := cmd.resolveProvider(providerName)
+			if err != nil {
+				return err
 			}
 
 			outputDir := c.String("output-directory")
@@ -50,10 +58,10 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			dryRun := c.Bool("dry-run")
 			acknowledge := c.Bool("acknowledge")
 
-			aiProviderName := c.String("provider")
+			aiName := c.String("ai")
 			model := c.String("model")
 
-			aiProvider, err := resolveAIProvider(aiProviderName, "")
+			aiProvider, err := resolveAIProvider(aiName, "")
 			if err != nil {
 				return err
 			}
@@ -66,7 +74,7 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			_, _ = fmt.Fprintf(cmd.Writer, "Generating workflow...\n")
 
-			systemPrompt := ai.SystemPrompt(p.GetProviderName())
+			systemPrompt := ai.SystemPrompt(providerName)
 
 			if !c.Bool("no-context") {
 				contextDir := c.String("context-dir")
@@ -119,9 +127,31 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			yamlContent := ai.StripFences(response.Text)
 
-			return cmd.unparseAndWrite(p, yamlContent, outputDir, dryRun)
+			if err := cmd.unparseAndWrite(p, yamlContent, outputDir, dryRun); err != nil {
+				return err
+			}
+
+			if providerName == "github" && !dryRun {
+				_, _ = fmt.Fprintf(cmd.Writer, "Pinning action versions...\n")
+
+				resolver := pin.NewCachedResolver(pin.NewGitHubResolver(""))
+
+				results, pinErr := pin.PinDirectory(ctx, outputDir, resolver, cmd.Writer, false)
+				if pinErr != nil {
+					_, _ = fmt.Fprintf(cmd.Writer, "warning: pin failed: %v\n", pinErr)
+				} else {
+					cmd.printPinSummary(results)
+				}
+			}
+
+			return nil
 		},
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "provider",
+				Usage:    "CI/CD provider: github or gitlab",
+				Required: true,
+			},
 			&cli.StringFlag{
 				Name:    "prompt",
 				Aliases: []string{"p"},
@@ -147,14 +177,14 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				Usage: "Bypass the cost confirmation prompt",
 			},
 			&cli.StringFlag{
-				Name:  "provider",
+				Name:  "ai",
 				Value: "anthropic",
 				Usage: "AI provider: anthropic or openai",
 			},
 			&cli.StringFlag{
 				Name:  "model",
 				Value: "",
-				Usage: "Model override (default: provider-specific)",
+				Usage: "Model override (default: AI provider-specific)",
 			},
 			&cli.BoolFlag{
 				Name:  "no-context",
