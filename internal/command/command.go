@@ -37,8 +37,6 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 	}
 
 	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.assistCommand())
-	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.pinCommand())
-	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.upgradeCommand())
 
 	if err := cmd.Cmd.Run(context.Background(), osArgs); err != nil {
 		_, _ = fmt.Fprintf(cmd.Writer, "%s\n", cinzelerror.New(err).Err.Error())
@@ -108,7 +106,7 @@ func formattedAuthors(authors []mail.Address) []any {
 }
 
 func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
-	return &cli.Command{
+	providerCmd := &cli.Command{
 		Name:  p.GetProviderName(),
 		Usage: p.GetDescription(),
 		Commands: []*cli.Command{
@@ -214,4 +212,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 			},
 		},
 	}
+
+	if p.GetProviderName() == "github" {
+		providerCmd.Commands = append(providerCmd.Commands, cmd.pinCommand())
+		providerCmd.Commands = append(providerCmd.Commands, cmd.upgradeCommand())
+	}
+
+	return providerCmd
 }
