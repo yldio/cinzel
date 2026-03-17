@@ -262,7 +262,7 @@ workflow "ci" {
 			}
 		})
 
-		want := "# file: .github/workflows/ci.yaml"
+		want := "# file: " + filepath.Join(".github", "workflows", "ci.yaml")
 
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
@@ -307,7 +307,7 @@ workflow "ci" {
 			}
 		})
 
-		want := "# file: custom/ci.yaml"
+		want := "# file: " + filepath.Join("custom", "ci.yaml")
 
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
@@ -357,7 +357,7 @@ workflow "ci" {
 			}
 		})
 
-		want := "# file: .github/workflows/ci.yaml"
+		want := "# file: " + filepath.Join(".github", "workflows", "ci.yaml")
 
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want to contain %q", stdout, want)
