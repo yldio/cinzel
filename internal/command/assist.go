@@ -176,8 +176,8 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:  "ai",
-				Value: "anthropic",
-				Usage: "AI provider: anthropic or openai",
+				Value: "",
+				Usage: "AI provider: anthropic or openai (default: from config or anthropic)",
 			},
 			&cli.StringFlag{
 				Name:  "model",
