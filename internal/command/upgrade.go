@@ -13,7 +13,7 @@ import (
 	"github.com/yldio/cinzel/provider"
 )
 
-func (cmd *Cli) upgradeCommand() *cli.Command {
+func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 	return &cli.Command{
 		Name:  "upgrade",
 		Usage: "Upgrade GitHub Actions to their latest versions and pin to SHAs",
@@ -91,7 +91,13 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 				}
 			}
 
-			return cmd.runParseGitHub(parseDir, outputDir)
+			_, _ = fmt.Fprintf(cmd.Writer, "\nRegenerating YAML...\n")
+
+			return p.Parse(provider.ProviderOps{
+				Directory:       parseDir,
+				OutputDirectory: outputDir,
+				DryRun:          false,
+			})
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -123,21 +129,6 @@ func (cmd *Cli) upgradeCommand() *cli.Command {
 			},
 		},
 	}
-}
-
-func (cmd *Cli) runParseGitHub(inputDir, outputDir string) error {
-	p, err := cmd.resolveProvider("github")
-	if err != nil {
-		return err
-	}
-
-	_, _ = fmt.Fprintf(cmd.Writer, "\nRegenerating YAML...\n")
-
-	return p.Parse(provider.ProviderOps{
-		Directory:       inputDir,
-		OutputDirectory: outputDir,
-		DryRun:          false,
-	})
 }
 
 func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) {

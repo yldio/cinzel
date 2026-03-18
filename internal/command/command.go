@@ -21,17 +21,13 @@ const (
 
 // Cli holds the CLI application state including the output writer and root command.
 type Cli struct {
-	Writer    io.Writer
-	Cmd       *cli.Command
-	providers map[string]provider.Provider
+	Writer io.Writer
+	Cmd    *cli.Command
 }
 
 // Execute registers the given providers and runs the CLI with the supplied arguments.
 func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
-	cmd.providers = make(map[string]provider.Provider, len(providers))
-
 	for _, p := range providers {
-		cmd.providers[p.GetProviderName()] = p
 		ap := cmd.addProvider(p)
 		cmd.Cmd.Commands = append(cmd.Cmd.Commands, ap)
 	}
@@ -43,29 +39,6 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 	}
 
 	return nil
-}
-
-// resolveProvider looks up a CI/CD provider by name.
-func (cmd *Cli) resolveProvider(name string) (provider.Provider, error) {
-	if name == "" {
-		return nil, fmt.Errorf("--provider is required. Supported: %s", cmd.providerNames())
-	}
-
-	p, ok := cmd.providers[name]
-	if !ok {
-		return nil, fmt.Errorf("unknown provider %q. Supported: %s", name, cmd.providerNames())
-	}
-
-	return p, nil
-}
-
-func (cmd *Cli) providerNames() string {
-	var names []string
-	for name := range cmd.providers {
-		names = append(names, name)
-	}
-
-	return fmt.Sprintf("%v", names)
 }
 
 // New creates a Cli configured with the given writer and version string.
@@ -215,7 +188,7 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 
 	if p.GetProviderName() == "github" {
 		providerCmd.Commands = append(providerCmd.Commands, cmd.pinCommand())
-		providerCmd.Commands = append(providerCmd.Commands, cmd.upgradeCommand())
+		providerCmd.Commands = append(providerCmd.Commands, cmd.upgradeCommand(p))
 	}
 
 	return providerCmd
