@@ -148,6 +148,8 @@ Key order:
 - Different blocks with same signature get `// note:` comments
 - Auto-pins GitHub actions to SHAs after generation
 - Privacy: `StripHCLContext` replaces all string values with `"..."` via HCL AST walk
+- Config: `cinzel init` creates `os.UserConfigDir()/cinzel/config.yaml` with AI provider defaults + API keys
+- Resolution order: CLI flags > env vars > config file > hardcoded defaults
 
 # Version management (`cinzel github pin/upgrade`)
 

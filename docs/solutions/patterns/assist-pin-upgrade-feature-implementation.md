@@ -84,6 +84,26 @@ Two implementations: `Anthropic` and `OpenAI`. Shared `resolveAPIKey` helper. Er
 
 `GenerateResponse` includes `InputTokens`/`OutputTokens` — displayed after every generation.
 
+## Configuration (`cinzel init`)
+
+`cinzel init` creates an interactive config file at `os.UserConfigDir()/cinzel/config.yaml` with `0600` permissions:
+
+```yaml
+ai:
+  default: anthropic
+  providers:
+    anthropic:
+      model: claude-sonnet-4-5-20250514
+      api_key: "sk-ant-..."
+    openai:
+      model: gpt-4o
+      api_key: "sk-..."
+```
+
+Resolution order (highest wins): CLI flags (`--ai`, `--model`) > env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) > config file > hardcoded defaults.
+
+`LoadConfig()` in `internal/ai/config.go` reads the file silently — missing file returns empty config, no error.
+
 ## Review findings addressed
 
 Three rounds of parallel reviews (architecture, security, simplicity, performance, pattern recognition) produced these fixes:
@@ -109,8 +129,10 @@ Three rounds of parallel reviews (architecture, security, simplicity, performanc
 | `internal/ai` | `anthropic.go` | Anthropic SDK wrapper |
 | `internal/ai` | `openai.go` | OpenAI SDK wrapper |
 | `internal/ai` | `strip.go` | HCL string stripping for privacy |
+| `internal/ai` | `config.go` | Config file loading and resolution |
 | `internal/ai` | `errors.go` | Sentinel errors |
 | `internal/command` | `assist.go` | Assist pipeline, mergeHCLFiles, YAML splitting |
+| `internal/command` | `init.go` | `cinzel init` interactive config setup |
 | `internal/command` | `pin.go` | Pin CLI command |
 | `internal/command` | `upgrade.go` | Upgrade CLI command with --parse |
 | `internal/command` | `errors.go` | CLI sentinel errors |
