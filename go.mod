@@ -14,7 +14,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.27.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/hcl/v2 v2.24.0
-	github.com/openai/openai-go/v3 v3.28.0
+	github.com/openai/openai-go/v3 v3.29.0
 	github.com/urfave/cli/v3 v3.7.0
 	github.com/zclconf/go-cty v1.18.0
 	github.com/zclconf/go-cty-yaml v1.2.0
