@@ -89,9 +89,9 @@ export OPENAI_API_KEY=sk-...
 **CLI flag** (highest precedence, per-invocation):
 
 ```sh
-cinzel github assist --prompt "..."                    # uses ai.default
-cinzel github assist --prompt "..." --provider openai  # override for this call
-cinzel github assist --prompt "..." --provider anthropic --model claude-opus-4-20250514  # override both
+cinzel github assist --prompt "..."                    # uses default AI provider
+cinzel github assist --prompt "..." --ai openai        # override AI provider
+cinzel github assist --prompt "..." --ai anthropic --model claude-opus-4-20250514  # override both
 ```
 
 **Resolution order** (highest wins):

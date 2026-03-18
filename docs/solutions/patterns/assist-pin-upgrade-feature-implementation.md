@@ -17,7 +17,7 @@ Three new commands added to cinzel for AI-powered workflow generation and GitHub
 ## Commands
 
 ```sh
-cinzel assist --provider github --prompt "golang PR with tests"   # AI generates HCL
+cinzel github assist --prompt "golang PR with tests"              # AI generates HCL
 cinzel github pin                                                  # lock tags to SHAs
 cinzel github upgrade                                              # bump to latest + pin
 cinzel github upgrade --parse                                      # bump + regenerate YAML

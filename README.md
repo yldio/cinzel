@@ -95,7 +95,13 @@ cinzel/assist/
     assist.hcl
 ```
 
-Requires an API key:
+Requires an API key. Set up with:
+
+```sh
+cinzel init
+```
+
+Or set environment variables directly:
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
