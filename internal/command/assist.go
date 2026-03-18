@@ -51,10 +51,12 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			dryRun := c.Bool("dry-run")
 			acknowledge := c.Bool("acknowledge")
 
-			aiName := c.String("ai")
-			model := c.String("model")
+			cfg := ai.LoadConfig()
+			aiName := cfg.ResolveProviderName(c.String("ai"))
+			model := cfg.ResolveModel(aiName, c.String("model"))
+			apiKey := cfg.ResolveAPIKey(aiName)
 
-			aiProvider, err := resolveAIProvider(aiName, "")
+			aiProvider, err := resolveAIProvider(aiName, apiKey)
 			if err != nil {
 				return err
 			}
