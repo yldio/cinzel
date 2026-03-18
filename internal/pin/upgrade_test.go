@@ -65,7 +65,10 @@ step "setup" {
   }
 }`
 
-	refs := findActionRefs(content)
+	refs, err := findActionRefs(content)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(refs) != 2 {
 		t.Fatalf("expected 2 refs, got %d", len(refs))

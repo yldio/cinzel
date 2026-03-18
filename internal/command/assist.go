@@ -94,33 +94,13 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			userPrompt := prompt
 
 			if refine != "" {
-				refineDir := c.String("from")
-				if refineDir == "" {
-					refineDir = latestAssistDir(outputDir)
-				} else {
-					if err := validateRelativePath(refineDir); err != nil {
-						return fmt.Errorf("--from: %w", err)
-					}
-
-					refineDir = filepath.Join(outputDir, refineDir)
+				refinedSystem, refinedUser, err := buildRefinePrompt(refine, prompt, outputDir, c.String("from"))
+				if err != nil {
+					return err
 				}
 
-				if refineDir == "" {
-					return fmt.Errorf("nothing to refine — run assist --prompt first to generate output in %s", outputDir)
-				}
-
-				assistContext, _ := ai.StripHCLContext(refineDir)
-				if assistContext == "" {
-					return fmt.Errorf("nothing to refine in %s — no HCL files found", refineDir)
-				}
-
-				systemPrompt += "\n\nPrevious assist output (to be refined):\n\n" + assistContext
-
-				if prompt != "" {
-					userPrompt = refine + "\n\nOriginal request: " + prompt
-				} else {
-					userPrompt = refine
-				}
+				systemPrompt += refinedSystem
+				userPrompt = refinedUser
 			}
 
 			response, err := ai.GenerateWithTimeout(ctx, aiProvider, ai.GenerateRequest{
@@ -214,6 +194,39 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			},
 		},
 	}
+}
+
+// buildRefinePrompt resolves the refine directory, loads previous output as
+// context, and returns the additional system prompt and user prompt.
+func buildRefinePrompt(refine, prompt, outputDir, from string) (string, string, error) {
+	refineDir := from
+	if refineDir == "" {
+		refineDir = latestAssistDir(outputDir)
+	} else {
+		if err := validateRelativePath(refineDir); err != nil {
+			return "", "", fmt.Errorf("--from: %w", err)
+		}
+
+		refineDir = filepath.Join(outputDir, refineDir)
+	}
+
+	if refineDir == "" {
+		return "", "", fmt.Errorf("nothing to refine — run assist --prompt first to generate output in %s", outputDir)
+	}
+
+	assistContext, _ := ai.StripHCLContext(refineDir)
+	if assistContext == "" {
+		return "", "", fmt.Errorf("nothing to refine in %s — no HCL files found", refineDir)
+	}
+
+	systemAddition := "\n\nPrevious assist output (to be refined):\n\n" + assistContext
+
+	userPrompt := refine
+	if prompt != "" {
+		userPrompt = refine + "\n\nOriginal request: " + prompt
+	}
+
+	return systemAddition, userPrompt, nil
 }
 
 // unparseAndWrite returns the session directory path where output was written (empty if dry-run).

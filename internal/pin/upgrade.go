@@ -37,7 +37,11 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 
-	refs := findActionRefs(string(content))
+	refs, err := findActionRefs(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse action refs in %s: %w", path, err)
+	}
+
 	if len(refs) == 0 {
 		return nil, nil
 	}

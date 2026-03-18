@@ -49,7 +49,10 @@ step "pinned" {
   }
 }`
 
-	refs := findActionRefs(content)
+	refs, err := findActionRefs(content)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(refs) != 3 {
 		t.Fatalf("expected 3 refs, got %d", len(refs))

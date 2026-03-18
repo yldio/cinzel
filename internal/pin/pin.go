@@ -84,7 +84,7 @@ func (r *GitHubResolver) ResolveTag(ctx context.Context, owner, repo, tag string
 		return "", fmt.Errorf("GitHub API request failed: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", classifyGitHubError(resp.StatusCode, fmt.Sprintf("%s/%s@%s", owner, repo, tag), r.token == "")
@@ -128,7 +128,7 @@ func (r *GitHubResolver) dereferenceTag(ctx context.Context, owner, repo, tagSHA
 		return "", fmt.Errorf("GitHub API request failed: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", classifyGitHubError(resp.StatusCode, "tag/"+tagSHA, r.token == "")
@@ -172,7 +172,7 @@ func (r *GitHubResolver) LatestTag(ctx context.Context, owner, repo string) (str
 		return "", fmt.Errorf("GitHub API request failed: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", classifyGitHubError(resp.StatusCode, fmt.Sprintf("%s/%s latest release", owner, repo), r.token == "")
@@ -292,7 +292,11 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 
-	refs := findActionRefs(string(content))
+	refs, err := findActionRefs(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse action refs in %s: %w", path, err)
+	}
+
 	if len(refs) == 0 {
 		return nil, nil
 	}
@@ -400,12 +404,12 @@ func PinDirectory(ctx context.Context, dir string, resolver Resolver, w io.Write
 
 // findActionRefs extracts action references from HCL content by looking for
 // uses blocks containing action and version attributes.
-func findActionRefs(content string) []ActionRef {
+func findActionRefs(content string) ([]ActionRef, error) {
 	actionMatches := actionPattern.FindAllStringSubmatchIndex(content, -1)
 	versionMatches := versionPattern.FindAllStringSubmatchIndex(content, -1)
 
 	if len(actionMatches) != len(versionMatches) {
-		return nil
+		return nil, fmt.Errorf("mismatched action/version count: %d actions, %d versions", len(actionMatches), len(versionMatches))
 	}
 
 	var refs []ActionRef
@@ -421,7 +425,7 @@ func findActionRefs(content string) []ActionRef {
 		})
 	}
 
-	return refs
+	return refs, nil
 }
 
 // upsertUsesComment adds or updates the comment line above a uses block
@@ -473,4 +477,11 @@ func upsertUsesComment(content, action, tag string) string {
 
 	// No existing comment — insert one before uses, same indent.
 	return beforeUses + indent + comment + "\n" + afterUses
+}
+
+// drainAndClose reads the remaining body to enable HTTP connection reuse,
+// then closes it.
+func drainAndClose(body io.ReadCloser) {
+	_, _ = io.Copy(io.Discard, body)
+	body.Close()
 }
