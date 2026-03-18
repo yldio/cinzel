@@ -1,4 +1,11 @@
 cinzel
+## [0.2.0](https://github.com/yldio/cinzel/compare/v0.1.0..v0.2.0) - 2026-03-18
+
+### ⛰️  Features
+
+- AI assist command and github pin and upgrade subcommands (#3) - ([1539232](https://github.com/yldio/cinzel/commit/1539232429e89c8acfdb41183c0bba029d6f0ffe))
+
+
 ## [0.1.0](https://github.com/yldio/cinzel/compare/v0.0.8..v0.1.0) - 2026-03-13
 
 ### ⛰️  Features
