@@ -92,9 +92,20 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			userPrompt := prompt
 
 			if refine != "" {
-				assistContext, _ := ai.StripHCLContext(outputDir)
+				refineDir := c.String("from")
+				if refineDir == "" {
+					refineDir = latestAssistDir(outputDir)
+				} else {
+					refineDir = filepath.Join(outputDir, refineDir)
+				}
+
+				if refineDir == "" {
+					return fmt.Errorf("nothing to refine — run assist --prompt first to generate output in %s", outputDir)
+				}
+
+				assistContext, _ := ai.StripHCLContext(refineDir)
 				if assistContext == "" {
-					return fmt.Errorf("nothing to refine — run assist --prompt first to generate initial output in %s", outputDir)
+					return fmt.Errorf("nothing to refine in %s — no HCL files found", refineDir)
 				}
 
 				systemPrompt += "\n\nPrevious assist output (to be refined):\n\n" + assistContext
@@ -129,16 +140,17 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				contextDir = ""
 			}
 
-			if err := cmd.unparseAndWrite(p, yamlContent, outputDir, contextDir, dryRun); err != nil {
+			sessionDir, err := cmd.unparseAndWrite(p, yamlContent, outputDir, contextDir, dryRun)
+			if err != nil {
 				return err
 			}
 
-			if p.GetProviderName() == "github" && !dryRun {
+			if p.GetProviderName() == "github" && sessionDir != "" {
 				_, _ = fmt.Fprintf(cmd.Writer, "Pinning action versions...\n")
 
 				resolver := pin.NewCachedResolver(pin.NewGitHubResolver(""))
 
-				results, pinErr := pin.PinDirectory(ctx, outputDir, resolver, cmd.Writer, false)
+				results, pinErr := pin.PinDirectory(ctx, sessionDir, resolver, cmd.Writer, false)
 				if pinErr != nil {
 					_, _ = fmt.Fprintf(cmd.Writer, "warning: pin failed: %v\n", pinErr)
 				} else {
@@ -157,6 +169,11 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			&cli.StringFlag{
 				Name:  "refine",
 				Usage: "Refine previous assist output with additional instructions",
+			},
+			&cli.StringFlag{
+				Name:  "from",
+				Value: "",
+				Usage: "Target a specific assist session folder for --refine (e.g. 20260317-150405)",
 			},
 			&cli.StringFlag{
 				Name:  "output-directory",
@@ -197,17 +214,18 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 	}
 }
 
-func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, contextDir string, dryRun bool) error {
+// unparseAndWrite returns the session directory path where output was written (empty if dry-run).
+func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, contextDir string, dryRun bool) (string, error) {
 	tmpYAMLDir, err := os.MkdirTemp("", "cinzel-assist-yaml-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
 	defer os.RemoveAll(tmpYAMLDir)
 
 	tmpHCLDir, err := os.MkdirTemp("", "cinzel-assist-hcl-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
 	defer os.RemoveAll(tmpHCLDir)
@@ -223,7 +241,7 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 		tmpPath := filepath.Join(tmpYAMLDir, fmt.Sprintf("workflow-%d.yaml", i))
 
 		if err := os.WriteFile(tmpPath, []byte(doc), 0600); err != nil {
-			return fmt.Errorf("failed to write temp file: %w", err)
+			return "", fmt.Errorf("failed to write temp file: %w", err)
 		}
 	}
 
@@ -238,7 +256,7 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 			preview = preview[:maxRawYAMLErrorLen] + "\n... (truncated)"
 		}
 
-		return fmt.Errorf(
+		return "", fmt.Errorf(
 			"generated YAML could not be converted to HCL:\n%s\n\nRaw YAML (preview):\n%s\n\nTry refining your prompt",
 			err, preview,
 		)
@@ -246,7 +264,7 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 
 	merged, err := mergeHCLFiles(tmpHCLDir)
 	if err != nil {
-		return fmt.Errorf("failed to merge HCL files: %w", err)
+		return "", fmt.Errorf("failed to merge HCL files: %w", err)
 	}
 
 	if contextDir != "" {
@@ -256,24 +274,26 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 	if dryRun {
 		_, _ = fmt.Fprintln(cmd.Writer, merged)
 
-		return nil
-	}
-
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
+		return "", nil
 	}
 
 	timestamp := time.Now().Format("20060102-150405")
-	outPath := filepath.Join(outputDir, fmt.Sprintf("assist-%s.hcl", timestamp))
+	sessionDir := filepath.Join(outputDir, timestamp)
 
-	if err := os.WriteFile(outPath, []byte(merged), 0644); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	absPath, _ := filepath.Abs(outPath)
+	outPath := filepath.Join(sessionDir, "assist.hcl")
+
+	if err := os.WriteFile(outPath, []byte(merged), 0644); err != nil {
+		return "", fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	absPath, _ := filepath.Abs(sessionDir)
 	_, _ = fmt.Fprintf(cmd.Writer, "HCL written to %s\n", absPath)
 
-	return nil
+	return sessionDir, nil
 }
 
 // mergeHCLFiles reads all HCL files in dir, parses them with the HCL AST,
@@ -496,6 +516,40 @@ func confirmCost(w io.Writer, r io.Reader, providerName, model string) error {
 	}
 
 	return errCancelled
+}
+
+// latestAssistDir returns the path to the most recent timestamped subfolder
+// in the given directory, or empty string if none exist.
+func latestAssistDir(baseDir string) string {
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return ""
+	}
+
+	var latest string
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		// Timestamped folders match YYYYMMDD-HHMMSS pattern.
+		if len(name) != 15 {
+			continue
+		}
+
+		if name > latest {
+			latest = name
+		}
+	}
+
+	if latest == "" {
+		return ""
+	}
+
+	return filepath.Join(baseDir, latest)
 }
 
 // validateRelativePath ensures a path is relative and does not escape the
