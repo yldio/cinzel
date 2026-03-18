@@ -30,8 +30,6 @@ var tagPattern = regexp.MustCompile(`^v?\d+(\.\d+)*$`)
 
 // safeNamePattern validates GitHub owner, repo, and tag names to prevent
 // URL injection. Allows alphanumeric, hyphens, dots, underscores.
-// safeNamePattern validates GitHub owner, repo, and tag names to prevent
-// URL injection. Allows alphanumeric, hyphens, dots, underscores.
 var safeNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 var actionPattern = regexp.MustCompile(`action\s*=\s*"([^"]+)"`)

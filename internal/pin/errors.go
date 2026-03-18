@@ -46,6 +46,6 @@ func classifyGitHubError(statusCode int, resource string, unauthenticated bool) 
 			msg += "\n\n" + tokenHint
 		}
 
-		return fmt.Errorf("%s", msg)
+		return errors.New(msg)
 	}
 }

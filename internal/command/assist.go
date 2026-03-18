@@ -69,12 +69,14 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			systemPrompt := ai.SystemPrompt(p.GetProviderName())
 
-			if !c.Bool("no-context") {
-				contextDir := c.String("context-dir")
-				if contextDir == "" {
-					contextDir = "cinzel"
-				}
+			noContext := c.Bool("no-context")
+			contextDir := c.String("context-dir")
 
+			if contextDir == "" {
+				contextDir = "cinzel"
+			}
+
+			if !noContext {
 				if err := validateRelativePath(contextDir); err != nil {
 					return fmt.Errorf("--context-dir: %w", err)
 				}
@@ -135,16 +137,12 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			yamlContent := ai.StripFences(response.Text)
 
-			contextDir := "cinzel"
-			if cd := c.String("context-dir"); cd != "" {
-				contextDir = cd
+			dedupDir := contextDir
+			if noContext {
+				dedupDir = ""
 			}
 
-			if c.Bool("no-context") {
-				contextDir = ""
-			}
-
-			sessionDir, err := cmd.unparseAndWrite(p, yamlContent, outputDir, contextDir, dryRun)
+			sessionDir, err := cmd.unparseAndWrite(p, yamlContent, outputDir, dedupDir, dryRun)
 			if err != nil {
 				return err
 			}
@@ -344,7 +342,6 @@ func mergeHCLFiles(dir string) (string, error) {
 type existingBlock struct {
 	content  string
 	filename string
-	sig      string // e.g. `step "checkout"`
 }
 
 // blockSignature extracts the type and labels from an HCL block string,
@@ -393,7 +390,6 @@ func deduplicateWithExisting(merged, contextDir string) string {
 			existing[sig] = existingBlock{
 				content:  block,
 				filename: entry.Name(),
-				sig:      sig,
 			}
 		}
 	}
