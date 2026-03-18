@@ -4,7 +4,7 @@ name: Pull Request
 on:
   pull_request:
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 jobs:
   pull_request:
@@ -14,11 +14,9 @@ jobs:
       - id: checkout
         name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: "false"
       - id: mise_setup
         name: Setup mise
-        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
         with:
           cache: "true"
           install: "true"

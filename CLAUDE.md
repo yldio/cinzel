@@ -1,132 +1,219 @@
-# CLAUDE.md
+# Project
 
-## Project overview
+`cinzel` converts between HCL and CI/CD YAML.
 
-`cinzel` is a bidirectional converter between HCL and CI/CD pipeline YAML. The first (and currently only) provider is GitHub Actions. The architecture is designed for multiple providers (GitLab Pipelines, etc.) via the `provider.Provider` interface.
+- Parse = HCL → YAML
+- Unparse = YAML → HCL
 
-- **Module**: `github.com/yldio/cinzel`
-- **Go version**: 1.26
-- **License**: Apache-2.0
-- **Task runner**: [mise](https://mise.jdx.dev/)
+---
 
-## Quick reference
+# Workflow
 
-```sh
-mise run test          # run tests with coverage
-mise run test-ci       # run tests (CI, no coverage file)
-mise run fmt           # format Go + HCL files
-mise run build         # build binary to ./bin/cinzel
-mise run bench         # run benchmarks
-mise run license       # apply license headers
-mise run license-check # verify license headers
-```
+For non-trivial tasks:
 
-## Architecture
+1. Search the repo.
+2. Identify provider and direction.
+3. Plan briefly.
+4. Implement minimal changes.
+5. Run tests.
+6. Fix until stable.
 
-```
-cinzel.go                     # CLI entrypoint, wires providers
-internal/
-  command/                  # CLI framework (urfave/cli)
-  filereader/               # reads HCL/YAML from disk
-  filewriter/               # writes output files
-  hclparser/                # HCL expression evaluator
-  yamlwriter/               # YAML marshalling with gopkg.in/yaml.v3 node control
-  maputil/                  # sorted map iteration helpers
-  naming/                   # HCL<->YAML identifier normalization
-  fsutil/                   # filesystem utilities
-  cinzelerror/               # shared sentinel errors
-  test/                     # test helpers
-provider/
-  provider.go               # Provider interface (Parse, Unparse)
-  github/                   # GitHub Actions provider
-    github.go               # main Parse/Unparse entry points
-    parse_workflow.go        # HCL -> workflow YAML
-    parse_action.go          # HCL -> action YAML (composite, node, docker)
-    unparse_workflow.go      # workflow YAML -> HCL
-    unparse_action.go        # action YAML -> HCL
-    workflow_yaml.go         # YAML node builder, quote style decisions
-    models.go                # shared types
-    config.go                # HCL block schema (parseConfig)
-    validate.go              # cross-direction validation
-    expression.go            # ${{ }} expression handling
-    errors.go                # sentinel errors
-    job/                     # job parsing/validation
-    step/                    # step parsing/encoding
-    action/                  # action validation (uses refs)
-    workflow/                # workflow triggers, permissions, cron
-```
+Keep changes minimal and localized.
 
-## Key conventions
+---
 
-### Code style
+# Routing (critical)
 
-- Every `.go` file starts with the copyright header. Run `mise run license` to apply.
-- Every package has a `doc.go` with a package-level doc comment.
-- Every exported Go declaration (functions, methods, types, constants, variables) must have a Go doc comment that starts with the declaration name.
-- Doc comments must be directly attached to the declaration they document (no blank line between comment and declaration).
-- Keep comments directly attached to the code they describe (avoid empty lines between a comment block and the following statement/declaration).
-- Sentinel errors live in `errors.go` within each package. Use `errCamelCase` naming.
-- No `testify` or assertion libraries — tests use stdlib `testing` only.
-- Prefer visual separation between logic blocks:
-  - Add an empty line before `return`, non-error-guard `if`, and `for` when they are not the first statement in their current block.
-  - Do not add a blank line before those statements when they are the first statement in the current block (`func`, `if`/`else`, `for`, `switch`/`case`, or nested block).
-  - Keep adjacent logical blocks separated by one blank line, except tightly coupled `switch`/`case` style flows.
-  - Add an empty line between setup assignments and the first decision branch when it improves scanability.
+Do not rely on implicit workflow selection for important tasks.
 
-### HCL <-> YAML conversion
+Use explicit skills when available:
 
-- **Parse** = HCL to YAML (the "forward" direction).
-- **Unparse** = YAML to HCL (the "reverse" direction).
-- `$${{ }}` in HCL string literals becomes `${{ }}` in YAML (double-dollar escaping).
-- Document type is auto-detected during unparse: workflow (has `on`+`jobs`), action (has `name`+`runs`, no `on`/`jobs`), or step-only fallback.
-- Actions write to `<output-dir>/<filename>/action.yml`. Workflows write to `<output-dir>/<filename>.yaml`.
-- All `runs.using` types (composite, node20, docker) work in both directions. Only composite needs special handling for `steps` reference resolution; all other attributes flow through generic parsing.
+- planning → `$ce:plan`
+- plan review → `$ce:review-plan`
+- debugging → `$ce:debug`
+- code review → `$ce:review`
+- verification → `$ce:verify`
 
-### Schema contracts (critical)
+If a matching skill exists, use it instead of recreating the workflow.
 
-- Provider parse schema must be defined by typed HCL structs in `provider/<name>/config.go` (HCL tags are the source of truth).
-- Avoid ad-hoc "allowed attribute/key" maps for schema enforcement. They drift from parser contracts and create duplicate maintenance.
-- `hcl:",remain"` is allowed only for intentional pass-through islands (for example deeply nested free-form sections), not as the default parse strategy.
-- For unparse YAML validation, prefer strict typed decode (`goccy/go-yaml` strict mode) over hand-maintained key allowlists.
-- Decoder-native diagnostics are acceptable and preferred. Tests should assert stable substrings from strict decoder errors instead of custom-normalized wording.
-- When adding fields, update typed structs first, then conversion logic, then fixtures/tests. Never add schema keys in validation-only tables.
+---
 
-### YAML output
+# Sub-agents
 
-- Uses `gopkg.in/yaml.v3` node-level marshalling for precise control.
-- Strings that need quoting use `DoubleQuotedStyle` (not single quotes — Zed editor converts `'` to `"` on save, breaking golden tests).
-- `stringNeedsQuoting()` determines when to quote: empty strings, booleans, null, numbers, YAML special characters. The `@` character does NOT trigger quoting (e.g., `actions/checkout@v4` stays unquoted).
-- Top-level key order: `name`, `run-name`, `on`, `jobs`, then remaining keys alphabetically.
-- Uses `goccy/go-yaml` for test assertions (semantic comparison), but `gopkg.in/yaml.v3` for production marshalling.
+Use sub-agents for non-trivial tasks when a clear boundary exists.
 
-### Testing
+Good delegation:
 
-- **Golden tests**: compare generated output against `.golden.yaml` files. Use `assertYAMLSemanticEqual` (not byte comparison).
-- **Roundtrip tests**: HCL -> YAML -> HCL -> YAML, assert semantic equality. Proves bidirectional stability.
-- **Fixture matrix**: structured under `testdata/fixtures/matrix/{parse,unparse}/{valid,invalid}/`. Valid cases have `.hcl`+`.golden.yaml`, invalid cases have `.hcl`+`.error.txt`.
-- **Action fixtures**: under `testdata/fixtures/actions/` — composite, node, docker action types.
-- **Benchmark tests**: `BenchmarkParseWorkflow`, `BenchmarkUnparseWorkflow`, `BenchmarkRoundtripWorkflow`.
+- repo research vs implementation
+- plan review vs editing
+- verification vs coding
 
-### Commits
+Do not use sub-agents for trivial work.
 
-- Conventional commits enforced via `commitlint` (types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert).
-- Header max 50 chars, body/footer max 72 chars per line.
-- Changelog managed by `git-cliff`.
+---
 
-### CI/CD
+# Tools
 
-- GitHub Actions workflows in `.github/workflows/`.
-- `mise run test` runs the key test suites before release.
+Prefer MCP tools when available.
 
-## Adding a new provider
+Use:
 
-1. Create `provider/<name>/` implementing `provider.Provider`.
-2. Wire it into `cinzel.go` alongside `github.New()`.
-3. Add `provider/<name>/README.md` with HCL schema reference.
-4. Add testdata fixtures following the same golden/roundtrip pattern.
+- Context7 → external docs
+- `ctx_search` → repo search
+- `ctx_batch_execute` → multiple commands
+- `ctx_execute` → dependent commands
 
-## Common pitfalls
+Use native tools only if MCP tools are unavailable or failed.
 
-- **`parseHCLToWorkflows` return values**: Returns 4 values `([]WorkflowYAMLFile, map[string]any, []ActionYAMLFile, error)`. All error paths must return all 4.
-- **Single YAML unmarshal**: `parseYAMLDocument()` unmarshals once, then `classifyWorkflowDocument()` or `classifyActionDocument()` route the result. Never unmarshal the same content twice.
-- **Root package `-v` flag**: `go test -v ./...` at the root passes `-v` to the CLI app which rejects it. Run subpackages directly or omit `-v`.
+Summarize outputs. Do not return raw logs.
+
+---
+
+# Schema contracts (critical)
+
+- HCL schema lives only in `provider/<name>/config.go`
+- Do not use ad-hoc key maps
+- Do not duplicate schema in validation
+
+- `hcl:",remain"` only for intentional pass-through
+
+YAML validation:
+
+- use strict typed decode (`goccy/go-yaml`)
+- do not use allowlists
+
+When adding fields:
+
+1. update structs
+2. update conversion
+3. update tests
+
+---
+
+# Change rules
+
+- Keep changes minimal and localized
+- Do not refactor unrelated code
+- Do not change public interfaces unless required
+- Prefer existing patterns
+- Do not introduce unrelated formatting
+
+---
+
+# Conversion rules
+
+- `$${{ }}` → `${{ }}`
+- Detect on unparse:
+  - workflow: `on` + `jobs`
+  - action: `name` + `runs`
+  - else: step-only
+
+- Output:
+  - actions → `<dir>/<name>/action.yml`
+  - workflows → `<dir>/<name>.yaml`
+
+---
+
+# YAML output
+
+- Use `yaml.v3` node API
+- Use double quotes when required
+- Do not rely on single quotes
+
+Quote when needed for:
+
+- empty
+- bool/null
+- numbers
+- YAML special chars
+
+Do not quote `@`
+
+Key order:
+
+1. name
+2. run-name
+3. on
+4. jobs
+5. rest sorted
+
+---
+
+# AI assist (`cinzel <provider> assist`)
+
+- **Pipeline**: prompt → LLM → YAML → strip fences → split docs → temp files → Unparse → merge/dedup HCL → session folder
+- Output: `cinzel/assist/{timestamp}/assist.hcl` — each prompt gets its own session
+- `--refine` targets latest session by default, or `--from {timestamp}` for a specific one
+- Blocks identical to existing `cinzel/*.hcl` replaced with `// reuses:` comments
+- Different blocks with same signature get `// note:` comments
+- Auto-pins GitHub actions to SHAs after generation
+- Privacy: `StripHCLContext` replaces all string values with `"..."` via HCL AST walk
+- Config: `cinzel init` creates `os.UserConfigDir()/cinzel/config.yaml` with AI provider defaults + API keys
+- Resolution order: CLI flags > env vars > config file > hardcoded defaults
+
+# Version management (`cinzel github pin/upgrade`)
+
+- `pin`: resolves action tags → SHAs via GitHub API. Cached 24h. Adds `// action tag` comments
+- `upgrade`: finds latest release, compares by tag or SHA, updates version + comment
+- No token required for public actions. `GITHUB_TOKEN` for higher rate limits
+
+---
+
+# Testing
+
+- Golden: semantic YAML comparison
+- Roundtrip must remain stable
+
+When changing code:
+
+- update tests
+- ensure roundtrip passes
+- ensure golden passes
+
+---
+
+# Code style
+
+- Every package has `doc.go`
+- Every exported symbol has doc comment (starts with name)
+- Comments directly attached
+
+- Errors in `errors.go`, `errCamelCase`
+- Use stdlib `testing` only
+
+Formatting:
+
+- one blank line between logical blocks
+- blank line before `return`, `if`, `for` (if not first)
+- keep `switch/case` compact
+
+- match surrounding style
+- no unrelated formatting
+
+---
+
+# Commits
+
+- one intent per commit
+- reviewable in ≤5 minutes
+
+Split if:
+
+- multiple intents
+- refactor mixed with behavior change
+- unrelated areas touched
+
+Preferred order:
+
+1. refactor
+2. change
+3. tests
+4. cleanup
+
+---
+
+# Pitfalls
+
+- `parseHCLToWorkflows` returns 4 values — always return all
+- do not unmarshal YAML twice
+- avoid `go test -v ./...` at root

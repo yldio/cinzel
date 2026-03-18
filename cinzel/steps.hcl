@@ -9,11 +9,6 @@ step "checkout" {
     action  = "actions/checkout"
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
-
-  with {
-    name  = "persist-credentials"
-    value = "false"
-  }
 }
 
 step "checkout_release" {
@@ -65,10 +60,10 @@ step "release_app_token" {
   id   = "release_app_token"
   name = "Create release app token"
 
-  // actions/create-github-app-token v2.2.1
+  // actions/create-github-app-token v3.0.0
   uses {
     action  = "actions/create-github-app-token"
-    version = "29824e69f54612133e76f7eaac726eef6c875baf"
+    version = "f8d387b68d61c58ab83c6c016672934102569859"
   }
 
   with {
@@ -90,10 +85,10 @@ step "release_app_token" {
 step "mise_setup" {
   name = "Setup mise"
 
-  // jdx/mise-action v3.6.3
+  // jdx/mise-action v4.0.0
   uses {
     action  = "jdx/mise-action"
-    version = "5228313ee0372e111a38da051671ca30fc5a96db"
+    version = "c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4"
   }
 
   with {
@@ -179,10 +174,10 @@ step "create_release" {
   id   = "create_release"
   name = "Create a GitHub release"
 
-  // ncipollo/release-action v1.20.0
+  // ncipollo/release-action v1.21.0
   uses {
     action  = "ncipollo/release-action"
-    version = "b7eabc95ff50cbeeedec83973935c8f306dfcd0b"
+    version = "339a81892b84b4eeb0f6e744e4574d79d0d9b8dd"
   }
 
   with {

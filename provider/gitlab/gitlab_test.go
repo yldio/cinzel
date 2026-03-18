@@ -362,8 +362,9 @@ build:
 		}
 	})
 
-	if !strings.Contains(out, "# file: cinzel/pipeline.hcl") {
-		t.Fatalf("expected dry-run output path, got %q", out)
+	expectedPath := filepath.Join("cinzel", "pipeline.hcl")
+	if !strings.Contains(out, "# file: "+expectedPath) {
+		t.Fatalf("expected dry-run output path containing %q, got %q", expectedPath, out)
 	}
 }
 

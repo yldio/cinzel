@@ -50,8 +50,8 @@ job "release-packages" {
   ]
 }
 
-job "manual-release" {
-  name = "Manual release"
+job "release" {
+  name = "Release"
 
   timeout_minutes = 20
 
