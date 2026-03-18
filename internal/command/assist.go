@@ -61,14 +61,6 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				return err
 			}
 
-			if !acknowledge {
-				if err := confirmCost(cmd.Writer, os.Stdin, aiProvider.Name(), model); err != nil {
-					return err
-				}
-			}
-
-			_, _ = fmt.Fprintf(cmd.Writer, "Generating workflow...\n")
-
 			systemPrompt := ai.SystemPrompt(p.GetProviderName())
 
 			noContext := c.Bool("no-context")
@@ -85,6 +77,7 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 				hclContext, truncated := ai.StripHCLContext(contextDir)
 				if hclContext != "" {
+					_, _ = fmt.Fprintf(cmd.Writer, "Including existing HCL structure as context (string values stripped for privacy). Use --no-context to skip sending existing HCL to the AI provider.\n")
 					systemPrompt += "\n\nExisting HCL structure (values stripped for privacy):\n\n" + hclContext
 				}
 
@@ -93,9 +86,19 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				}
 			}
 
+			if !acknowledge {
+				if err := confirmCost(cmd.Writer, os.Stdin, aiProvider.Name(), model); err != nil {
+					return err
+				}
+			}
+
+			_, _ = fmt.Fprintf(cmd.Writer, "Generating workflow...\n")
+
 			userPrompt := prompt
 
 			if refine != "" {
+				_, _ = fmt.Fprintf(cmd.Writer, "Including previous assist output as context (string values stripped for privacy).\n")
+
 				refinedSystem, refinedUser, err := buildRefinePrompt(refine, prompt, outputDir, c.String("from"))
 				if err != nil {
 					return err
