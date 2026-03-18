@@ -96,6 +96,10 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				if refineDir == "" {
 					refineDir = latestAssistDir(outputDir)
 				} else {
+					if err := validateRelativePath(refineDir); err != nil {
+						return fmt.Errorf("--from: %w", err)
+					}
+
 					refineDir = filepath.Join(outputDir, refineDir)
 				}
 

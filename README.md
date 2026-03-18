@@ -80,10 +80,20 @@ Use `--dry-run` to print generated content to stdout.
 Generate HCL workflow definitions from a natural language prompt:
 
 ```sh
-cinzel assist --provider github --prompt "golang PR with tests and linting"
+cinzel github assist --prompt "golang PR with tests and linting"
 ```
 
-This calls an LLM (Anthropic by default), generates valid YAML, converts it to HCL via the unparse pipeline, and writes a single deduplicated file to `./cinzel/assist/`. For GitHub providers, action versions are automatically pinned to SHAs.
+This calls an LLM (Anthropic by default), generates valid YAML, converts it to HCL via the unparse pipeline, and writes to a timestamped session folder under `./cinzel/assist/`. For GitHub, action versions are automatically pinned to SHAs. Blocks that match your existing HCL are replaced with `// reuses:` comments.
+
+Each prompt creates its own session:
+
+```
+cinzel/assist/
+  20260317-150405/     # first prompt
+    assist.hcl
+  20260317-151200/     # second prompt
+    assist.hcl
+```
 
 Requires an API key:
 
@@ -91,13 +101,19 @@ Requires an API key:
 export ANTHROPIC_API_KEY=sk-ant-...
 # or
 export OPENAI_API_KEY=sk-...
-cinzel assist --provider github --ai openai --prompt "..."
+cinzel github assist --ai openai --prompt "..."
 ```
 
-Refine previous output:
+Refine previous output (targets the latest session by default):
 
 ```sh
-cinzel assist --provider github --refine "add slack notification on failure" --prompt "add to PR workflow"
+cinzel github assist --refine "add slack notification on failure" --prompt "add to PR workflow"
+```
+
+Refine a specific session:
+
+```sh
+cinzel github assist --refine "add caching" --from 20260317-150405
 ```
 
 ### Version management (GitHub Actions)

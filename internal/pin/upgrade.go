@@ -12,6 +12,12 @@ import (
 	"strings"
 )
 
+// Upgrader extends Resolver with the ability to find the latest release tag.
+type Upgrader interface {
+	Resolver
+	LatestTag(ctx context.Context, owner, repo string) (string, error)
+}
+
 // UpgradeResult holds the result of upgrading a single action.
 type UpgradeResult struct {
 	Action     string
@@ -25,7 +31,7 @@ type UpgradeResult struct {
 // UpgradeFile reads an HCL file, checks each action for a newer release,
 // and updates both the version and comment. When dryRun is true, changes
 // are reported but the file is not modified.
-func UpgradeFile(ctx context.Context, path string, resolver *GitHubResolver, w io.Writer, dryRun bool) ([]UpgradeResult, error) {
+func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Writer, dryRun bool) ([]UpgradeResult, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
@@ -118,7 +124,7 @@ func UpgradeFile(ctx context.Context, path string, resolver *GitHubResolver, w i
 }
 
 // UpgradeDirectory upgrades all HCL files in a directory.
-func UpgradeDirectory(ctx context.Context, dir string, resolver *GitHubResolver, w io.Writer, dryRun bool) ([]UpgradeResult, error) {
+func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.Writer, dryRun bool) ([]UpgradeResult, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory %s: %w", dir, err)

@@ -28,6 +28,15 @@ const (
 // as opposed to SHAs (40+ hex chars).
 var tagPattern = regexp.MustCompile(`^v?\d+(\.\d+)*$`)
 
+// safeNamePattern validates GitHub owner, repo, and tag names to prevent
+// URL injection. Allows alphanumeric, hyphens, dots, underscores.
+// safeNamePattern validates GitHub owner, repo, and tag names to prevent
+// URL injection. Allows alphanumeric, hyphens, dots, underscores.
+var safeNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+var actionPattern = regexp.MustCompile(`action\s*=\s*"([^"]+)"`)
+var versionPattern = regexp.MustCompile(`version\s*=\s*"([^"]+)"`)
+
 // Resolver resolves action version tags to commit SHAs.
 type Resolver interface {
 	ResolveTag(ctx context.Context, owner, repo, tag string) (string, error)
@@ -55,6 +64,10 @@ func NewGitHubResolver(token string) *GitHubResolver {
 
 // ResolveTag resolves a tag to a commit SHA via the GitHub API.
 func (r *GitHubResolver) ResolveTag(ctx context.Context, owner, repo, tag string) (string, error) {
+	if err := validateGitHubNames(owner, repo, tag); err != nil {
+		return "", err
+	}
+
 	url := fmt.Sprintf("%s/repos/%s/%s/git/ref/tags/%s", githubAPIBase, owner, repo, tag)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -139,6 +152,10 @@ func (r *GitHubResolver) dereferenceTag(ctx context.Context, owner, repo, tagSHA
 // LatestTag returns the latest semver tag for a repository by listing tags
 // sorted by version descending.
 func (r *GitHubResolver) LatestTag(ctx context.Context, owner, repo string) (string, error) {
+	if !safeNamePattern.MatchString(owner) || !safeNamePattern.MatchString(repo) {
+		return "", fmt.Errorf("invalid owner/repo name: %s/%s", owner, repo)
+	}
+
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", githubAPIBase, owner, repo)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -386,12 +403,6 @@ func PinDirectory(ctx context.Context, dir string, resolver Resolver, w io.Write
 // findActionRefs extracts action references from HCL content by looking for
 // uses blocks containing action and version attributes.
 func findActionRefs(content string) []ActionRef {
-	// Match action = "owner/repo" followed by version = "tag-or-sha"
-	// within uses blocks. Uses a simple regex approach since the HCL
-	// structure is well-defined from cinzel's own output.
-	actionPattern := regexp.MustCompile(`action\s*=\s*"([^"]+)"`)
-	versionPattern := regexp.MustCompile(`version\s*=\s*"([^"]+)"`)
-
 	actionMatches := actionPattern.FindAllStringSubmatchIndex(content, -1)
 	versionMatches := versionPattern.FindAllStringSubmatchIndex(content, -1)
 

@@ -11,6 +11,20 @@ import (
 
 var errNoHCLFiles = errors.New("no HCL files found in the specified path")
 
+// validateGitHubNames checks that owner, repo, and tag contain only safe
+// characters to prevent URL injection.
+func validateGitHubNames(owner, repo, tag string) error {
+	for _, pair := range []struct{ name, val string }{
+		{"owner", owner}, {"repo", repo}, {"tag", tag},
+	} {
+		if !safeNamePattern.MatchString(pair.val) {
+			return fmt.Errorf("invalid GitHub %s name: %q", pair.name, pair.val)
+		}
+	}
+
+	return nil
+}
+
 const tokenHint = "Set GITHUB_TOKEN for authenticated requests (5000/hr vs 60/hr unauthenticated):\n  export GITHUB_TOKEN=ghp_..."
 
 // classifyGitHubError returns a user-friendly error for GitHub API failures.

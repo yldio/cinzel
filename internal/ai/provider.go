@@ -69,16 +69,16 @@ func classifyError(err error, providerName string) error {
 	msg := err.Error()
 
 	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return fmt.Errorf("LLM request timed out after %s. Try a simpler prompt", DefaultTimeout)
 	case strings.Contains(msg, "authentication") || strings.Contains(msg, "401"):
 		return fmt.Errorf("invalid API key for %s. Check your API key is correct", providerName)
 	case strings.Contains(msg, "insufficient_quota") || strings.Contains(msg, "billing"):
 		return fmt.Errorf("API quota exceeded for %s. Check your plan and billing at your provider's dashboard", providerName)
 	case strings.Contains(msg, "rate_limit") || strings.Contains(msg, "429"):
 		return fmt.Errorf("API rate limited. Try again in a moment")
-	case errors.Is(err, context.DeadlineExceeded):
-		return fmt.Errorf("LLM request timed out after %s. Try a simpler prompt", DefaultTimeout)
 	default:
-		return fmt.Errorf("LLM API error (%s): %w", providerName, err)
+		return fmt.Errorf("LLM API error (%s): %s", providerName, msg)
 	}
 }
 
