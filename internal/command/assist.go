@@ -120,7 +120,16 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			yamlContent := ai.StripFences(response.Text)
 
-			if err := cmd.unparseAndWrite(p, yamlContent, outputDir, dryRun); err != nil {
+			contextDir := "cinzel"
+			if cd := c.String("context-dir"); cd != "" {
+				contextDir = cd
+			}
+
+			if c.Bool("no-context") {
+				contextDir = ""
+			}
+
+			if err := cmd.unparseAndWrite(p, yamlContent, outputDir, contextDir, dryRun); err != nil {
 				return err
 			}
 
@@ -188,7 +197,7 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 	}
 }
 
-func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir string, dryRun bool) error {
+func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, contextDir string, dryRun bool) error {
 	tmpYAMLDir, err := os.MkdirTemp("", "cinzel-assist-yaml-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -238,6 +247,10 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir stri
 	merged, err := mergeHCLFiles(tmpHCLDir)
 	if err != nil {
 		return fmt.Errorf("failed to merge HCL files: %w", err)
+	}
+
+	if contextDir != "" {
+		merged = deduplicateWithExisting(merged, contextDir)
 	}
 
 	if dryRun {
@@ -301,6 +314,102 @@ func mergeHCLFiles(dir string) (string, error) {
 	}
 
 	return strings.Join(parts, "\n\n") + "\n", nil
+}
+
+// existingBlock maps a block's content to its source file.
+type existingBlock struct {
+	content  string
+	filename string
+	sig      string // e.g. `step "checkout"`
+}
+
+// blockSignature extracts the type and labels from an HCL block string,
+// e.g. `step "checkout" {` → `step "checkout"`.
+func blockSignature(block string) string {
+	line := strings.SplitN(block, "\n", 2)[0]
+	line = strings.TrimSpace(line)
+	line = strings.TrimSuffix(line, "{")
+
+	return strings.TrimSpace(line)
+}
+
+// deduplicateWithExisting compares generated blocks against existing HCL files
+// in contextDir. Identical blocks are replaced with a reference comment.
+// Blocks with matching signatures but different content are kept with a note.
+func deduplicateWithExisting(merged, contextDir string) string {
+	entries, err := os.ReadDir(contextDir)
+	if err != nil {
+		return merged
+	}
+
+	// Build index of existing blocks: signature → existingBlock.
+	existing := make(map[string]existingBlock)
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".hcl") {
+			continue
+		}
+
+		content, err := os.ReadFile(filepath.Join(contextDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+
+		for _, block := range splitHCLBlocksAST(content, entry.Name()) {
+			block = strings.TrimSpace(block)
+			if block == "" {
+				continue
+			}
+
+			sig := blockSignature(block)
+			if sig == "" {
+				continue
+			}
+
+			existing[sig] = existingBlock{
+				content:  block,
+				filename: entry.Name(),
+				sig:      sig,
+			}
+		}
+	}
+
+	if len(existing) == 0 {
+		return merged
+	}
+
+	// Compare each generated block against existing ones.
+	generatedBlocks := splitHCLBlocksAST([]byte(merged), "assist.hcl")
+
+	var result []string
+
+	for _, block := range generatedBlocks {
+		block = strings.TrimSpace(block)
+		if block == "" {
+			continue
+		}
+
+		sig := blockSignature(block)
+
+		eb, found := existing[sig]
+		if !found {
+			result = append(result, block)
+
+			continue
+		}
+
+		if eb.content == block {
+			// Identical — replace with reference comment.
+			result = append(result, fmt.Sprintf("// reuses: %s from %s", sig, eb.filename))
+
+			continue
+		}
+
+		// Same signature but different content — keep with note.
+		result = append(result, fmt.Sprintf("// note: %s also exists in %s (different content)\n%s", sig, eb.filename, block))
+	}
+
+	return strings.Join(result, "\n\n") + "\n"
 }
 
 // splitHCLBlocksAST uses the HCL write parser to split content into

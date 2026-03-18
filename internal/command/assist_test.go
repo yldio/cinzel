@@ -325,3 +325,103 @@ func TestValidateRelativePath(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockSignature(t *testing.T) {
+	tests := []struct {
+		block string
+		want  string
+	}{
+		{`step "checkout" {` + "\n  name = \"Checkout\"\n}", `step "checkout"`},
+		{`workflow "pr" {` + "\n  name = \"PR\"\n}", `workflow "pr"`},
+		{`variable "os" {` + "\n  value = []\n}", `variable "os"`},
+	}
+
+	for _, tt := range tests {
+		got := blockSignature(tt.block)
+		if got != tt.want {
+			t.Errorf("blockSignature(%q) = %q, want %q", tt.block[:20], got, tt.want)
+		}
+	}
+}
+
+func TestDeduplicateWithExisting(t *testing.T) {
+	contextDir := t.TempDir()
+
+	existingSteps := `step "checkout" {
+  name = "Checkout"
+
+  uses {
+    action  = "actions/checkout"
+    version = "abc123"
+  }
+}
+
+step "tests" {
+  name = "Tests"
+  run  = "go test ./..."
+}
+`
+
+	if err := os.WriteFile(filepath.Join(contextDir, "steps.hcl"), []byte(existingSteps), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Generated output has identical checkout, different tests, and a new step.
+	generated := `step "checkout" {
+  name = "Checkout"
+
+  uses {
+    action  = "actions/checkout"
+    version = "abc123"
+  }
+}
+
+step "tests" {
+  name = "Tests"
+  run  = "npm test"
+}
+
+step "deploy" {
+  name = "Deploy"
+  run  = "deploy.sh"
+}
+`
+
+	result := deduplicateWithExisting(generated, contextDir)
+
+	// Identical checkout should be replaced with reference.
+	if !strings.Contains(result, `// reuses: step "checkout" from steps.hcl`) {
+		t.Errorf("expected reuse comment for checkout\ngot:\n%s", result)
+	}
+
+	// Checkout block content should NOT be in output.
+	if strings.Contains(result, `action  = "actions/checkout"`) {
+		t.Errorf("identical checkout block should be replaced, not kept\ngot:\n%s", result)
+	}
+
+	// Different tests should be kept with a note.
+	if !strings.Contains(result, `// note: step "tests" also exists in steps.hcl`) {
+		t.Errorf("expected note for different tests block\ngot:\n%s", result)
+	}
+
+	if !strings.Contains(result, `run  = "npm test"`) {
+		t.Errorf("different tests block should be kept\ngot:\n%s", result)
+	}
+
+	// New step should be kept as-is.
+	if !strings.Contains(result, `step "deploy"`) {
+		t.Errorf("new deploy step should be kept\ngot:\n%s", result)
+	}
+}
+
+func TestDeduplicateWithExistingNoContextDir(t *testing.T) {
+	input := `step "checkout" {
+  name = "Checkout"
+}
+`
+	result := deduplicateWithExisting(input, "/nonexistent/path")
+
+	if result != input {
+		t.Errorf("should return input unchanged for nonexistent dir\ngot: %q", result)
+	}
+}
