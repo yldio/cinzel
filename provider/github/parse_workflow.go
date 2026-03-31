@@ -253,13 +253,21 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 		out["strategy"] = strategyValue
 	}
 
+	if err := setOptionalYAMLAttr(out, "permissions", cfg.PermAttr, hv); err != nil {
+		return nil, err
+	}
+
 	for _, block := range cfg.Permissions {
 		child, err := parseBodyMap(block.Body, hv, "permissions")
 		if err != nil {
 			return nil, err
 		}
 
-		out["permissions"] = child
+		if len(child) == 0 {
+			out["permissions"] = "read-all"
+		} else {
+			out["permissions"] = child
+		}
 	}
 
 	for _, block := range cfg.Defaults {
@@ -366,7 +374,11 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 			return nil, err
 		}
 
-		out["permissions"] = child
+		if len(child) == 0 {
+			out["permissions"] = "read-all"
+		} else {
+			out["permissions"] = child
+		}
 	}
 
 	for _, block := range cfg.Defaults {

@@ -59,6 +59,7 @@ type hclJobBlock struct {
 	ServiceBlocks   []hclServiceBlock  `hcl:"service,block"`
 	RunsOnBlocks    []hclRunsOnBlock   `hcl:"runs_on,block"`
 	StrategyBlocks  []hclStrategyBlock `hcl:"strategy,block"`
+	PermAttr        hcl.Expression     `hcl:"permissions,optional"`
 	Permissions     []hclGenericBlock  `hcl:"permissions,block"`
 	Defaults        []hclGenericBlock  `hcl:"defaults,block"`
 	Concurrency     []hclGenericBlock  `hcl:"concurrency,block"`
