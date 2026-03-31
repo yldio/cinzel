@@ -6,7 +6,10 @@ package gitlab
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
+	"unicode/utf8"
 
 	yamlv3 "gopkg.in/yaml.v3"
 )
@@ -33,8 +36,31 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 		return nil, err
 	}
 
-	return bytes.ReplaceAll(buf.Bytes(), []byte(": {}\n"), []byte(":\n")), nil
+	out := bytes.ReplaceAll(buf.Bytes(), []byte(": {}\n"), []byte(":\n"))
+
+	return unescapeYAMLUnicode(out), nil
 }
+
+// unescapeYAMLUnicode replaces \uXXXX and \UXXXXXXXX escape sequences in YAML
+// output with their raw UTF-8 equivalents for characters above U+009F.
+// gopkg.in/yaml.v3 escapes supplementary-plane characters (emoji etc.) because
+// its is_printable helper only handles 3-byte UTF-8 sequences. Replacing the
+// escapes restores readable output without changing the YAML semantics.
+func unescapeYAMLUnicode(src []byte) []byte {
+	return reYAMLUnicodeEscape.ReplaceAllFunc(src, func(match []byte) []byte {
+		n, err := strconv.ParseInt(string(match[2:]), 16, 32)
+		if err != nil || n <= 0x9F || !utf8.ValidRune(rune(n)) {
+			return match
+		}
+
+		var buf [utf8.UTFMax]byte
+		l := utf8.EncodeRune(buf[:], rune(n))
+
+		return append([]byte(nil), buf[:l]...)
+	})
+}
+
+var reYAMLUnicodeEscape = regexp.MustCompile(`\\U[0-9A-Fa-f]{8}|\\u[0-9A-Fa-f]{4}`)
 
 func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
