@@ -1,4 +1,11 @@
 cinzel
+## [0.3.1](https://github.com/yldio/cinzel/compare/v0.3.0..v0.3.1) - 2026-03-31
+
+### 🐛 Bug Fixes
+
+- Preserve emoji ZWJ sequences through YAML↔HCL roundtrip (#5) - ([d4925da](https://github.com/yldio/cinzel/commit/d4925dacdb1be1ff1681741950b125a031fa76b5))
+
+
 ## [0.3.0](https://github.com/yldio/cinzel/compare/v0.2.0..v0.3.0) - 2026-03-31
 
 ### ⛰️  Features
