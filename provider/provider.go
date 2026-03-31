@@ -10,6 +10,7 @@ type ProviderOps struct {
 	OutputDirectory string
 	Recursive       bool
 	DryRun          bool
+	YML             bool // use .yml extension instead of .yaml
 }
 
 // Provider defines the interface that each CI/CD provider must implement.
