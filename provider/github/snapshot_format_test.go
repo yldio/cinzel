@@ -13,11 +13,16 @@ import (
 )
 
 func TestUnparseFormattingSnapshot(t *testing.T) {
-	tmpDir := t.TempDir()
-	inputFile := filepath.Join(tmpDir, "pull-request.yaml")
-	outputDir := filepath.Join(tmpDir, "out")
-
-	content := `name: Pull Request
+	tests := []struct {
+		name       string
+		filename   string
+		content    string
+		goldenFile string
+	}{
+		{
+			name:     "single on block",
+			filename: "pull-request.yaml",
+			content: `name: Pull Request
 on:
   pull_request: {}
 jobs:
@@ -34,31 +39,59 @@ jobs:
       - id: checkout
         name: Checkout
         uses: actions/checkout@v4
-`
-
-	if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
+`,
+			goldenFile: "workflow_unparse.golden.hcl",
+		},
+		{
+			name:     "multiple on blocks have blank line between them",
+			filename: "multi-on.yaml",
+			content: `name: CI
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+`,
+			goldenFile: "workflow_unparse_multi_on.golden.hcl",
+		},
 	}
 
-	if err := New().Unparse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
-		t.Fatal(err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			inputFile := filepath.Join(tmpDir, tt.filename)
+			outputDir := filepath.Join(tmpDir, "out")
 
-	gotBytes, err := os.ReadFile(filepath.Join(outputDir, "pull-request.hcl"))
-	if err != nil {
-		t.Fatal(err)
-	}
+			if err := os.WriteFile(inputFile, []byte(tt.content), 0o644); err != nil {
+				t.Fatal(err)
+			}
 
-	expectedBytes, err := os.ReadFile(filepath.Join("testdata", "fixtures", "formatting", "workflow_unparse.golden.hcl"))
-	if err != nil {
-		t.Fatal(err)
-	}
+			if err := New().Unparse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
+				t.Fatal(err)
+			}
 
-	got := normalizeLineEndings(string(gotBytes))
-	expected := normalizeLineEndings(string(expectedBytes))
+			base := strings.TrimSuffix(tt.filename, filepath.Ext(tt.filename))
+			gotBytes, err := os.ReadFile(filepath.Join(outputDir, base+".hcl"))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	if got != expected {
-		t.Fatalf("snapshot mismatch\n--- got ---\n%s\n--- expected ---\n%s", got, expected)
+			expectedBytes, err := os.ReadFile(filepath.Join("testdata", "fixtures", "formatting", tt.goldenFile))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := normalizeLineEndings(string(gotBytes))
+			expected := normalizeLineEndings(string(expectedBytes))
+
+			if got != expected {
+				t.Fatalf("snapshot mismatch\n--- got ---\n%s\n--- expected ---\n%s", got, expected)
+			}
+		})
 	}
 }
 

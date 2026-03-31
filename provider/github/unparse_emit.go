@@ -84,7 +84,11 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 				return errors.New("workflow 'on' must be an object")
 			}
 
-			for _, eventName := range sortedKeys(events) {
+			for i, eventName := range sortedKeys(events) {
+				if i > 0 {
+					appendSection()
+				}
+
 				eventBlock := body.AppendNewBlock("on", []string{eventName})
 
 				if err := writeOnEventBody(eventName, events[eventName], eventBlock.Body()); err != nil {
