@@ -48,17 +48,29 @@ func resolveUnparseOutputDirectory(opts provider.ProviderOps) string {
 }
 
 func resolveParseFilename(opts provider.ProviderOps) string {
+	ext := workflowExt(opts)
+
 	if opts.File == "" {
-		return "steps.yaml"
+		return "steps" + ext
 	}
 
 	name := strings.TrimSuffix(filepath.Base(opts.File), filepath.Ext(opts.File))
 
 	if name == "" {
-		return "steps.yaml"
+		return "steps" + ext
 	}
 
-	return name + ".yaml"
+	return name + ext
+}
+
+// workflowExt returns the YAML file extension for workflow output files.
+// Defaults to ".yaml"; returns ".yml" when opts.YML is true.
+func workflowExt(opts provider.ProviderOps) string {
+	if opts.YML {
+		return ".yml"
+	}
+
+	return ".yaml"
 }
 
 func parseStepsFromYAML(content []byte) ([]step.Step, error) {

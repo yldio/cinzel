@@ -127,6 +127,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Usage: "Parsed files (YAML) are created in `DIRECTORY`",
 					},
 					&cli.BoolFlag{
+						Name:  "yml",
+						Value: false,
+						Usage: "Generate .yml files instead of .yaml",
+					},
+					&cli.BoolFlag{
 						Name:  "dry-run",
 						Value: false,
 						Usage: "Output to stdout",
