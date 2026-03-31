@@ -1,4 +1,11 @@
 cinzel
+## [0.3.0](https://github.com/yldio/cinzel/compare/v0.2.0..v0.3.0) - 2026-03-31
+
+### ⛰️  Features
+
+- Add --yml flag to generate .yml workflow files instead of .yaml (#4) - ([a4b52ec](https://github.com/yldio/cinzel/commit/a4b52ecbeef0e05f7c40fea2fc1dd11bc42bc6e3))
+
+
 ## [0.2.0](https://github.com/yldio/cinzel/compare/v0.1.0..v0.2.0) - 2026-03-18
 
 ### ⛰️  Features

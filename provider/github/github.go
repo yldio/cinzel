@@ -99,7 +99,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 
 		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
 
-		outputPath := filepath.Join(outputDir, workflowFile.Filename+".yaml")
+		outputPath := filepath.Join(outputDir, workflowFile.Filename+workflowExt(opts))
 		cleanOutputPath := filepath.Clean(outputPath)
 		currentWorkflowOutputs[cleanOutputPath] = struct{}{}
 

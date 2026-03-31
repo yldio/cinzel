@@ -22,6 +22,8 @@ type providerCommandConfig struct {
 	hasDirectory    bool
 	outputDirectory string
 	hasOutputDir    bool
+	yml    bool
+	hasYML bool
 }
 
 func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (provider.ProviderOps, []string, error) {
@@ -31,6 +33,7 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 		OutputDirectory: cmd.String("output-directory"),
 		Recursive:       cmd.Bool("recursive"),
 		DryRun:          cmd.Bool("dry-run"),
+		YML:             cmd.Bool("yml"),
 	}
 
 	conf, warnings, err := loadProviderCommandConfig(configFilename, providerName, commandName)
@@ -40,6 +43,10 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 
 	if !cmd.IsSet("output-directory") && conf.hasOutputDir {
 		opts.OutputDirectory = conf.outputDirectory
+	}
+
+	if !cmd.IsSet("yml") && conf.hasYML {
+		opts.YML = conf.yml
 	}
 
 	hasCLIFileInput := cmd.IsSet("file") || cmd.IsSet("directory")
@@ -147,6 +154,12 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.filename must be string", path, providerName, commandName)
 			}
+		case "yml":
+			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
+				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.yml must be a boolean", path, providerName, commandName)
+			}
+			config.yml = valueNode.Value == "true"
+			config.hasYML = true
 		default:
 			warnings = append(warnings, fmt.Sprintf("%s.%s.%s.%s: unknown key", path, providerName, commandName, keyNode.Value))
 		}
