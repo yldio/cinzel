@@ -17,14 +17,23 @@ type workflowJobEntry struct {
 	Body map[string]any
 }
 
-func buildWorkflowJobIndex(jobs map[string]any) ([]workflowJobEntry, []string, map[string]string, error) {
-	jobNames := sortedKeys(jobs)
+func buildWorkflowJobIndex(jobs map[string]any, order []string) ([]workflowJobEntry, []string, map[string]string, error) {
+	jobNames := order
+	if len(jobNames) == 0 {
+		jobNames = sortedKeys(jobs)
+	}
 	entries := make([]workflowJobEntry, 0, len(jobs))
 	jobRefs := make([]string, 0, len(jobs))
 	jobIDMap := make(map[string]string, len(jobs))
 
 	for _, jobName := range jobNames {
-		jobMap, ok := toStringAnyMap(jobs[jobName])
+		raw, exists := jobs[jobName]
+
+		if !exists {
+			return nil, nil, nil, fmt.Errorf("job '%s' listed in order but not found in jobs map", jobName)
+		}
+
+		jobMap, ok := toStringAnyMap(raw)
 
 		if !ok {
 			return nil, nil, nil, fmt.Errorf("job '%s' must be an object", jobName)
@@ -41,6 +50,12 @@ func buildWorkflowJobIndex(jobs map[string]any) ([]workflowJobEntry, []string, m
 		jobID = uniqueIdentifier(jobID, jobRefs)
 		jobRefs = append(jobRefs, jobID)
 		jobIDMap[jobName] = jobID
+	}
+
+	for jobName := range jobs {
+		if _, covered := jobIDMap[jobName]; !covered {
+			return nil, nil, nil, fmt.Errorf("job '%s' is defined but was not included in the job order", jobName)
+		}
 	}
 
 	return entries, jobRefs, jobIDMap, nil

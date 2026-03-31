@@ -195,7 +195,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 // the document is a workflow, action, or step-only file. Returns nil if
 // the document is empty or unrecognized.
 func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
-	doc, err := parseYAMLDocument(yamlBytes)
+	doc, jobOrder, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
 	}
 
 	if workflowDoc != nil {
-		return workflowToHCL(*workflowDoc, baseName)
+		return workflowToHCL(*workflowDoc, baseName, jobOrder)
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {

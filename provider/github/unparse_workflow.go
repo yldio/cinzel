@@ -10,23 +10,66 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/goccy/go-yaml"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/cinzel/internal/maputil"
 	"github.com/yldio/cinzel/internal/naming"
 	"github.com/yldio/cinzel/provider/github/step"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
-func parseYAMLDocument(content []byte) (map[string]any, error) {
-	var doc map[string]any
+// parseYAMLDocument parses YAML content into a document map and extracts
+// job names in source order in a single pass using the yaml.v3 Node API.
+func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
+	var node yamlv3.Node
 
-	if err := yaml.Unmarshal(content, &doc); err != nil {
-		return nil, err
+	if err := yamlv3.Unmarshal(content, &node); err != nil {
+		return nil, nil, err
 	}
 
-	return doc, nil
+	if len(node.Content) == 0 {
+		return nil, nil, nil
+	}
+
+	var doc map[string]any
+
+	if err := node.Decode(&doc); err != nil {
+		return nil, nil, err
+	}
+
+	return doc, jobOrderFromNode(node.Content[0]), nil
+}
+
+// jobOrderFromNode extracts job names in source order from a yaml.v3 mapping
+// node. It relies on the Node API's preservation of mapping key order, which
+// is not available when unmarshaling directly into map[string]any.
+func jobOrderFromNode(root *yamlv3.Node) []string {
+	if root.Kind != yamlv3.MappingNode {
+		return nil
+	}
+
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == "jobs" {
+			jobs := root.Content[i+1]
+
+			if jobs.Kind != yamlv3.MappingNode {
+				return nil
+			}
+
+			keys := make([]string, 0, len(jobs.Content)/2)
+
+			for j := 0; j+1 < len(jobs.Content); j += 2 {
+				if key := jobs.Content[j].Value; key != "" {
+					keys = append(keys, key)
+				}
+			}
+
+			return keys
+		}
+	}
+
+	return nil
 }
 
 func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, error) {
@@ -46,7 +89,7 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string) ([]byte, error) {
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}
@@ -58,7 +101,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error)
 		return nil, errors.New("workflow must define at least one job in 'jobs'")
 	}
 
-	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs)
+	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs, jobOrder)
 	if err != nil {
 		return nil, err
 	}
