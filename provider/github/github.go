@@ -231,5 +231,5 @@ func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
 		}
 	}
 
-	return hclwrite.Format(f.Bytes()), nil
+	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), nil
 }

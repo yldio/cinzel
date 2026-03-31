@@ -229,3 +229,66 @@ workflow "wf" {
 
 	assertYAMLValueEqual(t, first, second)
 }
+
+// TestEmojiRoundtripStability verifies that workflow names containing emoji
+// ZWJ sequences (e.g. 👮‍♂️) round-trip through YAML → HCL → YAML without
+// acquiring Unicode escape sequences in either the HCL or the output YAML.
+func TestEmojiRoundtripStability(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	inputYAML := filepath.Join(tmpDir, "lint.yaml")
+	unparseDir := filepath.Join(tmpDir, "unparse")
+	parse2Dir := filepath.Join(tmpDir, "parse2")
+
+	// The workflow name contains a ZWJ emoji sequence: 👮 (U+1F46E) + ZWJ
+	// (U+200D) + ♂ (U+2642) + VS-16 (U+FE0F).  hclwrite escapes U+200D as
+	// \u200d and yaml.v3 escapes supplementary-plane chars as \UXXXXXXXX, so
+	// without the fix both representations acquire Unicode escapes.
+	emojiName := "\U0001F46E\u200D\u2642\uFE0F Lint"
+	content := "name: " + emojiName + "\non:\n  push:\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - id: lint\n        name: Run lint\n        run: echo lint\n"
+
+	if err := os.WriteFile(inputYAML, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := New()
+
+	if err := p.Unparse(provider.ProviderOps{File: inputYAML, OutputDirectory: unparseDir}); err != nil {
+		t.Fatal(err)
+	}
+
+	hclFile := filepath.Join(unparseDir, "lint.hcl")
+	hclBytes, err := os.ReadFile(hclFile)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// HCL must not contain Unicode escape sequences for the emoji ZWJ.
+	hclStr := string(hclBytes)
+
+	if strings.Contains(hclStr, `\u200d`) || strings.Contains(hclStr, `\u200D`) {
+		t.Errorf("HCL output contains escaped ZWJ (\\u200d); want raw UTF-8:\n%s", hclStr)
+	}
+
+	if err := p.Parse(provider.ProviderOps{File: hclFile, OutputDirectory: parse2Dir}); err != nil {
+		t.Fatal(err)
+	}
+
+	roundtripped, err := os.ReadFile(filepath.Join(parse2Dir, "lint.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Round-tripped YAML must not contain Unicode escape sequences.
+	roundStr := string(roundtripped)
+
+	if strings.Contains(roundStr, `\U`) || strings.Contains(roundStr, `\u`) {
+		t.Errorf("round-tripped YAML contains Unicode escapes; want raw UTF-8:\n%s", roundStr)
+	}
+
+	// The emoji name must be preserved verbatim in the output.
+	if !strings.Contains(roundStr, emojiName) {
+		t.Errorf("round-tripped YAML does not contain emoji name %q:\n%s", emojiName, roundStr)
+	}
+}

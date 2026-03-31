@@ -6,8 +6,11 @@ package gitlab
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -292,8 +295,30 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 	_ = filename
 
-	return hclwrite.Format(f.Bytes()), nil
+	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), nil
 }
+
+// unescapeHCLUnicode replaces \uXXXX and \UXXXXXXXX escape sequences in HCL
+// source with their raw UTF-8 equivalents for characters above U+009F.
+// hclwrite escapes any rune where Go's unicode.IsPrint returns false, which
+// includes category-Cf characters like U+200D (ZWJ) used in emoji sequences.
+// These are valid UTF-8 in HCL strings; keeping them escaped causes downstream
+// YAML serialisers to re-escape the surrounding emoji.
+func unescapeHCLUnicode(src []byte) []byte {
+	return reHCLUnicodeEscape.ReplaceAllFunc(src, func(match []byte) []byte {
+		n, err := strconv.ParseInt(string(match[2:]), 16, 32)
+		if err != nil || n <= 0x9F || !utf8.ValidRune(rune(n)) {
+			return match
+		}
+
+		var buf [utf8.UTFMax]byte
+		l := utf8.EncodeRune(buf[:], rune(n))
+
+		return append([]byte(nil), buf[:l]...)
+	})
+}
+
+var reHCLUnicodeEscape = regexp.MustCompile(`\\u[0-9a-fA-F]{4}|\\U[0-9a-fA-F]{8}`)
 
 func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string) error {
 	for _, key := range sortedKeys(job) {

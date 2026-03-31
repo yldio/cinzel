@@ -217,7 +217,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		}
 	}
 
-	return hclwrite.Format(f.Bytes()), nil
+	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), nil
 }
 
 func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
