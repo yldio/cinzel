@@ -8,5 +8,5 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - id: build_step_1
+      - id: echo
         run: echo hi

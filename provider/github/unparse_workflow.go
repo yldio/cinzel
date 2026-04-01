@@ -4,29 +4,74 @@
 package github
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
-	"github.com/goccy/go-yaml"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/cinzel/internal/maputil"
 	"github.com/yldio/cinzel/internal/naming"
 	"github.com/yldio/cinzel/provider/github/step"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
-func parseYAMLDocument(content []byte) (map[string]any, error) {
-	var doc map[string]any
+// parseYAMLDocument parses YAML content into a document map and extracts
+// job names in source order in a single pass using the yaml.v3 Node API.
+func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
+	var node yamlv3.Node
 
-	if err := yaml.Unmarshal(content, &doc); err != nil {
-		return nil, err
+	if err := yamlv3.Unmarshal(content, &node); err != nil {
+		return nil, nil, err
 	}
 
-	return doc, nil
+	if len(node.Content) == 0 {
+		return nil, nil, nil
+	}
+
+	var doc map[string]any
+
+	if err := node.Decode(&doc); err != nil {
+		return nil, nil, err
+	}
+
+	return doc, jobOrderFromNode(node.Content[0]), nil
+}
+
+// jobOrderFromNode extracts job names in source order from a yaml.v3 mapping
+// node. It relies on the Node API's preservation of mapping key order, which
+// is not available when unmarshaling directly into map[string]any.
+func jobOrderFromNode(root *yamlv3.Node) []string {
+	if root.Kind != yamlv3.MappingNode {
+		return nil
+	}
+
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == "jobs" {
+			jobs := root.Content[i+1]
+
+			if jobs.Kind != yamlv3.MappingNode {
+				return nil
+			}
+
+			keys := make([]string, 0, len(jobs.Content)/2)
+
+			for j := 0; j+1 < len(jobs.Content); j += 2 {
+				if key := jobs.Content[j].Value; key != "" {
+					keys = append(keys, key)
+				}
+			}
+
+			return keys
+		}
+	}
+
+	return nil
 }
 
 func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, error) {
@@ -46,19 +91,21 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string) ([]byte, error) {
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}
 
 	f, root, workflowBody := newWorkflowRoot(filename)
 	generatedVariables := map[string]any{}
+	stepRegistry := map[string]string{}
+	usedStepIDs := map[string]int{}
 
 	if len(doc.Jobs) == 0 {
 		return nil, errors.New("workflow must define at least one job in 'jobs'")
 	}
 
-	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs)
+	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs, jobOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +122,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string) ([]byte, error)
 		return nil, err
 	}
 
-	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, generatedVariables); err != nil {
+	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, generatedVariables, stepRegistry, usedStepIDs); err != nil {
 		return nil, err
 	}
 
@@ -108,12 +155,12 @@ func unescapeHCLUnicode(src []byte) []byte {
 
 var reHCLUnicodeEscape = regexp.MustCompile(`\\u[0-9a-fA-F]{4}|\\U[0-9a-fA-F]{8}`)
 
-func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, generatedVariables map[string]any) error {
+func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]int) error {
 	stepRefs := []string{}
 
 	for _, key := range sortedKeys(job) {
 		if key == "steps" {
-			refs, err := writeJobSteps(root, jobID, job[key])
+			refs, err := writeJobSteps(root, job[key], stepRegistry, usedStepIDs)
 			if err != nil {
 				return err
 			}
@@ -126,7 +173,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 			jobBody.AppendNewline()
 		}
 
-		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, generatedVariables, &stepRefs); err != nil {
+		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
 			return err
 		}
 	}
@@ -333,7 +380,7 @@ func stepFromMap(value map[string]any) (step.Step, error) {
 	return s, nil
 }
 
-func stepIdentifier(jobID string, idx int, stepMap map[string]any, used map[string]int) string {
+func stepIdentifier(idx int, stepMap map[string]any, used map[string]int) string {
 	id := ""
 
 	if raw, ok := stepMap["id"].(string); ok && raw != "" {
@@ -341,8 +388,28 @@ func stepIdentifier(jobID string, idx int, stepMap map[string]any, used map[stri
 	}
 
 	if id == "" {
-		id = fmt.Sprintf("%s_step_%d", sanitizeIdentifier(jobID), idx+1)
+		if name, ok := stepMap["name"].(string); ok && name != "" {
+			id = sanitizeIdentifier(name)
+		}
 	}
+
+	if id == "" {
+		if uses, ok := stepMap["uses"].(string); ok && uses != "" {
+			id = sanitizeIdentifier(stepActionName(uses))
+		}
+	}
+
+	if id == "" {
+		if run, ok := stepMap["run"].(string); ok && run != "" {
+			id = sanitizeIdentifier(stepFirstWord(run))
+		}
+	}
+
+	if id == "" {
+		id = fmt.Sprintf("step_%d", idx+1)
+	}
+
+	id = strings.ToLower(id)
 
 	if count, exists := used[id]; exists {
 		used[id] = count + 1
@@ -353,6 +420,55 @@ func stepIdentifier(jobID string, idx int, stepMap map[string]any, used map[stri
 	used[id] = 0
 
 	return id
+}
+
+// stepActionName extracts a short name from a uses string such as
+// "actions/checkout@v4" → "checkout".
+func stepActionName(uses string) string {
+	if at := strings.IndexByte(uses, '@'); at >= 0 {
+		uses = uses[:at]
+	}
+
+	if slash := strings.LastIndexByte(uses, '/'); slash >= 0 {
+		uses = uses[slash+1:]
+	}
+
+	return uses
+}
+
+// stepFirstWord returns the first whitespace-delimited word of the first
+// line of a run script, used as a fallback step identifier.
+func stepFirstWord(run string) string {
+	line := run
+
+	if nl := strings.IndexByte(run, '\n'); nl >= 0 {
+		line = run[:nl]
+	}
+
+	line = strings.TrimSpace(line)
+
+	if sp := strings.IndexAny(line, " \t"); sp >= 0 {
+		line = line[:sp]
+	}
+
+	return line
+}
+
+// stepFingerprint returns a canonical string representing the content of a
+// step, excluding the step id field which is assigned by the unparser.
+// Used to detect duplicate steps across jobs.
+func stepFingerprint(stepMap map[string]any) string {
+	m := make(map[string]any, len(stepMap))
+
+	for k, v := range stepMap {
+		if k != "id" {
+			m[k] = v
+		}
+	}
+
+	b, _ := json.Marshal(m)
+
+	return string(b)
 }
 
 func normalizeNeeds(raw any, jobIDMap map[string]string) ([]string, error) {

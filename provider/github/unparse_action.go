@@ -237,7 +237,7 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 			return nil, errors.New("action step must be an object")
 		}
 
-		stepID := stepIdentifier("action", idx, stepObj, used)
+		stepID := stepIdentifier(idx, stepObj, used)
 		parsedStep, err := stepFromMap(stepObj)
 		if err != nil {
 			return nil, err

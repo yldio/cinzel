@@ -14,7 +14,7 @@ import (
 
 func mustParseYAMLDoc(b *testing.B, content []byte) map[string]any {
 	b.Helper()
-	doc, err := parseYAMLDocument(content)
+	doc, _, err := parseYAMLDocument(content)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -116,16 +116,7 @@ func BenchmarkUnparseWorkflowInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		doc, err := classifyWorkflowDocument(mustParseYAMLDoc(b, content))
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		if doc == nil {
-			b.Fatal("expected workflow document")
-		}
-
-		if _, err := workflowToHCL(*doc, "workflow_call"); err != nil {
+		if _, err := unparseYAMLFile(content, "workflow_call"); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -151,7 +142,7 @@ func BenchmarkWorkflowToHCLInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if _, err := workflowToHCL(*doc, "workflow_call"); err != nil {
+		if _, err := workflowToHCL(*doc, "workflow_call", nil); err != nil {
 			b.Fatal(err)
 		}
 	}
