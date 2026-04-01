@@ -21,10 +21,10 @@ job "build" {
   }
 
   steps = [
-    step.build_step_1,
+    step.echo,
   ]
 }
 
-step "build_step_1" {
+step "echo" {
   run = "echo hi"
 }

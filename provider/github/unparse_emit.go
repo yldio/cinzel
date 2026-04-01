@@ -113,7 +113,7 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 	return nil
 }
 
-func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, generatedVariables map[string]any) error {
+func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]int) error {
 	for _, job := range jobs {
 		jobName := job.Name
 		jobMap := job.Body
@@ -125,7 +125,7 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 		jobID := jobIDMap[jobName]
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
 
-		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, generatedVariables); err != nil {
+		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, generatedVariables, stepRegistry, usedStepIDs); err != nil {
 			return fmt.Errorf("error in job '%s': %w", jobName, err)
 		}
 	}
@@ -153,10 +153,10 @@ func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]
 	return nil
 }
 
-func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, generatedVariables map[string]any, stepRefs *[]string) error {
+func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]int, stepRefs *[]string) error {
 	switch key {
 	case "steps":
-		refs, err := writeJobSteps(root, jobID, value)
+		refs, err := writeJobSteps(root, value, stepRegistry, usedStepIDs)
 		if err != nil {
 			return err
 		}
@@ -195,14 +195,13 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	}
 }
 
-func writeJobSteps(root *hclwrite.Body, jobID string, raw any) ([]string, error) {
+func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string, usedStepIDs map[string]int) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
 		return nil, errors.New("job 'steps' must be a list")
 	}
 
-	used := map[string]int{}
 	stepRefs := make([]string, 0, len(items))
 
 	for idx, item := range items {
@@ -212,7 +211,14 @@ func writeJobSteps(root *hclwrite.Body, jobID string, raw any) ([]string, error)
 			return nil, errors.New("job step must be an object")
 		}
 
-		stepID := stepIdentifier(jobID, idx, stepObj, used)
+		if fp := stepFingerprint(stepObj); fp != "" {
+			if existingID, exists := stepRegistry[fp]; exists {
+				stepRefs = append(stepRefs, existingID)
+				continue
+			}
+		}
+
+		stepID := stepIdentifier(idx, stepObj, usedStepIDs)
 		parsedStep, err := stepFromMap(stepObj)
 		if err != nil {
 			return nil, err
@@ -224,6 +230,7 @@ func writeJobSteps(root *hclwrite.Body, jobID string, raw any) ([]string, error)
 			return nil, err
 		}
 
+		stepRegistry[stepFingerprint(stepObj)] = stepID
 		stepRefs = append(stepRefs, stepID)
 	}
 
