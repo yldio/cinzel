@@ -77,11 +77,28 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 
 	seen := map[string]struct{}{}
 
+	// "jobsOrder" is a private sentinel set by the parser to preserve the
+	// HCL-defined job sequence; it must never appear in the YAML output.
+	jobOrder, _ := workflow["jobsOrder"].([]string)
+	seen["jobsOrder"] = struct{}{}
+
 	for _, key := range workflowKeyOrder {
 		value, ok := workflow[key]
 
 		if !ok {
 			continue
+		}
+
+		if key == "jobs" && len(jobOrder) > 0 {
+			if jobsMap, ok := value.(map[string]any); ok {
+				if err := appendOrderedJobsMap(node, jobsMap, jobOrder); err != nil {
+					return nil, err
+				}
+
+				seen[key] = struct{}{}
+
+				continue
+			}
 		}
 
 		if err := appendMappingPair(node, key, value); err != nil {
@@ -230,6 +247,48 @@ func stringNeedsQuoting(v string) bool {
 	}
 
 	return false
+}
+
+// appendOrderedJobsMap writes jobs to node in the order given by jobOrder,
+// appending any jobs not listed in the order (sorted) at the end.
+func appendOrderedJobsMap(node *yamlv3.Node, jobs map[string]any, jobOrder []string) error {
+	mapNode := &yamlv3.Node{Kind: yamlv3.MappingNode}
+	seen := make(map[string]struct{}, len(jobOrder))
+
+	for _, id := range jobOrder {
+		v, ok := jobs[id]
+
+		if !ok {
+			continue
+		}
+
+		if err := appendMappingPair(mapNode, id, v); err != nil {
+			return err
+		}
+
+		seen[id] = struct{}{}
+	}
+
+	remaining := make([]string, 0, len(jobs)-len(seen))
+
+	for k := range jobs {
+		if _, ok := seen[k]; !ok {
+			remaining = append(remaining, k)
+		}
+	}
+
+	sort.Strings(remaining)
+
+	for _, k := range remaining {
+		if err := appendMappingPair(mapNode, k, jobs[k]); err != nil {
+			return err
+		}
+	}
+
+	keyNode := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: "jobs"}
+	node.Content = append(node.Content, keyNode, mapNode)
+
+	return nil
 }
 
 func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
