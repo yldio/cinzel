@@ -1,0 +1,21 @@
+# generated-by: cinzel
+# cinzel-provider: github
+name: CI
+on:
+  push:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - id: echo
+        run: echo hi
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: echo
+        run: echo hi
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - id: echo
+        run: echo hi

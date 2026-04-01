@@ -111,6 +111,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 			}
 
 			workflow.Body["jobs"] = jobs
+			workflow.Body["jobsOrder"] = workflow.JobRefs
 		}
 
 		parsedWorkflows = append(parsedWorkflows, WorkflowYAMLFile{

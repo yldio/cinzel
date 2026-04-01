@@ -114,6 +114,12 @@ func TestParseFormattingSnapshots(t *testing.T) {
 			outputFile: "workflow-parse-expression.yaml",
 			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_expression.golden.yaml"),
 		},
+		{
+			name:       "job order preserved in parse direction",
+			inputFile:  filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_job_order.hcl"),
+			outputFile: "workflow-parse-job-order.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_job_order.golden.yaml"),
+		},
 	}
 
 	for _, tt := range tests {
