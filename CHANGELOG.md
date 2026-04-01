@@ -1,4 +1,11 @@
 cinzel
+## [0.3.2](https://github.com/yldio/cinzel/compare/v0.3.1..v0.3.2) - 2026-04-01
+
+### 🐛 Bug Fixes
+
+- Preserve job order during YAML→HCL unparse using yaml.v3 Node API  (#6) - ([13cac9b](https://github.com/yldio/cinzel/commit/13cac9b2aa5533ee4a12757179b589abfb9ef134))
+
+
 ## [0.3.1](https://github.com/yldio/cinzel/compare/v0.3.0..v0.3.1) - 2026-03-31
 
 ### 🐛 Bug Fixes
