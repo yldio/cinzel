@@ -1,4 +1,11 @@
 cinzel
+## [0.3.3](https://github.com/yldio/cinzel/compare/v0.3.2..v0.3.3) - 2026-04-01
+
+### 🐛 Bug Fixes
+
+- Preserve HCL-defined job order in parse direction YAML output (#7) - ([8d27137](https://github.com/yldio/cinzel/commit/8d27137ca7a11619116860ab420507b402f136ae))
+
+
 ## [0.3.2](https://github.com/yldio/cinzel/compare/v0.3.1..v0.3.2) - 2026-04-01
 
 ### 🐛 Bug Fixes
