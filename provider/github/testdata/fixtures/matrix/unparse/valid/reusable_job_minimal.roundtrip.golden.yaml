@@ -1,5 +1,6 @@
 on:
   push:
+permissions: {}
 jobs:
   call_release:
     secrets: inherit

@@ -1,6 +1,7 @@
 run-name: "${{ github.workflow }} #${{ github.run_number }}"
 on:
   push:
+permissions: {}
 jobs:
   release:
     if: ${{ github.ref == 'refs/heads/main' }}

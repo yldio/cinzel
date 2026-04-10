@@ -46,7 +46,14 @@ func marshalWorkflowYAML(workflow map[string]any) ([]byte, error) {
 		return nil, err
 	}
 
-	out := bytes.ReplaceAll(buf.Bytes(), []byte(": {}\n"), []byte(":\n"))
+	// Strip empty maps (e.g. on: {} → on:) but preserve permissions: {} so it
+	// stays explicit — an absent or null permissions field causes GitHub Actions
+	// to inherit the default token permissions rather than denying all access.
+	// Sentinel-swap: protect permissions: {} before the global strip, restore after.
+	raw := buf.Bytes()
+	raw = bytes.ReplaceAll(raw, []byte("permissions: {}\n"), permissionsEmptySentinel)
+	raw = bytes.ReplaceAll(raw, []byte(": {}\n"), []byte(":\n"))
+	out := bytes.ReplaceAll(raw, permissionsEmptySentinel, []byte("permissions: {}\n"))
 
 	return unescapeYAMLUnicode(out), nil
 }
@@ -71,6 +78,10 @@ func unescapeYAMLUnicode(src []byte) []byte {
 }
 
 var reYAMLUnicodeEscape = regexp.MustCompile(`\\U[0-9A-Fa-f]{8}|\\u[0-9A-Fa-f]{4}`)
+
+// permissionsEmptySentinel is a placeholder used to protect "permissions: {}"
+// from the global empty-map strip in marshalWorkflowYAML.
+var permissionsEmptySentinel = []byte("\x00PERM_EMPTY\x00\n")
 
 func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}

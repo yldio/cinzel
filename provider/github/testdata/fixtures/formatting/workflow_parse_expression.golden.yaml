@@ -3,6 +3,7 @@
 run-name: "${{ github.workflow }} #${{ github.run_number }}"
 on:
   push:
+permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest
