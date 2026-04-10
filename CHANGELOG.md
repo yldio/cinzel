@@ -1,4 +1,11 @@
 cinzel
+## [0.3.4](https://github.com/yldio/cinzel/compare/v0.3.3..v0.3.4) - 2026-04-10
+
+### 🐛 Bug Fixes
+
+- Version comment and permissions (#8) - ([41c8925](https://github.com/yldio/cinzel/commit/41c89255811cb2cd4d6843bdbc3735e4e553626f))
+
+
 ## [0.3.3](https://github.com/yldio/cinzel/compare/v0.3.2..v0.3.3) - 2026-04-01
 
 ### 🐛 Bug Fixes
