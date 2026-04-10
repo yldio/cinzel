@@ -88,8 +88,7 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 
 	seen := map[string]struct{}{}
 
-	// "jobsOrder" is a private sentinel set by the parser to preserve the
-	// HCL-defined job sequence; it must never appear in the YAML output.
+	// "jobsOrder" is a private sentinel that must never appear in the YAML output.
 	jobOrder, _ := workflow["jobsOrder"].([]string)
 	seen["jobsOrder"] = struct{}{}
 
@@ -152,8 +151,48 @@ func appendMappingPair(node *yamlv3.Node, key string, value any) error {
 	return nil
 }
 
+// annotated wraps a value with an optional inline YAML comment.
+// It is used to thread HCL trailing # comments through the map[string]any
+// pipeline so that toYAMLNode can attach them as LineComment on the output node.
+type annotated struct {
+	value   any
+	comment string
+}
+
+// unwrapAnnotated returns the inner value if v is annotated, otherwise v itself.
+// Use this before type-asserting values that may have been produced by parseBodyMap.
+func unwrapAnnotated(v any) any {
+	if a, ok := v.(annotated); ok {
+		return a.value
+	}
+
+	return v
+}
+
+// unwrapAnnotatedMap returns a copy of m with all annotated values replaced by
+// their inner values. Use before passing maps to validators that do not know
+// about the annotated wrapper.
+func unwrapAnnotatedMap(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+
+	for k, v := range m {
+		out[k] = unwrapAnnotated(v)
+	}
+
+	return out
+}
+
 func toYAMLNode(value any) (*yamlv3.Node, error) {
 	switch v := value.(type) {
+	case annotated:
+		node, err := toYAMLNode(v.value)
+		if err != nil {
+			return nil, err
+		}
+
+		node.LineComment = v.comment
+
+		return node, nil
 	case nil:
 		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!null", Value: "null"}, nil
 	case string:

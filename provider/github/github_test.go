@@ -1244,4 +1244,19 @@ workflow "ci" {
 			t.Errorf("expected contents: read in output\ngot:\n%s", yaml)
 		}
 	})
+
+	t.Run("inline comments on permission scopes appear in YAML output", func(t *testing.T) {
+		yaml := parseAndReadYAML(t, minimalWorkflow(`permissions {
+    contents = "read" # only needed for private repos
+    actions  = "read" # required by the action
+  }`))
+
+		if !strings.Contains(yaml, "contents: read # only needed for private repos") {
+			t.Errorf("expected inline comment on contents\ngot:\n%s", yaml)
+		}
+
+		if !strings.Contains(yaml, "actions: read # required by the action") {
+			t.Errorf("expected inline comment on actions\ngot:\n%s", yaml)
+		}
+	})
 }

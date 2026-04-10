@@ -4,8 +4,11 @@
 package github
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -399,6 +402,34 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 	return out, nil
 }
 
+// extractInlineComment reads the source file and returns the trailing # comment
+// on the same line as the attribute, or empty string if none is present.
+func extractInlineComment(attr *hclsyntax.Attribute) string {
+	if attr.SrcRange.Filename == "" {
+		return ""
+	}
+
+	src, err := os.ReadFile(attr.SrcRange.Filename)
+	if err != nil || int(attr.SrcRange.End.Byte) >= len(src) {
+		return ""
+	}
+
+	rest := src[attr.SrcRange.End.Byte:]
+	newline := bytes.IndexByte(rest, '\n')
+
+	if newline < 0 {
+		newline = len(rest)
+	}
+
+	tail := strings.TrimSpace(string(rest[:newline]))
+
+	if !strings.HasPrefix(tail, "#") {
+		return ""
+	}
+
+	return tail
+}
+
 func setOptionalYAMLAttr(out map[string]any, yamlKey string, expr hcl.Expression, hv *hclparser.HCLVars) error {
 	val, err := parseAttr(expr, hv)
 	if err != nil {
@@ -488,7 +519,13 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			out[naming.ToYAMLKey(name)] = val
+			yamlKey := naming.ToYAMLKey(name)
+
+			if c := extractInlineComment(attr); c != "" {
+				out[yamlKey] = annotated{value: val, comment: c}
+			} else {
+				out[yamlKey] = val
+			}
 		}
 	}
 
