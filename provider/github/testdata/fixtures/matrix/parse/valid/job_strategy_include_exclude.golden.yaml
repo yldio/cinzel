@@ -1,5 +1,6 @@
 on:
   push:
+permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest

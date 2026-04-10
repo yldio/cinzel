@@ -1174,3 +1174,74 @@ workflow "ci" {
 		}
 	})
 }
+
+func TestParsePermissionsDefault(t *testing.T) {
+	minimalWorkflow := func(permissionsBlock string) string {
+		return `step "test" { run = "echo hi" }
+
+job "build" {
+  runs_on { runners = "ubuntu-latest" }
+  steps = [step.test]
+}
+
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+  ` + permissionsBlock + `
+}`
+	}
+
+	parseAndReadYAML := func(t *testing.T, hcl string) string {
+		t.Helper()
+
+		tmpDir := t.TempDir()
+		inputFile := filepath.Join(tmpDir, "workflow.hcl")
+		outputDir := filepath.Join(tmpDir, "out")
+
+		if err := os.WriteFile(inputFile, []byte(hcl), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
+			t.Fatal(err)
+		}
+
+		out, err := os.ReadFile(filepath.Join(outputDir, "ci.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return string(out)
+	}
+
+	t.Run("no permissions block emits permissions: {}", func(t *testing.T) {
+		yaml := parseAndReadYAML(t, minimalWorkflow(""))
+
+		if !strings.Contains(yaml, "permissions: {}") {
+			t.Errorf("expected permissions: {} in output\ngot:\n%s", yaml)
+		}
+	})
+
+	t.Run("empty permissions block emits permissions: {}", func(t *testing.T) {
+		yaml := parseAndReadYAML(t, minimalWorkflow("permissions {}"))
+
+		if !strings.Contains(yaml, "permissions: {}") {
+			t.Errorf("expected permissions: {} in output\ngot:\n%s", yaml)
+		}
+	})
+
+	t.Run("explicit scopes are preserved and not replaced with empty", func(t *testing.T) {
+		yaml := parseAndReadYAML(t, minimalWorkflow(`permissions {
+    contents = "read"
+  }`))
+
+		if strings.Contains(yaml, "permissions: {}") {
+			t.Errorf("permissions: {} should not appear when scopes are set\ngot:\n%s", yaml)
+		}
+
+		if !strings.Contains(yaml, "contents: read") {
+			t.Errorf("expected contents: read in output\ngot:\n%s", yaml)
+		}
+	})
+}

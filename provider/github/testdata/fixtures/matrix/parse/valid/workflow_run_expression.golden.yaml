@@ -5,6 +5,7 @@ on:
       - completed
     workflows:
       - Build
+permissions: {}
 jobs:
   build:
     if: ${{ github.ref == 'refs/heads/main' }}

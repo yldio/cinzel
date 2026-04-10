@@ -4,6 +4,7 @@ name: Build
 run-name: "Build #1"
 on:
   push:
+permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest
