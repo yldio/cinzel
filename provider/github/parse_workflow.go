@@ -264,11 +264,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 			return nil, err
 		}
 
-		if len(child) == 0 {
-			out["permissions"] = "read-all"
-		} else {
-			out["permissions"] = child
-		}
+		out["permissions"] = child
 	}
 
 	for _, block := range cfg.Defaults {
@@ -375,11 +371,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 			return nil, err
 		}
 
-		if len(child) == 0 {
-			out["permissions"] = "read-all"
-		} else {
-			out["permissions"] = child
-		}
+		out["permissions"] = child
 	}
 
 	for _, block := range cfg.Defaults {
