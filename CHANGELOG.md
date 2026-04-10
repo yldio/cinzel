@@ -1,4 +1,11 @@
 cinzel
+## [0.4.0](https://github.com/yldio/cinzel/compare/v0.3.5..v0.4.0) - 2026-04-10
+
+### ⛰️  Features
+
+- Propagate HCL inline comments on attributes to YAML output (#10) - ([90ea5d5](https://github.com/yldio/cinzel/commit/90ea5d533954f6364ab108b4245c150f1e36fc25))
+
+
 ## [0.3.5](https://github.com/yldio/cinzel/compare/v0.3.4..v0.3.5) - 2026-04-10
 
 ### 🐛 Bug Fixes
