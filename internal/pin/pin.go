@@ -340,13 +340,11 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			continue
 		}
 
-		// Replace version value in the HCL content.
+		// Replace version value in the HCL content, adding an inline comment
+		// with the original tag so the pinned SHA remains human-readable.
 		oldLine := fmt.Sprintf(`version = %q`, ref.Version)
-		newLine := fmt.Sprintf(`version = %q`, sha)
+		newLine := fmt.Sprintf(`version = %q # %s`, sha, ref.Version)
 		updated = strings.Replace(updated, oldLine, newLine, 1)
-
-		// Add or update the comment above the uses block.
-		updated = upsertUsesComment(updated, ref.Action, ref.Version)
 
 		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, sha[:12])
 
@@ -426,57 +424,6 @@ func findActionRefs(content string) ([]ActionRef, error) {
 	}
 
 	return refs, nil
-}
-
-// upsertUsesComment adds or updates the comment line above a uses block
-// to document the original action and tag. For example:
-//
-//	// actions/checkout v4
-//	uses {
-//	  action  = "actions/checkout"
-//	  version = "abc123..."
-//	}
-func upsertUsesComment(content, action, tag string) string {
-	comment := fmt.Sprintf("// %s %s", action, tag)
-	actionLine := fmt.Sprintf(`action  = %q`, action)
-
-	idx := strings.Index(content, actionLine)
-	if idx <= 0 {
-		return content
-	}
-
-	beforeAction := content[:idx]
-	usesIdx := strings.LastIndex(beforeAction, "uses {")
-
-	if usesIdx < 0 {
-		return content
-	}
-
-	// Find the indent by looking at what's before "uses {" on its line.
-	lineStart := strings.LastIndex(content[:usesIdx], "\n") + 1
-	indent := content[lineStart:usesIdx]
-
-	beforeUses := content[:lineStart]
-	afterUses := content[lineStart:]
-	lines := strings.Split(beforeUses, "\n")
-
-	// Check if the line before uses (skipping blank line) is already a comment.
-	lastIdx := len(lines) - 1
-
-	if lastIdx >= 0 && strings.TrimSpace(lines[lastIdx]) == "" {
-		lastIdx--
-	}
-
-	if lastIdx >= 0 && strings.HasPrefix(strings.TrimSpace(lines[lastIdx]), "//") {
-		// Update existing comment, preserving its indent.
-		existingIndent := lines[lastIdx][:len(lines[lastIdx])-len(strings.TrimLeft(lines[lastIdx], " \t"))]
-		lines[lastIdx] = existingIndent + comment
-
-		return strings.Join(lines, "\n") + afterUses
-	}
-
-	// No existing comment — insert one before uses, same indent.
-	return beforeUses + indent + comment + "\n" + afterUses
 }
 
 // drainAndClose reads the remaining body to enable HTTP connection reuse,

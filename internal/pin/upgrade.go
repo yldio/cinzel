@@ -100,13 +100,10 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			continue
 		}
 
-		// Replace version value.
+		// Replace version value, adding an inline comment with the new tag.
 		oldLine := fmt.Sprintf(`version = %q`, ref.Version)
-		newLine := fmt.Sprintf(`version = %q`, sha)
+		newLine := fmt.Sprintf(`version = %q # %s`, sha, latestTag)
 		updated = strings.Replace(updated, oldLine, newLine, 1)
-
-		// Add or update comment.
-		updated = upsertUsesComment(updated, ref.Action, latestTag)
 
 		_, _ = fmt.Fprintf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, sha[:12])
 
