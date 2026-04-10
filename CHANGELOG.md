@@ -1,4 +1,11 @@
 cinzel
+## [0.3.5](https://github.com/yldio/cinzel/compare/v0.3.4..v0.3.5) - 2026-04-10
+
+### 🐛 Bug Fixes
+
+- *(parse)* Always emit permissions: {} in workflow YAML output (#9) - ([fc0b359](https://github.com/yldio/cinzel/commit/fc0b35912bb0ed8ff133e1a9c5692e47f8950b1a))
+
+
 ## [0.3.4](https://github.com/yldio/cinzel/compare/v0.3.3..v0.3.4) - 2026-04-10
 
 ### 🐛 Bug Fixes
