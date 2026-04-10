@@ -141,24 +141,65 @@ func TestUpgradeDirectoryNoHCL(t *testing.T) {
 	}
 }
 
-func TestUpsertUsesCommentForUpgrade(t *testing.T) {
-	// Verify that upsertUsesComment works when upgrading from v4 to v6.
+type stubUpgrader struct {
+	latestTags map[string]string
+	shas       map[string]string
+}
+
+func (s *stubUpgrader) ResolveTag(_ context.Context, owner, repo, tag string) (string, error) {
+	key := fmt.Sprintf("%s/%s@%s", owner, repo, tag)
+
+	if sha, ok := s.shas[key]; ok {
+		return sha, nil
+	}
+
+	return "", fmt.Errorf("tag not found: %s", key)
+}
+
+func (s *stubUpgrader) LatestTag(_ context.Context, owner, repo string) (string, error) {
+	key := fmt.Sprintf("%s/%s", owner, repo)
+
+	if tag, ok := s.latestTags[key]; ok {
+		return tag, nil
+	}
+
+	return "", fmt.Errorf("no releases for %s", key)
+}
+
+func TestUpgradeInlineComment(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "steps.hcl")
+
 	content := `step "checkout" {
-  // actions/checkout v4
   uses {
     action  = "actions/checkout"
-    version = "old-sha"
+    version = "aabbccddeeff00112233445566778899aabbccdd"
   }
 }
 `
 
-	updated := upsertUsesComment(content, "actions/checkout", "v6")
-
-	if !strings.Contains(updated, "// actions/checkout v6") {
-		t.Errorf("expected comment updated to v6\ngot:\n%s", updated)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
 	}
 
-	if strings.Contains(updated, "// actions/checkout v4") {
-		t.Error("old v4 comment should be replaced")
+	resolver := &stubUpgrader{
+		latestTags: map[string]string{"actions/checkout": "v6"},
+		shas:       map[string]string{"actions/checkout@v6": "b80b16730d25b9d3b6b2df7ca91e17d1ca6b9ef5"},
+	}
+
+	var buf bytes.Buffer
+
+	_, err := UpgradeFile(context.Background(), path, resolver, &buf, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(updated), `"b80b16730d25b9d3b6b2df7ca91e17d1ca6b9ef5" # v6`) {
+		t.Errorf("expected inline tag comment on version line\ngot:\n%s", string(updated))
 	}
 }
