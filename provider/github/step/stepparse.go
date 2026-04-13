@@ -78,7 +78,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		}
 	}
 
-	parsedUses, err := config.parseUses(hv)
+	parsedUses, usesComment, err := config.parseUses(hv)
 	if err != nil {
 		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
 	}
@@ -87,6 +87,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseUses(parsedUses); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.UsesComment = usesComment
 	}
 
 	parsedRun, err := config.parseRun(hv)

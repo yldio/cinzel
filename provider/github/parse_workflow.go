@@ -465,7 +465,7 @@ func parseNamedConfig(cfg hclNamedBlock, hv *hclparser.HCLVars) (string, any, er
 
 func parseUsesBlockFromConfig(cfg hclUsesBlock, hv *hclparser.HCLVars) (string, error) {
 	list := action.UsesListConfig{{Action: cfg.Action, Version: cfg.Version}}
-	val, err := list.Parse(hv)
+	val, _, err := list.Parse(hv)
 	if err != nil {
 		return "", err
 	}
@@ -657,7 +657,7 @@ func parseUsesBlock(body hcl.Body, hv *hclparser.HCLVars) (string, error) {
 	}
 
 	list := action.UsesListConfig{cfg}
-	val, err := list.Parse(hv)
+	val, _, err := list.Parse(hv)
 	if err != nil {
 		return "", err
 	}
@@ -860,6 +860,14 @@ func stepsToMap(steps step.Steps) (map[string]any, error) {
 		converted, err := yamlwriter.Convert(parsedStep)
 		if err != nil {
 			return nil, err
+		}
+
+		if parsedStep.UsesComment != "" {
+			if m, ok := converted.(map[string]any); ok {
+				if usesVal, exists := m["uses"]; exists {
+					m["uses"] = annotated{value: usesVal, comment: parsedStep.UsesComment}
+				}
+			}
 		}
 
 		out[stepID] = converted

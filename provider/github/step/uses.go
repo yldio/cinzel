@@ -21,9 +21,9 @@ func (s *Step) parseUses(value cty.Value) error {
 	}
 }
 
-func (config *StepConfig) parseUses(hv *hclparser.HCLVars) (cty.Value, error) {
+func (config *StepConfig) parseUses(hv *hclparser.HCLVars) (cty.Value, string, error) {
 	if config.Uses == nil {
-		return cty.NilVal, nil
+		return cty.NilVal, "", nil
 	}
 
 	return config.Uses.Parse(hv)
