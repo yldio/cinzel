@@ -39,7 +39,7 @@ func TestUses(t *testing.T) {
 
 		hv := hclparser.NewHCLVars()
 
-		val, err := config.Parse(hv)
+		val, _, err := config.Parse(hv)
 		if err != nil {
 			t.FailNow()
 		}
@@ -66,7 +66,7 @@ func TestUses(t *testing.T) {
 
 		hv := hclparser.NewHCLVars()
 
-		val, err := config.Parse(hv)
+		val, _, err := config.Parse(hv)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestUses(t *testing.T) {
 
 		hv := hclparser.NewHCLVars()
 
-		val, err := config.Parse(hv)
+		val, _, err := config.Parse(hv)
 
 		if err.Error() != expected {
 			t.FailNow()
@@ -131,7 +131,7 @@ func TestUses(t *testing.T) {
 
 		hv := hclparser.NewHCLVars()
 
-		val, err := config.Parse(hv)
+		val, _, err := config.Parse(hv)
 
 		if err.Error() != expected {
 			t.FailNow()
@@ -168,7 +168,7 @@ func TestUses(t *testing.T) {
 
 		hv := hclparser.NewHCLVars()
 
-		val, err := config.Parse(hv)
+		val, _, err := config.Parse(hv)
 
 		if err.Error() != expected {
 			t.FailNow()

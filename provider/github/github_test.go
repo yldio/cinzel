@@ -1260,3 +1260,48 @@ workflow "ci" {
 		}
 	})
 }
+
+func TestParseStepUsesComment(t *testing.T) {
+	hclInput := `
+step "checkout" {
+  uses {
+    action  = "actions/checkout"
+    version = "abc1234abc1234abc1234abc1234abc1234abc123" # v4
+  }
+}
+
+job "build" {
+  runs_on { runners = "ubuntu-latest" }
+  steps = [step.checkout]
+}
+
+workflow "ci" {
+  filename = "ci"
+  on "push" {}
+  jobs = [job.build]
+}
+`
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "workflow.hcl")
+	outputDir := filepath.Join(tmpDir, "out")
+
+	if err := os.WriteFile(inputFile, []byte(hclInput), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(outputDir, "ci.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	yaml := string(out)
+
+	if !strings.Contains(yaml, "uses: actions/checkout@abc1234abc1234abc1234abc1234abc1234abc123 # v4") {
+		t.Errorf("expected inline comment on uses line\ngot:\n%s", yaml)
+	}
+}

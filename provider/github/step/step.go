@@ -25,6 +25,7 @@ type Step struct {
 	If               cty.Value `yaml:"if,omitempty" hcl:"if"`
 	Name             cty.Value `yaml:"name,omitempty" hcl:"name"`
 	Uses             cty.Value `yaml:"uses,omitempty" hcl:"uses"`
+	UsesComment      string    `yaml:"-"`
 	Run              cty.Value `yaml:"run,omitempty" hcl:"run"`
 	WorkingDirectory cty.Value `yaml:"working-directory,omitempty" hcl:"working_directory"`
 	Shell            cty.Value `yaml:"shell,omitempty" hcl:"shell"`
