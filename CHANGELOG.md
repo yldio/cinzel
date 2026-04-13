@@ -1,4 +1,11 @@
 cinzel
+## [0.5.0](https://github.com/yldio/cinzel/compare/v0.4.0..v0.5.0) - 2026-04-13
+
+### ⛰️  Features
+
+- Propagate step uses version inline comment to YAML output (#11) - ([88fa46c](https://github.com/yldio/cinzel/commit/88fa46c302df7db6e9302b48eabea068234b5904))
+
+
 ## [0.4.0](https://github.com/yldio/cinzel/compare/v0.3.5..v0.4.0) - 2026-04-10
 
 ### ⛰️  Features
