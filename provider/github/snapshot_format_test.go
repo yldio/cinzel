@@ -120,6 +120,12 @@ func TestParseFormattingSnapshots(t *testing.T) {
 			outputFile: "workflow-parse-job-order.yaml",
 			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_job_order.golden.yaml"),
 		},
+		{
+			name:       "basic workflow",
+			inputFile:  filepath.Join("testdata", "fixtures", "workflows", "basic_workflow.hcl"),
+			outputFile: "basic_workflow.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "workflows", "basic_workflow.golden.yaml"),
+		},
 	}
 
 	for _, tt := range tests {

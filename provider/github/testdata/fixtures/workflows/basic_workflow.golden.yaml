@@ -1,3 +1,9 @@
+# generated-by: cinzel
+# cinzel-provider: github
+on:
+  push:
+    branches:
+      - main
 permissions: {}
 jobs:
   build:
@@ -7,7 +13,3 @@ jobs:
         uses: actions/checkout@v4
       - id: test
         run: go test ./...
-on:
-  push:
-    branches:
-      - main
