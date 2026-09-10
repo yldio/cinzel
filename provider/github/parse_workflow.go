@@ -52,12 +52,10 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	parsedJobs := make(map[string]ghjob.Parsed)
 
 	for _, j := range cfg.Jobs {
-		jobContent, err := parseJobConfig(j, hv)
+		job, err := parseJobConfig(j, hv)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
 		}
-
-		job := ghjob.NewParsed(j.ID, jobContent)
 
 		if len(job.StepRefs) > 0 {
 			steps := make([]any, 0, len(job.StepRefs))
@@ -85,12 +83,10 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	parsedWorkflows := make([]WorkflowYAMLFile, 0, len(cfg.Workflows))
 
 	for _, wf := range cfg.Workflows {
-		wfContent, err := parseWorkflowConfig(wf, hv)
+		workflow, err := parseWorkflowConfig(wf, hv)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
 		}
-
-		workflow := ghworkflow.NewParsed(wf.ID, wfContent)
 
 		if workflow.Filename == "" {
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, cinzelerror.ErrWorkflowFilenameRequired)
@@ -114,12 +110,12 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 			}
 
 			workflow.Body["jobs"] = jobs
-			workflow.Body["jobsOrder"] = workflow.JobRefs
 		}
 
 		parsedWorkflows = append(parsedWorkflows, WorkflowYAMLFile{
 			Filename: workflow.Filename,
 			Content:  workflow.Body,
+			JobOrder: workflow.JobRefs,
 		})
 	}
 
@@ -131,29 +127,33 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	return parsedWorkflows, stepMap, parsedActions, nil
 }
 
-func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, error) {
-	out := make(map[string]any)
+// parseJobConfig converts one job block. Step references are returned as a
+// field rather than smuggled through the body map.
+func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error) {
+	job := ghjob.Parsed{ID: cfg.ID, Body: map[string]any{}}
+	out := job.Body
 
 	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "if", cfg.If, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "uses", cfg.Uses, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
-	if refs, err := parseReferenceList(cfg.Steps, "step"); err != nil {
-		return nil, err
-	} else if len(refs) > 0 {
-		out["stepsRefs"] = refs
+	stepRefs, err := parseReferenceList(cfg.Steps, "step")
+	if err != nil {
+		return ghjob.Parsed{}, err
 	}
+
+	job.StepRefs = stepRefs
 
 	if refs, err := parseReferenceList(cfg.DependsOn, "job"); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	} else if len(refs) > 0 {
 		deps := make([]any, 0, len(refs))
 
@@ -165,21 +165,21 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "secrets", cfg.Secrets, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "continue-on-error", cfg.ContinueOnError, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "timeout-minutes", cfg.TimeoutMinutes, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
 	for _, usesBlock := range cfg.UsesBlocks {
 		usesValue, err := parseUsesBlockFromConfig(usesBlock, hv)
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["uses"] = usesValue
@@ -188,7 +188,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.WithBlocks {
 		key, value, err := parseNamedConfig(block, hv)
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		withMap := getOrCreateMap(out, "with")
@@ -198,7 +198,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.EnvBlocks {
 		key, value, err := parseNamedConfig(block, hv)
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		envMap := getOrCreateMap(out, "env")
@@ -208,7 +208,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.OutputBlocks {
 		key, value, err := parseNamedConfig(block, hv)
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		outputsMap := getOrCreateMap(out, "outputs")
@@ -218,7 +218,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.SecretBlocks {
 		key, value, err := parseNamedConfig(block, hv)
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		secretsMap := getOrCreateMap(out, "secrets")
@@ -228,7 +228,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.ServiceBlocks {
 		serviceVal, err := parseBodyMap(block.Body, hv, "service")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		servicesMap := getOrCreateMap(out, "services")
@@ -238,7 +238,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.RunsOnBlocks {
 		runsOnValue, err := parseBodyMap(block.Body, hv, "runs_on")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		if runners, ok := runsOnValue["runners"]; ok && len(runsOnValue) == 1 {
@@ -251,20 +251,20 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.StrategyBlocks {
 		strategyValue, err := parseBodyMap(block.Body, hv, "strategy")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["strategy"] = strategyValue
 	}
 
 	if err := setOptionalYAMLAttr(out, "permissions", cfg.PermAttr, hv); err != nil {
-		return nil, err
+		return ghjob.Parsed{}, err
 	}
 
 	for _, block := range cfg.Permissions {
 		child, err := parseBodyMap(block.Body, hv, "permissions")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["permissions"] = child
@@ -273,7 +273,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.Defaults {
 		child, err := parseBodyMap(block.Body, hv, "defaults")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["defaults"] = child
@@ -282,7 +282,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.Concurrency {
 		child, err := parseBodyMap(block.Body, hv, "concurrency")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["concurrency"] = child
@@ -291,7 +291,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.Container {
 		child, err := parseBodyMap(block.Body, hv, "container")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["container"] = child
@@ -300,48 +300,55 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (map[string]any, err
 	for _, block := range cfg.Environment {
 		child, err := parseBodyMap(block.Body, hv, "environment")
 		if err != nil {
-			return nil, err
+			return ghjob.Parsed{}, err
 		}
 
 		out["environment"] = child
 	}
 
-	return out, nil
+	return job, nil
 }
 
-func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[string]any, error) {
-	out := make(map[string]any)
+// parseWorkflowConfig converts one workflow block. The filename and the job
+// references are returned as fields rather than smuggled through the body map.
+func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflow.Parsed, error) {
+	workflow := ghworkflow.Parsed{ID: cfg.ID, Body: map[string]any{}}
+	out := workflow.Body
 
-	if err := setOptionalYAMLAttr(out, "filename", cfg.Filename, hv); err != nil {
-		return nil, err
+	filename, err := parseAttr(cfg.Filename, hv)
+	if err != nil {
+		return ghworkflow.Parsed{}, err
 	}
 
+	workflow.Filename, _ = filename.(string)
+
 	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
-		return nil, err
+		return ghworkflow.Parsed{}, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "run-name", cfg.RunName, hv); err != nil {
-		return nil, err
+		return ghworkflow.Parsed{}, err
 	}
 
-	if refs, err := parseReferenceList(cfg.Jobs, "job"); err != nil {
-		return nil, err
-	} else if len(refs) > 0 {
-		out["jobsRefs"] = refs
+	jobRefs, err := parseReferenceList(cfg.Jobs, "job")
+	if err != nil {
+		return ghworkflow.Parsed{}, err
 	}
+
+	workflow.JobRefs = jobRefs
 
 	if err := setOptionalYAMLAttr(out, "permissions", cfg.Permissions, hv); err != nil {
-		return nil, err
+		return ghworkflow.Parsed{}, err
 	}
 
 	if err := setOptionalYAMLAttr(out, "concurrency", cfg.Concurrency, hv); err != nil {
-		return nil, err
+		return ghworkflow.Parsed{}, err
 	}
 
 	for _, on := range cfg.On {
 		eventValue, err := parseBodyMap(on.Body, hv, "on")
 		if err != nil {
-			return nil, err
+			return ghworkflow.Parsed{}, err
 		}
 
 		eventName := on.ID
@@ -361,7 +368,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 	for _, block := range cfg.Env {
 		key, value, err := parseNamedConfig(block, hv)
 		if err != nil {
-			return nil, err
+			return ghworkflow.Parsed{}, err
 		}
 
 		envMap := getOrCreateMap(out, "env")
@@ -371,7 +378,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 	for _, block := range cfg.PermBlocks {
 		child, err := parseBodyMap(block.Body, hv, "permissions")
 		if err != nil {
-			return nil, err
+			return ghworkflow.Parsed{}, err
 		}
 
 		out["permissions"] = child
@@ -384,7 +391,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 	for _, block := range cfg.Defaults {
 		child, err := parseBodyMap(block.Body, hv, "defaults")
 		if err != nil {
-			return nil, err
+			return ghworkflow.Parsed{}, err
 		}
 
 		out["defaults"] = child
@@ -393,13 +400,13 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (map[strin
 	for _, block := range cfg.ConcBlocks {
 		child, err := parseBodyMap(block.Body, hv, "concurrency")
 		if err != nil {
-			return nil, err
+			return ghworkflow.Parsed{}, err
 		}
 
 		out["concurrency"] = child
 	}
 
-	return out, nil
+	return workflow, nil
 }
 
 // extractInlineComment reads the source file and returns the trailing # comment
@@ -488,18 +495,6 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		attr := sb.Attributes[name]
 
 		switch {
-		case scope == "workflow" && name == "jobs":
-			refs, err := parseReferenceList(attr.Expr, "job")
-			if err != nil {
-				return nil, err
-			}
-			out["jobsRefs"] = refs
-		case scope == "job" && name == "steps":
-			refs, err := parseReferenceList(attr.Expr, "step")
-			if err != nil {
-				return nil, err
-			}
-			out["stepsRefs"] = refs
 		case scope == "job" && name == "depends_on":
 			refs, err := parseReferenceList(attr.Expr, "job")
 			if err != nil {

@@ -21,19 +21,18 @@ var workflowKeyOrder = []string{
 	"jobs",
 }
 
-func marshalWorkflowYAML(workflow map[string]any) ([]byte, error) {
-	return yamldoc.Encode(workflowDoc(workflow))
+// marshalWorkflowYAML renders a workflow or action. jobOrder is the order the
+// jobs were declared in; an empty order sorts them.
+func marshalWorkflowYAML(workflow map[string]any, jobOrder []string) ([]byte, error) {
+	return yamldoc.Encode(workflowDoc(workflow, jobOrder))
 }
 
 // workflowDoc converts a workflow map into an ordered document: root keys
-// follow workflowKeyOrder with the rest sorted, jobs follow the "jobsOrder"
-// sentinel, and nested maps are sorted.
-func workflowDoc(workflow map[string]any) *yamldoc.Doc {
+// follow workflowKeyOrder with the rest sorted, jobs follow jobOrder, and
+// nested maps are sorted.
+func workflowDoc(workflow map[string]any, jobOrder []string) *yamldoc.Doc {
 	doc := yamldoc.New()
-	seen := map[string]struct{}{"jobsOrder": {}}
-
-	// "jobsOrder" is a private sentinel that must never appear in the output.
-	jobOrder, _ := workflow["jobsOrder"].([]string)
+	seen := map[string]struct{}{}
 
 	for _, key := range workflowKeyOrder {
 		value, ok := workflow[key]

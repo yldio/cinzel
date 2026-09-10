@@ -171,36 +171,6 @@ func TestValidateModelNoJobs(t *testing.T) {
 	}
 }
 
-func TestNewParsed(t *testing.T) {
-	body := map[string]any{
-		"filename": "ci",
-		"jobsRefs": []string{"build", "test"},
-		"on":       map[string]any{"push": map[string]any{}},
-	}
-
-	p := NewParsed("my_workflow", body)
-
-	if p.Filename != "ci" {
-		t.Fatalf("expected ci, got %s", p.Filename)
-	}
-
-	if len(p.JobRefs) != 2 {
-		t.Fatalf("expected 2 job refs, got %d", len(p.JobRefs))
-	}
-
-	if _, ok := p.Body["filename"]; ok {
-		t.Fatal("expected filename to be removed from body")
-	}
-
-	if _, ok := p.Body["jobsRefs"]; ok {
-		t.Fatal("expected jobsRefs to be removed from body")
-	}
-
-	if _, ok := p.Body["on"]; !ok {
-		t.Fatal("expected on to remain in body")
-	}
-}
-
 func TestDenormalizeScheduleEvent(t *testing.T) {
 	t.Run("multiple crons", func(t *testing.T) {
 		normalized := map[string]any{

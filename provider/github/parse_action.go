@@ -19,13 +19,10 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 	result := make([]ActionYAMLFile, 0, len(actions))
 
 	for _, a := range actions {
-		content, err := parseActionConfig(a, hv, stepMap)
+		content, filename, err := parseActionConfig(a, hv, stepMap)
 		if err != nil {
 			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
 		}
-
-		filename, _ := content["_filename"].(string)
-		delete(content, "_filename")
 
 		if filename == "" {
 			filename = "action"
@@ -40,42 +37,47 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 	return result, nil
 }
 
-func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
+// parseActionConfig converts one action block, returning its content and the
+// filename to write it under.
+func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, string, error) {
 	out := make(map[string]any)
 
-	if err := setOptionalYAMLAttr(out, "_filename", cfg.Filename, hv); err != nil {
-		return nil, err
+	filename, err := parseAttr(cfg.Filename, hv)
+	if err != nil {
+		return nil, "", err
 	}
 
+	name, _ := filename.(string)
+
 	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if err := setOptionalYAMLAttr(out, "description", cfg.Description, hv); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if err := setOptionalYAMLAttr(out, "author", cfg.Author, hv); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	for _, input := range cfg.Inputs {
 		inputMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(inputMap, "description", input.Description, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "required", input.Required, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "default", input.Default, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "deprecation-message", input.DeprecationMessage, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		inputs := getOrCreateMap(out, "inputs")
@@ -86,11 +88,11 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		outputMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(outputMap, "description", output.Description, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		if err := setOptionalYAMLAttr(outputMap, "value", output.Value, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		outputs := getOrCreateMap(out, "outputs")
@@ -100,7 +102,7 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 	for _, runs := range cfg.Runs {
 		runsMap, err := parseActionRunsConfig(runs, hv, stepMap)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		out["runs"] = runsMap
@@ -110,17 +112,17 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		brandingMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(brandingMap, "icon", branding.Icon, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		if err := setOptionalYAMLAttr(brandingMap, "color", branding.Color, hv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		out["branding"] = brandingMap
 	}
 
-	return out, nil
+	return out, name, nil
 }
 
 func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {

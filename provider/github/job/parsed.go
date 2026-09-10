@@ -12,18 +12,6 @@ type Parsed struct {
 	StepRefs []string
 }
 
-// NewParsed creates a Parsed job, extracting step references from the body.
-func NewParsed(id string, body map[string]any) Parsed {
-	j := Parsed{ID: id, Body: body}
-
-	if refs, ok := body["stepsRefs"].([]string); ok {
-		j.StepRefs = refs
-		delete(j.Body, "stepsRefs")
-	}
-
-	return j
-}
-
 // ValidationModel contains the fields needed to validate a job definition.
 type ValidationModel struct {
 	ID         string
