@@ -23,32 +23,6 @@ type ValidationModel struct {
 	Needs      []string
 }
 
-// ModelFromParsed builds a ValidationModel from a Parsed job.
-func ModelFromParsed(p Parsed) (ValidationModel, error) {
-	uses, _ := nonEmptyString(p.Body["uses"])
-	needs, err := NeedsFromYAML(p.Body["needs"])
-	if err != nil {
-		return ValidationModel{}, err
-	}
-
-	m := ValidationModel{
-		ID:         p.ID,
-		Uses:       uses,
-		HasRunsOn:  p.Body["runs-on"] != nil,
-		HasWith:    p.Body["with"] != nil,
-		HasSecrets: p.Body["secrets"] != nil,
-		Needs:      needs,
-	}
-
-	stepCount, err := stepCountFromRaw(p.Body)
-	if err != nil {
-		return ValidationModel{}, err
-	}
-	m.StepCount = stepCount
-
-	return m, nil
-}
-
 // ModelFromYAML builds a ValidationModel from raw YAML job data.
 func ModelFromYAML(id string, raw map[string]any) (ValidationModel, error) {
 	uses, _ := nonEmptyString(raw["uses"])

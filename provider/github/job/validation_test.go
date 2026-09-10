@@ -162,16 +162,13 @@ func TestNeedsFromYAML(t *testing.T) {
 	})
 }
 
-func TestModelFromParsed(t *testing.T) {
+func TestModelFromYAMLParsedBody(t *testing.T) {
 	t.Run("basic job", func(t *testing.T) {
-		p := Parsed{
-			ID: "build",
-			Body: map[string]any{
-				"runs-on": "ubuntu-latest",
-				"steps":   []any{map[string]any{"run": "echo hi"}},
-			},
+		body := map[string]any{
+			"runs-on": "ubuntu-latest",
+			"steps":   []any{map[string]any{"run": "echo hi"}},
 		}
-		m, err := ModelFromParsed(p)
+		m, err := ModelFromYAML("build", body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -186,13 +183,10 @@ func TestModelFromParsed(t *testing.T) {
 	})
 
 	t.Run("reusable workflow job", func(t *testing.T) {
-		p := Parsed{
-			ID: "call",
-			Body: map[string]any{
-				"uses": "org/repo/.github/workflows/ci.yml@main",
-			},
+		body := map[string]any{
+			"uses": "org/repo/.github/workflows/ci.yml@main",
 		}
-		m, err := ModelFromParsed(p)
+		m, err := ModelFromYAML("call", body)
 		if err != nil {
 			t.Fatal(err)
 		}

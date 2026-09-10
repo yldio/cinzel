@@ -67,6 +67,20 @@ func TestValidateExpressions(t *testing.T) {
 		}
 	})
 
+	// An attribute carrying an inline comment used to be wrapped, and the
+	// wrapper made walkStrings skip its value entirely.
+	t.Run("commented attribute is still validated", func(t *testing.T) {
+		wf := map[string]any{
+			"env": map[string]any{
+				"URL": annotated{value: "${{ broken", comment: "# staging only"},
+			},
+		}
+
+		if err := validateExpressions(plainMap(wf)); err == nil {
+			t.Fatal("expected error for unclosed expression behind a comment")
+		}
+	})
+
 	t.Run("unclosed in nested step", func(t *testing.T) {
 		wf := map[string]any{
 			"jobs": map[string]any{

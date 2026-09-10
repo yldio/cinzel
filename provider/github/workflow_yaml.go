@@ -138,33 +138,49 @@ func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 	}
 }
 
-// annotated wraps a value with an optional inline YAML comment.
-// It is used to thread HCL trailing # comments through the map[string]any
-// pipeline so that docValue can attach them to the document value.
+// annotated wraps a value with an optional inline YAML comment. It threads
+// HCL trailing # comments through the map[string]any parse pipeline so that
+// docValue can attach them to the document value.
+//
+// Nothing outside the emitter should see it: plain is the single boundary
+// where it comes back off, and every consumer that reads parsed content
+// rather than emitting it goes through plain first.
 type annotated struct {
 	value   any
 	comment string
 }
 
-// unwrapAnnotated returns the inner value if v is annotated, otherwise v itself.
-// Use this before type-asserting values that may have been produced by parseBodyMap.
-func unwrapAnnotated(v any) any {
-	if a, ok := v.(annotated); ok {
-		return a.value
-	}
+// plain returns value with every annotated wrapper removed, at any depth.
+// Maps and slices are copied, so the result can be handed to code that
+// mutates its argument.
+func plain(value any) any {
+	switch v := value.(type) {
+	case annotated:
+		return plain(v.value)
+	case map[string]any:
+		out := make(map[string]any, len(v))
 
-	return v
+		for key, child := range v {
+			out[key] = plain(child)
+		}
+
+		return out
+	case []any:
+		out := make([]any, 0, len(v))
+
+		for _, child := range v {
+			out = append(out, plain(child))
+		}
+
+		return out
+	default:
+		return value
+	}
 }
 
-// unwrapAnnotatedMap returns a copy of m with all annotated values replaced by
-// their inner values. Use before passing maps to validators that do not know
-// about the annotated wrapper.
-func unwrapAnnotatedMap(m map[string]any) map[string]any {
-	out := make(map[string]any, len(m))
-
-	for k, v := range m {
-		out[k] = unwrapAnnotated(v)
-	}
+// plainMap is plain for a value already known to be a map.
+func plainMap(mapping map[string]any) map[string]any {
+	out, _ := plain(mapping).(map[string]any)
 
 	return out
 }
