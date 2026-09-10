@@ -135,6 +135,14 @@ func TestParseFormattingSnapshots(t *testing.T) {
 			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_fidelity.golden.yaml"),
 		},
 		{
+			// Step-only output: no workflow or action block, so Parse writes a
+			// mapping of step id to step. A commented "uses" must survive.
+			name:       "step only with comment and non-ascii",
+			inputFile:  filepath.Join("testdata", "fixtures", "formatting", "step_only_fidelity.hcl"),
+			outputFile: "step_only_fidelity.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "formatting", "step_only_fidelity.golden.yaml"),
+		},
+		{
 			// A run script whose own content ends in ": {}". The emitter's
 			// document-wide empty-map collapse must not reach inside a scalar.
 			name:       "empty map inside run script literal",

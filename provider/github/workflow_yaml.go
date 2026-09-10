@@ -27,6 +27,12 @@ func marshalWorkflowYAML(workflow map[string]any, jobOrder []string) ([]byte, er
 	return yamldoc.Encode(workflowDoc(workflow, jobOrder))
 }
 
+// marshalStepsYAML renders the step-only output: a mapping of step id to
+// step, with no workflow key order to apply.
+func marshalStepsYAML(steps map[string]any) ([]byte, error) {
+	return yamldoc.Encode(orderedDoc(steps, nil))
+}
+
 // workflowDoc converts a workflow map into an ordered document: root keys
 // follow workflowKeyOrder with the rest sorted, jobs follow jobOrder, and
 // nested maps are sorted.
