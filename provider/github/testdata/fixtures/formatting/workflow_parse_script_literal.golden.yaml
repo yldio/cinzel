@@ -1,0 +1,15 @@
+# generated-by: cinzel
+# cinzel-provider: github
+on:
+  push:
+permissions: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: write_config
+        run: |
+          cat > cfg.yaml <<'YAML'
+          overrides: {}
+          YAML
+          echo done

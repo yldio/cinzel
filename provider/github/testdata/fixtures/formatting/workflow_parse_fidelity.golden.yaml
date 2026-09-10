@@ -1,0 +1,16 @@
+# generated-by: cinzel
+# cinzel-provider: github
+name: Fidelity ✅
+on:
+  push:
+permissions: {}
+defaults:
+jobs:
+  build:
+    permissions:
+      actions: read # required by the action
+      contents: read # only needed for private repos
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v4
