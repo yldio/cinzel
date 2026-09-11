@@ -43,13 +43,13 @@ func Encode(d *Doc) ([]byte, error) {
 func mapNode(d *Doc) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
 
-	for _, item := range d.items {
-		value, err := valueNode(item.Value)
+	for _, it := range d.items {
+		value, err := valueNode(it.value)
 		if err != nil {
 			return nil, err
 		}
 
-		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: item.Key}
+		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: it.key}
 		node.Content = append(node.Content, key, value)
 	}
 
@@ -69,12 +69,12 @@ func valueNode(v Value) (*yamlv3.Node, error) {
 
 func kindNode(v Value) (*yamlv3.Node, error) {
 	switch v.kind {
-	case KindNull:
+	case kindNull:
 		// An empty Value, not "null": the latter would emit "key: null".
 		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!null", Value: ""}, nil
-	case KindMap:
+	case kindMap:
 		return mapNode(v.doc)
-	case KindSeq:
+	case kindSeq:
 		node := &yamlv3.Node{Kind: yamlv3.SequenceNode}
 
 		for _, item := range v.seq {

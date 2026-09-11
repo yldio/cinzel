@@ -3,24 +3,20 @@
 
 package yamldoc
 
-// Kind identifies which of a Value's payloads is populated.
-type Kind int
+// kind identifies which of a Value's payloads is populated.
+type kind int
 
 const (
-	// KindNull is a null value. It encodes as a bare "key:".
-	KindNull Kind = iota
-	// KindScalar is a string, bool or numeric value.
-	KindScalar
-	// KindMap is a nested mapping. An empty map encodes as "key: {}".
-	KindMap
-	// KindSeq is a sequence.
-	KindSeq
+	kindNull kind = iota
+	kindScalar
+	kindMap
+	kindSeq
 )
 
 // Value is a single YAML value together with the fidelity facts the encoder
 // needs: its kind, and any inline comment that followed it in the source.
 type Value struct {
-	kind    Kind
+	kind    kind
 	scalar  any
 	doc     *Doc
 	seq     []Value
@@ -38,8 +34,8 @@ func WithComment(comment string) Opt {
 	}
 }
 
-func newValue(kind Kind, opts []Opt) Value {
-	value := Value{kind: kind}
+func newValue(k kind, opts []Opt) Value {
+	value := Value{kind: k}
 
 	for _, opt := range opts {
 		opt(&value)
@@ -50,13 +46,13 @@ func newValue(kind Kind, opts []Opt) Value {
 
 // Null returns a null value, encoded as a bare "key:".
 func Null(opts ...Opt) Value {
-	return newValue(KindNull, opts)
+	return newValue(kindNull, opts)
 }
 
 // Scalar returns a scalar value. Strings, bools and numeric types are encoded
 // with their YAML type preserved; anything else is formatted with %v.
 func Scalar(scalar any, opts ...Opt) Value {
-	value := newValue(KindScalar, opts)
+	value := newValue(kindScalar, opts)
 	value.scalar = scalar
 
 	return value
@@ -65,7 +61,7 @@ func Scalar(scalar any, opts ...Opt) Value {
 // Map returns a mapping value wrapping doc. A nil or empty doc encodes as
 // "key: {}"; a caller that wants a bare "key:" uses Null.
 func Map(doc *Doc, opts ...Opt) Value {
-	value := newValue(KindMap, opts)
+	value := newValue(kindMap, opts)
 
 	if doc == nil {
 		doc = New()
@@ -78,43 +74,41 @@ func Map(doc *Doc, opts ...Opt) Value {
 
 // Seq returns a sequence value.
 func Seq(items []Value, opts ...Opt) Value {
-	value := newValue(KindSeq, opts)
+	value := newValue(kindSeq, opts)
 	value.seq = items
 
 	return value
 }
 
-// Item is one key/value pair in a Doc, in the order it was set.
-type Item struct {
-	Key   string
-	Value Value
+type item struct {
+	key   string
+	value Value
 }
 
 // Doc is an ordered mapping. Items keep the order in which they were set,
 // which for a parsed document is the order they appeared in the source.
 type Doc struct {
-	items []Item
-	index map[string]int
+	items []item
 }
 
 // New returns an empty Doc.
 func New() *Doc {
-	return &Doc{index: map[string]int{}}
+	return &Doc{}
 }
 
 // Set adds key with the given value, or replaces the value if key is already
 // present. Replacing keeps the key's original position.
+//
+// ponytail: linear scan. Documents here hold tens of keys at most; swap in an
+// index if one ever holds thousands.
 func (d *Doc) Set(key string, value Value) {
-	if d.index == nil {
-		d.index = map[string]int{}
+	for i := range d.items {
+		if d.items[i].key == key {
+			d.items[i].value = value
+
+			return
+		}
 	}
 
-	if pos, ok := d.index[key]; ok {
-		d.items[pos].Value = value
-
-		return
-	}
-
-	d.index[key] = len(d.items)
-	d.items = append(d.items, Item{Key: key, Value: value})
+	d.items = append(d.items, item{key: key, value: value})
 }
