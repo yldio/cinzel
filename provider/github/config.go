@@ -43,6 +43,7 @@ type hclGenericBlock struct {
 
 type hclJobBlock struct {
 	ID              string             `hcl:"id,label"`
+	Key             hcl.Expression     `hcl:"id,optional"`
 	Name            hcl.Expression     `hcl:"name,optional"`
 	If              hcl.Expression     `hcl:"if,optional"`
 	Uses            hcl.Expression     `hcl:"uses,optional"`

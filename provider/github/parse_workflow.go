@@ -80,6 +80,8 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 		return nil, nil, nil, err
 	}
 
+	remapJobNeeds(parsedJobs)
+
 	parsedWorkflows := make([]WorkflowYAMLFile, 0, len(cfg.Workflows))
 
 	for _, wf := range cfg.Workflows {
@@ -99,6 +101,8 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 		if len(workflow.JobRefs) > 0 {
 			jobs := make(map[string]any)
 
+			jobOrder := make([]string, 0, len(workflow.JobRefs))
+
 			for _, jobID := range workflow.JobRefs {
 				jobContent, exists := parsedJobs[jobID]
 
@@ -106,10 +110,12 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 					return nil, nil, nil, fmt.Errorf("error in workflow '%s': cannot find job '%s'", wf.ID, jobID)
 				}
 
-				jobs[jobID] = jobContent.Body
+				jobs[jobContent.Key] = jobContent.Body
+				jobOrder = append(jobOrder, jobContent.Key)
 			}
 
 			workflow.Body["jobs"] = jobs
+			workflow.JobRefs = jobOrder
 		}
 
 		parsedWorkflows = append(parsedWorkflows, WorkflowYAMLFile{
@@ -127,11 +133,58 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	return parsedWorkflows, stepMap, parsedActions, nil
 }
 
+// remapJobNeeds rewrites "needs" entries from block labels to the YAML keys the
+// jobs are written under. They differ when a job carries an "id" attribute.
+func remapJobNeeds(jobs map[string]ghjob.Parsed) {
+	keys := make(map[string]string, len(jobs))
+
+	for label, job := range jobs {
+		keys[label] = job.Key
+	}
+
+	for _, job := range jobs {
+		needs, ok := job.Body["needs"].([]any)
+
+		if !ok {
+			continue
+		}
+
+		for i, dep := range needs {
+			label, ok := dep.(string)
+
+			if !ok {
+				continue
+			}
+
+			if key, found := keys[label]; found {
+				needs[i] = key
+			}
+		}
+	}
+}
+
 // parseJobConfig converts one job block. Step references are returned as a
 // field rather than smuggled through the body map.
 func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error) {
-	job := ghjob.Parsed{ID: cfg.ID, Body: map[string]any{}}
+	job := ghjob.Parsed{ID: cfg.ID, Key: cfg.ID, Body: map[string]any{}}
 	out := job.Body
+
+	// An "id" attribute carries a YAML key the block label cannot spell, such
+	// as "build-and-test". The label stays the reference name.
+	key, err := parseAttr(cfg.Key, hv)
+	if err != nil {
+		return ghjob.Parsed{}, err
+	}
+
+	if key != nil {
+		str, ok := key.(string)
+
+		if !ok || str == "" {
+			return ghjob.Parsed{}, errJobIDNotString
+		}
+
+		job.Key = str
+	}
 
 	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
 		return ghjob.Parsed{}, err

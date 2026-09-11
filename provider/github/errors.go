@@ -15,4 +15,5 @@ var (
 	errNamedBlockMissingName  = errors.New("block must include a 'name' attribute")
 	errNamedBlockMissingValue = errors.New("block must include a 'value' attribute")
 	errWorkflowYAMLOnJobs     = errors.New("workflow YAML must define both 'on' and 'jobs'")
+	errJobIDNotString         = errors.New("job 'id' must be a non-empty string")
 )
