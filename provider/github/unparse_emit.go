@@ -125,6 +125,13 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 		jobID := jobIDMap[jobName]
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
 
+		// A YAML key like "build-and-test" cannot be a block label, so the
+		// label is sanitized and the original kept as an attribute. Parse
+		// prefers the attribute when writing the job back out.
+		if jobName != jobID {
+			jobBlock.Body().SetAttributeValue("id", cty.StringVal(jobName))
+		}
+
 		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, generatedVariables, stepRegistry, usedStepIDs); err != nil {
 			return fmt.Errorf("error in job '%s': %w", jobName, err)
 		}

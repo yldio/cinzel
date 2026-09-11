@@ -7,7 +7,10 @@ import "fmt"
 
 // Parsed holds the intermediate representation of a job after HCL parsing.
 type Parsed struct {
-	ID       string
+	ID string
+	// Key is the job's YAML key. It differs from ID when the original key
+	// could not be an HCL block label, e.g. "build-and-test".
+	Key      string
 	Body     map[string]any
 	StepRefs []string
 }
