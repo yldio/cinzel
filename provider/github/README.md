@@ -174,6 +174,8 @@ Test coverage includes golden fixtures, a fixture-driven compatibility matrix un
 
 ## Known limitations
 
+- Keys inside `container`, `defaults`, `concurrency` and `environment` become HCL identifiers, and parse reads `_` back as `-`. A key holding an underscore or a character outside an identifier (a dot, say) is rejected on unparse rather than written out corrupted. No key in the GitHub schema for these blocks is affected.
+
 - Not every GitHub Actions schema edge case or uncommon field combination is covered. The most common workflow, job, step, and action fields are supported.
 - Roundtrip output is semantically stable but not byte-stable: key ordering and formatting may normalize even when the meaning is preserved.
 
