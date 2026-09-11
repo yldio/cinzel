@@ -1,4 +1,11 @@
 cinzel
+## [0.5.2](https://github.com/yldio/cinzel/compare/v0.5.1..v0.5.2) - 2026-09-11
+
+### 🐛 Bug Fixes
+
+- *(github)* Keep job keys that are not valid HCL labels (#15) - ([624e214](https://github.com/yldio/cinzel/commit/624e214f6629d66cbcdb1050073183d36f6a66b5))
+
+
 ## [0.5.1](https://github.com/yldio/cinzel/compare/v0.5.0..v0.5.1) - 2026-09-11
 
 ### 🚜 Refactor
