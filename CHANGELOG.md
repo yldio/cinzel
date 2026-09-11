@@ -1,4 +1,11 @@
 cinzel
+## [0.5.6](https://github.com/yldio/cinzel/compare/v0.5.5..v0.5.6) - 2026-09-11
+
+### 🐛 Bug Fixes
+
+- *(gitlab)* Keep job and template names that are not HCL identifiers (#21) - ([6a681fc](https://github.com/yldio/cinzel/commit/6a681fc3d36e4fdd12e081d0d75a468b5628c1f3))
+
+
 ## [0.5.5](https://github.com/yldio/cinzel/compare/v0.5.4..v0.5.5) - 2026-09-11
 
 ### 🐛 Bug Fixes
