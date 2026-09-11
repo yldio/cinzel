@@ -1,4 +1,15 @@
 cinzel
+## [0.5.4](https://github.com/yldio/cinzel/compare/v0.5.2..v0.5.4) - 2026-09-11
+
+### 🐛 Bug Fixes
+
+- *(github)* Reject nested block keys that cannot be written back (#18) - ([00c4e00](https://github.com/yldio/cinzel/commit/00c4e00d043129e1e5f8698adb9107c1a72a19e6))
+
+### 📚 Documentation
+
+- *(github)* Correct why job keys are renamed (#16) - ([29c259e](https://github.com/yldio/cinzel/commit/29c259ec14308a90b8ea43dac74565bf8885d966))
+
+
 ## [0.5.2](https://github.com/yldio/cinzel/compare/v0.5.1..v0.5.2) - 2026-09-11
 
 ### 🐛 Bug Fixes
