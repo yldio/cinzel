@@ -257,32 +257,43 @@ func setAsHeredoc(content string) hclwrite.Tokens {
 	content = strings.Trim(content, "\n")
 	lines := strings.Split(content, "\n")
 
+	// Heredoc tokens, with each line's newline inside the token rather than in
+	// a separate TokenNewline. hclwrite.Format re-indents and re-spaces tokens
+	// it reads as structure, which rewrites a shell script as if it were HCL:
+	// "${{" becomes "${ {", ">>" becomes "> >", "if [ -n" becomes "if[-n".
+	// Typed this way the body is opaque to it. The "<<-" form is required
+	// because Format indents the closing marker.
 	tokens := hclwrite.Tokens{
 		{
-			Type:  hclsyntax.TokenOQuote,
-			Bytes: []byte("<<EOF"),
-		},
-		{
-			Type:  hclsyntax.TokenNewline,
-			Bytes: []byte("\n"),
+			Type:  hclsyntax.TokenOHeredoc,
+			Bytes: []byte("<<-EOF\n"),
 		},
 	}
 
 	for _, line := range lines {
 		tokens = append(tokens, &hclwrite.Token{
-			Type:  hclsyntax.TokenQuotedLit,
-			Bytes: []byte(line),
-		}, &hclwrite.Token{
-			Type:         hclsyntax.TokenNewline,
-			Bytes:        []byte("\n"),
-			SpacesBefore: 0,
+			Type:  hclsyntax.TokenStringLit,
+			Bytes: []byte(escapeTemplateMarkers(line) + "\n"),
 		})
 	}
 
 	tokens = append(tokens, &hclwrite.Token{
-		Type:  hclsyntax.TokenCQuote,
+		Type:  hclsyntax.TokenCHeredoc,
 		Bytes: []byte("EOF"),
 	})
 
 	return tokens
+}
+
+
+// escapeTemplateMarkers doubles the "$" and "%" that open an HCL template
+// sequence. Format reads a heredoc body byte by byte, so an unescaped "${"
+// puts it into template mode and it re-spaces the rest as HCL: a GitHub
+// expression "${{ x }}" comes back as "${ { x } }". Doubling matches how
+// hclwrite writes ordinary string attributes, and parse turns "$${{" back
+// into "${{".
+func escapeTemplateMarkers(line string) string {
+	line = strings.ReplaceAll(line, "${", "$${")
+
+	return strings.ReplaceAll(line, "%{", "%%{")
 }
