@@ -52,12 +52,6 @@ workflow "release" {
     contents = "read"
   }
 
-  on "push" {
-    branches = [
-      "main"
-    ]
-  }
-
   on "workflow_dispatch" {
     input "tag" {
       description = "Release tag (leave empty for auto-calculation)"
