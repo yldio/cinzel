@@ -51,5 +51,9 @@ cannot restore the block style. That is an encoder defect, not a
 representation one; fixing it means replacing or patching yaml.v3.
 
 The GitLab emitter (`provider/gitlab/pipeline_yaml.go`) still does the old
-byte rewrite and has its own copy of the unicode unescape. It has the same
-`: {}` corruption bug and has not been moved.
+byte rewrite and has its own copy of the unicode unescape. It has not been
+moved, and it does not have the corruption bug: it never forces literal style,
+so a multi-line script containing `overrides: {}` is double-quoted and the
+rewrite cannot reach it. Moving it is a tidying job, not a fix, and an attempt
+showed the swap is not behaviour-preserving: `yamldoc.Null()` and
+`yamldoc.Map()` do not reproduce `cache: null` or a `- {}` sequence entry.
