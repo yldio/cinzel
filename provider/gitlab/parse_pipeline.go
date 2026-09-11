@@ -49,6 +49,10 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 
 	jobs := make(map[string]any)
 	seenJobs := make(map[string]struct{})
+	// keys maps a block label to the YAML key the block is written under. The two
+	// differ when the block carries an "id" attribute; "needs" and "extends" name
+	// labels and have to be rewritten once every key is known.
+	keys := make(map[string]string)
 
 	for _, j := range cfg.Jobs {
 		if _, exists := seenJobs[j.ID]; exists {
@@ -60,7 +64,18 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
 		}
-		jobs[j.ID] = jobMap
+
+		key, err := blockKey(j.ID, j.Key, hv)
+		if err != nil {
+			return nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
+		}
+
+		if _, taken := jobs[key]; taken {
+			return nil, fmt.Errorf("duplicate job name '%s'", key)
+		}
+
+		keys[j.ID] = key
+		jobs[key] = jobMap
 	}
 
 	if len(cfg.Workflow) > 1 {
@@ -101,8 +116,21 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
 		}
-		jobs["."+t.ID] = templateMap
+
+		key, err := blockKey(t.ID, t.Key, hv)
+		if err != nil {
+			return nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
+		}
+
+		if _, taken := jobs["."+key]; taken {
+			return nil, fmt.Errorf("duplicate template name '%s'", key)
+		}
+
+		keys["."+t.ID] = "." + key
+		jobs["."+key] = templateMap
 	}
+
+	remapJobRefs(jobs, keys)
 
 	if err := validatePipeline(pipeline, jobs); err != nil {
 		return nil, err
@@ -842,4 +870,59 @@ func isNilOrEmptyCollectionExpr(expr hcl.Expression) bool {
 	}
 
 	return false
+}
+
+// blockKey returns the YAML key a job or template block is written under. An
+// "id" attribute carries the original key when the label had to be sanitized to
+// be referenceable, e.g. "build-app" becomes the label "build_app".
+func blockKey(label string, expr hcl.Expression, hv *hclparser.HCLVars) (string, error) {
+	value, err := parseAttr(expr, hv)
+	if err != nil {
+		return "", err
+	}
+
+	if value == nil {
+		return label, nil
+	}
+
+	key, ok := value.(string)
+
+	if !ok || key == "" {
+		return "", errBlockIDNotString
+	}
+
+	return key, nil
+}
+
+// remapJobRefs rewrites "needs" and "extends" entries from block labels to the
+// keys the jobs and templates are written under. They differ when a block
+// carries an "id" attribute.
+func remapJobRefs(jobs map[string]any, keys map[string]string) {
+	for _, raw := range jobs {
+		job, ok := raw.(map[string]any)
+
+		if !ok {
+			continue
+		}
+
+		for _, field := range [...]string{"needs", "extends"} {
+			refs, ok := job[field].([]any)
+
+			if !ok {
+				continue
+			}
+
+			for i, ref := range refs {
+				label, ok := ref.(string)
+
+				if !ok {
+					continue
+				}
+
+				if key, found := keys[label]; found {
+					refs[i] = key
+				}
+			}
+		}
+	}
 }

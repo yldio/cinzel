@@ -10,4 +10,5 @@ var (
 	errInputPathConflict     = errors.New("`file` and `directory` cannot be set together")
 	errParseNotImplemented   = errors.New("gitlab parse is not implemented yet")
 	errUnparseNotImplemented = errors.New("gitlab unparse is not implemented yet")
+	errBlockIDNotString      = errors.New("'id' must be a non-empty string")
 )

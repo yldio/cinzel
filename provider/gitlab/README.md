@@ -86,6 +86,7 @@ template "go_base" {
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
 - Parse output includes cinzel provider markers in YAML headers (`generated-by` and `cinzel-provider`).
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
+- A job or template name that is not a valid HCL identifier is sanitized to make the block referenceable (`build-app` becomes the label `build_app`) and the original name is kept in an `id` attribute, so the name and any `needs` or `extends` pointing at it survive the roundtrip.
 - Repeated `include {}` blocks map to YAML `include:` entries.
 - Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.
 - Parse schema is defined by typed HCL structs in `provider/gitlab/config.go`; `hcl:",remain"` is used only for intentional pass-through islands.

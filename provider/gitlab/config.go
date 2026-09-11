@@ -56,6 +56,7 @@ type hclVariableBlock struct {
 
 type hclJobBlock struct {
 	ID            string              `hcl:"id,label"`
+	Key           hcl.Expression      `hcl:"id,optional"`
 	Stage         hcl.Expression      `hcl:"stage,optional"`
 	Image         hcl.Expression      `hcl:"image,optional"`
 	Script        hcl.Expression      `hcl:"script,optional"`
@@ -89,6 +90,7 @@ type hclWorkflowBlock struct {
 
 type hclTemplateBlock struct {
 	ID            string              `hcl:"id,label"`
+	Key           hcl.Expression      `hcl:"id,optional"`
 	Stage         hcl.Expression      `hcl:"stage,optional"`
 	Image         hcl.Expression      `hcl:"image,optional"`
 	Script        hcl.Expression      `hcl:"script,optional"`
