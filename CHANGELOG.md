@@ -1,4 +1,15 @@
 cinzel
+## [0.5.1](https://github.com/yldio/cinzel/compare/v0.5.0..v0.5.1) - 2026-09-11
+
+### 🚜 Refactor
+
+- *(github)* Emit workflow YAML from an ordered document, and fix three data-loss bugs (#12) - ([aff44cd](https://github.com/yldio/cinzel/commit/aff44cd65f8790b0189388c5cb5ba01f408b1caa))
+
+### 📚 Documentation
+
+- Add cinzelrc path portability across OS - ([0f5b9fb](https://github.com/yldio/cinzel/commit/0f5b9fb657053b7bdd70096be8c273e1534f86c2))
+
+
 ## [0.5.0](https://github.com/yldio/cinzel/compare/v0.4.0..v0.5.0) - 2026-04-13
 
 ### ⛰️  Features
