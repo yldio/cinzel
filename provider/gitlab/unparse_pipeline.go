@@ -6,6 +6,7 @@ package gitlab
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -169,7 +170,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 		db := body.AppendNewBlock("default", nil)
 
-		if err := writeGenericMap(db.Body(), defaultMap); err != nil {
+		if err := writeGenericMap(db.Body(), defaultMap, defaultSchema); err != nil {
 			return nil, err
 		}
 	}
@@ -275,8 +276,11 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 			writeBlockKey(tb.Body(), strings.TrimPrefix(key, "."), tplID)
 
-			if err := writeGenericMap(tb.Body(), hiddenJobMap); err != nil {
-				return nil, err
+			// A template body is a job body: it takes the same rule, cache,
+			// artifacts and service blocks, which the generic writer would
+			// write as attributes.
+			if err := writeJobBlock(tb.Body(), hiddenJobMap, jobIDMap, templateIDMap); err != nil {
+				return nil, fmt.Errorf("error in template '%s': %w", key, err)
 			}
 			continue
 		}
@@ -287,7 +291,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			}
 			gb := body.AppendNewBlock(key, nil)
 
-			if err := writeGenericMap(gb.Body(), genericMap); err != nil {
+			if err := writeGenericMap(gb.Body(), genericMap, passthroughSchema); err != nil {
 				return nil, err
 			}
 		} else {
@@ -393,8 +397,13 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				return fmt.Errorf("%s must be an object", key)
 			}
 			b := body.AppendNewBlock(key, nil)
+			schema := cacheSchema
 
-			if err := writeGenericMap(b.Body(), mapVal); err != nil {
+			if key == "artifacts" {
+				schema = artifactsSchema
+			}
+
+			if err := writeGenericMap(b.Body(), mapVal, schema); err != nil {
 				return err
 			}
 		case "services":
@@ -464,7 +473,78 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 	return nil
 }
 
-func writeGenericMap(body *hclwrite.Body, mapping map[string]any) error {
+// bodySchema says which keys of a block body the HCL schema in config.go
+// declares as nested blocks. Without it the writer guesses from the value's
+// shape and turns every nested map into a block, which the parser then rejects
+// for a key the schema declares as an attribute.
+type bodySchema struct {
+	// any is set for a body declared with `hcl:",remain"`, which takes a
+	// block of any name.
+	any    bool
+	blocks map[string]bodySchema
+}
+
+// child returns the schema for a nested block named key, and whether the body
+// takes one at all.
+func (s bodySchema) child(key string) (bodySchema, bool) {
+	if child, ok := s.blocks[key]; ok {
+		return child, true
+	}
+
+	if s.any {
+		return s, true
+	}
+
+	return bodySchema{}, false
+}
+
+// schemaOf reads a bodySchema off the hcl tags of a config struct.
+func schemaOf(v any) bodySchema {
+	return schemaOfType(reflect.TypeOf(v))
+}
+
+func schemaOfType(t reflect.Type) bodySchema {
+	schema := bodySchema{blocks: map[string]bodySchema{}}
+
+	for i := range t.NumField() {
+		field := t.Field(i)
+		tag, ok := field.Tag.Lookup("hcl")
+
+		if !ok {
+			continue
+		}
+
+		name, kind, _ := strings.Cut(tag, ",")
+
+		switch kind {
+		case "remain":
+			schema.any = true
+		case "block":
+			elem := field.Type
+
+			for elem.Kind() == reflect.Slice || elem.Kind() == reflect.Pointer {
+				elem = elem.Elem()
+			}
+
+			schema.blocks[name] = schemaOfType(elem)
+		}
+	}
+
+	return schema
+}
+
+var (
+	defaultSchema   = schemaOf(hclDefaultBlock{})
+	cacheSchema     = schemaOf(hclCacheBlock{})
+	artifactsSchema = schemaOf(hclArtifactsBlock{})
+	serviceSchema   = schemaOf(hclServiceBlock{})
+	includeSchema   = schemaOf(hclIncludeBlock{})
+	// passthroughSchema is used for a top-level key outside the schema, where
+	// there is nothing to check against.
+	passthroughSchema = bodySchema{any: true}
+)
+
+func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySchema) error {
 	for _, key := range sortedKeys(mapping) {
 		value := mapping[key]
 
@@ -476,12 +556,14 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any) error {
 		}
 
 		if nested, ok := toStringAnyMap(value); ok {
-			b := body.AppendNewBlock(key, nil)
+			if child, isBlock := schema.child(key); isBlock {
+				b := body.AppendNewBlock(key, nil)
 
-			if err := writeGenericMap(b.Body(), nested); err != nil {
-				return err
+				if err := writeGenericMap(b.Body(), nested, child); err != nil {
+					return err
+				}
+				continue
 			}
-			continue
 		}
 
 		if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
@@ -508,7 +590,7 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 				return err
 			}
 		case map[string]any:
-			if err := writeGenericMap(sb.Body(), service); err != nil {
+			if err := writeGenericMap(sb.Body(), service, serviceSchema); err != nil {
 				return err
 			}
 		default:
@@ -532,7 +614,7 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any) error {
 	case map[string]any:
 		ib := body.AppendNewBlock("include", nil)
 
-		return writeGenericMap(ib.Body(), include)
+		return writeGenericMap(ib.Body(), include, includeSchema)
 	case []any:
 		for _, item := range include {
 			switch v := item.(type) {
@@ -545,7 +627,7 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any) error {
 			case map[string]any:
 				ib := body.AppendNewBlock("include", nil)
 
-				if err := writeGenericMap(ib.Body(), v); err != nil {
+				if err := writeGenericMap(ib.Body(), v, includeSchema); err != nil {
 					return err
 				}
 			default:

@@ -88,6 +88,7 @@ template "go_base" {
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
 - A job or template name that is not a valid HCL identifier is sanitized to make the block referenceable (`build-app` becomes the label `build_app`) and the original name is kept in an `id` attribute, so the name and any `needs` or `extends` pointing at it survive the roundtrip.
 - Repeated `include {}` blocks map to YAML `include:` entries.
+- Whether a nested map becomes an HCL block or an object attribute follows the schema in `provider/gitlab/config.go`, not the value's shape: `artifacts.reports` is a block, while `cache.key`, `service.variables`, `default.retry` and `include.inputs` are attributes.
 - Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.
 - Parse schema is defined by typed HCL structs in `provider/gitlab/config.go`; `hcl:",remain"` is used only for intentional pass-through islands.
 - Unparse schema validation favors strict typed YAML decode over manual key allowlist tables.
