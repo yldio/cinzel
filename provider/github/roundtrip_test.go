@@ -24,6 +24,7 @@ func TestWorkflowRoundtripFixtures(t *testing.T) {
 		"container_services",
 		"runs_on_list",
 		"local_action",
+		"run_script_roundtrip",
 	}
 
 	for _, fixture := range fixtures {

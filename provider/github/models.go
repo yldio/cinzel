@@ -3,8 +3,10 @@
 
 package github
 
-// WorkflowYAMLFile pairs a workflow filename with its marshalled YAML content.
+// WorkflowYAMLFile pairs a workflow filename with its YAML content and the
+// order its jobs were declared in, which the emitter reproduces.
 type WorkflowYAMLFile struct {
 	Filename string
 	Content  map[string]any
+	JobOrder []string
 }

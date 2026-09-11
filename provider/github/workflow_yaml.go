@@ -4,15 +4,10 @@
 package github
 
 import (
-	"bytes"
 	"fmt"
-	"regexp"
 	"sort"
-	"strconv"
-	"strings"
-	"unicode/utf8"
 
-	yamlv3 "gopkg.in/yaml.v3"
+	"github.com/yldio/cinzel/internal/yamldoc"
 )
 
 var workflowKeyOrder = []string{
@@ -26,71 +21,24 @@ var workflowKeyOrder = []string{
 	"jobs",
 }
 
-func marshalWorkflowYAML(workflow map[string]any) ([]byte, error) {
-	rootNode, err := workflowMapNode(workflow)
-	if err != nil {
-		return nil, err
-	}
-
-	doc := &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{rootNode}}
-
-	var buf bytes.Buffer
-	enc := yamlv3.NewEncoder(&buf)
-	enc.SetIndent(2)
-
-	if err := enc.Encode(doc); err != nil {
-		return nil, err
-	}
-
-	if err := enc.Close(); err != nil {
-		return nil, err
-	}
-
-	// Strip empty maps (e.g. on: {} → on:) but preserve permissions: {} so it
-	// stays explicit — an absent or null permissions field causes GitHub Actions
-	// to inherit the default token permissions rather than denying all access.
-	// Sentinel-swap: protect permissions: {} before the global strip, restore after.
-	raw := buf.Bytes()
-	raw = bytes.ReplaceAll(raw, []byte("permissions: {}\n"), permissionsEmptySentinel)
-	raw = bytes.ReplaceAll(raw, []byte(": {}\n"), []byte(":\n"))
-	out := bytes.ReplaceAll(raw, permissionsEmptySentinel, []byte("permissions: {}\n"))
-
-	return unescapeYAMLUnicode(out), nil
+// marshalWorkflowYAML renders a workflow or action. jobOrder is the order the
+// jobs were declared in; an empty order sorts them.
+func marshalWorkflowYAML(workflow map[string]any, jobOrder []string) ([]byte, error) {
+	return yamldoc.Encode(workflowDoc(workflow, jobOrder))
 }
 
-// unescapeYAMLUnicode replaces \uXXXX and \UXXXXXXXX escape sequences in YAML
-// output with their raw UTF-8 equivalents for characters above U+009F.
-// gopkg.in/yaml.v3 escapes supplementary-plane characters (emoji etc.) because
-// its is_printable helper only handles 3-byte UTF-8 sequences. Replacing the
-// escapes restores readable output without changing the YAML semantics.
-func unescapeYAMLUnicode(src []byte) []byte {
-	return reYAMLUnicodeEscape.ReplaceAllFunc(src, func(match []byte) []byte {
-		n, err := strconv.ParseInt(string(match[2:]), 16, 32)
-		if err != nil || n <= 0x9F || !utf8.ValidRune(rune(n)) {
-			return match
-		}
-
-		var buf [utf8.UTFMax]byte
-		l := utf8.EncodeRune(buf[:], rune(n))
-
-		return append([]byte(nil), buf[:l]...)
-	})
+// marshalStepsYAML renders the step-only output: a mapping of step id to
+// step, with no workflow key order to apply.
+func marshalStepsYAML(steps map[string]any) ([]byte, error) {
+	return yamldoc.Encode(orderedDoc(steps, nil))
 }
 
-var reYAMLUnicodeEscape = regexp.MustCompile(`\\U[0-9A-Fa-f]{8}|\\u[0-9A-Fa-f]{4}`)
-
-// permissionsEmptySentinel is a placeholder used to protect "permissions: {}"
-// from the global empty-map strip in marshalWorkflowYAML.
-var permissionsEmptySentinel = []byte("\x00PERM_EMPTY\x00\n")
-
-func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
-	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
-
+// workflowDoc converts a workflow map into an ordered document: root keys
+// follow workflowKeyOrder with the rest sorted, jobs follow jobOrder, and
+// nested maps are sorted.
+func workflowDoc(workflow map[string]any, jobOrder []string) *yamldoc.Doc {
+	doc := yamldoc.New()
 	seen := map[string]struct{}{}
-
-	// "jobsOrder" is a private sentinel that must never appear in the YAML output.
-	jobOrder, _ := workflow["jobsOrder"].([]string)
-	seen["jobsOrder"] = struct{}{}
 
 	for _, key := range workflowKeyOrder {
 		value, ok := workflow[key]
@@ -99,263 +47,146 @@ func workflowMapNode(workflow map[string]any) (*yamlv3.Node, error) {
 			continue
 		}
 
-		if key == "jobs" && len(jobOrder) > 0 {
-			if jobsMap, ok := value.(map[string]any); ok {
-				if err := appendOrderedJobsMap(node, jobsMap, jobOrder); err != nil {
-					return nil, err
-				}
-
-				seen[key] = struct{}{}
-
-				continue
-			}
-		}
-
-		if err := appendMappingPair(node, key, value); err != nil {
-			return nil, err
-		}
-
 		seen[key] = struct{}{}
-	}
 
-	remaining := make([]string, 0, len(workflow))
+		if jobs, ok := value.(map[string]any); ok && key == "jobs" && len(jobOrder) > 0 {
+			doc.Set(key, yamldoc.Map(orderedDoc(jobs, jobOrder)))
 
-	for key := range workflow {
-		if _, ok := seen[key]; ok {
 			continue
 		}
 
-		remaining = append(remaining, key)
+		doc.Set(key, docValue(key, value))
 	}
 
-	sort.Strings(remaining)
+	appendSorted(doc, workflow, seen)
 
-	for _, key := range remaining {
-		if err := appendMappingPair(node, key, workflow[key]); err != nil {
-			return nil, err
-		}
-	}
-
-	return node, nil
+	return doc
 }
 
-func appendMappingPair(node *yamlv3.Node, key string, value any) error {
-	valueNode, err := toYAMLNode(value)
-	if err != nil {
-		return err
-	}
+// orderedDoc converts mapping with the keys in order first and the rest sorted.
+func orderedDoc(mapping map[string]any, order []string) *yamldoc.Doc {
+	doc := yamldoc.New()
+	seen := make(map[string]struct{}, len(order))
 
-	keyNode := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: key}
-	node.Content = append(node.Content, keyNode, valueNode)
-
-	return nil
-}
-
-// annotated wraps a value with an optional inline YAML comment.
-// It is used to thread HCL trailing # comments through the map[string]any
-// pipeline so that toYAMLNode can attach them as LineComment on the output node.
-type annotated struct {
-	value   any
-	comment string
-}
-
-// unwrapAnnotated returns the inner value if v is annotated, otherwise v itself.
-// Use this before type-asserting values that may have been produced by parseBodyMap.
-func unwrapAnnotated(v any) any {
-	if a, ok := v.(annotated); ok {
-		return a.value
-	}
-
-	return v
-}
-
-// unwrapAnnotatedMap returns a copy of m with all annotated values replaced by
-// their inner values. Use before passing maps to validators that do not know
-// about the annotated wrapper.
-func unwrapAnnotatedMap(m map[string]any) map[string]any {
-	out := make(map[string]any, len(m))
-
-	for k, v := range m {
-		out[k] = unwrapAnnotated(v)
-	}
-
-	return out
-}
-
-func toYAMLNode(value any) (*yamlv3.Node, error) {
-	switch v := value.(type) {
-	case annotated:
-		node, err := toYAMLNode(v.value)
-		if err != nil {
-			return nil, err
-		}
-
-		node.LineComment = v.comment
-
-		return node, nil
-	case nil:
-		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!null", Value: "null"}, nil
-	case string:
-		node := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: v}
-
-		if strings.Contains(v, "\n") {
-			node.Style = yamlv3.LiteralStyle
-
-			return node, nil
-		}
-
-		if stringNeedsQuoting(v) {
-			node.Style = yamlv3.DoubleQuotedStyle
-		}
-
-		return node, nil
-	case bool:
-		if v {
-			return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!bool", Value: "true"}, nil
-		}
-
-		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!bool", Value: "false"}, nil
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: fmt.Sprintf("%v", v)}, nil
-	case []any:
-		node := &yamlv3.Node{Kind: yamlv3.SequenceNode}
-
-		for _, item := range v {
-			child, err := toYAMLNode(item)
-			if err != nil {
-				return nil, err
-			}
-
-			node.Content = append(node.Content, child)
-		}
-
-		return node, nil
-	case map[string]any:
-		return genericMapNode(v)
-	case map[any]any:
-		stringMap := make(map[string]any, len(v))
-
-		for rawKey, rawValue := range v {
-			key, ok := rawKey.(string)
-
-			if !ok {
-				return nil, fmt.Errorf("unsupported non-string YAML key type %T", rawKey)
-			}
-
-			stringMap[key] = rawValue
-		}
-
-		return genericMapNode(stringMap)
-	default:
-		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: fmt.Sprintf("%v", v)}, nil
-	}
-}
-
-// stringNeedsQuoting returns true if a YAML string value would be
-// misinterpreted without quotes (e.g., looks like a number, boolean,
-// null, or contains special characters).
-func stringNeedsQuoting(v string) bool {
-	if v == "" || v == "true" || v == "false" || v == "null" || v == "~" ||
-		v == "yes" || v == "no" || v == "on" || v == "off" {
-		return true
-	}
-
-	// If it parses as a number, it needs quoting to stay a string.
-
-	if _, err := fmt.Sscanf(v, "%f", new(float64)); err == nil {
-		// Extra check: "v" must be fully numeric (Sscanf can match a prefix).
-		isNumeric := true
-
-		for _, c := range v {
-			if !((c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E') {
-				isNumeric = false
-				break
-			}
-		}
-
-		if isNumeric {
-			return true
-		}
-	}
-
-	// Characters that are special in YAML and require quoting.
-
-	for _, c := range v {
-		switch c {
-		case ':', '#', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '`':
-			return true
-		}
-	}
-
-	// Strings starting with YAML indicators.
-
-	if len(v) > 0 {
-		switch v[0] {
-		case '?', '-', '"', '\'':
-			return true
-		}
-	}
-
-	return false
-}
-
-// appendOrderedJobsMap writes jobs to node in the order given by jobOrder,
-// appending any jobs not listed in the order (sorted) at the end.
-func appendOrderedJobsMap(node *yamlv3.Node, jobs map[string]any, jobOrder []string) error {
-	mapNode := &yamlv3.Node{Kind: yamlv3.MappingNode}
-	seen := make(map[string]struct{}, len(jobOrder))
-
-	for _, id := range jobOrder {
-		v, ok := jobs[id]
+	for _, key := range order {
+		value, ok := mapping[key]
 
 		if !ok {
 			continue
 		}
 
-		if err := appendMappingPair(mapNode, id, v); err != nil {
-			return err
-		}
-
-		seen[id] = struct{}{}
+		doc.Set(key, docValue(key, value))
+		seen[key] = struct{}{}
 	}
 
-	remaining := make([]string, 0, len(jobs)-len(seen))
+	appendSorted(doc, mapping, seen)
 
-	for k := range jobs {
-		if _, ok := seen[k]; !ok {
-			remaining = append(remaining, k)
+	return doc
+}
+
+func appendSorted(doc *yamldoc.Doc, mapping map[string]any, seen map[string]struct{}) {
+	remaining := make([]string, 0, len(mapping)-len(seen))
+
+	for key := range mapping {
+		if _, ok := seen[key]; !ok {
+			remaining = append(remaining, key)
 		}
 	}
 
 	sort.Strings(remaining)
 
-	for _, k := range remaining {
-		if err := appendMappingPair(mapNode, k, jobs[k]); err != nil {
-			return err
-		}
+	for _, key := range remaining {
+		doc.Set(key, docValue(key, mapping[key]))
 	}
-
-	keyNode := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: "jobs"}
-	node.Content = append(node.Content, keyNode, mapNode)
-
-	return nil
 }
 
-func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
-	keys := make([]string, 0, len(mapping))
-
-	for key := range mapping {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
-
-	for _, key := range keys {
-		if err := appendMappingPair(node, key, mapping[key]); err != nil {
-			return nil, err
+// docValue converts one value. key is the key the value was found under, which
+// decides whether an empty map stays explicit: an empty "permissions" does,
+// because an absent or null permissions field makes GitHub Actions inherit the
+// default token permissions rather than denying all access. Every other empty
+// map collapses to a bare "key:".
+func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
+	switch v := value.(type) {
+	case annotated:
+		return docValue(key, v.value, append(opts, yamldoc.WithComment(v.comment))...)
+	case nil:
+		return yamldoc.Null(opts...)
+	case map[string]any:
+		if len(v) == 0 && key != "permissions" {
+			return yamldoc.Null(opts...)
 		}
-	}
 
-	return node, nil
+		return yamldoc.Map(orderedDoc(v, nil), opts...)
+	case map[any]any:
+		stringMap := make(map[string]any, len(v))
+
+		for rawKey, rawValue := range v {
+			name, ok := rawKey.(string)
+
+			if !ok {
+				name = fmt.Sprintf("%v", rawKey)
+			}
+
+			stringMap[name] = rawValue
+		}
+
+		return docValue(key, stringMap, opts...)
+	case []any:
+		items := make([]yamldoc.Value, 0, len(v))
+
+		for _, item := range v {
+			items = append(items, docValue(key, item))
+		}
+
+		return yamldoc.Seq(items, opts...)
+	default:
+		return yamldoc.Scalar(v, opts...)
+	}
+}
+
+// annotated wraps a value with an optional inline YAML comment. It threads
+// HCL trailing # comments through the map[string]any parse pipeline so that
+// docValue can attach them to the document value.
+//
+// Nothing outside the emitter should see it: plain is the single boundary
+// where it comes back off, and every consumer that reads parsed content
+// rather than emitting it goes through plain first.
+type annotated struct {
+	value   any
+	comment string
+}
+
+// plain returns value with every annotated wrapper removed, at any depth.
+// Maps and slices are copied, so the result can be handed to code that
+// mutates its argument.
+func plain(value any) any {
+	switch v := value.(type) {
+	case annotated:
+		return plain(v.value)
+	case map[string]any:
+		out := make(map[string]any, len(v))
+
+		for key, child := range v {
+			out[key] = plain(child)
+		}
+
+		return out
+	case []any:
+		out := make([]any, 0, len(v))
+
+		for _, child := range v {
+			out = append(out, plain(child))
+		}
+
+		return out
+	default:
+		return value
+	}
+}
+
+// plainMap is plain for a value already known to be a map.
+func plainMap(mapping map[string]any) map[string]any {
+	out, _ := plain(mapping).(map[string]any)
+
+	return out
 }

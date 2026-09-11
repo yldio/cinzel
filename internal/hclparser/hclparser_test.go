@@ -152,3 +152,33 @@ func TestParserHandlesTupleAndUnaryExpressions(t *testing.T) {
 		})
 	}
 }
+
+func TestResultNormalizesNewlines(t *testing.T) {
+	// A heredoc read from a CRLF checkout used to carry \r into the value,
+	// which YAML cannot write as a literal block.
+	t.Run("CRLF becomes LF", func(t *testing.T) {
+		hp := &HCLParser{result: cty.StringVal("echo one\r\necho two\r\n")}
+
+		if got := hp.Result().AsString(); got != "echo one\necho two\n" {
+			t.Errorf("got %q", got)
+		}
+	})
+
+	t.Run("a lone CR is left alone", func(t *testing.T) {
+		hp := &HCLParser{result: cty.StringVal("a\rb")}
+
+		if got := hp.Result().AsString(); got != "a\rb" {
+			t.Errorf("got %q", got)
+		}
+	})
+
+	t.Run("non-strings and unset results pass through", func(t *testing.T) {
+		for _, val := range []cty.Value{cty.NilVal, cty.NullVal(cty.String), cty.NumberIntVal(1), cty.True} {
+			hp := &HCLParser{result: val}
+
+			if got := hp.Result(); got != val {
+				t.Errorf("%#v became %#v", val, got)
+			}
+		}
+	})
+}

@@ -1,0 +1,11 @@
+# generated-by: cinzel
+# cinzel-provider: github
+checkout:
+  id: checkout
+  uses: actions/checkout@v4 # pinned by policy
+lint:
+  id: lint
+  name: Lint ✅
+  run: |
+    echo one
+    echo two

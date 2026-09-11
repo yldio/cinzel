@@ -142,11 +142,7 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 	// Validate workflow-level permissions.
 
 	if perms, ok := workflow.Body["permissions"]; ok {
-		if permsMap, ok := perms.(map[string]any); ok {
-			perms = unwrapAnnotatedMap(permsMap)
-		}
-
-		if err := ghworkflow.ValidatePermissions(perms); err != nil {
+		if err := ghworkflow.ValidatePermissions(plain(perms)); err != nil {
 			return withPath("workflow."+workflow.ID+".permissions", err)
 		}
 	}
@@ -163,7 +159,7 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 
 	// Validate ${{ }} expression syntax.
 
-	if err := validateExpressions(workflow.Body); err != nil {
+	if err := validateExpressions(plainMap(workflow.Body)); err != nil {
 		return err
 	}
 
@@ -174,7 +170,7 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 	models := make(map[string]ghjob.ValidationModel, len(jobs))
 
 	for id, job := range jobs {
-		model, err := ghjob.ModelFromParsed(job)
+		model, err := ghjob.ModelFromYAML(id, plainMap(job.Body))
 		if err != nil {
 			return withPath("job."+id, err)
 		}
@@ -186,11 +182,7 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 		// Validate job-level permissions.
 
 		if perms, ok := job.Body["permissions"]; ok {
-			if permsMap, ok := perms.(map[string]any); ok {
-				perms = unwrapAnnotatedMap(permsMap)
-			}
-
-			if err := ghworkflow.ValidatePermissions(perms); err != nil {
+			if err := ghworkflow.ValidatePermissions(plain(perms)); err != nil {
 				return withPath("job."+id+".permissions", err)
 			}
 		}

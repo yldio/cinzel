@@ -120,6 +120,36 @@ func TestParseFormattingSnapshots(t *testing.T) {
 			outputFile: "workflow-parse-job-order.yaml",
 			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_job_order.golden.yaml"),
 		},
+		{
+			name:       "basic workflow",
+			inputFile:  filepath.Join("testdata", "fixtures", "workflows", "basic_workflow.hcl"),
+			outputFile: "basic_workflow.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "workflows", "basic_workflow.golden.yaml"),
+		},
+		{
+			// Inline comments, a non-ASCII scalar, an empty map that collapses
+			// (defaults) and one that stays explicit (permissions).
+			name:       "attribute comments empty maps and non-ascii",
+			inputFile:  filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_fidelity.hcl"),
+			outputFile: "workflow-parse-fidelity.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_fidelity.golden.yaml"),
+		},
+		{
+			// Step-only output: no workflow or action block, so Parse writes a
+			// mapping of step id to step. A commented "uses" must survive.
+			name:       "step only with comment and non-ascii",
+			inputFile:  filepath.Join("testdata", "fixtures", "formatting", "step_only_fidelity.hcl"),
+			outputFile: "step_only_fidelity.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "formatting", "step_only_fidelity.golden.yaml"),
+		},
+		{
+			// A run script whose own content ends in ": {}". The emitter's
+			// document-wide empty-map collapse must not reach inside a scalar.
+			name:       "empty map inside run script literal",
+			inputFile:  filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_script_literal.hcl"),
+			outputFile: "workflow-parse-script-literal.yaml",
+			expected:   filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_script_literal.golden.yaml"),
+		},
 	}
 
 	for _, tt := range tests {

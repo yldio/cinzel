@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goccy/go-yaml"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/cinzel/internal/fsutil"
 	"github.com/yldio/cinzel/provider"
@@ -63,7 +62,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	outputDir := resolveParseOutputDirectory(opts)
 
 	if len(workflows) == 0 && len(actions) == 0 {
-		outputBytes, err := yaml.Marshal(stepMap)
+		outputBytes, err := marshalStepsYAML(stepMap)
 		if err != nil {
 			return err
 		}
@@ -92,7 +91,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	currentWorkflowOutputs := make(map[string]struct{}, len(workflows))
 
 	for _, workflowFile := range workflows {
-		outputBytes, err := marshalWorkflowYAML(workflowFile.Content)
+		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder)
 		if err != nil {
 			return err
 		}
@@ -115,7 +114,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	}
 
 	for _, actionFile := range actions {
-		outputBytes, err := marshalWorkflowYAML(actionFile.Content)
+		outputBytes, err := marshalWorkflowYAML(actionFile.Content, nil)
 		if err != nil {
 			return err
 		}
