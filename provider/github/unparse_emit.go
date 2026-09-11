@@ -125,9 +125,10 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 		jobID := jobIDMap[jobName]
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
 
-		// A YAML key like "build-and-test" cannot be a block label, so the
-		// label is sanitized and the original kept as an attribute. Parse
-		// prefers the attribute when writing the job back out.
+		// Block labels are sanitized so the job can be referenced as
+		// job.<id>, which turns "build-and-test" into "build_and_test". Keep
+		// the original key as an attribute; parse prefers it when writing the
+		// job back out.
 		if jobName != jobID {
 			jobBlock.Body().SetAttributeValue("id", cty.StringVal(jobName))
 		}

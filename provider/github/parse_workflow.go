@@ -169,8 +169,9 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 	job := ghjob.Parsed{ID: cfg.ID, Key: cfg.ID, Body: map[string]any{}}
 	out := job.Body
 
-	// An "id" attribute carries a YAML key the block label cannot spell, such
-	// as "build-and-test". The label stays the reference name.
+	// An "id" attribute carries the original YAML key when it was sanitized
+	// to make the block referenceable, e.g. "build-and-test". The label stays
+	// the reference name.
 	key, err := parseAttr(cfg.Key, hv)
 	if err != nil {
 		return ghjob.Parsed{}, err

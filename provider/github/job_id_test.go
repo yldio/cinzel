@@ -13,8 +13,9 @@ import (
 	"github.com/yldio/cinzel/provider"
 )
 
-// A job key containing a dash cannot be an HCL block label, so unparse used to
-// rename it and "needs" with it. The key is now kept as an "id" attribute.
+// Block labels are sanitized so the job can be referenced as job.<id>, so a key
+// containing a dash used to be renamed and "needs" renamed with it. The key is
+// now kept as an "id" attribute.
 func TestJobKeyWithDashSurvivesRoundtrip(t *testing.T) {
 	tmpDir := t.TempDir()
 
