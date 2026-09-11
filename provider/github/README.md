@@ -186,7 +186,7 @@ Test coverage includes golden fixtures, a fixture-driven compatibility matrix un
 - Parse cleanup prunes stale workflow YAML only when marker ownership matches the current provider.
 - Unparse output formats HCL with clear section separators and trailing commas in reference lists.
 - Identifier normalization is stable: YAML names are sanitized to valid HCL identifiers when needed.
-- A job whose YAML key is not a valid HCL label (`build-and-test`) keeps the key in an `id` attribute inside the block, so the key and any `needs` referring to it survive the roundtrip.
+- A job whose YAML key is sanitized to make the block referenceable (`build-and-test` becomes the label `build_and_test`) keeps the original key in an `id` attribute, so the key and any `needs` referring to it survive the roundtrip.
 - Expression escaping is stable in HCL output (`${{ ... }}` in YAML becomes `$${{ ... }}` in HCL string literals).
 
 ## Troubleshooting stale files
