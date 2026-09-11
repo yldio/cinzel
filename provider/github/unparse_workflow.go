@@ -286,6 +286,10 @@ func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any) error
 	for _, key := range sortedKeys(mapping) {
 		value := mapping[key]
 
+		if err := checkHCLKeyRoundtrips(blockType, key); err != nil {
+			return err
+		}
+
 		if nestedMap, isMap := toStringAnyMap(value); isMap {
 			if err := writeNestedMapAsBlock(blockBody, key, nestedMap); err != nil {
 				return err
@@ -296,6 +300,26 @@ func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any) error
 		if err := writeAttributeAny(blockBody, toHCLKey(key), value); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// checkHCLKeyRoundtrips rejects a key these blocks cannot carry back out.
+// Their keys become bare HCL identifiers, and parse maps "_" to "-" so that
+// hand-written "cancel_in_progress" reads as "cancel-in-progress". That leaves
+// two keys unwritable: one already holding "_" would come back holding "-"
+// instead, and one holding anything outside an identifier, such as a dot, would
+// produce HCL that does not parse. Every key in the GitHub schema for these
+// blocks is a plain word or hyphenated, so this rejects only input that was
+// silently corrupted before.
+func checkHCLKeyRoundtrips(blockType string, key string) error {
+	if strings.Contains(key, "_") {
+		return fmt.Errorf("%s key '%s' cannot be written to HCL: an underscore would be read back as a dash", blockType, key)
+	}
+
+	if !hclsyntax.ValidIdentifier(toHCLKey(key)) {
+		return fmt.Errorf("%s key '%s' cannot be written to HCL: it is not a valid identifier", blockType, key)
 	}
 
 	return nil
