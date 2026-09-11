@@ -240,6 +240,8 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		jobMap, _ := toStringAnyMap(doc[name])
 		jb := body.AppendNewBlock("job", []string{jobIDMap[name]})
 
+		writeBlockKey(jb.Body(), name, jobIDMap[name])
+
 		if err := writeJobBlock(jb.Body(), jobMap, jobIDMap, templateIDMap); err != nil {
 			return nil, fmt.Errorf("error in job '%s': %w", name, err)
 		}
@@ -270,6 +272,8 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 				}
 			}
 			tb := body.AppendNewBlock("template", []string{tplID})
+
+			writeBlockKey(tb.Body(), strings.TrimPrefix(key, "."), tplID)
 
 			if err := writeGenericMap(tb.Body(), hiddenJobMap); err != nil {
 				return nil, err
@@ -319,6 +323,18 @@ func unescapeHCLUnicode(src []byte) []byte {
 }
 
 var reHCLUnicodeEscape = regexp.MustCompile(`\\u[0-9a-fA-F]{4}|\\U[0-9a-fA-F]{8}`)
+
+// writeBlockKey records the original YAML key when the block label differs from
+// it. Labels are sanitized so the block can be referenced as job.<id> or
+// template.<id>, which turns "build-app" into "build_app". Parse prefers this
+// attribute when writing the block back out.
+func writeBlockKey(body *hclwrite.Body, key string, id string) {
+	if key == id {
+		return
+	}
+
+	body.SetAttributeValue("id", cty.StringVal(key))
+}
 
 func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string) error {
 	for _, key := range sortedKeys(job) {
