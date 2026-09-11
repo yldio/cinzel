@@ -215,7 +215,10 @@ func stringNeedsQuoting(v string) bool {
 
 	if len(v) > 0 {
 		switch v[0] {
-		case '?', '-', '"', '\'':
+		// "@" is a reserved indicator: YAML does not allow a plain scalar to
+		// start with one. Without it here yaml.v3 still quotes the value, but
+		// picks single quotes.
+		case '?', '-', '"', '\'', '@':
 			return true
 		}
 	}
