@@ -44,3 +44,25 @@ list:
 		t.Fatalf("encode mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
 }
+
+// yaml.v3 quotes a reserved indicator on its own, but reaches for single
+// quotes. The project writes double quotes or none.
+func TestEncodeQuotesReservedIndicatorsWithDoubleQuotes(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"@daily", "k: \"@daily\"\n"},
+		{"`x", "k: \"`x\"\n"},
+		{"a@b.com", "k: a@b.com\n"},
+	} {
+		doc := New()
+		doc.Set("k", Scalar(tc.in))
+
+		got, err := Encode(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if string(got) != tc.want {
+			t.Errorf("Encode(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
