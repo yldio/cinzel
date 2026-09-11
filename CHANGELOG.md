@@ -1,9 +1,19 @@
 cinzel
-## [0.5.4](https://github.com/yldio/cinzel/compare/v0.5.2..v0.5.4) - 2026-09-11
+## [0.5.5](https://github.com/yldio/cinzel/compare/v0.5.4..v0.5.5) - 2026-09-11
+
+### 🐛 Bug Fixes
+
+- *(yamldoc)* Write a leading "@" with double quotes (#19) - ([a6d29da](https://github.com/yldio/cinzel/commit/a6d29da132adcb60a4ca110d79edbfe89296fab9))
+
+
+## [0.5.4](https://github.com/yldio/cinzel/compare/v0.5.3..v0.5.4) - 2026-09-11
 
 ### 🐛 Bug Fixes
 
 - *(github)* Reject nested block keys that cannot be written back (#18) - ([00c4e00](https://github.com/yldio/cinzel/commit/00c4e00d043129e1e5f8698adb9107c1a72a19e6))
+
+
+## [0.5.3](https://github.com/yldio/cinzel/compare/v0.5.2..v0.5.3) - 2026-09-11
 
 ### 📚 Documentation
 
