@@ -119,14 +119,15 @@ type hclJobBlock struct {
 	// A keyword below is a block, which has no empty spelling, so each
 	// carries an attribute holding the explicit empty list GitLab reads
 	// as "override whatever this job would inherit".
-	EmptyRules    hcl.Expression      `hcl:"rules,optional"`
-	EmptyCache    hcl.Expression      `hcl:"cache,optional"`
-	EmptyServices hcl.Expression      `hcl:"services,optional"`
-	Needs         []hclNeedBlock      `hcl:"need,block"`
-	Rules         []hclRuleBlock      `hcl:"rule,block"`
-	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
-	Cache         []hclCacheBlock     `hcl:"cache,block"`
-	Services      []hclServiceBlock   `hcl:"service,block"`
+	EmptyRules     hcl.Expression      `hcl:"rules,optional"`
+	EmptyCache     hcl.Expression      `hcl:"cache,optional"`
+	EmptyServices  hcl.Expression      `hcl:"services,optional"`
+	EmptyArtifacts hcl.Expression      `hcl:"artifacts,optional"`
+	Needs          []hclNeedBlock      `hcl:"need,block"`
+	Rules          []hclRuleBlock      `hcl:"rule,block"`
+	Artifacts      []hclArtifactsBlock `hcl:"artifacts,block"`
+	Cache          []hclCacheBlock     `hcl:"cache,block"`
+	Services       []hclServiceBlock   `hcl:"service,block"`
 }
 
 type hclWorkflowBlock struct {
@@ -177,31 +178,33 @@ type hclTemplateBlock struct {
 	// A keyword below is a block, which has no empty spelling, so each
 	// carries an attribute holding the explicit empty list GitLab reads
 	// as "override whatever this job would inherit".
-	EmptyRules    hcl.Expression      `hcl:"rules,optional"`
-	EmptyCache    hcl.Expression      `hcl:"cache,optional"`
-	EmptyServices hcl.Expression      `hcl:"services,optional"`
-	Needs         []hclNeedBlock      `hcl:"need,block"`
-	Rules         []hclRuleBlock      `hcl:"rule,block"`
-	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
-	Cache         []hclCacheBlock     `hcl:"cache,block"`
-	Services      []hclServiceBlock   `hcl:"service,block"`
+	EmptyRules     hcl.Expression      `hcl:"rules,optional"`
+	EmptyCache     hcl.Expression      `hcl:"cache,optional"`
+	EmptyServices  hcl.Expression      `hcl:"services,optional"`
+	EmptyArtifacts hcl.Expression      `hcl:"artifacts,optional"`
+	Needs          []hclNeedBlock      `hcl:"need,block"`
+	Rules          []hclRuleBlock      `hcl:"rule,block"`
+	Artifacts      []hclArtifactsBlock `hcl:"artifacts,block"`
+	Cache          []hclCacheBlock     `hcl:"cache,block"`
+	Services       []hclServiceBlock   `hcl:"service,block"`
 }
 
 type hclDefaultBlock struct {
-	Image         hcl.Expression      `hcl:"image,optional"`
-	BeforeScript  hcl.Expression      `hcl:"before_script,optional"`
-	AfterScript   hcl.Expression      `hcl:"after_script,optional"`
-	Tags          hcl.Expression      `hcl:"tags,optional"`
-	Interruptible hcl.Expression      `hcl:"interruptible,optional"`
-	Retry         hcl.Expression      `hcl:"retry,optional"`
-	Timeout       hcl.Expression      `hcl:"timeout,optional"`
-	IDTokens      hcl.Expression      `hcl:"id_tokens,optional"`
-	Hooks         hcl.Expression      `hcl:"hooks,optional"`
-	EmptyCache    hcl.Expression      `hcl:"cache,optional"`
-	EmptyServices hcl.Expression      `hcl:"services,optional"`
-	Cache         []hclCacheBlock     `hcl:"cache,block"`
-	Services      []hclServiceBlock   `hcl:"service,block"`
-	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
+	Image          hcl.Expression      `hcl:"image,optional"`
+	BeforeScript   hcl.Expression      `hcl:"before_script,optional"`
+	AfterScript    hcl.Expression      `hcl:"after_script,optional"`
+	Tags           hcl.Expression      `hcl:"tags,optional"`
+	Interruptible  hcl.Expression      `hcl:"interruptible,optional"`
+	Retry          hcl.Expression      `hcl:"retry,optional"`
+	Timeout        hcl.Expression      `hcl:"timeout,optional"`
+	IDTokens       hcl.Expression      `hcl:"id_tokens,optional"`
+	Hooks          hcl.Expression      `hcl:"hooks,optional"`
+	EmptyCache     hcl.Expression      `hcl:"cache,optional"`
+	EmptyServices  hcl.Expression      `hcl:"services,optional"`
+	EmptyArtifacts hcl.Expression      `hcl:"artifacts,optional"`
+	Cache          []hclCacheBlock     `hcl:"cache,block"`
+	Services       []hclServiceBlock   `hcl:"service,block"`
+	Artifacts      []hclArtifactsBlock `hcl:"artifacts,block"`
 }
 
 type hclIncludeBlock struct {
