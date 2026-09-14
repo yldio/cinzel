@@ -170,6 +170,12 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 				return nil, fmt.Errorf("workflow.rules must be a list")
 			}
 
+			if len(rules) == 0 {
+				if err := writeAttributeAny(wbody, "rules", []any{}); err != nil {
+					return nil, err
+				}
+			}
+
 			for _, item := range rules {
 				ruleMap, ok := toStringAnyMap(item)
 
@@ -438,6 +444,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				refs = append(refs, refID)
 			}
 
+			if len(needs) == 0 {
+				if err := writeAttributeAny(body, "depends_on", []any{}); err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			if err := writeReferenceListAttribute(body, "depends_on", "job", refs); err != nil {
 				return err
 			}
@@ -446,6 +460,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 
 			if !ok {
 				return fmt.Errorf("rules must be a list")
+			}
+
+			if len(rules) == 0 {
+				if err := writeAttributeAny(body, "rules", []any{}); err != nil {
+					return err
+				}
+
+				continue
 			}
 
 			for _, item := range rules {
@@ -473,6 +495,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			// its own block, which is how the schema already spells
 			// repeated caches.
 			entries, isList := value.([]any)
+
+			if isList && len(entries) == 0 {
+				if err := writeAttributeAny(body, key, []any{}); err != nil {
+					return err
+				}
+
+				continue
+			}
 
 			if !isList {
 				entries = []any{value}
@@ -670,6 +700,14 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 		// written once per entry, e.g. the several caches a "default"
 		// may declare.
 		if entries, ok := value.([]any); ok {
+			if _, declared := schema.blocks[key]; declared && len(entries) == 0 {
+				if err := writeAttributeAny(body, key, []any{}); err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			if child, declared := schema.blocks[key]; declared && allStringAnyMaps(entries) {
 				for _, entry := range entries {
 					nested, _ := toStringAnyMap(entry)
@@ -697,6 +735,10 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 
 	if !ok {
 		return fmt.Errorf("services must be a list")
+	}
+
+	if len(services) == 0 {
+		return writeAttributeAny(body, "services", []any{})
 	}
 
 	for _, item := range services {
