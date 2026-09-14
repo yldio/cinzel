@@ -232,16 +232,9 @@ func parseDefaultBlock(block hclDefaultBlock, hv *hclparser.HCLVars) (map[string
 		return nil, err
 	}
 
-	if len(block.Cache) > 1 {
-		return nil, errors.New("default can include at most one cache block")
-	}
-
-	if len(block.Cache) == 1 {
-		cache, err := parseCacheBlock(block.Cache[0], hv)
-		if err != nil {
-			return nil, err
-		}
-
+	if cache, err := parseCacheBlocks(block.Cache, hv); err != nil {
+		return nil, err
+	} else if cache != nil {
 		out["cache"] = cache
 	}
 
@@ -376,16 +369,9 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		out["artifacts"] = artifacts
 	}
 
-	if len(block.Cache) > 1 {
-		return nil, errors.New("job can include at most one cache block")
-	}
-
-	if len(block.Cache) == 1 {
-		cache, err := parseCacheBlock(block.Cache[0], hv)
-		if err != nil {
-			return nil, err
-		}
-
+	if cache, err := parseCacheBlocks(block.Cache, hv); err != nil {
+		return nil, err
+	} else if cache != nil {
 		out["cache"] = cache
 	}
 
@@ -503,6 +489,31 @@ func parseArtifactsBlock(block hclArtifactsBlock, hv *hclparser.HCLVars) (map[st
 		}
 
 		out["reports"] = reports
+	}
+
+	return out, nil
+}
+
+// parseCacheBlocks writes one cache block back as an object and several as a
+// list, which is how GitLab spells multiple caches for one job.
+func parseCacheBlocks(blocks []hclCacheBlock, hv *hclparser.HCLVars) (any, error) {
+	if len(blocks) == 0 {
+		return nil, nil
+	}
+
+	if len(blocks) == 1 {
+		return parseCacheBlock(blocks[0], hv)
+	}
+
+	out := make([]any, 0, len(blocks))
+
+	for _, block := range blocks {
+		cache, err := parseCacheBlock(block, hv)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, cache)
 	}
 
 	return out, nil

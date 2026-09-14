@@ -399,20 +399,32 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				}
 			}
 		case "cache", "artifacts":
-			mapVal, ok := toStringAnyMap(value)
-
-			if !ok {
-				return fmt.Errorf("%s must be an object", key)
-			}
-			b := body.AppendNewBlock(key, nil)
 			schema := cacheSchema
 
 			if key == "artifacts" {
 				schema = artifactsSchema
 			}
 
-			if err := writeGenericMap(b.Body(), mapVal, schema); err != nil {
-				return err
+			// A job may declare several caches as a list. Each one is
+			// its own block, which is how the schema already spells
+			// repeated caches.
+			entries, isList := value.([]any)
+
+			if !isList {
+				entries = []any{value}
+			}
+
+			for _, entry := range entries {
+				mapVal, ok := toStringAnyMap(entry)
+
+				if !ok {
+					return fmt.Errorf("%s must be an object", key)
+				}
+				b := body.AppendNewBlock(key, nil)
+
+				if err := writeGenericMap(b.Body(), mapVal, schema); err != nil {
+					return err
+				}
 			}
 		case "services":
 			if err := writeServicesBlocks(body, value); err != nil {
@@ -552,6 +564,22 @@ var (
 	passthroughSchema = bodySchema{any: true}
 )
 
+// allStringAnyMaps reports whether every entry of a list is an object, and the
+// list is not empty.
+func allStringAnyMaps(entries []any) bool {
+	if len(entries) == 0 {
+		return false
+	}
+
+	for _, entry := range entries {
+		if _, ok := toStringAnyMap(entry); !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySchema) error {
 	for _, key := range sortedKeys(mapping) {
 		value := mapping[key]
@@ -570,6 +598,24 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 				if err := writeGenericMap(b.Body(), nested, child); err != nil {
 					return err
 				}
+				continue
+			}
+		}
+
+		// A declared block that the YAML gives as a list of objects is
+		// written once per entry, e.g. the several caches a "default"
+		// may declare.
+		if entries, ok := value.([]any); ok {
+			if child, declared := schema.blocks[key]; declared && allStringAnyMaps(entries) {
+				for _, entry := range entries {
+					nested, _ := toStringAnyMap(entry)
+					b := body.AppendNewBlock(key, nil)
+
+					if err := writeGenericMap(b.Body(), nested, child); err != nil {
+						return err
+					}
+				}
+
 				continue
 			}
 		}
