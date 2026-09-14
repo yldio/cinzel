@@ -86,6 +86,7 @@ template "go_base" {
 - `$${VAR}` in HCL becomes `${VAR}` in YAML.
 - `${VAR}` in YAML becomes `$${VAR}` in HCL output.
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
+- A pipeline of nothing but `include:` entries is unparsed like any other; a YAML file that is not a pipeline at all is still skipped.
 - Parse output includes cinzel provider markers in YAML headers (`generated-by` and `cinzel-provider`).
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
 - A job or template name that is not a valid HCL identifier is sanitized to make the block referenceable (`build-app` becomes the label `build_app`) and the original name is kept in an `id` attribute, so the name and any `needs` or `extends` pointing at it survive the roundtrip.
