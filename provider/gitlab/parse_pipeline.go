@@ -119,6 +119,18 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		pipeline["default"] = defaultMap
 	}
 
+	if len(cfg.Spec) > 1 {
+		return nil, errors.New("at most one spec block is allowed")
+	}
+
+	if len(cfg.Spec) == 1 {
+		specMap, err := parseSpecBlock(cfg.Spec[0], hv)
+		if err != nil {
+			return nil, fmt.Errorf("error in spec: %w", err)
+		}
+		pipeline[specKey] = specMap
+	}
+
 	if len(cfg.Includes) > 0 {
 		includes, err := parseIncludeBlocks(cfg.Includes, hv)
 		if err != nil {
@@ -158,6 +170,30 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	}
 
 	return pipeline, nil
+}
+
+// specKey is where a parsed "spec" header is kept until the YAML is written,
+// at which point it becomes a document of its own ahead of the rest.
+const specKey = "spec"
+
+func parseSpecBlock(block hclSpecBlock, hv *hclparser.HCLVars) (map[string]any, error) {
+	out := make(map[string]any)
+
+	for _, attr := range [...]struct {
+		name string
+		expr hcl.Expression
+	}{
+		{"inputs", block.Inputs},
+		{"include", block.Include},
+		{"component", block.Component},
+		{"description", block.Description},
+	} {
+		if err := setOptionalAttr(out, attr.name, attr.expr, hv); err != nil {
+			return nil, err
+		}
+	}
+
+	return out, nil
 }
 
 func parseVariableBlocks(blocks []hclVariableBlock, hv *hclparser.HCLVars) (map[string]any, error) {

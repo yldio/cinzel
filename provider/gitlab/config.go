@@ -238,4 +238,14 @@ type parseConfig struct {
 	Templates []hclTemplateBlock `hcl:"template,block"`
 	Includes  []hclIncludeBlock  `hcl:"include,block"`
 	Default   []hclDefaultBlock  `hcl:"default,block"`
+	Spec      []hclSpecBlock     `hcl:"spec,block"`
+}
+
+// hclSpecBlock is the pipeline's "spec" header, which GitLab requires to sit in
+// a document of its own ahead of the rest of the configuration.
+type hclSpecBlock struct {
+	Inputs      hcl.Expression `hcl:"inputs,optional"`
+	Include     hcl.Expression `hcl:"include,optional"`
+	Component   hcl.Expression `hcl:"component,optional"`
+	Description hcl.Expression `hcl:"description,optional"`
 }

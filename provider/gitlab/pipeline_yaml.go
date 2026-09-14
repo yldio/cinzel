@@ -22,19 +22,43 @@ var pipelineKeyOrder = []string{
 }
 
 func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
+	var docs []*yamlv3.Node
+
+	// A "spec" header has to be a document of its own, ahead of the rest of
+	// the configuration. GitLab reads it nowhere else.
+	if spec, hasSpec := pipeline[specKey]; hasSpec {
+		rest := make(map[string]any, len(pipeline)-1)
+
+		for key, value := range pipeline {
+			if key != specKey {
+				rest[key] = value
+			}
+		}
+		pipeline = rest
+
+		specNode, err := toYAMLNode(map[string]any{specKey: spec})
+		if err != nil {
+			return nil, err
+		}
+
+		docs = append(docs, &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{specNode}})
+	}
+
 	root, err := pipelineMapNode(pipeline)
 	if err != nil {
 		return nil, err
 	}
 
-	doc := &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{root}}
+	docs = append(docs, &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{root}})
 
 	var buf bytes.Buffer
 	enc := yamlv3.NewEncoder(&buf)
 	enc.SetIndent(2)
 
-	if err := enc.Encode(doc); err != nil {
-		return nil, err
+	for _, doc := range docs {
+		if err := enc.Encode(doc); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := enc.Close(); err != nil {
