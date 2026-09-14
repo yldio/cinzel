@@ -44,18 +44,30 @@ func classifyPipelineDocument(doc map[string]any) bool {
 	}
 
 	for _, key := range sortedKeys(doc) {
-		jobMap, ok := toStringAnyMap(doc[key])
-
-		if !ok {
+		if isReservedTopLevelKey(key) {
 			continue
 		}
 
-		if _, hasScript := jobMap["script"]; hasScript {
+		if isJobKey(doc, key) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// isJobKey reports whether a top-level key holds a job. Anything that is a
+// mapping and is neither reserved nor hidden is one: a job needs no "script" of
+// its own, since a trigger job has none by definition and an extending job
+// inherits one.
+func isJobKey(doc map[string]any, key string) bool {
+	if strings.HasPrefix(key, ".") {
+		return false
+	}
+
+	_, ok := toStringAnyMap(doc[key])
+
+	return ok
 }
 
 func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
@@ -213,23 +225,19 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 	}
 
 	for _, key := range sortedKeys(doc) {
-		if isReservedTopLevelKey(key) {
+		if isReservedTopLevelKey(key) || !isJobKey(doc, key) {
 			continue
 		}
 
-		if jobMap, ok := toStringAnyMap(doc[key]); ok {
-			if _, hasScript := jobMap["script"]; hasScript {
-				jobNames = append(jobNames, key)
-				id := naming.SanitizeIdentifier(key)
+		jobNames = append(jobNames, key)
+		id := naming.SanitizeIdentifier(key)
 
-				if id == "" {
-					id = "job"
-				}
-				id = naming.UniqueIdentifier(id, usedIDs)
-				usedIDs = append(usedIDs, id)
-				jobIDMap[key] = id
-			}
+		if id == "" {
+			id = "job"
 		}
+		id = naming.UniqueIdentifier(id, usedIDs)
+		usedIDs = append(usedIDs, id)
+		jobIDMap[key] = id
 	}
 	sort.Strings(jobNames)
 

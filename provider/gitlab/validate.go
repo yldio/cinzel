@@ -34,19 +34,30 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 			return fmt.Errorf("job '%s' must be an object", jobName)
 		}
 
+		// A job needs no script of its own: a trigger job has none by
+		// definition, and an extending job inherits one. A script that is
+		// present still has to be a non-empty list.
+		_, hasTrigger := jobMap["trigger"]
+		_, hasExtends := jobMap["extends"]
+		inherits := isTemplate || hasTrigger || hasExtends
+
 		script, ok := jobMap["script"]
 
-		if !ok && !isTemplate {
+		if !ok && !inherits {
 			return fmt.Errorf("job '%s' must define 'script'", jobName)
 		}
 
-		scriptList, ok := script.([]any)
+		if ok {
+			scriptList, isList := script.([]any)
 
-		if !isTemplate && (!ok || len(scriptList) == 0) {
-			return fmt.Errorf("job '%s' script must be a non-empty list", jobName)
+			if !isList || len(scriptList) == 0 {
+				return fmt.Errorf("job '%s' script must be a non-empty list", jobName)
+			}
 		}
 
-		if len(stagesSet) > 0 && !isTemplate {
+		// A job that inherits can inherit its stage too, and GitLab defaults
+		// an unnamed stage to "test" rather than failing.
+		if len(stagesSet) > 0 && !inherits {
 			stageRaw, ok := jobMap["stage"]
 
 			if !ok {

@@ -81,6 +81,7 @@ template "go_base" {
 ## Notes
 
 - HCL uses `depends_on`; YAML uses `needs:`.
+- A job needs no `script` of its own: a `trigger` job has none by definition, and a job that `extends` a template inherits one. Both are written as `job` blocks.
 - `$${VAR}` in HCL becomes `${VAR}` in YAML.
 - `${VAR}` in YAML becomes `$${VAR}` in HCL output.
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
