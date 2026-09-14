@@ -175,3 +175,50 @@ build:
 		})
 	}
 }
+
+// A job's "inputs" and "publish" are in GitLab's own schema but were missing
+// from cinzel's, so the emitted HCL did not parse back.
+func TestJobInputsAndPublish(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, ".gitlab-ci.yml")
+	outDir := filepath.Join(tmp, "hcl")
+	backDir := filepath.Join(tmp, "yaml")
+	yml := `build:
+  script: [make]
+  inputs:
+    stage: test
+  publish: public
+`
+
+	if err := os.WriteFile(in, []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := New()
+
+	if err := p.Unparse(provider.ProviderOps{File: in, OutputDirectory: outDir}); err != nil {
+		t.Fatalf("Unparse() error = %v", err)
+	}
+
+	hclPath := filepath.Join(outDir, ".gitlab-ci.hcl")
+	got, err := os.ReadFile(hclPath)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := p.Parse(provider.ProviderOps{File: hclPath, OutputDirectory: backDir}); err != nil {
+		t.Fatalf("Parse() error = %v\nHCL:\n%s", err, got)
+	}
+
+	back, err := os.ReadFile(filepath.Join(backDir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{"stage: test", "publish: public"} {
+		if !strings.Contains(string(back), want) {
+			t.Errorf("reparsed YAML missing %q:\n%s", want, back)
+		}
+	}
+}
