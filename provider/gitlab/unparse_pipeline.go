@@ -30,6 +30,12 @@ func parseYAMLDocument(content []byte) (map[string]any, error) {
 }
 
 func classifyPipelineDocument(doc map[string]any) bool {
+	// A pipeline may be nothing but includes, which is how a project pulls
+	// its whole configuration in from elsewhere.
+	if _, ok := doc["include"]; ok {
+		return true
+	}
+
 	if rawStages, ok := doc["stages"]; ok {
 		if _, isList := rawStages.([]any); isList {
 			return true
