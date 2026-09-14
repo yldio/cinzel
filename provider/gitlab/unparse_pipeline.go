@@ -87,6 +87,18 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		}
 	}
 
+	for _, key := range [...]string{"image", "before_script", "after_script", "cache", "services"} {
+		value, ok := doc[key]
+
+		if !ok {
+			continue
+		}
+
+		if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
+			return nil, err
+		}
+	}
+
 	if rawVariables, ok := doc["variables"]; ok {
 		variables, mapOK := toStringAnyMap(rawVariables)
 
@@ -878,6 +890,20 @@ func isReservedTopLevelKey(key string) bool {
 	case "stages", "variables", "workflow", "default":
 		return true
 	case "include":
+		return true
+	default:
+		return isGlobalDefaultKey(key)
+	}
+}
+
+// isGlobalDefaultKey reports whether a top-level key is one of the five GitLab
+// still reads outside a "default" block, where it means the same thing. Each is
+// written straight back as a top-level attribute rather than being folded into
+// a default block, since GitLab does not document which wins when a pipeline
+// has both.
+func isGlobalDefaultKey(key string) bool {
+	switch key {
+	case "image", "before_script", "after_script", "cache", "services":
 		return true
 	default:
 		return false

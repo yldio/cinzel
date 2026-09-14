@@ -14,7 +14,12 @@ import (
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
-var pipelineKeyOrder = []string{"stages", "variables", "workflow", "default", "include"}
+var pipelineKeyOrder = []string{
+	"stages", "variables", "workflow", "default", "include",
+	// The five GitLab still reads outside a "default" block. They are listed
+	// here so a global "cache", which is a mapping, is not mistaken for a job.
+	"image", "before_script", "after_script", "cache", "services",
+}
 
 func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 	root, err := pipelineMapNode(pipeline)

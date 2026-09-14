@@ -221,6 +221,16 @@ type hclIncludeBlock struct {
 }
 
 type parseConfig struct {
+	// GitLab still accepts these five at the top level, where they mean what
+	// the same keys mean under "default". They are kept where they were
+	// written rather than folded into a default block, since GitLab does not
+	// document which wins when a pipeline has both.
+	Image        hcl.Expression `hcl:"image,optional"`
+	BeforeScript hcl.Expression `hcl:"before_script,optional"`
+	AfterScript  hcl.Expression `hcl:"after_script,optional"`
+	Cache        hcl.Expression `hcl:"cache,optional"`
+	Services     hcl.Expression `hcl:"services,optional"`
+
 	Stages    []string           `hcl:"stages,optional"`
 	Variables []hclVariableBlock `hcl:"variable,block"`
 	Jobs      []hclJobBlock      `hcl:"job,block"`

@@ -29,6 +29,23 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	hv := hclparser.NewHCLVars()
 	pipeline := make(map[string]any)
 
+	// GitLab still reads these five at the top level, where they mean what the
+	// same keys mean under "default".
+	for _, attr := range [...]struct {
+		name string
+		expr hcl.Expression
+	}{
+		{"image", cfg.Image},
+		{"before_script", cfg.BeforeScript},
+		{"after_script", cfg.AfterScript},
+		{"cache", cfg.Cache},
+		{"services", cfg.Services},
+	} {
+		if err := setOptionalAttr(pipeline, attr.name, attr.expr, hv); err != nil {
+			return nil, err
+		}
+	}
+
 	if len(cfg.Stages) > 0 {
 		stages := make([]any, 0, len(cfg.Stages))
 
