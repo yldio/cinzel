@@ -271,6 +271,8 @@ func parseDefaultBlock(block hclDefaultBlock, hv *hclparser.HCLVars) (map[string
 		}
 
 		out["artifacts"] = artifacts
+	} else if isExplicitNullExpr(block.EmptyArtifacts) {
+		out["artifacts"] = nil
 	}
 
 	if cache, err := parseCacheBlocks(block.Cache, hv); err != nil {
@@ -389,10 +391,22 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		{"dast_configuration", block.DastConfiguration},
 		{"inputs", block.Inputs},
 		{"publish", block.Publish},
+	} {
+		if err := setOptionalAttr(out, attr.name, attr.expr, hv); err != nil {
+			return nil, err
+		}
+	}
+
+	// "only" and "except" may be written as null to clear what a job would
+	// otherwise inherit, which is not the same as leaving them out.
+	for _, attr := range [...]struct {
+		name string
+		expr hcl.Expression
+	}{
 		{"only", block.Only},
 		{"except", block.Except},
 	} {
-		if err := setOptionalAttr(out, attr.name, attr.expr, hv); err != nil {
+		if err := setNullableAttr(out, attr.name, attr.expr, hv); err != nil {
 			return nil, err
 		}
 	}
@@ -425,6 +439,10 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 			arr = append(arr, ref)
 		}
 		out["extends"] = arr
+	} else if isEmptyListExpr(block.Extends) {
+		// An empty "extends" clears what a job would otherwise inherit, so it
+		// is not the same as leaving the keyword out.
+		out["extends"] = []any{}
 	}
 
 	rules, err := parseRuleBlocks(block.Rules, hv)
@@ -449,6 +467,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		}
 
 		out["artifacts"] = artifacts
+	} else if isExplicitNullExpr(block.EmptyArtifacts) {
+		out["artifacts"] = nil
 	}
 
 	if cache, err := parseCacheBlocks(block.Cache, hv); err != nil {
@@ -513,9 +533,10 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Only:               block.Only,
 		Except:             block.Except,
 
-		EmptyRules:    block.EmptyRules,
-		EmptyCache:    block.EmptyCache,
-		EmptyServices: block.EmptyServices,
+		EmptyRules:     block.EmptyRules,
+		EmptyCache:     block.EmptyCache,
+		EmptyServices:  block.EmptyServices,
+		EmptyArtifacts: block.EmptyArtifacts,
 
 		Needs:     block.Needs,
 		Rules:     block.Rules,
@@ -816,11 +837,18 @@ func parseIncludeBlocks(blocks []hclIncludeBlock, hv *hclparser.HCLVars) (any, e
 	return includes, nil
 }
 
-// setEmptyCollection records a keyword written as an explicit empty list.
-// GitLab reads one as "override whatever this would inherit", which is not
-// the same as leaving the keyword out, but a block has no empty spelling —
-// so the schema carries an attribute alongside the block to hold it.
+// setEmptyCollection records a keyword written as an explicit empty list, or
+// as null. GitLab reads either as "override whatever this would inherit",
+// which is not the same as leaving the keyword out, but a block has no empty
+// spelling — so the schema carries an attribute alongside the block to hold
+// it. The two spellings mean the same thing and both are kept as written.
 func setEmptyCollection(out map[string]any, key string, expr hcl.Expression, hv *hclparser.HCLVars) error {
+	if isExplicitNullExpr(expr) {
+		out[key] = nil
+
+		return nil
+	}
+
 	value, err := parseAttr(expr, hv)
 	if err != nil {
 		return fmt.Errorf("%s: %w", key, err)
@@ -845,6 +873,32 @@ func setEmptyCollection(out map[string]any, key string, expr hcl.Expression, hv 
 	return nil
 }
 
+// isEmptyListExpr reports whether an attribute was written as an empty list,
+// rather than left out.
+func isEmptyListExpr(expr hcl.Expression) bool {
+	tuple, isTuple := expr.(*hclsyntax.TupleConsExpr)
+
+	return isTuple && len(tuple.Exprs) == 0
+}
+
+// isExplicitNullExpr reports whether an attribute was written as "null",
+// rather than left out. An absent optional attribute decodes to a placeholder
+// expression that is not part of the file's syntax tree, which is what tells
+// the two apart.
+func isExplicitNullExpr(expr hcl.Expression) bool {
+	if expr == nil {
+		return false
+	}
+
+	literal, isLiteral := expr.(*hclsyntax.LiteralValueExpr)
+
+	if !isLiteral {
+		return false
+	}
+
+	return literal.Val.IsNull()
+}
+
 func setOptionalAttr(out map[string]any, key string, expr hcl.Expression, hv *hclparser.HCLVars) error {
 	value, err := parseAttr(expr, hv)
 	if err != nil {
@@ -856,6 +910,19 @@ func setOptionalAttr(out map[string]any, key string, expr hcl.Expression, hv *hc
 	}
 
 	return nil
+}
+
+// setNullableAttr is setOptionalAttr for the few keywords GitLab lets you
+// write as null to clear an inherited value. Everywhere else a null is not a
+// legal spelling, so it stays dropped rather than being written back out.
+func setNullableAttr(out map[string]any, key string, expr hcl.Expression, hv *hclparser.HCLVars) error {
+	if isExplicitNullExpr(expr) {
+		out[key] = nil
+
+		return nil
+	}
+
+	return setOptionalAttr(out, key, expr, hv)
 }
 
 func parseGenericBodyMap(body hcl.Body, hv *hclparser.HCLVars) (map[string]any, error) {

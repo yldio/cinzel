@@ -166,11 +166,17 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		if rawRules, hasRules := workflowMap["rules"]; hasRules {
 			rules, ok := rawRules.([]any)
 
-			if !ok {
+			if rawRules == nil {
+				if err := writeAttributeAny(wbody, "rules", nil); err != nil {
+					return nil, err
+				}
+
+				rules = nil
+			} else if !ok {
 				return nil, fmt.Errorf("workflow.rules must be a list")
 			}
 
-			if len(rules) == 0 {
+			if rawRules != nil && len(rules) == 0 {
 				if err := writeAttributeAny(wbody, "rules", []any{}); err != nil {
 					return nil, err
 				}
@@ -456,6 +462,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				return err
 			}
 		case "rules":
+			if value == nil {
+				if err := writeAttributeAny(body, "rules", nil); err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			rules, ok := value.([]any)
 
 			if !ok {
@@ -494,6 +508,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			// A job may declare several caches as a list. Each one is
 			// its own block, which is how the schema already spells
 			// repeated caches.
+			if value == nil {
+				if err := writeAttributeAny(body, key, nil); err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			entries, isList := value.([]any)
 
 			if isList && len(entries) == 0 {
@@ -526,6 +548,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			}
 		case "extends":
 			refsAny, isList := value.([]any)
+
+			if isList && len(refsAny) == 0 {
+				if err := writeAttributeAny(body, "extends", []any{}); err != nil {
+					return err
+				}
+
+				continue
+			}
 
 			if !isList {
 				if single, ok := value.(string); ok {
