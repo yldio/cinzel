@@ -117,6 +117,12 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 						return nil, err
 					}
 				}
+
+				if options, hasOptions := vm["options"]; hasOptions {
+					if err := writeAttributeAny(vbody, "options", escapeGitLabVariables(options)); err != nil {
+						return nil, err
+					}
+				}
 			} else {
 				if err := writeAttributeAny(vbody, "value", escapeGitLabVariables(raw)); err != nil {
 					return nil, err
@@ -141,6 +147,12 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 		if name, hasName := workflowMap["name"]; hasName {
 			if err := writeAttributeAny(wbody, "name", escapeGitLabVariables(name)); err != nil {
+				return nil, err
+			}
+		}
+
+		if autoCancel, hasAutoCancel := workflowMap["auto_cancel"]; hasAutoCancel {
+			if err := writeAttributeAny(wbody, "auto_cancel", escapeGitLabVariables(autoCancel)); err != nil {
 				return nil, err
 			}
 		}
