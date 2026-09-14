@@ -381,6 +381,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		{"pages", block.Pages},
 		{"run", block.Run},
 		{"dast_configuration", block.DastConfiguration},
+		{"inputs", block.Inputs},
+		{"publish", block.Publish},
 		{"only", block.Only},
 		{"except", block.Except},
 	} {
@@ -492,6 +494,8 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Pages:              block.Pages,
 		Run:                block.Run,
 		DastConfiguration:  block.DastConfiguration,
+		Inputs:             block.Inputs,
+		Publish:            block.Publish,
 		Only:               block.Only,
 		Except:             block.Except,
 

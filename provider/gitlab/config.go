@@ -111,6 +111,8 @@ type hclJobBlock struct {
 	Pages              hcl.Expression      `hcl:"pages,optional"`
 	Run                hcl.Expression      `hcl:"run,optional"`
 	DastConfiguration  hcl.Expression      `hcl:"dast_configuration,optional"`
+	Inputs             hcl.Expression      `hcl:"inputs,optional"`
+	Publish            hcl.Expression      `hcl:"publish,optional"`
 	Only               hcl.Expression      `hcl:"only,optional"`
 	Except             hcl.Expression      `hcl:"except,optional"`
 	Needs              []hclNeedBlock      `hcl:"need,block"`
@@ -160,6 +162,8 @@ type hclTemplateBlock struct {
 	Pages              hcl.Expression      `hcl:"pages,optional"`
 	Run                hcl.Expression      `hcl:"run,optional"`
 	DastConfiguration  hcl.Expression      `hcl:"dast_configuration,optional"`
+	Inputs             hcl.Expression      `hcl:"inputs,optional"`
+	Publish            hcl.Expression      `hcl:"publish,optional"`
 	Only               hcl.Expression      `hcl:"only,optional"`
 	Except             hcl.Expression      `hcl:"except,optional"`
 	Needs              []hclNeedBlock      `hcl:"need,block"`
