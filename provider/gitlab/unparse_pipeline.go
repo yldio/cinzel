@@ -348,6 +348,40 @@ func writeBlockKey(body *hclwrite.Body, key string, id string) {
 	body.SetAttributeValue("id", cty.StringVal(key))
 }
 
+// writeNeedBlock writes the object form of a "needs" entry. Its "job" is
+// written as a job reference so it tracks a renamed job like "depends_on"
+// does; everything else is copied through.
+func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[string]string) error {
+	nb := body.AppendNewBlock("need", nil)
+
+	for _, key := range sortedKeys(need) {
+		value := need[key]
+
+		if key == "job" {
+			name, ok := value.(string)
+
+			if !ok {
+				return fmt.Errorf("needs job must be a string")
+			}
+			refID, exists := jobIDMap[name]
+
+			if !exists {
+				refID = naming.SanitizeIdentifier(name)
+			}
+
+			writeReferenceAttribute(nb.Body(), "job", "job", refID)
+
+			continue
+		}
+
+		if err := writeAttributeAny(nb.Body(), key, escapeGitLabVariables(value)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string) error {
 	for _, key := range sortedKeys(job) {
 		value := job[key]
@@ -361,10 +395,22 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			refs := make([]string, 0, len(needs))
 
 			for _, n := range needs {
+				// A "needs" entry is either a job name or an object
+				// carrying that name plus options. The object form
+				// becomes a "need" block, since an attribute cannot
+				// hold the job reference.
+				if nested, isMap := toStringAnyMap(n); isMap {
+					if err := writeNeedBlock(body, nested, jobIDMap); err != nil {
+						return err
+					}
+
+					continue
+				}
+
 				name, ok := n.(string)
 
 				if !ok {
-					return fmt.Errorf("needs entries must be strings")
+					return fmt.Errorf("needs entries must be strings or objects")
 				}
 				refID, exists := jobIDMap[name]
 

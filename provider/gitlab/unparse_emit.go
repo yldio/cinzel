@@ -21,6 +21,14 @@ func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 	return nil
 }
 
+// writeReferenceAttribute writes a single reference, e.g. job.build, rather
+// than a list of them.
+func writeReferenceAttribute(body *hclwrite.Body, attr string, root string, ref string) {
+	body.SetAttributeRaw(attr, hclwrite.Tokens{
+		{Type: hclsyntax.TokenIdent, Bytes: []byte(fmt.Sprintf("%s.%s", root, ref))},
+	})
+}
+
 func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, refs []string) error {
 	if len(refs) == 0 {
 		return nil

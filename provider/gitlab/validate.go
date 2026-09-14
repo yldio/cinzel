@@ -110,10 +110,16 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 			seen := map[string]struct{}{}
 
 			for _, n := range needs {
-				name, ok := n.(string)
+				name, ok := needName(n)
 
-				if !ok || name == "" {
-					return fmt.Errorf("job '%s' needs must contain non-empty strings", jobName)
+				if !ok {
+					return fmt.Errorf("job '%s' needs must contain non-empty strings or objects naming a job", jobName)
+				}
+
+				// A cross-project need names no job in this pipeline,
+				// so there is nothing to check it against.
+				if name == "" {
+					continue
 				}
 
 				if _, dup := seen[name]; dup {
@@ -196,4 +202,39 @@ func validateServices(raw any, owner string) error {
 	}
 
 	return nil
+}
+
+// needName returns the job a "needs" entry names, and whether the entry is
+// well formed. A cross-project or cross-pipeline entry names no job in this
+// pipeline and yields an empty name.
+func needName(entry any) (string, bool) {
+	if name, ok := entry.(string); ok {
+		return name, name != ""
+	}
+
+	need, ok := entry.(map[string]any)
+
+	if !ok {
+		return "", false
+	}
+
+	raw, hasJob := need["job"]
+
+	if !hasJob {
+		_, crossPipeline := need["pipeline"]
+
+		return "", crossPipeline
+	}
+
+	name, ok := raw.(string)
+
+	if !ok || name == "" {
+		return "", false
+	}
+
+	if _, crossProject := need["project"]; crossProject {
+		return "", true
+	}
+
+	return name, true
 }

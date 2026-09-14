@@ -81,6 +81,7 @@ template "go_base" {
 ## Notes
 
 - HCL uses `depends_on`; YAML uses `needs:`.
+- A `needs:` entry that is an object rather than a plain job name becomes a `need {}` block, whose `job` is a `job.<id>` reference so it tracks a sanitized name like `depends_on` does.
 - A job needs no `script` of its own: a `trigger` job has none by definition, and a job that `extends` a template inherits one. Both are written as `job` blocks.
 - `$${VAR}` in HCL becomes `${VAR}` in YAML.
 - `${VAR}` in YAML becomes `$${VAR}` in HCL output.
