@@ -8,13 +8,15 @@ import (
 )
 
 type hclRuleBlock struct {
-	If           hcl.Expression `hcl:"if,optional"`
-	When         hcl.Expression `hcl:"when,optional"`
-	AllowFailure hcl.Expression `hcl:"allow_failure,optional"`
-	Changes      hcl.Expression `hcl:"changes,optional"`
-	Exists       hcl.Expression `hcl:"exists,optional"`
-	Variables    hcl.Expression `hcl:"variables,optional"`
-	Needs        hcl.Expression `hcl:"needs,optional"`
+	If            hcl.Expression `hcl:"if,optional"`
+	When          hcl.Expression `hcl:"when,optional"`
+	AllowFailure  hcl.Expression `hcl:"allow_failure,optional"`
+	Changes       hcl.Expression `hcl:"changes,optional"`
+	Exists        hcl.Expression `hcl:"exists,optional"`
+	Variables     hcl.Expression `hcl:"variables,optional"`
+	Needs         hcl.Expression `hcl:"needs,optional"`
+	StartIn       hcl.Expression `hcl:"start_in,optional"`
+	Interruptible hcl.Expression `hcl:"interruptible,optional"`
 }
 
 type hclReportsBlock struct {
@@ -28,6 +30,9 @@ type hclArtifactsBlock struct {
 	Name      hcl.Expression    `hcl:"name,optional"`
 	Untracked hcl.Expression    `hcl:"untracked,optional"`
 	When      hcl.Expression    `hcl:"when,optional"`
+	ExposeAs  hcl.Expression    `hcl:"expose_as,optional"`
+	Public    hcl.Expression    `hcl:"public,optional"`
+	Access    hcl.Expression    `hcl:"access,optional"`
 	Reports   []hclReportsBlock `hcl:"reports,block"`
 }
 
@@ -49,6 +54,7 @@ type hclCacheBlock struct {
 	When         hcl.Expression `hcl:"when,optional"`
 	Policy       hcl.Expression `hcl:"policy,optional"`
 	FallbackKeys hcl.Expression `hcl:"fallback_keys,optional"`
+	Unprotect    hcl.Expression `hcl:"unprotect,optional"`
 }
 
 type hclServiceBlock struct {
@@ -58,6 +64,8 @@ type hclServiceBlock struct {
 	Command    hcl.Expression `hcl:"command,optional"`
 	PullPolicy hcl.Expression `hcl:"pull_policy,optional"`
 	Variables  hcl.Expression `hcl:"variables,optional"`
+	Docker     hcl.Expression `hcl:"docker,optional"`
+	Kubernetes hcl.Expression `hcl:"kubernetes,optional"`
 }
 
 type hclVariableBlock struct {
@@ -65,83 +73,110 @@ type hclVariableBlock struct {
 	Name        hcl.Expression `hcl:"name,optional"`
 	Value       hcl.Expression `hcl:"value,optional"`
 	Description hcl.Expression `hcl:"description,optional"`
+	Options     hcl.Expression `hcl:"options,optional"`
 }
 
 type hclJobBlock struct {
-	ID            string              `hcl:"id,label"`
-	Key           hcl.Expression      `hcl:"id,optional"`
-	Stage         hcl.Expression      `hcl:"stage,optional"`
-	Image         hcl.Expression      `hcl:"image,optional"`
-	Script        hcl.Expression      `hcl:"script,optional"`
-	BeforeScript  hcl.Expression      `hcl:"before_script,optional"`
-	AfterScript   hcl.Expression      `hcl:"after_script,optional"`
-	Tags          hcl.Expression      `hcl:"tags,optional"`
-	DependsOn     hcl.Expression      `hcl:"depends_on,optional"`
-	Extends       hcl.Expression      `hcl:"extends,optional"`
-	When          hcl.Expression      `hcl:"when,optional"`
-	AllowFailure  hcl.Expression      `hcl:"allow_failure,optional"`
-	Interruptible hcl.Expression      `hcl:"interruptible,optional"`
-	Retry         hcl.Expression      `hcl:"retry,optional"`
-	Timeout       hcl.Expression      `hcl:"timeout,optional"`
-	Variables     hcl.Expression      `hcl:"variables,optional"`
-	Environment   hcl.Expression      `hcl:"environment,optional"`
-	Release       hcl.Expression      `hcl:"release,optional"`
-	Trigger       hcl.Expression      `hcl:"trigger,optional"`
-	Parallel      hcl.Expression      `hcl:"parallel,optional"`
-	Coverage      hcl.Expression      `hcl:"coverage,optional"`
-	ResourceGroup hcl.Expression      `hcl:"resource_group,optional"`
-	Needs         []hclNeedBlock      `hcl:"need,block"`
-	Rules         []hclRuleBlock      `hcl:"rule,block"`
-	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
-	Cache         []hclCacheBlock     `hcl:"cache,block"`
-	Services      []hclServiceBlock   `hcl:"service,block"`
+	ID                 string              `hcl:"id,label"`
+	Key                hcl.Expression      `hcl:"id,optional"`
+	Stage              hcl.Expression      `hcl:"stage,optional"`
+	Image              hcl.Expression      `hcl:"image,optional"`
+	Script             hcl.Expression      `hcl:"script,optional"`
+	BeforeScript       hcl.Expression      `hcl:"before_script,optional"`
+	AfterScript        hcl.Expression      `hcl:"after_script,optional"`
+	Tags               hcl.Expression      `hcl:"tags,optional"`
+	DependsOn          hcl.Expression      `hcl:"depends_on,optional"`
+	Extends            hcl.Expression      `hcl:"extends,optional"`
+	When               hcl.Expression      `hcl:"when,optional"`
+	AllowFailure       hcl.Expression      `hcl:"allow_failure,optional"`
+	Interruptible      hcl.Expression      `hcl:"interruptible,optional"`
+	Retry              hcl.Expression      `hcl:"retry,optional"`
+	Timeout            hcl.Expression      `hcl:"timeout,optional"`
+	Variables          hcl.Expression      `hcl:"variables,optional"`
+	Environment        hcl.Expression      `hcl:"environment,optional"`
+	Release            hcl.Expression      `hcl:"release,optional"`
+	Trigger            hcl.Expression      `hcl:"trigger,optional"`
+	Parallel           hcl.Expression      `hcl:"parallel,optional"`
+	Coverage           hcl.Expression      `hcl:"coverage,optional"`
+	ResourceGroup      hcl.Expression      `hcl:"resource_group,optional"`
+	Dependencies       hcl.Expression      `hcl:"dependencies,optional"`
+	StartIn            hcl.Expression      `hcl:"start_in,optional"`
+	Identity           hcl.Expression      `hcl:"identity,optional"`
+	ManualConfirmation hcl.Expression      `hcl:"manual_confirmation,optional"`
+	Inherit            hcl.Expression      `hcl:"inherit,optional"`
+	Secrets            hcl.Expression      `hcl:"secrets,optional"`
+	IDTokens           hcl.Expression      `hcl:"id_tokens,optional"`
+	Hooks              hcl.Expression      `hcl:"hooks,optional"`
+	Pages              hcl.Expression      `hcl:"pages,optional"`
+	Run                hcl.Expression      `hcl:"run,optional"`
+	DastConfiguration  hcl.Expression      `hcl:"dast_configuration,optional"`
+	Needs              []hclNeedBlock      `hcl:"need,block"`
+	Rules              []hclRuleBlock      `hcl:"rule,block"`
+	Artifacts          []hclArtifactsBlock `hcl:"artifacts,block"`
+	Cache              []hclCacheBlock     `hcl:"cache,block"`
+	Services           []hclServiceBlock   `hcl:"service,block"`
 }
 
 type hclWorkflowBlock struct {
-	Name  hcl.Expression `hcl:"name,optional"`
-	Rules []hclRuleBlock `hcl:"rule,block"`
+	Name       hcl.Expression `hcl:"name,optional"`
+	AutoCancel hcl.Expression `hcl:"auto_cancel,optional"`
+	Rules      []hclRuleBlock `hcl:"rule,block"`
 }
 
 type hclTemplateBlock struct {
-	ID            string              `hcl:"id,label"`
-	Key           hcl.Expression      `hcl:"id,optional"`
-	Stage         hcl.Expression      `hcl:"stage,optional"`
-	Image         hcl.Expression      `hcl:"image,optional"`
-	Script        hcl.Expression      `hcl:"script,optional"`
-	BeforeScript  hcl.Expression      `hcl:"before_script,optional"`
-	AfterScript   hcl.Expression      `hcl:"after_script,optional"`
-	Tags          hcl.Expression      `hcl:"tags,optional"`
-	DependsOn     hcl.Expression      `hcl:"depends_on,optional"`
-	Extends       hcl.Expression      `hcl:"extends,optional"`
-	When          hcl.Expression      `hcl:"when,optional"`
-	AllowFailure  hcl.Expression      `hcl:"allow_failure,optional"`
-	Interruptible hcl.Expression      `hcl:"interruptible,optional"`
-	Retry         hcl.Expression      `hcl:"retry,optional"`
-	Timeout       hcl.Expression      `hcl:"timeout,optional"`
-	Variables     hcl.Expression      `hcl:"variables,optional"`
-	Environment   hcl.Expression      `hcl:"environment,optional"`
-	Release       hcl.Expression      `hcl:"release,optional"`
-	Trigger       hcl.Expression      `hcl:"trigger,optional"`
-	Parallel      hcl.Expression      `hcl:"parallel,optional"`
-	Coverage      hcl.Expression      `hcl:"coverage,optional"`
-	ResourceGroup hcl.Expression      `hcl:"resource_group,optional"`
-	Needs         []hclNeedBlock      `hcl:"need,block"`
-	Rules         []hclRuleBlock      `hcl:"rule,block"`
-	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
-	Cache         []hclCacheBlock     `hcl:"cache,block"`
-	Services      []hclServiceBlock   `hcl:"service,block"`
+	ID                 string              `hcl:"id,label"`
+	Key                hcl.Expression      `hcl:"id,optional"`
+	Stage              hcl.Expression      `hcl:"stage,optional"`
+	Image              hcl.Expression      `hcl:"image,optional"`
+	Script             hcl.Expression      `hcl:"script,optional"`
+	BeforeScript       hcl.Expression      `hcl:"before_script,optional"`
+	AfterScript        hcl.Expression      `hcl:"after_script,optional"`
+	Tags               hcl.Expression      `hcl:"tags,optional"`
+	DependsOn          hcl.Expression      `hcl:"depends_on,optional"`
+	Extends            hcl.Expression      `hcl:"extends,optional"`
+	When               hcl.Expression      `hcl:"when,optional"`
+	AllowFailure       hcl.Expression      `hcl:"allow_failure,optional"`
+	Interruptible      hcl.Expression      `hcl:"interruptible,optional"`
+	Retry              hcl.Expression      `hcl:"retry,optional"`
+	Timeout            hcl.Expression      `hcl:"timeout,optional"`
+	Variables          hcl.Expression      `hcl:"variables,optional"`
+	Environment        hcl.Expression      `hcl:"environment,optional"`
+	Release            hcl.Expression      `hcl:"release,optional"`
+	Trigger            hcl.Expression      `hcl:"trigger,optional"`
+	Parallel           hcl.Expression      `hcl:"parallel,optional"`
+	Coverage           hcl.Expression      `hcl:"coverage,optional"`
+	ResourceGroup      hcl.Expression      `hcl:"resource_group,optional"`
+	Dependencies       hcl.Expression      `hcl:"dependencies,optional"`
+	StartIn            hcl.Expression      `hcl:"start_in,optional"`
+	Identity           hcl.Expression      `hcl:"identity,optional"`
+	ManualConfirmation hcl.Expression      `hcl:"manual_confirmation,optional"`
+	Inherit            hcl.Expression      `hcl:"inherit,optional"`
+	Secrets            hcl.Expression      `hcl:"secrets,optional"`
+	IDTokens           hcl.Expression      `hcl:"id_tokens,optional"`
+	Hooks              hcl.Expression      `hcl:"hooks,optional"`
+	Pages              hcl.Expression      `hcl:"pages,optional"`
+	Run                hcl.Expression      `hcl:"run,optional"`
+	DastConfiguration  hcl.Expression      `hcl:"dast_configuration,optional"`
+	Needs              []hclNeedBlock      `hcl:"need,block"`
+	Rules              []hclRuleBlock      `hcl:"rule,block"`
+	Artifacts          []hclArtifactsBlock `hcl:"artifacts,block"`
+	Cache              []hclCacheBlock     `hcl:"cache,block"`
+	Services           []hclServiceBlock   `hcl:"service,block"`
 }
 
 type hclDefaultBlock struct {
-	Image         hcl.Expression    `hcl:"image,optional"`
-	BeforeScript  hcl.Expression    `hcl:"before_script,optional"`
-	AfterScript   hcl.Expression    `hcl:"after_script,optional"`
-	Tags          hcl.Expression    `hcl:"tags,optional"`
-	Interruptible hcl.Expression    `hcl:"interruptible,optional"`
-	Retry         hcl.Expression    `hcl:"retry,optional"`
-	Timeout       hcl.Expression    `hcl:"timeout,optional"`
-	Cache         []hclCacheBlock   `hcl:"cache,block"`
-	Services      []hclServiceBlock `hcl:"service,block"`
+	Image         hcl.Expression      `hcl:"image,optional"`
+	BeforeScript  hcl.Expression      `hcl:"before_script,optional"`
+	AfterScript   hcl.Expression      `hcl:"after_script,optional"`
+	Tags          hcl.Expression      `hcl:"tags,optional"`
+	Interruptible hcl.Expression      `hcl:"interruptible,optional"`
+	Retry         hcl.Expression      `hcl:"retry,optional"`
+	Timeout       hcl.Expression      `hcl:"timeout,optional"`
+	IDTokens      hcl.Expression      `hcl:"id_tokens,optional"`
+	Hooks         hcl.Expression      `hcl:"hooks,optional"`
+	Cache         []hclCacheBlock     `hcl:"cache,block"`
+	Services      []hclServiceBlock   `hcl:"service,block"`
+	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
 }
 
 type hclIncludeBlock struct {
@@ -153,6 +188,8 @@ type hclIncludeBlock struct {
 	Template  hcl.Expression `hcl:"template,optional"`
 	Component hcl.Expression `hcl:"component,optional"`
 	Inputs    hcl.Expression `hcl:"inputs,optional"`
+	Rules     hcl.Expression `hcl:"rules,optional"`
+	Integrity hcl.Expression `hcl:"integrity,optional"`
 }
 
 type parseConfig struct {

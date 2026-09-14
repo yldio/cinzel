@@ -172,11 +172,28 @@ func parseVariableBlocks(blocks []hclVariableBlock, hv *hclparser.HCLVars) (map[
 			return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
 		}
 
-		if description != nil {
-			result[name] = map[string]any{"value": value, "description": description}
-		} else {
-			result[name] = value
+		options, err := parseAttr(b.Options, hv)
+		if err != nil {
+			return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
 		}
+
+		if description == nil && options == nil {
+			result[name] = value
+
+			continue
+		}
+
+		expanded := map[string]any{"value": value}
+
+		if description != nil {
+			expanded["description"] = description
+		}
+
+		if options != nil {
+			expanded["options"] = options
+		}
+
+		result[name] = expanded
 	}
 
 	return result, nil
@@ -186,6 +203,10 @@ func parseWorkflowBlock(block hclWorkflowBlock, hv *hclparser.HCLVars) (map[stri
 	out := make(map[string]any)
 
 	if err := setOptionalAttr(out, "name", block.Name, hv); err != nil {
+		return nil, err
+	}
+
+	if err := setOptionalAttr(out, "auto_cancel", block.AutoCancel, hv); err != nil {
 		return nil, err
 	}
 
@@ -230,6 +251,27 @@ func parseDefaultBlock(block hclDefaultBlock, hv *hclparser.HCLVars) (map[string
 
 	if err := setOptionalAttr(out, "timeout", block.Timeout, hv); err != nil {
 		return nil, err
+	}
+
+	if err := setOptionalAttr(out, "id_tokens", block.IDTokens, hv); err != nil {
+		return nil, err
+	}
+
+	if err := setOptionalAttr(out, "hooks", block.Hooks, hv); err != nil {
+		return nil, err
+	}
+
+	if len(block.Artifacts) > 1 {
+		return nil, errors.New("default can include at most one artifacts block")
+	}
+
+	if len(block.Artifacts) == 1 {
+		artifacts, err := parseArtifactsBlock(block.Artifacts[0], hv)
+		if err != nil {
+			return nil, err
+		}
+
+		out["artifacts"] = artifacts
 	}
 
 	if cache, err := parseCacheBlocks(block.Cache, hv); err != nil {
@@ -325,6 +367,29 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		return nil, err
 	}
 
+	// The rest of the job keywords are plain expressions, kept in one list
+	// so adding a keyword is a single line.
+	for _, attr := range [...]struct {
+		name string
+		expr hcl.Expression
+	}{
+		{"dependencies", block.Dependencies},
+		{"start_in", block.StartIn},
+		{"identity", block.Identity},
+		{"manual_confirmation", block.ManualConfirmation},
+		{"inherit", block.Inherit},
+		{"secrets", block.Secrets},
+		{"id_tokens", block.IDTokens},
+		{"hooks", block.Hooks},
+		{"pages", block.Pages},
+		{"run", block.Run},
+		{"dast_configuration", block.DastConfiguration},
+	} {
+		if err := setOptionalAttr(out, attr.name, attr.expr, hv); err != nil {
+			return nil, err
+		}
+	}
+
 	if refs, err := parseReferenceList(block.DependsOn, "job"); err != nil {
 		return nil, fmt.Errorf("depends_on: %w", err)
 	} else if len(refs) > 0 {
@@ -416,11 +481,24 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Parallel:      block.Parallel,
 		Coverage:      block.Coverage,
 		ResourceGroup: block.ResourceGroup,
-		Needs:         block.Needs,
-		Rules:         block.Rules,
-		Artifacts:     block.Artifacts,
-		Cache:         block.Cache,
-		Services:      block.Services,
+
+		Dependencies:       block.Dependencies,
+		StartIn:            block.StartIn,
+		Identity:           block.Identity,
+		ManualConfirmation: block.ManualConfirmation,
+		Inherit:            block.Inherit,
+		Secrets:            block.Secrets,
+		IDTokens:           block.IDTokens,
+		Hooks:              block.Hooks,
+		Pages:              block.Pages,
+		Run:                block.Run,
+		DastConfiguration:  block.DastConfiguration,
+
+		Needs:     block.Needs,
+		Rules:     block.Rules,
+		Artifacts: block.Artifacts,
+		Cache:     block.Cache,
+		Services:  block.Services,
 	}
 
 	return parseJobBlock(job, hv)
@@ -503,6 +581,14 @@ func parseRuleBlocks(blocks []hclRuleBlock, hv *hclparser.HCLVars) ([]any, error
 			return nil, err
 		}
 
+		if err := setOptionalAttr(rule, "start_in", block.StartIn, hv); err != nil {
+			return nil, err
+		}
+
+		if err := setOptionalAttr(rule, "interruptible", block.Interruptible, hv); err != nil {
+			return nil, err
+		}
+
 		out = append(out, rule)
 	}
 
@@ -533,6 +619,18 @@ func parseArtifactsBlock(block hclArtifactsBlock, hv *hclparser.HCLVars) (map[st
 	}
 
 	if err := setOptionalAttr(out, "when", block.When, hv); err != nil {
+		return nil, err
+	}
+
+	if err := setOptionalAttr(out, "expose_as", block.ExposeAs, hv); err != nil {
+		return nil, err
+	}
+
+	if err := setOptionalAttr(out, "public", block.Public, hv); err != nil {
+		return nil, err
+	}
+
+	if err := setOptionalAttr(out, "access", block.Access, hv); err != nil {
 		return nil, err
 	}
 
@@ -604,6 +702,10 @@ func parseCacheBlock(block hclCacheBlock, hv *hclparser.HCLVars) (map[string]any
 		return nil, err
 	}
 
+	if err := setOptionalAttr(out, "unprotect", block.Unprotect, hv); err != nil {
+		return nil, err
+	}
+
 	return out, nil
 }
 
@@ -634,6 +736,14 @@ func parseServiceBlocks(blocks []hclServiceBlock, hv *hclparser.HCLVars) ([]any,
 		}
 
 		if err := setOptionalAttr(service, "variables", block.Variables, hv); err != nil {
+			return nil, err
+		}
+
+		if err := setOptionalAttr(service, "docker", block.Docker, hv); err != nil {
+			return nil, err
+		}
+
+		if err := setOptionalAttr(service, "kubernetes", block.Kubernetes, hv); err != nil {
 			return nil, err
 		}
 
@@ -678,6 +788,14 @@ func parseIncludeBlocks(blocks []hclIncludeBlock, hv *hclparser.HCLVars) (any, e
 		}
 
 		if err := setOptionalAttr(include, "inputs", block.Inputs, hv); err != nil {
+			return nil, fmt.Errorf("error in include block: %w", err)
+		}
+
+		if err := setOptionalAttr(include, "rules", block.Rules, hv); err != nil {
+			return nil, fmt.Errorf("error in include block: %w", err)
+		}
+
+		if err := setOptionalAttr(include, "integrity", block.Integrity, hv); err != nil {
 			return nil, fmt.Errorf("error in include block: %w", err)
 		}
 
