@@ -9,6 +9,7 @@ var (
 	errInputPathRequired      = errors.New("`file` or `directory` must be set")
 	errInputPathConflict      = errors.New("`file` and `directory` cannot be set together")
 	errNoYAMLFiles            = errors.New("no YAML files found in input")
+	errNoDefinitions          = errors.New("no workflow, action or step definitions found in input")
 	errUnsupportedBodyType    = errors.New("unsupported body type")
 	errUnsupportedBlockBody   = errors.New("unsupported block body type")
 	errUnsupportedUsesBody    = errors.New("unsupported uses block body type")

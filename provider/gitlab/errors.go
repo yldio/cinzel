@@ -11,4 +11,5 @@ var (
 	errParseNotImplemented   = errors.New("gitlab parse is not implemented yet")
 	errUnparseNotImplemented = errors.New("gitlab unparse is not implemented yet")
 	errBlockIDNotString      = errors.New("'id' must be a non-empty string")
+	errNoDefinitions         = errors.New("no pipeline definitions found in input")
 )
