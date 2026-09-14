@@ -46,6 +46,21 @@ func TestEmptyCollectionsSurvive(t *testing.T) {
 			want: "services: []",
 		},
 		{
+			name: "template cache",
+			yaml: ".tpl:\n  cache: []\n  script:\n    - make\njob1:\n  extends: .tpl\n  script:\n    - make\n",
+			want: "cache: []",
+		},
+		{
+			name: "template services",
+			yaml: ".tpl:\n  services: []\n  script:\n    - make\njob1:\n  extends: .tpl\n  script:\n    - make\n",
+			want: "services: []",
+		},
+		{
+			name: "template rules",
+			yaml: ".tpl:\n  rules: []\n  script:\n    - make\njob1:\n  extends: .tpl\n  script:\n    - make\n",
+			want: "rules: []",
+		},
+		{
 			name: "workflow rules",
 			yaml: "workflow:\n  rules: []\njob1:\n  script:\n    - make\n",
 			want: "rules: []",

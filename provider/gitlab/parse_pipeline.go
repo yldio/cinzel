@@ -513,6 +513,10 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Only:               block.Only,
 		Except:             block.Except,
 
+		EmptyRules:    block.EmptyRules,
+		EmptyCache:    block.EmptyCache,
+		EmptyServices: block.EmptyServices,
+
 		Needs:     block.Needs,
 		Rules:     block.Rules,
 		Artifacts: block.Artifacts,
