@@ -88,6 +88,7 @@ template "go_base" {
 - Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
 - A pipeline of nothing but `include:` entries is unparsed like any other; a YAML file that is not a pipeline at all is still skipped.
 - `only:` and `except:`, the older way to spell `rules:`, are carried through in both their list and object forms.
+- A `script`, `before_script` or `after_script` may be a single command as a bare string, which is what GitLab's own schema takes, as well as a list.
 - A `variable` block takes `expand` and `options` alongside `value` and `description`; a variable that carries nothing else stays a plain scalar.
 - Parse output includes cinzel provider markers in YAML headers (`generated-by` and `cinzel-provider`).
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.

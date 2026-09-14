@@ -98,7 +98,7 @@ build:
 func TestJobWithNoScriptAndNothingToInheritIsRejected(t *testing.T) {
 	for _, tc := range []struct{ name, hcl, want string }{
 		{"no script at all", "job \"build\" {\n  stage = \"build\"\n}\n", "must define 'script'"},
-		{"empty script", "job \"build\" {\n  script = []\n}\n", "non-empty list"},
+		{"empty script", "job \"build\" {\n  script = []\n}\n", "non-empty string or list"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tmp := t.TempDir()
