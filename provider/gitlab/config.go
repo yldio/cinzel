@@ -79,99 +79,112 @@ type hclVariableBlock struct {
 }
 
 type hclJobBlock struct {
-	ID                 string              `hcl:"id,label"`
-	Key                hcl.Expression      `hcl:"id,optional"`
-	Stage              hcl.Expression      `hcl:"stage,optional"`
-	Image              hcl.Expression      `hcl:"image,optional"`
-	Script             hcl.Expression      `hcl:"script,optional"`
-	BeforeScript       hcl.Expression      `hcl:"before_script,optional"`
-	AfterScript        hcl.Expression      `hcl:"after_script,optional"`
-	Tags               hcl.Expression      `hcl:"tags,optional"`
-	DependsOn          hcl.Expression      `hcl:"depends_on,optional"`
-	Extends            hcl.Expression      `hcl:"extends,optional"`
-	When               hcl.Expression      `hcl:"when,optional"`
-	AllowFailure       hcl.Expression      `hcl:"allow_failure,optional"`
-	Interruptible      hcl.Expression      `hcl:"interruptible,optional"`
-	Retry              hcl.Expression      `hcl:"retry,optional"`
-	Timeout            hcl.Expression      `hcl:"timeout,optional"`
-	Variables          hcl.Expression      `hcl:"variables,optional"`
-	Environment        hcl.Expression      `hcl:"environment,optional"`
-	Release            hcl.Expression      `hcl:"release,optional"`
-	Trigger            hcl.Expression      `hcl:"trigger,optional"`
-	Parallel           hcl.Expression      `hcl:"parallel,optional"`
-	Coverage           hcl.Expression      `hcl:"coverage,optional"`
-	ResourceGroup      hcl.Expression      `hcl:"resource_group,optional"`
-	Dependencies       hcl.Expression      `hcl:"dependencies,optional"`
-	StartIn            hcl.Expression      `hcl:"start_in,optional"`
-	Identity           hcl.Expression      `hcl:"identity,optional"`
-	ManualConfirmation hcl.Expression      `hcl:"manual_confirmation,optional"`
-	Inherit            hcl.Expression      `hcl:"inherit,optional"`
-	Secrets            hcl.Expression      `hcl:"secrets,optional"`
-	IDTokens           hcl.Expression      `hcl:"id_tokens,optional"`
-	Hooks              hcl.Expression      `hcl:"hooks,optional"`
-	Pages              hcl.Expression      `hcl:"pages,optional"`
-	Run                hcl.Expression      `hcl:"run,optional"`
-	DastConfiguration  hcl.Expression      `hcl:"dast_configuration,optional"`
-	Inputs             hcl.Expression      `hcl:"inputs,optional"`
-	Publish            hcl.Expression      `hcl:"publish,optional"`
-	Only               hcl.Expression      `hcl:"only,optional"`
-	Except             hcl.Expression      `hcl:"except,optional"`
-	Needs              []hclNeedBlock      `hcl:"need,block"`
-	Rules              []hclRuleBlock      `hcl:"rule,block"`
-	Artifacts          []hclArtifactsBlock `hcl:"artifacts,block"`
-	Cache              []hclCacheBlock     `hcl:"cache,block"`
-	Services           []hclServiceBlock   `hcl:"service,block"`
+	ID                 string         `hcl:"id,label"`
+	Key                hcl.Expression `hcl:"id,optional"`
+	Stage              hcl.Expression `hcl:"stage,optional"`
+	Image              hcl.Expression `hcl:"image,optional"`
+	Script             hcl.Expression `hcl:"script,optional"`
+	BeforeScript       hcl.Expression `hcl:"before_script,optional"`
+	AfterScript        hcl.Expression `hcl:"after_script,optional"`
+	Tags               hcl.Expression `hcl:"tags,optional"`
+	DependsOn          hcl.Expression `hcl:"depends_on,optional"`
+	Extends            hcl.Expression `hcl:"extends,optional"`
+	When               hcl.Expression `hcl:"when,optional"`
+	AllowFailure       hcl.Expression `hcl:"allow_failure,optional"`
+	Interruptible      hcl.Expression `hcl:"interruptible,optional"`
+	Retry              hcl.Expression `hcl:"retry,optional"`
+	Timeout            hcl.Expression `hcl:"timeout,optional"`
+	Variables          hcl.Expression `hcl:"variables,optional"`
+	Environment        hcl.Expression `hcl:"environment,optional"`
+	Release            hcl.Expression `hcl:"release,optional"`
+	Trigger            hcl.Expression `hcl:"trigger,optional"`
+	Parallel           hcl.Expression `hcl:"parallel,optional"`
+	Coverage           hcl.Expression `hcl:"coverage,optional"`
+	ResourceGroup      hcl.Expression `hcl:"resource_group,optional"`
+	Dependencies       hcl.Expression `hcl:"dependencies,optional"`
+	StartIn            hcl.Expression `hcl:"start_in,optional"`
+	Identity           hcl.Expression `hcl:"identity,optional"`
+	ManualConfirmation hcl.Expression `hcl:"manual_confirmation,optional"`
+	Inherit            hcl.Expression `hcl:"inherit,optional"`
+	Secrets            hcl.Expression `hcl:"secrets,optional"`
+	IDTokens           hcl.Expression `hcl:"id_tokens,optional"`
+	Hooks              hcl.Expression `hcl:"hooks,optional"`
+	Pages              hcl.Expression `hcl:"pages,optional"`
+	Run                hcl.Expression `hcl:"run,optional"`
+	DastConfiguration  hcl.Expression `hcl:"dast_configuration,optional"`
+	Inputs             hcl.Expression `hcl:"inputs,optional"`
+	Publish            hcl.Expression `hcl:"publish,optional"`
+	Only               hcl.Expression `hcl:"only,optional"`
+	Except             hcl.Expression `hcl:"except,optional"`
+	// A keyword below is a block, which has no empty spelling, so each
+	// carries an attribute holding the explicit empty list GitLab reads
+	// as "override whatever this job would inherit".
+	EmptyRules    hcl.Expression      `hcl:"rules,optional"`
+	EmptyCache    hcl.Expression      `hcl:"cache,optional"`
+	EmptyServices hcl.Expression      `hcl:"services,optional"`
+	Needs         []hclNeedBlock      `hcl:"need,block"`
+	Rules         []hclRuleBlock      `hcl:"rule,block"`
+	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
+	Cache         []hclCacheBlock     `hcl:"cache,block"`
+	Services      []hclServiceBlock   `hcl:"service,block"`
 }
 
 type hclWorkflowBlock struct {
 	Name       hcl.Expression `hcl:"name,optional"`
 	AutoCancel hcl.Expression `hcl:"auto_cancel,optional"`
+	EmptyRules hcl.Expression `hcl:"rules,optional"`
 	Rules      []hclRuleBlock `hcl:"rule,block"`
 }
 
 type hclTemplateBlock struct {
-	ID                 string              `hcl:"id,label"`
-	Key                hcl.Expression      `hcl:"id,optional"`
-	Stage              hcl.Expression      `hcl:"stage,optional"`
-	Image              hcl.Expression      `hcl:"image,optional"`
-	Script             hcl.Expression      `hcl:"script,optional"`
-	BeforeScript       hcl.Expression      `hcl:"before_script,optional"`
-	AfterScript        hcl.Expression      `hcl:"after_script,optional"`
-	Tags               hcl.Expression      `hcl:"tags,optional"`
-	DependsOn          hcl.Expression      `hcl:"depends_on,optional"`
-	Extends            hcl.Expression      `hcl:"extends,optional"`
-	When               hcl.Expression      `hcl:"when,optional"`
-	AllowFailure       hcl.Expression      `hcl:"allow_failure,optional"`
-	Interruptible      hcl.Expression      `hcl:"interruptible,optional"`
-	Retry              hcl.Expression      `hcl:"retry,optional"`
-	Timeout            hcl.Expression      `hcl:"timeout,optional"`
-	Variables          hcl.Expression      `hcl:"variables,optional"`
-	Environment        hcl.Expression      `hcl:"environment,optional"`
-	Release            hcl.Expression      `hcl:"release,optional"`
-	Trigger            hcl.Expression      `hcl:"trigger,optional"`
-	Parallel           hcl.Expression      `hcl:"parallel,optional"`
-	Coverage           hcl.Expression      `hcl:"coverage,optional"`
-	ResourceGroup      hcl.Expression      `hcl:"resource_group,optional"`
-	Dependencies       hcl.Expression      `hcl:"dependencies,optional"`
-	StartIn            hcl.Expression      `hcl:"start_in,optional"`
-	Identity           hcl.Expression      `hcl:"identity,optional"`
-	ManualConfirmation hcl.Expression      `hcl:"manual_confirmation,optional"`
-	Inherit            hcl.Expression      `hcl:"inherit,optional"`
-	Secrets            hcl.Expression      `hcl:"secrets,optional"`
-	IDTokens           hcl.Expression      `hcl:"id_tokens,optional"`
-	Hooks              hcl.Expression      `hcl:"hooks,optional"`
-	Pages              hcl.Expression      `hcl:"pages,optional"`
-	Run                hcl.Expression      `hcl:"run,optional"`
-	DastConfiguration  hcl.Expression      `hcl:"dast_configuration,optional"`
-	Inputs             hcl.Expression      `hcl:"inputs,optional"`
-	Publish            hcl.Expression      `hcl:"publish,optional"`
-	Only               hcl.Expression      `hcl:"only,optional"`
-	Except             hcl.Expression      `hcl:"except,optional"`
-	Needs              []hclNeedBlock      `hcl:"need,block"`
-	Rules              []hclRuleBlock      `hcl:"rule,block"`
-	Artifacts          []hclArtifactsBlock `hcl:"artifacts,block"`
-	Cache              []hclCacheBlock     `hcl:"cache,block"`
-	Services           []hclServiceBlock   `hcl:"service,block"`
+	ID                 string         `hcl:"id,label"`
+	Key                hcl.Expression `hcl:"id,optional"`
+	Stage              hcl.Expression `hcl:"stage,optional"`
+	Image              hcl.Expression `hcl:"image,optional"`
+	Script             hcl.Expression `hcl:"script,optional"`
+	BeforeScript       hcl.Expression `hcl:"before_script,optional"`
+	AfterScript        hcl.Expression `hcl:"after_script,optional"`
+	Tags               hcl.Expression `hcl:"tags,optional"`
+	DependsOn          hcl.Expression `hcl:"depends_on,optional"`
+	Extends            hcl.Expression `hcl:"extends,optional"`
+	When               hcl.Expression `hcl:"when,optional"`
+	AllowFailure       hcl.Expression `hcl:"allow_failure,optional"`
+	Interruptible      hcl.Expression `hcl:"interruptible,optional"`
+	Retry              hcl.Expression `hcl:"retry,optional"`
+	Timeout            hcl.Expression `hcl:"timeout,optional"`
+	Variables          hcl.Expression `hcl:"variables,optional"`
+	Environment        hcl.Expression `hcl:"environment,optional"`
+	Release            hcl.Expression `hcl:"release,optional"`
+	Trigger            hcl.Expression `hcl:"trigger,optional"`
+	Parallel           hcl.Expression `hcl:"parallel,optional"`
+	Coverage           hcl.Expression `hcl:"coverage,optional"`
+	ResourceGroup      hcl.Expression `hcl:"resource_group,optional"`
+	Dependencies       hcl.Expression `hcl:"dependencies,optional"`
+	StartIn            hcl.Expression `hcl:"start_in,optional"`
+	Identity           hcl.Expression `hcl:"identity,optional"`
+	ManualConfirmation hcl.Expression `hcl:"manual_confirmation,optional"`
+	Inherit            hcl.Expression `hcl:"inherit,optional"`
+	Secrets            hcl.Expression `hcl:"secrets,optional"`
+	IDTokens           hcl.Expression `hcl:"id_tokens,optional"`
+	Hooks              hcl.Expression `hcl:"hooks,optional"`
+	Pages              hcl.Expression `hcl:"pages,optional"`
+	Run                hcl.Expression `hcl:"run,optional"`
+	DastConfiguration  hcl.Expression `hcl:"dast_configuration,optional"`
+	Inputs             hcl.Expression `hcl:"inputs,optional"`
+	Publish            hcl.Expression `hcl:"publish,optional"`
+	Only               hcl.Expression `hcl:"only,optional"`
+	Except             hcl.Expression `hcl:"except,optional"`
+	// A keyword below is a block, which has no empty spelling, so each
+	// carries an attribute holding the explicit empty list GitLab reads
+	// as "override whatever this job would inherit".
+	EmptyRules    hcl.Expression      `hcl:"rules,optional"`
+	EmptyCache    hcl.Expression      `hcl:"cache,optional"`
+	EmptyServices hcl.Expression      `hcl:"services,optional"`
+	Needs         []hclNeedBlock      `hcl:"need,block"`
+	Rules         []hclRuleBlock      `hcl:"rule,block"`
+	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
+	Cache         []hclCacheBlock     `hcl:"cache,block"`
+	Services      []hclServiceBlock   `hcl:"service,block"`
 }
 
 type hclDefaultBlock struct {
@@ -184,6 +197,8 @@ type hclDefaultBlock struct {
 	Timeout       hcl.Expression      `hcl:"timeout,optional"`
 	IDTokens      hcl.Expression      `hcl:"id_tokens,optional"`
 	Hooks         hcl.Expression      `hcl:"hooks,optional"`
+	EmptyCache    hcl.Expression      `hcl:"cache,optional"`
+	EmptyServices hcl.Expression      `hcl:"services,optional"`
 	Cache         []hclCacheBlock     `hcl:"cache,block"`
 	Services      []hclServiceBlock   `hcl:"service,block"`
 	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`

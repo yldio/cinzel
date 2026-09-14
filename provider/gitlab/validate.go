@@ -171,10 +171,6 @@ func validateServices(raw any, owner string) error {
 		return fmt.Errorf("%s services must be a list", owner)
 	}
 
-	if len(services) == 0 {
-		return fmt.Errorf("%s services must not be empty", owner)
-	}
-
 	for _, item := range services {
 		switch service := item.(type) {
 		case string:

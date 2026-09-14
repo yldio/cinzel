@@ -214,6 +214,8 @@ func parseWorkflowBlock(block hclWorkflowBlock, hv *hclparser.HCLVars) (map[stri
 
 	if len(rules) > 0 {
 		out["rules"] = rules
+	} else if err := setEmptyCollection(out, "rules", block.EmptyRules, hv); err != nil {
+		return nil, err
 	}
 
 	return out, nil
@@ -275,6 +277,8 @@ func parseDefaultBlock(block hclDefaultBlock, hv *hclparser.HCLVars) (map[string
 		return nil, err
 	} else if cache != nil {
 		out["cache"] = cache
+	} else if err := setEmptyCollection(out, "cache", block.EmptyCache, hv); err != nil {
+		return nil, err
 	}
 
 	services, err := parseServiceBlocks(block.Services, hv)
@@ -284,6 +288,8 @@ func parseDefaultBlock(block hclDefaultBlock, hv *hclparser.HCLVars) (map[string
 
 	if len(services) > 0 {
 		out["services"] = services
+	} else if err := setEmptyCollection(out, "services", block.EmptyServices, hv); err != nil {
+		return nil, err
 	}
 
 	return out, nil
@@ -400,6 +406,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 			arr = append(arr, ref)
 		}
 		out["needs"] = arr
+	} else if err := setEmptyCollection(out, "needs", block.DependsOn, hv); err != nil {
+		return nil, err
 	}
 
 	if needs, err := parseNeedBlocks(block.Needs, hv); err != nil {
@@ -426,6 +434,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 
 	if len(rules) > 0 {
 		out["rules"] = rules
+	} else if err := setEmptyCollection(out, "rules", block.EmptyRules, hv); err != nil {
+		return nil, err
 	}
 
 	if len(block.Artifacts) > 1 {
@@ -445,6 +455,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		return nil, err
 	} else if cache != nil {
 		out["cache"] = cache
+	} else if err := setEmptyCollection(out, "cache", block.EmptyCache, hv); err != nil {
+		return nil, err
 	}
 
 	services, err := parseServiceBlocks(block.Services, hv)
@@ -454,6 +466,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 
 	if len(services) > 0 {
 		out["services"] = services
+	} else if err := setEmptyCollection(out, "services", block.EmptyServices, hv); err != nil {
+		return nil, err
 	}
 
 	return out, nil
@@ -498,6 +512,10 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Publish:            block.Publish,
 		Only:               block.Only,
 		Except:             block.Except,
+
+		EmptyRules:    block.EmptyRules,
+		EmptyCache:    block.EmptyCache,
+		EmptyServices: block.EmptyServices,
 
 		Needs:     block.Needs,
 		Rules:     block.Rules,
@@ -796,6 +814,35 @@ func parseIncludeBlocks(blocks []hclIncludeBlock, hv *hclparser.HCLVars) (any, e
 	}
 
 	return includes, nil
+}
+
+// setEmptyCollection records a keyword written as an explicit empty list.
+// GitLab reads one as "override whatever this would inherit", which is not
+// the same as leaving the keyword out, but a block has no empty spelling —
+// so the schema carries an attribute alongside the block to hold it.
+func setEmptyCollection(out map[string]any, key string, expr hcl.Expression, hv *hclparser.HCLVars) error {
+	value, err := parseAttr(expr, hv)
+	if err != nil {
+		return fmt.Errorf("%s: %w", key, err)
+	}
+
+	list, isList := value.([]any)
+
+	if !isList {
+		if value == nil {
+			return nil
+		}
+
+		return fmt.Errorf("%s must be written as blocks unless it is an empty list", key)
+	}
+
+	if len(list) > 0 {
+		return fmt.Errorf("%s must be written as blocks unless it is an empty list", key)
+	}
+
+	out[key] = []any{}
+
+	return nil
 }
 
 func setOptionalAttr(out map[string]any, key string, expr hcl.Expression, hv *hclparser.HCLVars) error {
