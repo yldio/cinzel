@@ -95,7 +95,7 @@ template "go_base" {
 - A job or template name that is not a valid HCL identifier is sanitized to make the block referenceable (`build-app` becomes the label `build_app`) and the original name is kept in an `id` attribute, so the name and any `needs` or `extends` pointing at it survive the roundtrip.
 - Repeated `include {}` blocks map to YAML `include:` entries.
 - The HCL schema in `provider/gitlab/config.go` covers the documented GitLab keywords, including `dependencies`, `identity`, `manual_confirmation`, `inherit`, `secrets`, `id_tokens`, `hooks`, `pages`, `run` and `dast_configuration` on a job, `start_in` and `interruptible` on a rule, `expose_as`/`public`/`access` on `artifacts`, `unprotect` on `cache`, `docker` and `kubernetes` on a service, `rules` and `integrity` on an include, and `options` on a variable. It is checked against GitLab's own editor schema, `app/assets/javascripts/editor/schema/ci.json`.
-- A `rule` block takes `variables` and `needs` alongside `if`, `when`, `allow_failure`, `changes` and `exists`, for both workflow and job rules.
+- A `rule` block takes `variables`, `needs`, `start_in`, `interruptible` and `auto_cancel` alongside `if`, `when`, `allow_failure`, `changes` and `exists`, for both workflow and job rules.
 - Whether a nested map becomes an HCL block or an object attribute follows the schema in `provider/gitlab/config.go`, not the value's shape: `artifacts.reports` is a block, while `cache.key`, `service.variables`, `default.retry` and `include.inputs` are attributes.
 - Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.
 - Repeated `cache {}` blocks map to a YAML `cache:` list under `default` or a `job`; a single block stays a `cache:` object.

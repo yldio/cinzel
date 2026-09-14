@@ -558,40 +558,24 @@ func parseRuleBlocks(blocks []hclRuleBlock, hv *hclparser.HCLVars) ([]any, error
 	for _, block := range blocks {
 		rule := make(map[string]any)
 
-		if err := setOptionalAttr(rule, "if", block.If, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "when", block.When, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "allow_failure", block.AllowFailure, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "changes", block.Changes, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "exists", block.Exists, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "variables", block.Variables, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "needs", block.Needs, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "start_in", block.StartIn, hv); err != nil {
-			return nil, err
-		}
-
-		if err := setOptionalAttr(rule, "interruptible", block.Interruptible, hv); err != nil {
-			return nil, err
+		for _, attr := range [...]struct {
+			name string
+			expr hcl.Expression
+		}{
+			{"if", block.If},
+			{"when", block.When},
+			{"allow_failure", block.AllowFailure},
+			{"changes", block.Changes},
+			{"exists", block.Exists},
+			{"variables", block.Variables},
+			{"needs", block.Needs},
+			{"start_in", block.StartIn},
+			{"interruptible", block.Interruptible},
+			{"auto_cancel", block.AutoCancel},
+		} {
+			if err := setOptionalAttr(rule, attr.name, attr.expr, hv); err != nil {
+				return nil, err
+			}
 		}
 
 		out = append(out, rule)

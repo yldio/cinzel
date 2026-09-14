@@ -94,3 +94,55 @@ build:
 		})
 	}
 }
+
+// A workflow rule may carry its own "auto_cancel", overriding the one the
+// workflow sets. It was written out but absent from the rule schema, so the
+// emitted HCL did not parse back.
+func TestWorkflowRuleAutoCancel(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, ".gitlab-ci.yml")
+	outDir := filepath.Join(tmp, "hcl")
+	backDir := filepath.Join(tmp, "yaml")
+	yml := `workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    - if: $CI
+      auto_cancel:
+        on_new_commit: none
+build:
+  script: [make]
+`
+
+	if err := os.WriteFile(in, []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := New()
+
+	if err := p.Unparse(provider.ProviderOps{File: in, OutputDirectory: outDir}); err != nil {
+		t.Fatalf("Unparse() error = %v", err)
+	}
+
+	hclPath := filepath.Join(outDir, ".gitlab-ci.hcl")
+	got, err := os.ReadFile(hclPath)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := p.Parse(provider.ProviderOps{File: hclPath, OutputDirectory: backDir}); err != nil {
+		t.Fatalf("Parse() error = %v\nHCL:\n%s", err, got)
+	}
+
+	back, err := os.ReadFile(filepath.Join(backDir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{"on_new_commit: interruptible", "on_new_commit: none"} {
+		if !strings.Contains(string(back), want) {
+			t.Errorf("reparsed YAML missing %q:\n%s", want, back)
+		}
+	}
+}
