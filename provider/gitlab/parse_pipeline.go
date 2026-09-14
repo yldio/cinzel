@@ -167,30 +167,27 @@ func parseVariableBlocks(blocks []hclVariableBlock, hv *hclparser.HCLVars) (map[
 			return nil, fmt.Errorf("variable '%s' name must be a non-empty string", b.ID)
 		}
 
-		description, err := parseAttr(b.Description, hv)
-		if err != nil {
-			return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
+		// A variable carrying anything beyond its value is written back as
+		// an object; a bare one stays a plain scalar.
+		expanded := map[string]any{"value": value}
+
+		for _, attr := range [...]struct {
+			name string
+			expr hcl.Expression
+		}{
+			{"description", b.Description},
+			{"options", b.Options},
+			{"expand", b.Expand},
+		} {
+			if err := setOptionalAttr(expanded, attr.name, attr.expr, hv); err != nil {
+				return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
+			}
 		}
 
-		options, err := parseAttr(b.Options, hv)
-		if err != nil {
-			return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
-		}
-
-		if description == nil && options == nil {
+		if len(expanded) == 1 {
 			result[name] = value
 
 			continue
-		}
-
-		expanded := map[string]any{"value": value}
-
-		if description != nil {
-			expanded["description"] = description
-		}
-
-		if options != nil {
-			expanded["options"] = options
 		}
 
 		result[name] = expanded
@@ -384,6 +381,8 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		{"pages", block.Pages},
 		{"run", block.Run},
 		{"dast_configuration", block.DastConfiguration},
+		{"only", block.Only},
+		{"except", block.Except},
 	} {
 		if err := setOptionalAttr(out, attr.name, attr.expr, hv); err != nil {
 			return nil, err
@@ -493,6 +492,8 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Pages:              block.Pages,
 		Run:                block.Run,
 		DastConfiguration:  block.DastConfiguration,
+		Only:               block.Only,
+		Except:             block.Except,
 
 		Needs:     block.Needs,
 		Rules:     block.Rules,

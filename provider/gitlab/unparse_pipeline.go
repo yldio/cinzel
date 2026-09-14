@@ -118,14 +118,14 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 					}
 				}
 
-				if desc, hasDesc := vm["description"]; hasDesc {
-					if err := writeAttributeAny(vbody, "description", escapeGitLabVariables(desc)); err != nil {
-						return nil, err
-					}
-				}
+				for _, key := range [...]string{"description", "options", "expand"} {
+					value, has := vm[key]
 
-				if options, hasOptions := vm["options"]; hasOptions {
-					if err := writeAttributeAny(vbody, "options", escapeGitLabVariables(options)); err != nil {
+					if !has {
+						continue
+					}
+
+					if err := writeAttributeAny(vbody, key, escapeGitLabVariables(value)); err != nil {
 						return nil, err
 					}
 				}
