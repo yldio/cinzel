@@ -17,6 +17,7 @@ type hclRuleBlock struct {
 	Needs         hcl.Expression `hcl:"needs,optional"`
 	StartIn       hcl.Expression `hcl:"start_in,optional"`
 	Interruptible hcl.Expression `hcl:"interruptible,optional"`
+	AutoCancel    hcl.Expression `hcl:"auto_cancel,optional"`
 }
 
 type hclReportsBlock struct {
