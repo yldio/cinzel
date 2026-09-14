@@ -51,6 +51,21 @@ func roundtripYAML(t *testing.T, yml string) (string, string) {
 	return string(hcl), string(back)
 }
 
+// unparseYAMLString runs Unparse over YAML written inline, returning its error,
+// for the cases where the input is meant to be rejected.
+func unparseYAMLString(t *testing.T, yml string) error {
+	t.Helper()
+
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, ".gitlab-ci.yml")
+
+	if err := os.WriteFile(in, []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	return New().Unparse(provider.ProviderOps{File: in, OutputDirectory: filepath.Join(tmp, "hcl")})
+}
+
 // parseHCLString runs Parse over HCL written inline, for the cases where the
 // HCL is the input under test rather than something Unparse produced.
 func parseHCLString(t *testing.T, hcl string) error {

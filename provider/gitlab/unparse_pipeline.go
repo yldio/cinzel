@@ -4,7 +4,10 @@
 package gitlab
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -20,19 +23,45 @@ import (
 )
 
 func parseYAMLDocument(content []byte) (map[string]any, error) {
-	var doc map[string]any
+	// A pipeline carrying a "spec" header is two documents: the header, then
+	// the configuration. Merging them keeps the whole file, which a single
+	// Unmarshal would silently cut short at the first document.
+	dec := yaml.NewDecoder(bytes.NewReader(content))
+	merged := make(map[string]any)
 
-	if err := yaml.Unmarshal(content, &doc); err != nil {
-		return nil, err
+	for {
+		var doc map[string]any
+
+		err := dec.Decode(&doc)
+
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		for key, value := range doc {
+			if _, taken := merged[key]; taken {
+				return nil, fmt.Errorf("'%s' is declared in more than one document", key)
+			}
+			merged[key] = value
+		}
 	}
 
-	return doc, nil
+	return merged, nil
 }
 
 func classifyPipelineDocument(doc map[string]any) bool {
 	// A pipeline may be nothing but includes, which is how a project pulls
 	// its whole configuration in from elsewhere.
 	if _, ok := doc["include"]; ok {
+		return true
+	}
+
+	// Only a pipeline has a "spec" header.
+	if _, ok := doc["spec"]; ok {
 		return true
 	}
 
@@ -83,6 +112,18 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 	if rawStages, ok := doc["stages"]; ok {
 		if err := writeAttributeAny(body, "stages", escapeGitLabVariables(rawStages)); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, key := range [...]string{"image", "before_script", "after_script", "cache", "services"} {
+		value, ok := doc[key]
+
+		if !ok {
+			continue
+		}
+
+		if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
 			return nil, err
 		}
 	}
@@ -214,6 +255,26 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 		if err := writeGenericMap(db.Body(), defaultMap, defaultSchema); err != nil {
 			return nil, err
+		}
+	}
+
+	if rawSpec, ok := doc["spec"]; ok {
+		specMap, mapOK := toStringAnyMap(rawSpec)
+
+		if !mapOK && rawSpec != nil {
+			return nil, fmt.Errorf("spec must be an object")
+		}
+
+		if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
+			body.AppendNewline()
+		}
+
+		sb := body.AppendNewBlock("spec", nil)
+
+		for _, key := range sortedKeys(specMap) {
+			if err := writeAttributeAny(sb.Body(), key, escapeGitLabVariables(specMap[key])); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -877,7 +938,21 @@ func isReservedTopLevelKey(key string) bool {
 	switch key {
 	case "stages", "variables", "workflow", "default":
 		return true
-	case "include":
+	case "include", "spec":
+		return true
+	default:
+		return isGlobalDefaultKey(key)
+	}
+}
+
+// isGlobalDefaultKey reports whether a top-level key is one of the five GitLab
+// still reads outside a "default" block, where it means the same thing. Each is
+// written straight back as a top-level attribute rather than being folded into
+// a default block, since GitLab does not document which wins when a pipeline
+// has both.
+func isGlobalDefaultKey(key string) bool {
+	switch key {
+	case "image", "before_script", "after_script", "cache", "services":
 		return true
 	default:
 		return false

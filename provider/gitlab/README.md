@@ -91,6 +91,9 @@ template "go_base" {
 - A `script`, `before_script` or `after_script` may be a single command as a bare string, which is what GitLab's own schema takes, as well as a list.
 - An explicitly empty `needs:`, `cache:`, `services:` or `rules:` survives the roundtrip. GitLab reads one as "override whatever this would inherit", which is not the same as leaving the keyword out, so each is written as an empty attribute where the schema otherwise uses blocks (`cache = []`, `depends_on = []`).
 - A `rules:`, `artifacts:`, `cache:`, `only:` or `except:` written as null, and an empty `extends: []`, survive the roundtrip the same way. GitLab reads either spelling as clearing an inherited value. A null on any other keyword is dropped rather than written back, since GitLab's own schema does not accept one there.
+- A `spec:` header becomes a `spec` block, and is written back as its own YAML document ahead of the rest of the configuration, which is the only place GitLab reads one. Every document of a multi-document pipeline is read, not just the first.
+- A job written in the steps syntax carries its commands under `run` instead of `script`, and needs no `script` of its own. It still needs a stage.
+- `image:`, `before_script:`, `after_script:`, `cache:` and `services:` are also accepted at the top level, where GitLab reads each as the `default` of the same name. Each stays where it was written rather than being folded into a `default` block, since GitLab does not document which wins when a pipeline has both.
 - A `variable` block takes `expand` and `options` alongside `value` and `description`; a variable that carries nothing else stays a plain scalar.
 - Parse output includes cinzel provider markers in YAML headers (`generated-by` and `cinzel-provider`).
 - `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
