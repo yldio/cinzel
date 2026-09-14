@@ -93,5 +93,6 @@ template "go_base" {
 - A `rule` block takes `variables` and `needs` alongside `if`, `when`, `allow_failure`, `changes` and `exists`, for both workflow and job rules.
 - Whether a nested map becomes an HCL block or an object attribute follows the schema in `provider/gitlab/config.go`, not the value's shape: `artifacts.reports` is a block, while `cache.key`, `service.variables`, `default.retry` and `include.inputs` are attributes.
 - Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.
+- Repeated `cache {}` blocks map to a YAML `cache:` list under `default` or a `job`; a single block stays a `cache:` object.
 - Parse schema is defined by typed HCL structs in `provider/gitlab/config.go`; `hcl:",remain"` is used only for intentional pass-through islands.
 - Unparse schema validation favors strict typed YAML decode over manual key allowlist tables.
