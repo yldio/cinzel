@@ -29,6 +29,17 @@ type hclArtifactsBlock struct {
 	Reports   []hclReportsBlock `hcl:"reports,block"`
 }
 
+// hclNeedBlock is the object form of a YAML "needs" entry. The list form,
+// which names jobs only, stays the "depends_on" attribute.
+type hclNeedBlock struct {
+	Job       hcl.Expression `hcl:"job,optional"`
+	Artifacts hcl.Expression `hcl:"artifacts,optional"`
+	Optional  hcl.Expression `hcl:"optional,optional"`
+	Project   hcl.Expression `hcl:"project,optional"`
+	Ref       hcl.Expression `hcl:"ref,optional"`
+	Pipeline  hcl.Expression `hcl:"pipeline,optional"`
+}
+
 type hclCacheBlock struct {
 	Key          hcl.Expression `hcl:"key,optional"`
 	Paths        hcl.Expression `hcl:"paths,optional"`
@@ -77,6 +88,7 @@ type hclJobBlock struct {
 	Parallel      hcl.Expression      `hcl:"parallel,optional"`
 	Coverage      hcl.Expression      `hcl:"coverage,optional"`
 	ResourceGroup hcl.Expression      `hcl:"resource_group,optional"`
+	Needs         []hclNeedBlock      `hcl:"need,block"`
 	Rules         []hclRuleBlock      `hcl:"rule,block"`
 	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
 	Cache         []hclCacheBlock     `hcl:"cache,block"`
@@ -111,6 +123,7 @@ type hclTemplateBlock struct {
 	Parallel      hcl.Expression      `hcl:"parallel,optional"`
 	Coverage      hcl.Expression      `hcl:"coverage,optional"`
 	ResourceGroup hcl.Expression      `hcl:"resource_group,optional"`
+	Needs         []hclNeedBlock      `hcl:"need,block"`
 	Rules         []hclRuleBlock      `hcl:"rule,block"`
 	Artifacts     []hclArtifactsBlock `hcl:"artifacts,block"`
 	Cache         []hclCacheBlock     `hcl:"cache,block"`

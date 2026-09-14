@@ -343,6 +343,12 @@ func parseJobBlock(block hclJobBlock, hv *hclparser.HCLVars) (map[string]any, er
 		out["needs"] = arr
 	}
 
+	if needs, err := parseNeedBlocks(block.Needs, hv); err != nil {
+		return nil, err
+	} else if len(needs) > 0 {
+		out["needs"] = append(toAnyList(out["needs"]), needs...)
+	}
+
 	if refs, err := parseExtendsReferenceList(block.Extends); err != nil {
 		return nil, fmt.Errorf("extends: %w", err)
 	} else if len(refs) > 0 {
@@ -424,6 +430,7 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 		Parallel:      block.Parallel,
 		Coverage:      block.Coverage,
 		ResourceGroup: block.ResourceGroup,
+		Needs:         block.Needs,
 		Rules:         block.Rules,
 		Artifacts:     block.Artifacts,
 		Cache:         block.Cache,
@@ -431,6 +438,49 @@ func parseTemplateBlock(block hclTemplateBlock, hv *hclparser.HCLVars) (map[stri
 	}
 
 	return parseJobBlock(job, hv)
+}
+
+// toAnyList returns a value already known to hold a list, or an empty one.
+func toAnyList(value any) []any {
+	list, _ := value.([]any)
+
+	return list
+}
+
+// parseNeedBlocks turns "need" blocks back into the object form of a YAML
+// "needs" entry. Its "job" is a job reference, like "depends_on", so the two
+// forms name jobs the same way.
+func parseNeedBlocks(blocks []hclNeedBlock, hv *hclparser.HCLVars) ([]any, error) {
+	out := make([]any, 0, len(blocks))
+
+	for _, block := range blocks {
+		need := make(map[string]any)
+
+		if refs, err := parseReferenceList(block.Job, "job"); err != nil {
+			return nil, fmt.Errorf("need: job: %w", err)
+		} else if len(refs) == 1 {
+			need["job"] = refs[0]
+		}
+
+		for _, attr := range [...]struct {
+			name string
+			expr hcl.Expression
+		}{
+			{"artifacts", block.Artifacts},
+			{"optional", block.Optional},
+			{"project", block.Project},
+			{"ref", block.Ref},
+			{"pipeline", block.Pipeline},
+		} {
+			if err := setOptionalAttr(need, attr.name, attr.expr, hv); err != nil {
+				return nil, fmt.Errorf("need: %w", err)
+			}
+		}
+
+		out = append(out, need)
+	}
+
+	return out, nil
 }
 
 func parseRuleBlocks(blocks []hclRuleBlock, hv *hclparser.HCLVars) ([]any, error) {
