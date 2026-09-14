@@ -41,9 +41,14 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		_, hasExtends := jobMap["extends"]
 		inherits := isTemplate || hasTrigger || hasExtends
 
+		// A job written in the steps syntax carries its commands under "run"
+		// instead of "script". It still needs a stage, so this is not the
+		// same as inheriting.
+		_, hasRun := jobMap["run"]
+
 		script, ok := jobMap["script"]
 
-		if !ok && !inherits {
+		if !ok && !inherits && !hasRun {
 			return fmt.Errorf("job '%s' must define 'script'", jobName)
 		}
 
