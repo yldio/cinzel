@@ -509,6 +509,14 @@ func parseRuleBlocks(blocks []hclRuleBlock, hv *hclparser.HCLVars) ([]any, error
 			return nil, err
 		}
 
+		if err := setOptionalAttr(rule, "variables", block.Variables, hv); err != nil {
+			return nil, err
+		}
+
+		if err := setOptionalAttr(rule, "needs", block.Needs, hv); err != nil {
+			return nil, err
+		}
+
 		out = append(out, rule)
 	}
 

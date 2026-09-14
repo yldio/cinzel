@@ -13,6 +13,8 @@ type hclRuleBlock struct {
 	AllowFailure hcl.Expression `hcl:"allow_failure,optional"`
 	Changes      hcl.Expression `hcl:"changes,optional"`
 	Exists       hcl.Expression `hcl:"exists,optional"`
+	Variables    hcl.Expression `hcl:"variables,optional"`
+	Needs        hcl.Expression `hcl:"needs,optional"`
 }
 
 type hclReportsBlock struct {
