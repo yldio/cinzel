@@ -47,12 +47,8 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 			return fmt.Errorf("job '%s' must define 'script'", jobName)
 		}
 
-		if ok {
-			scriptList, isList := script.([]any)
-
-			if !isList || len(scriptList) == 0 {
-				return fmt.Errorf("job '%s' script must be a non-empty list", jobName)
-			}
+		if ok && !isNonEmptyScript(script) {
+			return fmt.Errorf("job '%s' script must be a non-empty string or list", jobName)
 		}
 
 		// A job that inherits can inherit its stage too, and GitLab defaults
@@ -237,4 +233,16 @@ func needName(entry any) (string, bool) {
 	}
 
 	return name, true
+}
+
+// isNonEmptyScript reports whether a script is one GitLab would run. GitLab
+// takes a single command as a bare string as well as a list of them.
+func isNonEmptyScript(script any) bool {
+	if line, isString := script.(string); isString {
+		return line != ""
+	}
+
+	list, isList := script.([]any)
+
+	return isList && len(list) > 0
 }

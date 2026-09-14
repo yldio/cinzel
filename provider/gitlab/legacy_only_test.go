@@ -126,3 +126,34 @@ build:
 		t.Errorf("reparsed YAML missing %q:\n%s", "TAG: latest", back)
 	}
 }
+
+// GitLab takes a single command as a bare string as well as a list, but the
+// validator demanded a list, so such a job would not parse back.
+func TestStringScriptSurvives(t *testing.T) {
+	_, back := roundtripYAML(t, `build:
+  script: make
+  before_script: setup
+  after_script: teardown
+`)
+
+	for _, want := range []string{"script: make", "before_script: setup", "after_script: teardown"} {
+		if !strings.Contains(back, want) {
+			t.Errorf("reparsed YAML missing %q:\n%s", want, back)
+		}
+	}
+}
+
+// An empty script is still rejected, whichever shape it takes. The list case
+// lives in trigger_job_test.go; this covers the string the validator now takes.
+func TestEmptyStringScriptIsRejected(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, ".gitlab-ci.hcl")
+
+	if err := os.WriteFile(in, []byte("job \"build\" {\n  script = \"\"\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := New().Parse(provider.ProviderOps{File: in, OutputDirectory: filepath.Join(tmp, "out")}); err == nil {
+		t.Error("Parse() accepted an empty script")
+	}
+}
