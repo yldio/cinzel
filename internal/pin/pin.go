@@ -267,6 +267,57 @@ type ActionRef struct {
 	Action  string // e.g., "actions/checkout"
 	Version string // e.g., "v4" or "abc123..."
 	IsTag   bool   // true if Version looks like a tag, not a SHA
+
+	// Where the version assignment sits in the file, the trailing comment
+	// included. Rewrites go here rather than to the first text that looks
+	// the same, which is not always this action's line.
+	start int
+	end   int
+}
+
+// versionEdit is one rewritten version assignment, held back until every
+// action has been resolved so the offsets it carries stay valid.
+type versionEdit struct {
+	start int
+	end   int
+	text  string
+}
+
+// applyVersionEdits splices edits into content back to front, so an earlier
+// rewrite cannot shift the offsets of a later one.
+func applyVersionEdits(content string, edits []versionEdit) string {
+	for i := len(edits) - 1; i >= 0; i-- {
+		e := edits[i]
+		content = content[:e.start] + e.text + content[e.end:]
+	}
+
+	return content
+}
+
+// versionLine renders the assignment written in place of the old one.
+func versionLine(sha, comment string) string {
+	return fmt.Sprintf(`version = %q # %s`, sha, comment)
+}
+
+// trailingCommentEnd returns the offset just past a comment sitting at the end
+// of the version line, or from if there is none. The replacement carries its
+// own comment, so leaving the old one stacked a stale tag beside the new one:
+// a line reading "# v5 # v4" names a version the SHA is not.
+func trailingCommentEnd(content string, from int) int {
+	i := from
+	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
+		i++
+	}
+
+	if i >= len(content) || (content[i] != '#' && !strings.HasPrefix(content[i:], "//")) {
+		return from
+	}
+
+	for i < len(content) && content[i] != '\n' {
+		i++
+	}
+
+	return i
 }
 
 // isTag returns true if the version looks like a tag rather than a SHA.
@@ -303,7 +354,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 
 	var results []PinResult
 
-	updated := string(content)
+	var edits []versionEdit
 
 	for _, ref := range refs {
 		if !ref.IsTag {
@@ -340,11 +391,17 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			continue
 		}
 
-		// Replace version value in the HCL content, adding an inline comment
-		// with the original tag so the pinned SHA remains human-readable.
-		oldLine := fmt.Sprintf(`version = %q`, ref.Version)
-		newLine := fmt.Sprintf(`version = %q # %s`, sha, ref.Version)
-		updated = strings.Replace(updated, oldLine, newLine, 1)
+		// The rewrite goes at this action's own offsets. Searching the file
+		// for text matching "version = <tag>" found the first line that read
+		// that way, which is this action's only while every earlier one was
+		// also rewritten. One failed resolve left an earlier line matchable,
+		// and it took this action's SHA: the failed action came out pinned to
+		// another action's commit, and this one stayed on a moving tag.
+		edits = append(edits, versionEdit{
+			start: ref.start,
+			end:   ref.end,
+			text:  versionLine(sha, ref.Version),
+		})
 
 		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, sha[:12])
 
@@ -354,6 +411,8 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			SHA:    sha,
 		})
 	}
+
+	updated := applyVersionEdits(string(content), edits)
 
 	if !dryRun && updated != string(content) {
 		if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
@@ -414,12 +473,15 @@ func findActionRefs(content string) ([]ActionRef, error) {
 
 	for i, am := range actionMatches {
 		action := content[am[2]:am[3]]
-		version := content[versionMatches[i][2]:versionMatches[i][3]]
+		vm := versionMatches[i]
+		version := content[vm[2]:vm[3]]
 
 		refs = append(refs, ActionRef{
 			Action:  action,
 			Version: version,
 			IsTag:   isTag(version),
+			start:   vm[0],
+			end:     trailingCommentEnd(content, vm[1]),
 		})
 	}
 
