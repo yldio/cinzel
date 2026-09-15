@@ -26,6 +26,8 @@ func TestFilenameCannotEscapeTheOutputDirectory(t *testing.T) {
 		{name: "parent after a subdirectory", filename: "sub/../../escaped"},
 		{name: "absolute", filename: "/tmp/escaped"},
 		{name: "bare parent", filename: ".."},
+		{name: "backslash parent", filename: `..\\escaped`},
+		{name: "windows drive relative", filename: "C:escaped"},
 	} {
 		t.Run("workflow "+tc.name, func(t *testing.T) {
 			assertEscapeRefused(t, workflowHCL(tc.filename))
