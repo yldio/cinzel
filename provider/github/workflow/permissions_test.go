@@ -50,17 +50,13 @@ func TestValidatePermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("unknown scope", func(t *testing.T) {
-		err := ValidatePermissions(map[string]any{
-			"admin": "read",
-		})
-
-		if err == nil {
-			t.Fatal("expected error")
-		}
-
-		if !strings.Contains(err.Error(), "unknown permissions scope") {
-			t.Fatalf("unexpected error: %v", err)
+	// GitHub keeps adding scopes, and a list of the ones known when this was
+	// written rejected workflows GitHub itself accepts.
+	t.Run("scope added after this validator was written", func(t *testing.T) {
+		for _, scope := range []string{"models", "vulnerability-alerts", "artifact-metadata", "code-quality"} {
+			if err := ValidatePermissions(map[string]any{scope: "read"}); err != nil {
+				t.Errorf("scope %q: %v", scope, err)
+			}
 		}
 	})
 

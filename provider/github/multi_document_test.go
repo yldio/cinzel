@@ -100,3 +100,55 @@ func TestSingleDocumentStillUnparses(t *testing.T) {
 		t.Errorf("want output written: %v", err)
 	}
 }
+
+// GitHub keeps adding permission scopes. A workflow using one that postdates
+// this repo's validator was rejected outright, which is the failure mode
+// CLAUDE.md's rule against allowlists exists to prevent.
+func TestRecentPermissionScopesAreAccepted(t *testing.T) {
+	err, out := unparseYAMLString(t, `name: pm
+on:
+  push:
+permissions:
+  models: read
+  vulnerability-alerts: read
+  artifact-metadata: read
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo a
+`)
+	if err != nil {
+		t.Fatalf("unparse: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(out, "wf.hcl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{"models", "vulnerability_alerts", "artifact_metadata"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("want %q kept, got:\n%s", want, got)
+		}
+	}
+}
+
+// A bad level is still rejected: those three values have not changed.
+func TestInvalidPermissionLevelStillRejected(t *testing.T) {
+	err, _ := unparseYAMLString(t, `name: pm
+on:
+  push:
+permissions:
+  contents: admin
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo a
+`)
+
+	if err == nil || !strings.Contains(err.Error(), "invalid permission level") {
+		t.Fatalf("want an invalid level error, got %v", err)
+	}
+}

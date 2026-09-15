@@ -174,24 +174,6 @@ workflow "ci" {
 			errContains: "dependency cycle",
 		},
 		{
-			name: "invalid permissions scope",
-			content: `step "s" { run = "echo hi" }
-job "build" {
-  runs_on { runners = "ubuntu-latest" }
-  permissions {
-    admin = "write"
-  }
-  steps = [step.s]
-}
-workflow "ci" {
-  filename = "ci"
-  on "push" {}
-  jobs = [job.build]
-}
-`,
-			errContains: "unknown permissions scope",
-		},
-		{
 			name: "invalid permissions level",
 			content: `step "s" { run = "echo hi" }
 job "build" {
@@ -436,20 +418,6 @@ jobs:
       - run: echo hi
 `,
 			errContains: "dependency cycle",
-		},
-		{
-			name: "invalid permissions scope in YAML",
-			content: `on:
-  push: {}
-permissions:
-  admin: write
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo hi
-`,
-			errContains: "unknown permissions scope",
 		},
 		{
 			name: "invalid permission level in YAML",
