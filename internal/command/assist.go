@@ -51,7 +51,11 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			dryRun := c.Bool("dry-run")
 			acknowledge := c.Bool("acknowledge")
 
-			cfg := ai.LoadConfig()
+			cfg, configWarnings := ai.LoadConfig()
+			for _, warning := range configWarnings {
+				_, _ = fmt.Fprintf(cmd.Writer, "warning: %s\n", warning)
+			}
+
 			aiName := cfg.ResolveProviderName(c.String("ai"))
 			model := cfg.ResolveModel(aiName, c.String("model"))
 			apiKey := cfg.ResolveAPIKey(aiName)
