@@ -12,4 +12,5 @@ var (
 	errUnparseNotImplemented = errors.New("gitlab unparse is not implemented yet")
 	errBlockIDNotString      = errors.New("'id' must be a non-empty string")
 	errNoDefinitions         = errors.New("no pipeline definitions found in input")
+	errYAMLExhausting        = errors.New("input would exhaust memory during YAML alias expansion")
 )
