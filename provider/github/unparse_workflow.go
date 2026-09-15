@@ -62,6 +62,10 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
 		return nil, nil, nil
 	}
 
+	if err := rejectNonStringKeys(first); err != nil {
+		return nil, nil, err
+	}
+
 	keepWholeNumbersExact(first)
 
 	var doc map[string]any
@@ -98,6 +102,35 @@ func keepWholeNumbersExact(node *yamlv3.Node) {
 	}
 }
 
+// rejectNonStringKeys refuses a mapping key that is not a string.
+//
+// yaml.v3 decodes a mapping holding one into map[any]any rather than
+// map[string]any, and a null key lands in that map as a nil, which crashes the
+// encoder the validator runs the document through. A number or a boolean does
+// not crash but is dropped just as quietly: the job order reads the key as
+// written while the jobs map is keyed by a value no lookup here can produce,
+// so the job goes missing without a word.
+//
+// A merge key is a string as far as this matters; the decoder folds it away
+// before anything else sees the document.
+func rejectNonStringKeys(node *yamlv3.Node) error {
+	if node.Kind == yamlv3.MappingNode {
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if tag := node.Content[i].Tag; tag != "" && tag != "!!str" && tag != "!!merge" {
+				return fmt.Errorf("%w: %s", errNonStringKey, node.Content[i].Value)
+			}
+		}
+	}
+
+	for _, child := range node.Content {
+		if err := rejectNonStringKeys(child); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // isNullNode reports whether a document holds nothing. A stray "---" marker
 // at either end of a file decodes to a null scalar, which is not a second
 // document in any sense that matters here.
@@ -124,9 +157,15 @@ func jobOrderFromNode(root *yamlv3.Node) []string {
 			keys := make([]string, 0, len(jobs.Content)/2)
 
 			for j := 0; j+1 < len(jobs.Content); j += 2 {
-				if key := jobs.Content[j].Value; key != "" {
-					keys = append(keys, key)
+				// A merge key is not a job. The decoder folds what it
+				// points at into the mapping, so those jobs are named by
+				// the keys they arrive under, which is more than this pass
+				// can see: the order falls back to sorted keys instead.
+				if jobs.Content[j].Tag == "!!merge" {
+					return nil
 				}
+
+				keys = append(keys, jobKeyName(jobs.Content[j]))
 			}
 
 			return keys
@@ -134,6 +173,21 @@ func jobOrderFromNode(root *yamlv3.Node) []string {
 	}
 
 	return nil
+}
+
+// jobKeyName returns the name a job key node carries once it is resolved.
+//
+// An alias in key position holds the anchor's name in Value and the text it
+// stands for in Alias, while Decode records the resolved text. Reading Value
+// here would put a name in the order that the jobs map does not hold, and the
+// job would be reported as missing under a name that never appears in the
+// file.
+func jobKeyName(key *yamlv3.Node) string {
+	if key.Kind == yamlv3.AliasNode && key.Alias != nil {
+		return key.Alias.Value
+	}
+
+	return key.Value
 }
 
 func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, error) {

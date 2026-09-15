@@ -266,6 +266,12 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 	jobModels := make(map[string]ghjob.ValidationModel, len(jobsRaw))
 
 	for jobID, jobAny := range jobsRaw {
+		// An unnamed job cannot be referred to by needs and has no reference
+		// to emit, and the HCL side already refuses one on the way back.
+		if jobID == "" {
+			return withPath("jobs", errJobIDNotString)
+		}
+
 		jobMap, ok := toStringAnyMap(jobAny)
 
 		if !ok {
