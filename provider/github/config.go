@@ -64,8 +64,15 @@ type hclJobBlock struct {
 	Permissions     []hclGenericBlock  `hcl:"permissions,block"`
 	Defaults        []hclGenericBlock  `hcl:"defaults,block"`
 	Concurrency     []hclGenericBlock  `hcl:"concurrency,block"`
-	Container       []hclGenericBlock  `hcl:"container,block"`
-	Environment     []hclGenericBlock  `hcl:"environment,block"`
+	// Each keyword below is a block, but GitHub also accepts a plain string
+	// for it: a group name for "concurrency", an image reference for
+	// "container", an environment name for "environment". The attribute
+	// carries that scalar form.
+	ConcurrencyAttr hcl.Expression    `hcl:"concurrency,optional"`
+	ContainerAttr   hcl.Expression    `hcl:"container,optional"`
+	EnvironmentAttr hcl.Expression    `hcl:"environment,optional"`
+	Container       []hclGenericBlock `hcl:"container,block"`
+	Environment     []hclGenericBlock `hcl:"environment,block"`
 }
 
 type hclWorkflowBlock struct {

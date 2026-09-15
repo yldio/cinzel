@@ -315,6 +315,18 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		return ghjob.Parsed{}, err
 	}
 
+	if err := setOptionalYAMLAttr(out, "concurrency", cfg.ConcurrencyAttr, hv); err != nil {
+		return ghjob.Parsed{}, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "container", cfg.ContainerAttr, hv); err != nil {
+		return ghjob.Parsed{}, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "environment", cfg.EnvironmentAttr, hv); err != nil {
+		return ghjob.Parsed{}, err
+	}
+
 	for _, block := range cfg.Permissions {
 		child, err := parseBodyMap(block.Body, hv, "permissions")
 		if err != nil {
