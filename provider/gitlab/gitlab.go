@@ -58,6 +58,11 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
+	// Nothing was declared. Writing here would leave a "{}" document behind.
+	if len(pipeline) == 0 {
+		return errNoDefinitions
+	}
+
 	outputBytes, err := marshalPipelineYAML(pipeline)
 	if err != nil {
 		return err

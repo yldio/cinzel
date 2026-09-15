@@ -62,6 +62,13 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	outputDir := resolveParseOutputDirectory(opts)
 
 	if len(workflows) == 0 && len(actions) == 0 {
+		// Nothing was declared. Writing here would leave a "{}" document
+		// behind and, worse, make it the only current output, so the prune
+		// below would delete every other generated file in the directory.
+		if len(stepMap) == 0 {
+			return errNoDefinitions
+		}
+
 		outputBytes, err := marshalStepsYAML(stepMap)
 		if err != nil {
 			return err
