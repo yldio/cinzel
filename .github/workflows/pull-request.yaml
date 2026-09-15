@@ -33,13 +33,11 @@ jobs:
         if: "${{ matrix.os == 'ubuntu-24.04' }}"
         name: Generated workflows match their HCL
         run: mise run drift
-      - id: checkout_for_coverage
-        if: "${{ matrix.os == 'ubuntu-24.04' }}"
-        name: Checkout (coverage notes)
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: "true"
-      - id: coverage
+      - env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ github.token }}@github.com/.insteadOf"
+          GIT_CONFIG_VALUE_0: "https://github.com/"
+        id: coverage
         if: "${{ matrix.os == 'ubuntu-24.04' }}"
         name: Coverage
         uses: gwatts/go-coverage-action@2845595538a59d63d1bf55f109c14e104c6f7cb3

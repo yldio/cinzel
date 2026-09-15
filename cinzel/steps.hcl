@@ -10,9 +10,8 @@ step "checkout" {
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
 
-  // Only the coverage step needs credentials, and it re-checks out for them
-  // just before it runs, so nothing is left in .git/config while the tests
-  // and the linters execute the dependency tree.
+  // Nothing in this job needs a token in .git/config. The one step that
+  // pushes carries its credentials in its own environment instead.
   with {
     name  = "persist-credentials"
     value = "false"
@@ -36,31 +35,6 @@ step "checkout_release" {
   with {
     name  = "persist-credentials"
     value = "false"
-  }
-}
-
-step "checkout_release_with_credentials" {
-  name = "Checkout (full history, push enabled)"
-
-  // actions/checkout v6.0.2
-  uses {
-    action  = "actions/checkout"
-    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-  }
-
-  with {
-    name  = "fetch-depth"
-    value = "0"
-  }
-
-  with {
-    name  = "persist-credentials"
-    value = "true"
-  }
-
-  with {
-    name  = "github_token"
-    value = "$${{ steps.release_app_token.outputs.token }}"
   }
 }
 
@@ -302,6 +276,24 @@ step "commit_release" {
     name  = "branch"
     value = "$${{ github.ref_name }}"
   }
+
+  // The action pushes the changelog commit with a bare "git push origin" and
+  // takes no token for it. The credentials go in this step's environment, so
+  // the checkout leaves nothing in .git/config for the earlier steps to read.
+  env {
+    name  = "GIT_CONFIG_COUNT"
+    value = "1"
+  }
+
+  env {
+    name  = "GIT_CONFIG_KEY_0"
+    value = "url.https://x-access-token:$${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+  }
+
+  env {
+    name  = "GIT_CONFIG_VALUE_0"
+    value = "https://github.com/"
+  }
 }
 
 step "tests" {
@@ -321,27 +313,6 @@ step "drift" {
   run  = "mise run drift"
 }
 
-step "checkout_for_coverage" {
-  name = "Checkout (coverage notes)"
-  if   = "$${{ matrix.os == 'ubuntu-24.04' }}"
-
-  // gwatts/go-coverage-action pushes refs/notes/gocoverage with a bare
-  // "git push origin" and takes no token for it, so the credentials have to
-  // be in .git/config. Putting them there in the step right before the one
-  // that needs them keeps them out of every earlier step. See ghalint.yaml.
-
-  // actions/checkout v6.0.2
-  uses {
-    action  = "actions/checkout"
-    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-  }
-
-  with {
-    name  = "persist-credentials"
-    value = "true"
-  }
-}
-
 step "coverage" {
   name = "Coverage"
   if   = "$${{ matrix.os == 'ubuntu-24.04' }}"
@@ -350,6 +321,26 @@ step "coverage" {
   uses {
     action  = "gwatts/go-coverage-action"
     version = "2845595538a59d63d1bf55f109c14e104c6f7cb3"
+  }
+
+  // The action pushes refs/notes/gocoverage with a bare "git push origin"
+  // and takes no token for it. git reads configuration from GIT_CONFIG_COUNT
+  // and its numbered pairs, so the credentials live in this step's
+  // environment rather than in .git/config, where every other step in the
+  // job would be able to read them.
+  env {
+    name  = "GIT_CONFIG_COUNT"
+    value = "1"
+  }
+
+  env {
+    name  = "GIT_CONFIG_KEY_0"
+    value = "url.https://x-access-token:$${{ github.token }}@github.com/.insteadOf"
+  }
+
+  env {
+    name  = "GIT_CONFIG_VALUE_0"
+    value = "https://github.com/"
   }
 }
 

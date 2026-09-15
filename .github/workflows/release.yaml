@@ -37,13 +37,12 @@ jobs:
           permission-contents: write
           private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
           repositories: "cinzel,homebrew-cinzel"
-      - id: checkout_release_with_credentials
-        name: "Checkout (full history, push enabled)"
+      - id: checkout_release
+        name: Checkout (full history)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: "0"
-          github_token: "${{ steps.release_app_token.outputs.token }}"
-          persist-credentials: "true"
+          persist-credentials: "false"
       - id: mise_setup
         name: Setup mise
         uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
@@ -106,7 +105,11 @@ jobs:
           args: "--offline --verbose --unreleased --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
           github_token: "${{ steps.release_app_token.outputs.token }}"
-      - id: commit_release
+      - env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+          GIT_CONFIG_VALUE_0: "https://github.com/"
+        id: commit_release
         name: Commit release changelog
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
