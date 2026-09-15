@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "009"
 tags: [code-review, testing, quality]
@@ -52,7 +52,25 @@ Extend the matrix unparse test infrastructure with YAML files exercising the abo
 
 ## Recommended Action
 
-_To be filled during triage._
+Option A, plus a fix. Probing the edge cases the issue lists turned up a real
+defect rather than only a test gap.
+
+`yaml.v3` resolves a run of digits too large for `int64` or `uint64` to a
+`float64`, and a float that wide cannot hold every digit. An ID written as
+`99999999999999999999` came back as `1e+20` and was emitted as
+`100000000000000000000` — a different number, with nothing said. `goccy` keeps
+the digits as text, so the GitLab provider was never affected; the GitHub
+unparse path picked this up when it switched decoders.
+
+`keepWholeNumbersExact` retags such a scalar as a string before the decode.
+Only a plain run of digits is touched: a quoted or explicitly tagged scalar
+carries a non-zero `Style`, and `.inf` and `.nan` are not whole numbers, so
+both keep the float the file asked for.
+
+The rest of the list was already correct and is now pinned by tests: `~`,
+`null` and an empty value all decode to null; `off`, `NO` and `yes` stay
+strings under YAML 1.2; `1:30` is not sexagesimal; anchors, aliases and merge
+keys are expanded by the decoder before the writer sees them.
 
 ## Technical Details
 
@@ -61,9 +79,20 @@ _To be filled during triage._
 
 ## Acceptance Criteria
 
-- [ ] At least one test exercises `parseYAMLDocument` with a YAML `null` value, a boolean-like string, and a merge key
-- [ ] Tests pass and document the expected behavior
+- [x] At least one test exercises `parseYAMLDocument` with a YAML `null` value, a boolean-like string, and a merge key
+- [x] Tests pass and document the expected behavior
+- [x] The precision loss the probe found is fixed, with a test that fails without the fix
 
 ## Work Log
 
 - 2026-03-31: Finding created during code review
+- 2026-09-15: Probed all the listed cases end to end against 2fc5fe5. Found one
+  real defect (large whole numbers losing precision) and confirmed the rest
+  already behaved correctly. Fixed the defect in `parseYAMLDocument` and pinned
+  the whole list in `provider/github/decode_boundary_test.go`.
+
+  The two large-number subtests were verified to fail with
+  `keepWholeNumbersExact` removed, then restored. Merge-key handling was probed
+  separately: a merge onto a scalar is rejected by the decoder with `map merge
+  requires map or sequence of maps as the value`, which is clear enough to
+  leave alone.
