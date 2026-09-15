@@ -575,10 +575,6 @@ func sanitizeIdentifier(in string) string {
 	return naming.SanitizeIdentifier(in)
 }
 
-func uniqueIdentifier(base string, existing []string) string {
-	return naming.UniqueIdentifier(base, existing)
-}
-
 func uniqueIdentifierInSet(base string, existing map[string]struct{}) string {
 	return naming.UniqueIdentifierInSet(base, existing)
 }

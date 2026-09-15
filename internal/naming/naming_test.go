@@ -15,12 +15,16 @@ func TestSanitizeIdentifier(t *testing.T) {
 	}
 }
 
-func TestUniqueIdentifier(t *testing.T) {
-	if got := UniqueIdentifier("job", []string{"build", "test"}); got != "job" {
+func TestUniqueIdentifierInSet(t *testing.T) {
+	free := map[string]struct{}{"build": {}, "test": {}}
+
+	if got := UniqueIdentifierInSet("job", free); got != "job" {
 		t.Fatalf("expected job, got %s", got)
 	}
 
-	if got := UniqueIdentifier("job", []string{"job", "job_2"}); got != "job_3" {
+	taken := map[string]struct{}{"job": {}, "job_2": {}}
+
+	if got := UniqueIdentifierInSet("job", taken); got != "job_3" {
 		t.Fatalf("expected job_3, got %s", got)
 	}
 }

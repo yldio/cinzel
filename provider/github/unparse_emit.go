@@ -25,6 +25,7 @@ func buildWorkflowJobIndex(jobs map[string]any, order []string) ([]workflowJobEn
 	entries := make([]workflowJobEntry, 0, len(jobs))
 	jobRefs := make([]string, 0, len(jobs))
 	jobIDMap := make(map[string]string, len(jobs))
+	usedRefs := make(map[string]struct{}, len(jobs))
 
 	for _, jobName := range jobNames {
 		raw, exists := jobs[jobName]
@@ -47,7 +48,8 @@ func buildWorkflowJobIndex(jobs map[string]any, order []string) ([]workflowJobEn
 			jobID = "job"
 		}
 
-		jobID = uniqueIdentifier(jobID, jobRefs)
+		jobID = uniqueIdentifierInSet(jobID, usedRefs)
+		usedRefs[jobID] = struct{}{}
 		jobRefs = append(jobRefs, jobID)
 		jobIDMap[jobName] = jobID
 	}

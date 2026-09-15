@@ -25,6 +25,18 @@ The `key != ""` guard silently skips job key nodes with an empty `.Value`. There
 
 Without a comment, future maintainers can't tell which it is. The simplicity reviewer argues the guard is unreachable; the security reviewer argues it protects against a real edge case. Both are partially right — the guard is reachable for alias-keyed mappings but the resulting behavior (silently drop then hit the completeness check with a confusing error) is not good.
 
+## Recommended Action
+
+Interpretation 2 is the correct one, and the guard is reachable — probed
+against 3a8ee45. An alias node in key position has `.Value == ""`, so the
+guard skips it while `Decode` still resolves it into the jobs map. A literal
+empty key `"":` does the same. Both cases are worked through with inputs in
+issue 008, which should be resolved together with this one: 008 supplies the
+regression tests, this issue supplies the comment explaining what the tests
+are pinning.
+
+Option A, with the comment naming both inputs rather than only aliases.
+
 ## Proposed Solutions
 
 ### Option A — Add a comment explaining the alias-key edge case
@@ -64,3 +76,5 @@ _To be filled during triage._
 ## Work Log
 
 - 2026-03-31: Finding created during code review
+- 2026-09-15: Guard confirmed reachable by probe via alias keys and empty
+  keys. Interpretation 2 confirmed. Merged with issue 008.
