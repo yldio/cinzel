@@ -38,6 +38,56 @@ step "checkout_release" {
   }
 }
 
+step "verify_release_token" {
+  name = "Verify the release token before anything changes"
+
+  // The release job's first mutation pushes a tag. Everything after it
+  // assumes the token can write and that the credentials the pushing steps
+  // carry in their environment actually authenticate, and neither is
+  // checkable until it is used. Both are checked here instead, while the
+  // repository is still untouched: a scope that turns out to be too narrow
+  // fails before the tag exists rather than after.
+  //
+  // homebrew-cinzel is checked here too. It is pushed by the release-packages
+  // job, which this job triggers by creating the release, so this is the last
+  // point where a missing scope can be reported without a release already
+  // being published.
+  run = <<EOF
+set -euo pipefail
+
+for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
+  if [ "$(gh api "repos/$repo" --jq '.permissions.push')" != "true" ]; then
+    echo "the release token cannot write to $repo"
+    exit 1
+  fi
+done
+
+# Never writes: a dry run still authenticates, so it rehearses the push the
+# changelog commit makes later with the same environment.
+git push --dry-run origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+EOF
+
+  env {
+    name  = "GH_TOKEN"
+    value = "$${{ steps.release_app_token.outputs.token }}"
+  }
+
+  env {
+    name  = "GIT_CONFIG_COUNT"
+    value = "1"
+  }
+
+  env {
+    name  = "GIT_CONFIG_KEY_0"
+    value = "url.https://x-access-token:$${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+  }
+
+  env {
+    name  = "GIT_CONFIG_VALUE_0"
+    value = "https://github.com/"
+  }
+}
+
 step "release_app_token" {
   id   = "release_app_token"
   name = "Create release app token"

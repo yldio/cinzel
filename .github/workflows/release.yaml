@@ -43,6 +43,26 @@ jobs:
         with:
           fetch-depth: "0"
           persist-credentials: "false"
+      - env:
+          GH_TOKEN: "${{ steps.release_app_token.outputs.token }}"
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+          GIT_CONFIG_VALUE_0: "https://github.com/"
+        id: verify_release_token
+        name: Verify the release token before anything changes
+        run: |
+          set -euo pipefail
+
+          for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
+            if [ "$(gh api "repos/$repo" --jq '.permissions.push')" != "true" ]; then
+              echo "the release token cannot write to $repo"
+              exit 1
+            fi
+          done
+
+          # Never writes: a dry run still authenticates, so it rehearses the push the
+          # changelog commit makes later with the same environment.
+          git push --dry-run origin "HEAD:refs/heads/$GITHUB_REF_NAME"
       - id: mise_setup
         name: Setup mise
         uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
