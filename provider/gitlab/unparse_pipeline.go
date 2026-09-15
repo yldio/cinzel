@@ -72,9 +72,19 @@ func parseYAMLDocument(content []byte) (map[string]any, error) {
 // different pipeline. Rejecting those keys is the only honest answer,
 // which is what the GitHub provider already does.
 //
+// Encoding: goccy reads a byte that cannot start a UTF-8 sequence as one
+// anyway, and the encoder later writes it out as U+FFFD. A job named with
+// such a byte comes back under a different name, so the pipeline that
+// leaves is not the one that arrived. yaml.v3 refuses the document
+// instead, which is what the GitHub provider does today.
+//
 // This costs a second decode, around 400ms on a 1.4MB pipeline, which is
 // worth it against a file a hundred times smaller taking the machine down.
 func checkYAMLSoundness(content []byte) error {
+	if !utf8.Valid(content) {
+		return errInvalidUTF8
+	}
+
 	dec := yamlv3.NewDecoder(bytes.NewReader(content))
 
 	for {

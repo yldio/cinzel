@@ -111,3 +111,49 @@ func TestEmptyJobNameIsRejected(t *testing.T) {
 		t.Fatalf("expected errBlockIDNotString, got: %v", err)
 	}
 }
+
+// TestInvalidUTF8IsRejected covers a silent rename. goccy reads a byte that
+// cannot start a UTF-8 sequence as one anyway and the encoder writes it
+// back as U+FFFD, so a job named with such a byte comes back under a
+// different name and the pipeline that leaves is not the one that arrived.
+func TestInvalidUTF8IsRejected(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		yaml []byte
+	}{
+		{"job name", []byte("stages: [build]\nb\xff\xfead:\n  stage: build\n  script: [echo hi]\n")},
+		{"script value", []byte("stages: [build]\njob:\n  stage: build\n  script: [\"echo \xff\xfe hi\"]\n")},
+		{"stage name", []byte("stages: [\"bu\xff\xfeild\"]\njob:\n  stage: \"bu\xff\xfeild\"\n  script: [echo hi]\n")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := unparseGitLab(t, string(tc.yaml))
+			if err == nil {
+				t.Fatal("expected the invalid UTF-8 to be rejected, got no error")
+			}
+
+			if !errors.Is(err, errInvalidUTF8) {
+				t.Fatalf("expected errInvalidUTF8, got: %v", err)
+			}
+		})
+	}
+}
+
+// TestValidMultibyteStillWorks keeps the check above from being read as a
+// ban on anything outside ASCII. A pipeline is free to name things in any
+// script, and emoji are four-byte sequences that must survive too.
+func TestValidMultibyteStillWorks(t *testing.T) {
+	t.Parallel()
+
+	hcl, err := unparseGitLab(t, "stages: [build]\njob:\n  stage: build\n  script: [\"echo héllo 世界 🎉\"]\n")
+	if err != nil {
+		t.Fatalf("Unparse() error = %v", err)
+	}
+
+	if !strings.Contains(hcl, "héllo 世界 🎉") {
+		t.Fatalf("expected the multibyte text to survive, HCL was:\n%s", hcl)
+	}
+}
