@@ -38,17 +38,6 @@ func (m *mockGitHubResolver) latestTag(owner, repo string) (string, error) {
 	return "", fmt.Errorf("no releases for %s", key)
 }
 
-// We need to test with real GitHubResolver methods, so let's test
-// the upgrade logic via UpgradeFile with a real resolver that we mock
-// at the HTTP level. For unit tests, we'll test the helper functions directly.
-
-func TestUpgradeFileIntegration(t *testing.T) {
-	// This test uses the real UpgradeFile but with a mock resolver
-	// that would require HTTP mocking. For now, test the upgrade
-	// logic indirectly via the building blocks.
-	t.Skip("requires HTTP mock — covered by e2e tests")
-}
-
 func TestFindActionRefsForUpgrade(t *testing.T) {
 	content := `step "checkout" {
   // actions/checkout v4
@@ -85,11 +74,11 @@ step "setup" {
 	}
 }
 
+// A dry run has to find the upgrade and then decline to write it. Checking
+// only that the file is unchanged does not say that: a run that resolved
+// nothing leaves the file alone too, and so does an UpgradeFile that returns
+// immediately. The upgrade it reports is what separates the two.
 func TestUpgradeFileDryRun(t *testing.T) {
-	// Create a test file and verify dry-run doesn't modify it.
-	// Uses a custom GitHubResolver subclass would be needed for full test,
-	// but we can verify the file-level behavior with the real function
-	// by making LatestTag fail (no network).
 	dir := t.TempDir()
 	path := filepath.Join(dir, "steps.hcl")
 
@@ -105,22 +94,33 @@ func TestUpgradeFileDryRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// This will fail because there's no HTTP mock, but it exercises the code path.
-	resolver := NewGitHubResolver("")
+	resolver := &stubUpgrader{
+		latestTags: map[string]string{"actions/checkout": "v5"},
+		shas:       map[string]string{"actions/checkout@v5": "1111111111111111111111111111111111111111"},
+	}
 
 	var buf bytes.Buffer
 
-	// This will produce warnings (API calls fail) but shouldn't panic.
-	_, _ = UpgradeFile(context.Background(), path, resolver, &buf, true)
+	results, err := UpgradeFile(context.Background(), path, resolver, &buf, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Verify file unchanged in dry-run.
+	if len(results) != 1 {
+		t.Fatalf("expected one action to be reported, got %d", len(results))
+	}
+
+	if results[0].NewTag != "v5" {
+		t.Errorf("expected the dry run to report v5, got %q", results[0].NewTag)
+	}
+
 	after, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if string(after) != content {
-		t.Error("dry-run should not modify the file")
+		t.Errorf("dry-run should not modify the file, got:\n%s", after)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestUpgradeDirectoryNoHCL(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	resolver := NewGitHubResolver("")
+	resolver := &stubUpgrader{}
 
 	_, err := UpgradeDirectory(context.Background(), dir, resolver, &buf, false)
 	if err == nil {
