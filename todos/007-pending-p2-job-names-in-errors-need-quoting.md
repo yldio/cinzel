@@ -46,7 +46,27 @@ Equivalent to `%q` but more explicit.
 
 ## Recommended Action
 
-_To be filled during triage._
+**The defect is real but sits in a different file.** Terminal injection was
+confirmed against 3a8ee45 — a job name carrying ANSI escapes reaches stderr
+with the raw `0x1b` byte intact:
+
+```
+printf 'on: push\njobs:\n  "\e[31mPWNED\e[0m": not-an-object\n'
+```
+
+The escape arrives through the validator's message, not through the three
+`unparse_emit.go` lines this issue names. `validateWorkflowYAMLDoc` runs
+first, at `unparse_workflow.go:128`, so a malformed job never reaches
+`buildWorkflowJobIndex`; changing those three to `%q` fixes nothing an input
+can actually trigger.
+
+Two things follow. The fix belongs in `provider/github/validate.go`, on the
+messages that interpolate a YAML key. And the HCL writer is already correct —
+a job name with escapes emits as `id = "\u001b[31mPWNED\u001b[0m"`, so only
+the error path leaks.
+
+The `unparse_emit.go` messages should still move to `%q` for consistency, but
+as tidying, not as the security fix.
 
 ## Technical Details
 
@@ -54,9 +74,14 @@ _To be filled during triage._
 
 ## Acceptance Criteria
 
-- [ ] All three error messages use `%q` or equivalent safe quoting
-- [ ] Tests that assert on the exact error message text are updated
+- [x] Injection reproduced and traced to its real source
+- [ ] Validator messages that interpolate a YAML key quote it safely
+- [ ] A test asserts no raw `0x1b` reaches the error output
+- [ ] `unparse_emit.go` messages moved to `%q` for consistency
 
 ## Work Log
 
 - 2026-03-31: Finding created during code review
+- 2026-09-15: Reproduced against 3a8ee45. Confirmed real, but the named call
+  site is unreachable — validation rejects the input first. Fix relocated to
+  validate.go. HCL writer verified already safe.
