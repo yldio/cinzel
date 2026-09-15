@@ -206,6 +206,13 @@ func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
 		return nil, err
 	}
 
+	// A file holding no document at all is skipped rather than rejected, the
+	// same as one holding an empty document. Otherwise a single stray empty
+	// file aborts a whole directory run before the real files are reached.
+	if doc == nil {
+		return nil, nil
+	}
+
 	workflowDoc, err := classifyWorkflowDocument(doc)
 	if err != nil {
 		return nil, err
