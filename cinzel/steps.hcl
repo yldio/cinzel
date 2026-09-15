@@ -10,9 +10,13 @@ step "checkout" {
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
 
-  // The coverage step below pushes refs/notes/gocoverage with the credentials
-  // this checkout leaves in .git/config, so they have to stay. See the
-  // exclusion in ghalint.yaml.
+  // Only the coverage step needs credentials, and it re-checks out for them
+  // just before it runs, so nothing is left in .git/config while the tests
+  // and the linters execute the dependency tree.
+  with {
+    name  = "persist-credentials"
+    value = "false"
+  }
 }
 
 step "checkout_release" {
@@ -315,6 +319,27 @@ step "drift" {
   name = "Generated workflows match their HCL"
   if   = "$${{ matrix.os == 'ubuntu-24.04' }}"
   run  = "mise run drift"
+}
+
+step "checkout_for_coverage" {
+  name = "Checkout (coverage notes)"
+  if   = "$${{ matrix.os == 'ubuntu-24.04' }}"
+
+  // gwatts/go-coverage-action pushes refs/notes/gocoverage with a bare
+  // "git push origin" and takes no token for it, so the credentials have to
+  // be in .git/config. Putting them there in the step right before the one
+  // that needs them keeps them out of every earlier step. See ghalint.yaml.
+
+  // actions/checkout v6.0.2
+  uses {
+    action  = "actions/checkout"
+    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+  }
+
+  with {
+    name  = "persist-credentials"
+    value = "true"
+  }
 }
 
 step "coverage" {

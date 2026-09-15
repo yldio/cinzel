@@ -11,9 +11,11 @@ excludes:
 
   # gwatts/go-coverage-action pushes refs/notes/gocoverage with a bare
   # "git push origin", using the credentials actions/checkout leaves in
-  # .git/config. Its own token input only reaches the API call that writes
-  # the PR comment, never the push, so this checkout has to keep them.
+  # .git/config, and takes no token for the push. This second checkout runs
+  # immediately before it and exists only to put them there, so the job's
+  # first checkout can drop them and the tests and linters run without a
+  # token sitting in .git/config.
   - policy_name: checkout_persist_credentials_should_be_false
     workflow_file_path: .github/workflows/pull-request.yaml
     job_name: pull_request
-    step_id: checkout
+    step_id: checkout_for_coverage

@@ -25,6 +25,7 @@ job "pull_request" {
     step.tests,
     step.lint,
     step.drift,
+    step.checkout_for_coverage,
     step.coverage,
   ]
 }
