@@ -400,6 +400,15 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			continue
 		}
 
+		// A template keyed "." has nothing left once the dot is taken off.
+		// It cannot be named by extends and has no key to emit, so emitting
+		// one wrote id = "", which the parse direction then refused with
+		// this same error. The job loop below already refuses its own
+		// unnamed case; this is the matching refusal for a template.
+		if strings.TrimPrefix(key, ".") == "" {
+			return nil, errBlockIDNotString
+		}
+
 		tplID := naming.SanitizeIdentifier(strings.TrimPrefix(key, "."))
 
 		if tplID == "" {
