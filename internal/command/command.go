@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"os"
 
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/cinzelerror"
@@ -35,7 +36,10 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.initCommand())
 
 	if err := cmd.Cmd.Run(context.Background(), osArgs); err != nil {
-		_, _ = fmt.Fprintf(cmd.Writer, "%s\n", cinzelerror.New(err).Err.Error())
+		// The failure goes to stderr, where the warnings above already go.
+		// On stdout it would land in whatever file or pipe the converted
+		// output was being collected into.
+		_, _ = fmt.Fprintf(cmd.Cmd.ErrWriter, "%s\n", cinzelerror.New(err).Err.Error())
 
 		return err
 	}
@@ -44,11 +48,20 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 }
 
 // New creates a Cli configured with the given writer and version string.
+// Errors and warnings go to os.Stderr; use NewWithErrWriter to send them
+// somewhere else.
 func New(writer io.Writer, version string) *Cli {
+	return NewWithErrWriter(writer, os.Stderr, version)
+}
+
+// NewWithErrWriter creates a Cli writing its output to writer and its errors
+// and warnings to errWriter.
+func NewWithErrWriter(writer io.Writer, errWriter io.Writer, version string) *Cli {
 	return &Cli{
 		Writer: writer,
 		Cmd: &cli.Command{
 			Writer:                 writer,
+			ErrWriter:              errWriter,
 			Version:                version,
 			Name:                   appName,
 			Usage:                  "a tool that converts HCL files to your favourite CICD provider.",

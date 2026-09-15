@@ -40,11 +40,16 @@ func (cmd *Cli) initCommand() *cli.Command {
 
 			configFile := filepath.Join(configDir, "config.yaml")
 
+			// One scanner for the whole prompt sequence. A second one over the
+			// same stdin starts with an empty buffer and drops whatever the
+			// first had already read ahead, which silently left every answer
+			// below blank when the overwrite prompt ran.
+			scanner := bufio.NewScanner(os.Stdin)
+
 			if _, err := os.Stat(configFile); err == nil {
 				_, _ = fmt.Fprintf(cmd.Writer, "Config already exists at %s\n", configFile)
 				_, _ = fmt.Fprintf(cmd.Writer, "Overwrite? [y/N] ")
 
-				scanner := bufio.NewScanner(os.Stdin)
 				if scanner.Scan() {
 					answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
 					if answer != "y" && answer != "yes" {
@@ -52,8 +57,6 @@ func (cmd *Cli) initCommand() *cli.Command {
 					}
 				}
 			}
-
-			scanner := bufio.NewScanner(os.Stdin)
 
 			_, _ = fmt.Fprintf(cmd.Writer, "Default AI provider (anthropic/openai) [anthropic]: ")
 
@@ -89,6 +92,13 @@ func (cmd *Cli) initCommand() *cli.Command {
 
 			if err := os.WriteFile(configFile, []byte(content), 0600); err != nil {
 				return fmt.Errorf("failed to write config file: %w", err)
+			}
+
+			// WriteFile only applies the mode when it creates the file, so an
+			// existing config kept whatever permissions it had while the line
+			// below claimed 0600. The file holds API keys.
+			if err := os.Chmod(configFile, 0600); err != nil {
+				return fmt.Errorf("failed to set config file permissions: %w", err)
 			}
 
 			absPath, _ := filepath.Abs(configFile)

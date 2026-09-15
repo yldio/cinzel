@@ -82,6 +82,17 @@ func New(err error, messages ...string) Error {
 	prefix := strings.Join(parts, ", ")
 
 	if err != nil {
+		// Several errors are built with the suffix already on them, either
+		// through ErrOpenIssue or through ProcessHCLDiags. Adding a second
+		// copy here printed the same sentence twice.
+		if strings.Contains(err.Error(), OpenIssue) {
+			if prefix != "" {
+				return Error{Err: fmt.Errorf("%s: %w", prefix, err)}
+			}
+
+			return Error{Err: err}
+		}
+
 		if prefix != "" {
 			return Error{Err: fmt.Errorf("%s: %w, %s", prefix, err, OpenIssue)}
 		}

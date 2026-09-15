@@ -39,6 +39,31 @@ run = "git cliff --offline --output CHANGELOG.md"
 [tasks.coverpath]
 run = "mkdir -p ./coverage"
 
+[tasks.lint]
+# gofmt writes nothing here: a formatting drift is a CI failure, not a
+# silent rewrite. ghalint is deliberately not run yet, since it reports
+# four findings in the release workflows that have to be fixed first.
+run = """
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+  echo "not gofmt'd:"
+  echo "$unformatted"
+  exit 1
+fi
+go vet ./...
+actionlint .github/workflows/*.yaml
+"""
+
+[tasks.drift]
+# The repo's own workflows are generated from cinzel/*.hcl by cinzel itself.
+# Editing .github/workflows by hand leaves the two out of step until the next
+# regeneration silently reverts it, so the check runs in CI.
+run = """
+out=$(mktemp -d)
+go run . github parse --file cinzel --output-directory "$out"
+diff -ru .github/workflows "$out"
+"""
+
 [tasks.test-ci]
 run = "go test ./... --cover"
 

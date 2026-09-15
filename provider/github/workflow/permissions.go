@@ -5,24 +5,6 @@ package workflow
 
 import "fmt"
 
-// Known GitHub Actions permission scopes.
-var knownPermissionScopes = map[string]struct{}{
-	"actions":             {},
-	"attestations":        {},
-	"checks":              {},
-	"contents":            {},
-	"deployments":         {},
-	"discussions":         {},
-	"id-token":            {},
-	"issues":              {},
-	"packages":            {},
-	"pages":               {},
-	"pull-requests":       {},
-	"repository-projects": {},
-	"security-events":     {},
-	"statuses":            {},
-}
-
 // Valid permission levels for individual scopes.
 var validPermissionLevels = map[string]struct{}{
 	"read":  {},
@@ -36,7 +18,7 @@ var validPermissionShorthands = map[string]struct{}{
 	"write-all": {},
 }
 
-// ValidatePermissions checks that a permissions value uses known scopes and valid levels.
+// ValidatePermissions checks that a permissions value uses valid levels.
 // Accepts a string shorthand ("read-all"/"write-all"), an empty map (all none), or
 // a map of scope→level.
 func ValidatePermissions(raw any) error {
@@ -58,11 +40,12 @@ func ValidatePermissions(raw any) error {
 		return fmt.Errorf("permissions must be a string or an object")
 	}
 
+	// The scope name is not checked against a list. GitHub adds scopes
+	// ("models", "vulnerability-alerts", "artifact-metadata" and others
+	// arrived after this validator was written), and a list here rejects a
+	// workflow GitHub itself accepts. The level is checked, since those three
+	// values have not changed.
 	for scope, levelRaw := range m {
-		if _, known := knownPermissionScopes[scope]; !known {
-			return fmt.Errorf("unknown permissions scope %q", scope)
-		}
-
 		level, ok := levelRaw.(string)
 
 		if !ok {

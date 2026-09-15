@@ -164,6 +164,14 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 		return nil, err
 	}
 
+	if err := setOptionalYAMLAttr(out, "pre-entrypoint", cfg.PreEntrypoint, hv); err != nil {
+		return nil, err
+	}
+
+	if err := setOptionalYAMLAttr(out, "post-entrypoint", cfg.PostEntrypoint, hv); err != nil {
+		return nil, err
+	}
+
 	if refs, err := parseReferenceList(cfg.Steps, "step"); err != nil {
 		return nil, err
 	} else if len(refs) > 0 {

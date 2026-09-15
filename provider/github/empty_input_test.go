@@ -106,3 +106,70 @@ func TestStepOnlyInputStillParses(t *testing.T) {
 		t.Errorf("step body missing from output:\n%s", got)
 	}
 }
+
+// unparseDir runs Unparse over a directory of YAML files written inline.
+func unparseDir(t *testing.T, files map[string]string) (error, string) {
+	t.Helper()
+
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, "in")
+
+	if err := os.MkdirAll(in, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(in, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	out := filepath.Join(tmp, "out")
+
+	return New().Unparse(provider.ProviderOps{Directory: in, OutputDirectory: out}), out
+}
+
+const realWorkflow = `name: Real
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo a
+`
+
+// A file holding no document used to be rejected by the step decoder, which
+// aborted the whole run before the real files were reached.
+func TestEmptyFileDoesNotAbortDirectoryUnparse(t *testing.T) {
+	for name, body := range map[string]string{
+		"empty file":     "",
+		"only a comment": "# nothing here\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			err, out := unparseDir(t, map[string]string{
+				"real.yml":  realWorkflow,
+				"stray.yml": body,
+			})
+			if err != nil {
+				t.Fatalf("a stray %s should be skipped, got %v", name, err)
+			}
+
+			if _, statErr := os.Stat(filepath.Join(out, "real.hcl")); statErr != nil {
+				t.Errorf("the real workflow was not converted: %v", statErr)
+			}
+
+			if _, statErr := os.Stat(filepath.Join(out, "stray.hcl")); !os.IsNotExist(statErr) {
+				t.Error("the stray file should not have produced HCL")
+			}
+		})
+	}
+}
+
+// TestMalformedFileStillErrors guards the fix: skipping an empty document must
+// not turn real syntax errors into silence.
+func TestMalformedFileStillErrors(t *testing.T) {
+	err, _ := unparseDir(t, map[string]string{"bad.yml": "name: X\n  bad indent: [\n"})
+	if err == nil {
+		t.Fatal("malformed YAML should still be an error")
+	}
+}

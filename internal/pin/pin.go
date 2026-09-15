@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	cacheTTL       = 24 * time.Hour
-	cacheSubdir    = "cinzel/pins"
-	githubAPIBase  = "https://api.github.com"
-	tokenEnvVar    = "GITHUB_TOKEN"
+	cacheTTL      = 24 * time.Hour
+	cacheSubdir   = "cinzel/pins"
+	githubAPIBase = "https://api.github.com"
+	tokenEnvVar   = "GITHUB_TOKEN"
 )
 
 // tagPattern matches version strings that look like tags (v1, v1.2, v1.2.3)

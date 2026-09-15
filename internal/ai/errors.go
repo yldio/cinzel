@@ -6,7 +6,7 @@ package ai
 import "errors"
 
 var (
-	errEmptyResponse     = errors.New("LLM returned empty response. Try a more specific prompt")
+	errEmptyResponse       = errors.New("LLM returned empty response. Try a more specific prompt")
 	errMissingAnthropicKey = errors.New(
 		"ANTHROPIC_API_KEY environment variable is not set.\n\n" +
 			"Set it with:\n" +

@@ -22,8 +22,8 @@ type providerCommandConfig struct {
 	hasDirectory    bool
 	outputDirectory string
 	hasOutputDir    bool
-	yml    bool
-	hasYML bool
+	yml             bool
+	hasYML          bool
 }
 
 func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (provider.ProviderOps, []string, error) {

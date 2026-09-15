@@ -77,8 +77,8 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 				hclContext, truncated := ai.StripHCLContext(contextDir)
 				if hclContext != "" {
-					_, _ = fmt.Fprintf(cmd.Writer, "Including existing HCL structure as context (string values stripped for privacy). Use --no-context to skip sending existing HCL to the AI provider.\n")
-					systemPrompt += "\n\nExisting HCL structure (values stripped for privacy):\n\n" + hclContext
+					_, _ = fmt.Fprintf(cmd.Writer, "Including existing HCL structure as context. String values are replaced with \"...\", but file names, block types, block labels and attribute names are sent as written. Use --no-context to skip sending existing HCL to the AI provider.\n")
+					systemPrompt += "\n\nExisting HCL structure (string values replaced with \"...\"):\n\n" + hclContext
 				}
 
 				if truncated {
@@ -97,7 +97,7 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 			userPrompt := prompt
 
 			if refine != "" {
-				_, _ = fmt.Fprintf(cmd.Writer, "Including previous assist output as context (string values stripped for privacy).\n")
+				_, _ = fmt.Fprintf(cmd.Writer, "Including previous assist output as context. String values are replaced with \"...\", but file names, block types, block labels and attribute names are sent as written.\n")
 
 				refinedSystem, refinedUser, err := buildRefinePrompt(refine, prompt, outputDir, c.String("from"))
 				if err != nil {

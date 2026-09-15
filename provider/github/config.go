@@ -64,8 +64,15 @@ type hclJobBlock struct {
 	Permissions     []hclGenericBlock  `hcl:"permissions,block"`
 	Defaults        []hclGenericBlock  `hcl:"defaults,block"`
 	Concurrency     []hclGenericBlock  `hcl:"concurrency,block"`
-	Container       []hclGenericBlock  `hcl:"container,block"`
-	Environment     []hclGenericBlock  `hcl:"environment,block"`
+	// Each keyword below is a block, but GitHub also accepts a plain string
+	// for it: a group name for "concurrency", an image reference for
+	// "container", an environment name for "environment". The attribute
+	// carries that scalar form.
+	ConcurrencyAttr hcl.Expression    `hcl:"concurrency,optional"`
+	ContainerAttr   hcl.Expression    `hcl:"container,optional"`
+	EnvironmentAttr hcl.Expression    `hcl:"environment,optional"`
+	Container       []hclGenericBlock `hcl:"container,block"`
+	Environment     []hclGenericBlock `hcl:"environment,block"`
 }
 
 type hclWorkflowBlock struct {
@@ -98,17 +105,19 @@ type hclActionOutputBlock struct {
 }
 
 type hclActionRunsBlock struct {
-	Using      hcl.Expression  `hcl:"using,optional"`
-	Main       hcl.Expression  `hcl:"main,optional"`
-	Pre        hcl.Expression  `hcl:"pre,optional"`
-	PreIf      hcl.Expression  `hcl:"pre_if,optional"`
-	Post       hcl.Expression  `hcl:"post,optional"`
-	PostIf     hcl.Expression  `hcl:"post_if,optional"`
-	Image      hcl.Expression  `hcl:"image,optional"`
-	Args       hcl.Expression  `hcl:"args,optional"`
-	Entrypoint hcl.Expression  `hcl:"entrypoint,optional"`
-	Steps      hcl.Expression  `hcl:"steps,optional"`
-	Env        []hclNamedBlock `hcl:"env,block"`
+	Using          hcl.Expression  `hcl:"using,optional"`
+	Main           hcl.Expression  `hcl:"main,optional"`
+	Pre            hcl.Expression  `hcl:"pre,optional"`
+	PreIf          hcl.Expression  `hcl:"pre_if,optional"`
+	Post           hcl.Expression  `hcl:"post,optional"`
+	PostIf         hcl.Expression  `hcl:"post_if,optional"`
+	Image          hcl.Expression  `hcl:"image,optional"`
+	Args           hcl.Expression  `hcl:"args,optional"`
+	Entrypoint     hcl.Expression  `hcl:"entrypoint,optional"`
+	PreEntrypoint  hcl.Expression  `hcl:"pre_entrypoint,optional"`
+	PostEntrypoint hcl.Expression  `hcl:"post_entrypoint,optional"`
+	Steps          hcl.Expression  `hcl:"steps,optional"`
+	Env            []hclNamedBlock `hcl:"env,block"`
 }
 
 type hclActionBrandingBlock struct {

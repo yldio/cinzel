@@ -55,8 +55,9 @@ func TestCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := new(bytes.Buffer)
+			errBuf := new(bytes.Buffer)
 
-			app := New(buf, "v.9.9.9")
+			app := NewWithErrWriter(buf, errBuf, "v.9.9.9")
 
 			p := test.MockProvider(t, buf)
 
@@ -66,8 +67,19 @@ func TestCommand(t *testing.T) {
 
 			app.Execute(tt.args, []provider.Provider{p})
 
-			if buf.String() != tt.expect {
-				t.FailNow()
+			// A failure belongs on stderr: on stdout it would land in
+			// whatever the converted output was being collected into.
+			got := buf.String()
+			if tt.hasError {
+				got = errBuf.String()
+
+				if buf.Len() != 0 {
+					t.Fatalf("want nothing on stdout, got %q", buf.String())
+				}
+			}
+
+			if got != tt.expect {
+				t.Fatalf("got %q, want %q", got, tt.expect)
 			}
 		})
 	}
