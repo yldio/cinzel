@@ -23,6 +23,7 @@ job "pull_request" {
     step.checkout,
     step.mise_setup,
     step.tests,
+    step.lint,
     step.drift,
     step.coverage,
   ]
