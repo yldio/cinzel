@@ -175,7 +175,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
-		hclBytes, err := unparseYAMLFile(yamlBytes, baseName)
+		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file))
 		if err != nil {
 			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
@@ -184,7 +184,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			continue
 		}
 
-		outputPath := filepath.Join(outputDir, baseName+".hcl")
+		outputPath := filepath.Join(outputDir, name+".hcl")
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
@@ -203,39 +203,43 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
 // the document is a workflow, action, or step-only file. Returns nil if
 // the document is empty or unrecognized.
-func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
+func unparseYAMLFile(yamlBytes []byte, baseName, actionName string) ([]byte, string, error) {
 	doc, jobOrder, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// A file holding no document at all is skipped rather than rejected, the
 	// same as one holding an empty document. Otherwise a single stray empty
 	// file aborts a whole directory run before the real files are reached.
 	if doc == nil {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	workflowDoc, err := classifyWorkflowDocument(doc)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if workflowDoc != nil {
-		return workflowToHCL(*workflowDoc, baseName, jobOrder)
+		out, err := workflowToHCL(*workflowDoc, baseName, jobOrder)
+
+		return out, baseName, err
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
-		return actionToHCL(actionDoc, baseName)
+		out, err := actionToHCL(actionDoc, actionName)
+
+		return out, actionName, err
 	}
 
 	steps, err := parseStepsFromYAML(yamlBytes)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if len(steps) == 0 {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	f := hclwrite.NewEmptyFile()
@@ -243,9 +247,36 @@ func unparseYAMLFile(yamlBytes []byte, baseName string) ([]byte, error) {
 
 	for _, s := range steps {
 		if err := s.Decode(body, "step"); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
-	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), nil
+	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), baseName, nil
+}
+
+// actionNameFor picks the name an action is known by. An action lives at
+// <name>/action.yml, so the directory holding the file is its identity and
+// the basename is the same word for every action there is. Naming the output
+// after the basename dropped that identity: the action came back called
+// "action", and a second one in the same run wrote over the first.
+//
+// Only the fixed filenames GitHub reads are treated this way. A document that
+// happens to be an action but sits under some other name is left with that
+// name, which is the only thing left to go on.
+func actionNameFor(file string) string {
+	base := strings.ToLower(filepath.Base(file))
+
+	if base != "action.yml" && base != "action.yaml" {
+		return strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	}
+
+	dir := filepath.Base(filepath.Dir(file))
+
+	// A file directly under "." or the filesystem root has no directory name
+	// to take. Nothing is better than the basename there.
+	if dir == "." || dir == string(os.PathSeparator) || dir == "" {
+		return strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	}
+
+	return dir
 }
