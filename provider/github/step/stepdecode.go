@@ -285,7 +285,6 @@ func setAsHeredoc(content string) hclwrite.Tokens {
 	return tokens
 }
 
-
 // escapeTemplateMarkers doubles the "$" and "%" that open an HCL template
 // sequence. Format reads a heredoc body byte by byte, so an unescaped "${"
 // puts it into template mode and it re-spaces the rest as HCL: a GitHub

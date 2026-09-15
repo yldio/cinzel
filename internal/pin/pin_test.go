@@ -121,7 +121,7 @@ step "setup" {
 
 	resolver := &mockResolver{
 		shas: map[string]string{
-			"actions/checkout@v4":  "abc123def456abc123def456abc123def456abc1",
+			"actions/checkout@v4": "abc123def456abc123def456abc123def456abc1",
 			"actions/setup-go@v5": "def456abc123def456abc123def456abc123def4",
 		},
 	}
@@ -330,7 +330,7 @@ func TestPinDirectory(t *testing.T) {
 
 	resolver := &mockResolver{
 		shas: map[string]string{
-			"actions/checkout@v4":  "sha1sha1sha1sha1sha1sha1sha1sha1sha1sha1",
+			"actions/checkout@v4": "sha1sha1sha1sha1sha1sha1sha1sha1sha1sha1",
 			"actions/setup-go@v5": "sha2sha2sha2sha2sha2sha2sha2sha2sha2sha2",
 		},
 	}
