@@ -128,6 +128,12 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
+		// An action is marked like a workflow. Without it the prune has no way
+		// to tell an action cinzel wrote from one written by hand, so it can
+		// own neither, and renaming an action left the old directory sitting
+		// there with a live action.yml in it for good.
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+
 		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
 		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
 
