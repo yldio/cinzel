@@ -23,6 +23,10 @@ jobs:
       - id: tests
         name: Tests
         run: mise run test-ci
+      - id: drift
+        if: "${{ matrix.os == 'ubuntu-24.04' }}"
+        name: Generated workflows match their HCL
+        run: mise run drift
       - id: coverage
         if: "${{ matrix.os == 'ubuntu-24.04' }}"
         name: Coverage

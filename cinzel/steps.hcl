@@ -293,6 +293,12 @@ step "tests" {
   run  = "mise run test-ci"
 }
 
+step "drift" {
+  name = "Generated workflows match their HCL"
+  if   = "$${{ matrix.os == 'ubuntu-24.04' }}"
+  run  = "mise run drift"
+}
+
 step "coverage" {
   name = "Coverage"
   if   = "$${{ matrix.os == 'ubuntu-24.04' }}"

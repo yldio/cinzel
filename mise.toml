@@ -39,6 +39,16 @@ run = "git cliff --offline --output CHANGELOG.md"
 [tasks.coverpath]
 run = "mkdir -p ./coverage"
 
+[tasks.drift]
+# The repo's own workflows are generated from cinzel/*.hcl by cinzel itself.
+# Editing .github/workflows by hand leaves the two out of step until the next
+# regeneration silently reverts it, so the check runs in CI.
+run = """
+out=$(mktemp -d)
+go run . github parse --file cinzel --output-directory "$out"
+diff -ru .github/workflows "$out"
+"""
+
 [tasks.test-ci]
 run = "go test ./... --cover"
 
