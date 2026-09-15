@@ -48,7 +48,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 
 	var results []UpgradeResult
 
-	updated := string(content)
+	var edits []versionEdit
 
 	for _, ref := range refs {
 		parts := strings.SplitN(ref.Action, "/", 2)
@@ -100,10 +100,15 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			continue
 		}
 
-		// Replace version value, adding an inline comment with the new tag.
-		oldLine := fmt.Sprintf(`version = %q`, ref.Version)
-		newLine := fmt.Sprintf(`version = %q # %s`, sha, latestTag)
-		updated = strings.Replace(updated, oldLine, newLine, 1)
+		// Written at this action's own offsets, for the reason given in
+		// PinFile. An upgrade reaches it more easily still: an action already
+		// on the latest tag is skipped, and that is enough on its own to leave
+		// an earlier line matching, no failed request needed.
+		edits = append(edits, versionEdit{
+			start: ref.start,
+			end:   ref.end,
+			text:  versionLine(sha, latestTag),
+		})
 
 		_, _ = fmt.Fprintf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, sha[:12])
 
@@ -114,6 +119,8 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			NewSHA:     sha,
 		})
 	}
+
+	updated := applyVersionEdits(string(content), edits)
 
 	if !dryRun && updated != string(content) {
 		if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
