@@ -4,6 +4,7 @@
 package gitlab
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,7 +67,9 @@ func TestIncludeOnlyPipelineIsAPipeline(t *testing.T) {
 	}
 }
 
-// A document that is not a pipeline at all is still skipped.
+// A document that is not a pipeline at all is still skipped: no HCL is
+// written for it. On its own it is also the whole run, so the run now says
+// it converted nothing rather than reporting success.
 func TestNonPipelineDocumentIsStillSkipped(t *testing.T) {
 	tmp := t.TempDir()
 	outDir := filepath.Join(tmp, "hcl")
@@ -75,8 +78,42 @@ func TestNonPipelineDocumentIsStillSkipped(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := New().Unparse(provider.ProviderOps{File: filepath.Join(tmp, "compose.yml"), OutputDirectory: outDir}); err != nil {
+	if err := New().Unparse(provider.ProviderOps{File: filepath.Join(tmp, "compose.yml"), OutputDirectory: outDir}); !errors.Is(err, errNoDefinitions) {
+		t.Fatalf("want errNoDefinitions, got %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(outDir, "compose.hcl")); err == nil {
+		t.Error("Unparse() wrote HCL for a document that is not a pipeline")
+	}
+}
+
+// Skipping is still what happens to a non-pipeline document beside a real
+// one. The run converted something, so it is not the empty run the refusal
+// is about.
+func TestNonPipelineDocumentIsSkippedBesideAPipeline(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, "in")
+	outDir := filepath.Join(tmp, "hcl")
+
+	if err := os.MkdirAll(in, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(in, "compose.yml"), []byte("version: \"3\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	pipeline := "build:\n  stage: build\n  script:\n    - echo hi\n"
+	if err := os.WriteFile(filepath.Join(in, ".gitlab-ci.yml"), []byte(pipeline), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := New().Unparse(provider.ProviderOps{Directory: in, OutputDirectory: outDir}); err != nil {
 		t.Fatalf("Unparse() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(outDir, ".gitlab-ci.hcl")); err != nil {
+		t.Errorf("want the pipeline converted, got %v", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(outDir, "compose.hcl")); err == nil {

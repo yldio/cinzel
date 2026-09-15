@@ -98,7 +98,19 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		return err
 	}
 
+	// Nothing was read. Reporting success here says the input was converted
+	// when it was not: pointing at the wrong directory, or forgetting
+	// --recursive with the pipeline a level down, both land exactly here.
+	if len(files) == 0 {
+		return errNoYAMLFiles
+	}
+
 	outputDir := resolveUnparseOutputDirectory(opts)
+
+	// Files were read but none of them held a pipeline, so again nothing was
+	// written. The same silence hides the same mistake. A dry run counts: it
+	// found the pipeline and only skipped the write it was told to skip.
+	found := false
 
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
@@ -114,6 +126,8 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		if !classifyPipelineDocument(doc) {
 			continue
 		}
+
+		found = true
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 		hclBytes, err := pipelineToHCL(doc, baseName)
@@ -132,6 +146,10 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		if err := fsutil.WriteFile(outputPath, hclBytes); err != nil {
 			return err
 		}
+	}
+
+	if !found {
+		return errNoDefinitions
 	}
 
 	return nil
