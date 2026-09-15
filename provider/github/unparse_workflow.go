@@ -4,9 +4,11 @@
 package github
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,23 +26,55 @@ import (
 // parseYAMLDocument parses YAML content into a document map and extracts
 // job names in source order in a single pass using the yaml.v3 Node API.
 func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
-	var node yamlv3.Node
+	// GitHub reads one document per file. A file holding more than one used to
+	// be cut short at the first, losing the rest without a word, so the whole
+	// file is rejected instead.
+	dec := yamlv3.NewDecoder(bytes.NewReader(content))
 
-	if err := yamlv3.Unmarshal(content, &node); err != nil {
-		return nil, nil, err
+	var first *yamlv3.Node
+
+	for {
+		var node yamlv3.Node
+
+		err := dec.Decode(&node)
+
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if len(node.Content) == 0 || isNullNode(node.Content[0]) {
+			continue
+		}
+
+		if first != nil {
+			return nil, nil, errMultipleDocuments
+		}
+
+		first = node.Content[0]
 	}
 
-	if len(node.Content) == 0 {
+	if first == nil {
 		return nil, nil, nil
 	}
 
 	var doc map[string]any
 
-	if err := node.Decode(&doc); err != nil {
+	if err := first.Decode(&doc); err != nil {
 		return nil, nil, err
 	}
 
-	return doc, jobOrderFromNode(node.Content[0]), nil
+	return doc, jobOrderFromNode(first), nil
+}
+
+// isNullNode reports whether a document holds nothing. A stray "---" marker
+// at either end of a file decodes to a null scalar, which is not a second
+// document in any sense that matters here.
+func isNullNode(node *yamlv3.Node) bool {
+	return node.Kind == yamlv3.ScalarNode && node.Tag == "!!null"
 }
 
 // jobOrderFromNode extracts job names in source order from a yaml.v3 mapping
