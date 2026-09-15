@@ -542,10 +542,42 @@ func writeBlockKey(body *hclwrite.Body, key string, id string) {
 	body.SetAttributeValue("id", cty.StringVal(key))
 }
 
+// jobRefID returns the label a "needs" entry refers to. A name the pipeline
+// declares uses that job's label, so a reference follows a renamed job.
+//
+// A name that sanitizes to nothing is refused rather than written. Emitting it
+// produced "job." with no identifier after the dot, which is not HCL: the file
+// was written, the command exited 0, and parsing it back failed with "an
+// attribute name is required after a dot". "extends" already refuses the same
+// input, and this is the matching refusal for "needs".
+func jobRefID(name string, jobIDMap map[string]string) (string, error) {
+	if refID, exists := jobIDMap[name]; exists {
+		return refID, nil
+	}
+
+	refID := naming.SanitizeIdentifier(name)
+
+	if refID == "" {
+		return "", errNeedsJobEmpty
+	}
+
+	return refID, nil
+}
+
 // writeNeedBlock writes the object form of a "needs" entry. Its "job" is
 // written as a job reference so it tracks a renamed job like "depends_on"
 // does; everything else is copied through.
 func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[string]string) error {
+	// A need naming neither a job nor an upstream pipeline is the same empty
+	// reference in block form: it wrote "need {}", which parse then refuses.
+	// This is the rule parse already applies, moved to where the file is
+	// written rather than left for whoever reads it back.
+	if _, hasJob := need["job"]; !hasJob {
+		if _, crossPipeline := need["pipeline"]; !crossPipeline {
+			return errNeedsJobEmpty
+		}
+	}
+
 	nb := body.AppendNewBlock("need", nil)
 
 	for _, key := range sortedKeys(need) {
@@ -557,10 +589,10 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 			if !ok {
 				return fmt.Errorf("needs job must be a string")
 			}
-			refID, exists := jobIDMap[name]
 
-			if !exists {
-				refID = naming.SanitizeIdentifier(name)
+			refID, err := jobRefID(name, jobIDMap)
+			if err != nil {
+				return err
 			}
 
 			writeReferenceAttribute(nb.Body(), "job", "job", refID)
@@ -606,11 +638,12 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				if !ok {
 					return fmt.Errorf("needs entries must be strings or objects")
 				}
-				refID, exists := jobIDMap[name]
 
-				if !exists {
-					refID = naming.SanitizeIdentifier(name)
+				refID, err := jobRefID(name, jobIDMap)
+				if err != nil {
+					return err
 				}
+
 				refs = append(refs, refID)
 			}
 
