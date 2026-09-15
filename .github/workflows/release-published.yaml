@@ -35,6 +35,7 @@ jobs:
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
         with:
           app-id: "${{ secrets.RELEASE_APP_ID }}"
+          permission-contents: write
           private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
           repositories: "cinzel,homebrew-cinzel"
       - id: checkout_release

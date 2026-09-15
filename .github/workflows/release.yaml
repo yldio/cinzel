@@ -34,15 +34,35 @@ jobs:
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
         with:
           app-id: "${{ secrets.RELEASE_APP_ID }}"
+          permission-contents: write
           private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
           repositories: "cinzel,homebrew-cinzel"
-      - id: checkout_release_with_credentials
-        name: "Checkout (full history, push enabled)"
+      - id: checkout_release
+        name: Checkout (full history)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: "0"
-          github_token: "${{ steps.release_app_token.outputs.token }}"
-          persist-credentials: "true"
+          persist-credentials: "false"
+      - env:
+          GH_TOKEN: "${{ steps.release_app_token.outputs.token }}"
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+          GIT_CONFIG_VALUE_0: "https://github.com/"
+        id: verify_release_token
+        name: Verify the release token before anything changes
+        run: |
+          set -euo pipefail
+
+          for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
+            if [ "$(gh api "repos/$repo" --jq '.permissions.push')" != "true" ]; then
+              echo "the release token cannot write to $repo"
+              exit 1
+            fi
+          done
+
+          # Never writes: a dry run still authenticates, so it rehearses the push the
+          # changelog commit makes later with the same environment.
+          git push --dry-run origin "HEAD:refs/heads/$GITHUB_REF_NAME"
       - id: mise_setup
         name: Setup mise
         uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
@@ -105,7 +125,11 @@ jobs:
           args: "--offline --verbose --unreleased --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
           github_token: "${{ steps.release_app_token.outputs.token }}"
-      - id: commit_release
+      - env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+          GIT_CONFIG_VALUE_0: "https://github.com/"
+        id: commit_release
         name: Commit release changelog
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:

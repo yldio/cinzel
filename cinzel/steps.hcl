@@ -9,6 +9,13 @@ step "checkout" {
     action  = "actions/checkout"
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
+
+  // Nothing in this job needs a token in .git/config. The one step that
+  // pushes carries its credentials in its own environment instead.
+  with {
+    name  = "persist-credentials"
+    value = "false"
+  }
 }
 
 step "checkout_release" {
@@ -31,28 +38,53 @@ step "checkout_release" {
   }
 }
 
-step "checkout_release_with_credentials" {
-  name = "Checkout (full history, push enabled)"
+step "verify_release_token" {
+  name = "Verify the release token before anything changes"
 
-  // actions/checkout v6.0.2
-  uses {
-    action  = "actions/checkout"
-    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-  }
+  // The release job's first mutation pushes a tag. Everything after it
+  // assumes the token can write and that the credentials the pushing steps
+  // carry in their environment actually authenticate, and neither is
+  // checkable until it is used. Both are checked here instead, while the
+  // repository is still untouched: a scope that turns out to be too narrow
+  // fails before the tag exists rather than after.
+  //
+  // homebrew-cinzel is checked here too. It is pushed by the release-packages
+  // job, which this job triggers by creating the release, so this is the last
+  // point where a missing scope can be reported without a release already
+  // being published.
+  run = <<EOF
+set -euo pipefail
 
-  with {
-    name  = "fetch-depth"
-    value = "0"
-  }
+for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
+  if [ "$(gh api "repos/$repo" --jq '.permissions.push')" != "true" ]; then
+    echo "the release token cannot write to $repo"
+    exit 1
+  fi
+done
 
-  with {
-    name  = "persist-credentials"
-    value = "true"
-  }
+# Never writes: a dry run still authenticates, so it rehearses the push the
+# changelog commit makes later with the same environment.
+git push --dry-run origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+EOF
 
-  with {
-    name  = "github_token"
+  env {
+    name  = "GH_TOKEN"
     value = "$${{ steps.release_app_token.outputs.token }}"
+  }
+
+  env {
+    name  = "GIT_CONFIG_COUNT"
+    value = "1"
+  }
+
+  env {
+    name  = "GIT_CONFIG_KEY_0"
+    value = "url.https://x-access-token:$${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+  }
+
+  env {
+    name  = "GIT_CONFIG_VALUE_0"
+    value = "https://github.com/"
   }
 }
 
@@ -79,6 +111,14 @@ step "release_app_token" {
   with {
     name  = "repositories"
     value = "cinzel,homebrew-cinzel"
+  }
+
+  // Everything this token does is contents-level: tag, commit the changelog,
+  // create the release, upload its assets and push the homebrew cask. Without
+  // an explicit scope the token carries every permission the app was granted.
+  with {
+    name  = "permission-contents"
+    value = "write"
   }
 }
 
@@ -286,6 +326,24 @@ step "commit_release" {
     name  = "branch"
     value = "$${{ github.ref_name }}"
   }
+
+  // The action pushes the changelog commit with a bare "git push origin" and
+  // takes no token for it. The credentials go in this step's environment, so
+  // the checkout leaves nothing in .git/config for the earlier steps to read.
+  env {
+    name  = "GIT_CONFIG_COUNT"
+    value = "1"
+  }
+
+  env {
+    name  = "GIT_CONFIG_KEY_0"
+    value = "url.https://x-access-token:$${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
+  }
+
+  env {
+    name  = "GIT_CONFIG_VALUE_0"
+    value = "https://github.com/"
+  }
 }
 
 step "tests" {
@@ -313,6 +371,26 @@ step "coverage" {
   uses {
     action  = "gwatts/go-coverage-action"
     version = "2845595538a59d63d1bf55f109c14e104c6f7cb3"
+  }
+
+  // The action pushes refs/notes/gocoverage with a bare "git push origin"
+  // and takes no token for it. git reads configuration from GIT_CONFIG_COUNT
+  // and its numbered pairs, so the credentials live in this step's
+  // environment rather than in .git/config, where every other step in the
+  // job would be able to read them.
+  env {
+    name  = "GIT_CONFIG_COUNT"
+    value = "1"
+  }
+
+  env {
+    name  = "GIT_CONFIG_KEY_0"
+    value = "url.https://x-access-token:$${{ github.token }}@github.com/.insteadOf"
+  }
+
+  env {
+    name  = "GIT_CONFIG_VALUE_0"
+    value = "https://github.com/"
   }
 }
 

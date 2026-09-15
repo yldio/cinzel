@@ -68,7 +68,8 @@ job "release" {
   steps = [
     step.ensure_release_app,
     step.release_app_token,
-    step.checkout_release_with_credentials,
+    step.checkout_release,
+    step.verify_release_token,
     step.mise_setup,
     step.tests,
     step.calculate_next_version,
