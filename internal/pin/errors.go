@@ -11,6 +11,8 @@ import (
 
 var errNoHCLFiles = errors.New("no HCL files found in the specified path")
 
+var errNotHCLSyntax = errors.New("file is not native HCL syntax")
+
 // validateGitHubNames checks that owner, repo, and tag contain only safe
 // characters to prevent URL injection.
 func validateGitHubNames(owner, repo, tag string) error {

@@ -13,8 +13,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -31,9 +36,6 @@ var tagPattern = regexp.MustCompile(`^v?\d+(\.\d+)*$`)
 // safeNamePattern validates GitHub owner, repo, and tag names to prevent
 // URL injection. Allows alphanumeric, hyphens, dots, underscores.
 var safeNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-
-var actionPattern = regexp.MustCompile(`action\s*=\s*"([^"]+)"`)
-var versionPattern = regexp.MustCompile(`version\s*=\s*"([^"]+)"`)
 
 // Resolver resolves action version tags to commit SHAs.
 type Resolver interface {
@@ -459,33 +461,104 @@ func PinDirectory(ctx context.Context, dir string, resolver Resolver, w io.Write
 	return allResults, nil
 }
 
-// findActionRefs extracts action references from HCL content by looking for
-// uses blocks containing action and version attributes.
+// findActionRefs extracts action references from the uses blocks of an HCL
+// document.
+//
+// The document is parsed rather than scanned. Matching the text of every
+// "action =" and "version =" and pairing them by position counted anything
+// that read that way, a comment included, so one line reading
+//
+//	// TODO: was on version = "v3"
+//
+// left one more version than actions and the file was refused with a
+// mismatched count. Nothing in it was pinned, and because PinDirectory
+// reports a failed file as a warning, the run still exited 0.
+//
+// The parser also gives the byte range of each attribute, which is what the
+// rewrite needs to put a SHA on the right line.
 func findActionRefs(content string) ([]ActionRef, error) {
-	actionMatches := actionPattern.FindAllStringSubmatchIndex(content, -1)
-	versionMatches := versionPattern.FindAllStringSubmatchIndex(content, -1)
+	file, diags := hclsyntax.ParseConfig([]byte(content), "", hcl.Pos{Line: 1, Column: 1})
+	if diags.HasErrors() {
+		return nil, fmt.Errorf("failed to parse HCL: %w", diags)
+	}
 
-	if len(actionMatches) != len(versionMatches) {
-		return nil, fmt.Errorf("mismatched action/version count: %d actions, %d versions", len(actionMatches), len(versionMatches))
+	body, ok := file.Body.(*hclsyntax.Body)
+	if !ok {
+		return nil, errNotHCLSyntax
 	}
 
 	var refs []ActionRef
 
-	for i, am := range actionMatches {
-		action := content[am[2]:am[3]]
-		vm := versionMatches[i]
-		version := content[vm[2]:vm[3]]
+	collectUsesRefs(body, content, &refs)
 
-		refs = append(refs, ActionRef{
-			Action:  action,
-			Version: version,
-			IsTag:   isTag(version),
-			start:   vm[0],
-			end:     trailingCommentEnd(content, vm[1]),
-		})
-	}
+	sort.Slice(refs, func(i, j int) bool { return refs[i].start < refs[j].start })
 
 	return refs, nil
+}
+
+// collectUsesRefs walks every block looking for "uses", at whatever depth it
+// sits. A uses block missing either attribute is skipped: there is no action
+// to pin without both halves.
+func collectUsesRefs(body *hclsyntax.Body, content string, refs *[]ActionRef) {
+	for _, block := range body.Blocks {
+		if block.Body == nil {
+			continue
+		}
+
+		if block.Type == "uses" {
+			if ref, ok := usesRef(block.Body, content); ok {
+				*refs = append(*refs, ref)
+			}
+		}
+
+		collectUsesRefs(block.Body, content, refs)
+	}
+}
+
+// usesRef reads the action and version out of one uses block.
+func usesRef(body *hclsyntax.Body, content string) (ActionRef, bool) {
+	actionAttr, hasAction := body.Attributes["action"]
+	versionAttr, hasVersion := body.Attributes["version"]
+
+	if !hasAction || !hasVersion {
+		return ActionRef{}, false
+	}
+
+	action, ok := literalString(actionAttr.Expr)
+	if !ok {
+		return ActionRef{}, false
+	}
+
+	version, ok := literalString(versionAttr.Expr)
+	if !ok {
+		return ActionRef{}, false
+	}
+
+	rng := versionAttr.SrcRange
+
+	return ActionRef{
+		Action:  action,
+		Version: version,
+		IsTag:   isTag(version),
+		start:   rng.Start.Byte,
+		end:     trailingCommentEnd(content, rng.End.Byte),
+	}, true
+}
+
+// literalString reads a plain quoted string. An action built from a variable
+// or an interpolation is left alone, since its text is not known here and
+// rewriting it would destroy the expression.
+func literalString(expr hclsyntax.Expression) (string, bool) {
+	value, diags := expr.Value(nil)
+	if diags.HasErrors() || value.IsNull() || !value.IsKnown() {
+		return "", false
+	}
+
+	if value.Type() != cty.String {
+		return "", false
+	}
+
+	return value.AsString(), true
 }
 
 // drainAndClose reads the remaining body to enable HTTP connection reuse,
