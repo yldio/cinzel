@@ -103,6 +103,10 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, cinzelerror.ErrWorkflowFilenameRequired)
 		}
 
+		if err := checkFilenameStaysInside(workflow.Filename); err != nil {
+			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
+		}
+
 		if err := validateParsedWorkflow(workflow); err != nil {
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
 		}

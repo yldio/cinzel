@@ -5,6 +5,7 @@ package github
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -112,4 +113,32 @@ func parseStepsFromYAML(content []byte) ([]step.Step, error) {
 	}
 
 	return steps, nil
+}
+
+// checkFilenameStaysInside refuses a filename that would place the output
+// somewhere other than the directory it was asked for. A filename is written
+// straight into the output path, so "../../x" walked out of it and an absolute
+// path ignored it altogether, both without a word. That turns a pipeline
+// definition into a write anywhere the process can reach.
+//
+// A plain subdirectory is still allowed: it is the only way an action can sit
+// under its own folder, which is what the action writer already relies on.
+func checkFilenameStaysInside(filename string) error {
+	if filename == "" {
+		return nil
+	}
+
+	// VolumeName catches a Windows drive or share, which IsAbs misses for a
+	// drive-relative path such as "C:x", and is empty everywhere else.
+	if filepath.IsAbs(filename) || filepath.VolumeName(filename) != "" {
+		return fmt.Errorf("%w: %s", errFilenameEscapes, filename)
+	}
+
+	clean := filepath.Clean(filepath.FromSlash(filename))
+
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("%w: %s", errFilenameEscapes, filename)
+	}
+
+	return nil
 }

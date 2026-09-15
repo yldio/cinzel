@@ -1,0 +1,74 @@
+---
+status: complete
+priority: p1
+issue_id: "013"
+tags: [code-review, security]
+dependencies: []
+---
+
+# A workflow or action filename writes outside the output directory
+
+## Problem Statement
+
+`filename` is joined onto `--output-directory` and written without being
+checked. A filename carrying `../` walks out of the directory the caller
+asked for, and an absolute filename ignores it altogether. Nothing reports
+either.
+
+## Findings
+
+Probed at 2c48b19 through the built CLI.
+
+```
+workflow "esc" {
+  filename = "../../../../../../tmp/t4/pwned"
+  ...
+}
+
+$ cinzel github parse --file in/w.hcl --output-directory /tmp/t4/out
+RC=0
+/tmp/t4/pwned.yaml      <- six levels above the output directory
+```
+
+An absolute filename lands under the output directory prefixed with the
+whole path, `/tmp/t5/out2/tmp/t5/absolute-pwned.yaml`, which is not where the
+caller asked for it either. On Windows a drive-relative `C:x` does the same
+without `filepath.IsAbs` seeing it.
+
+The action writer has the same shape at `provider/github/github.go:129`,
+where the filename becomes a directory name, so `../../x` there creates the
+directory as well as the file.
+
+Reached from any HCL the tool is pointed at, which for this repository
+includes HCL a contributor opens a pull request with, and for `cinzel assist`
+includes HCL a model wrote.
+
+GitLab is not affected: its output name is fixed, `.gitlab-ci.yml` on parse
+and the input file's base name on unparse.
+
+## Recommended Action
+
+Refuse an absolute filename, one carrying a volume name, and one that
+resolves above the output directory. Allow a plain subdirectory: the action
+writer already puts every action under its own folder, so banning the
+separator would break it.
+
+## Technical Details
+
+- `provider/github/io_helpers.go`, `checkFilenameStaysInside`
+- called from `parseHCLWorkflows` and `parseHCLActions`, before anything is
+  written
+
+## Acceptance Criteria
+
+- [x] `../`, a deep `../`, `sub/../../`, an absolute path and a bare `..` are
+      all refused, for both a workflow and an action
+- [x] A plain name, a subdirectory and a `./` prefix still work
+- [x] A refused filename leaves no file behind
+
+## Work Log
+
+- 2026-09-15: Created and closed. Found while probing file-boundary handling
+  after the terminal sanitiser from #57 was confirmed to cover GitLab errors
+  as well, which it does: an ANSI escape in a job name reaches stderr as
+  `\x1b` text, not as a raw control byte.

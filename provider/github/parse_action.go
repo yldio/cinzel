@@ -28,6 +28,10 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 			filename = "action"
 		}
 
+		if err := checkFilenameStaysInside(filename); err != nil {
+			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
+		}
+
 		result = append(result, ActionYAMLFile{
 			Filename: filename,
 			Content:  content,
