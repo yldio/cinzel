@@ -82,17 +82,19 @@ type actionOutputYAML struct {
 }
 
 type actionRunsYAML struct {
-	Using      any `yaml:"using,omitempty"`
-	Main       any `yaml:"main,omitempty"`
-	Pre        any `yaml:"pre,omitempty"`
-	PreIf      any `yaml:"pre-if,omitempty"`
-	Post       any `yaml:"post,omitempty"`
-	PostIf     any `yaml:"post-if,omitempty"`
-	Image      any `yaml:"image,omitempty"`
-	Args       any `yaml:"args,omitempty"`
-	Entrypoint any `yaml:"entrypoint,omitempty"`
-	Steps      any `yaml:"steps,omitempty"`
-	Env        any `yaml:"env,omitempty"`
+	Using          any `yaml:"using,omitempty"`
+	Main           any `yaml:"main,omitempty"`
+	Pre            any `yaml:"pre,omitempty"`
+	PreIf          any `yaml:"pre-if,omitempty"`
+	Post           any `yaml:"post,omitempty"`
+	PostIf         any `yaml:"post-if,omitempty"`
+	Image          any `yaml:"image,omitempty"`
+	Args           any `yaml:"args,omitempty"`
+	Entrypoint     any `yaml:"entrypoint,omitempty"`
+	PreEntrypoint  any `yaml:"pre-entrypoint,omitempty"`
+	PostEntrypoint any `yaml:"post-entrypoint,omitempty"`
+	Steps          any `yaml:"steps,omitempty"`
+	Env            any `yaml:"env,omitempty"`
 }
 
 type actionBrandingYAML struct {

@@ -105,17 +105,19 @@ type hclActionOutputBlock struct {
 }
 
 type hclActionRunsBlock struct {
-	Using      hcl.Expression  `hcl:"using,optional"`
-	Main       hcl.Expression  `hcl:"main,optional"`
-	Pre        hcl.Expression  `hcl:"pre,optional"`
-	PreIf      hcl.Expression  `hcl:"pre_if,optional"`
-	Post       hcl.Expression  `hcl:"post,optional"`
-	PostIf     hcl.Expression  `hcl:"post_if,optional"`
-	Image      hcl.Expression  `hcl:"image,optional"`
-	Args       hcl.Expression  `hcl:"args,optional"`
-	Entrypoint hcl.Expression  `hcl:"entrypoint,optional"`
-	Steps      hcl.Expression  `hcl:"steps,optional"`
-	Env        []hclNamedBlock `hcl:"env,block"`
+	Using          hcl.Expression  `hcl:"using,optional"`
+	Main           hcl.Expression  `hcl:"main,optional"`
+	Pre            hcl.Expression  `hcl:"pre,optional"`
+	PreIf          hcl.Expression  `hcl:"pre_if,optional"`
+	Post           hcl.Expression  `hcl:"post,optional"`
+	PostIf         hcl.Expression  `hcl:"post_if,optional"`
+	Image          hcl.Expression  `hcl:"image,optional"`
+	Args           hcl.Expression  `hcl:"args,optional"`
+	Entrypoint     hcl.Expression  `hcl:"entrypoint,optional"`
+	PreEntrypoint  hcl.Expression  `hcl:"pre_entrypoint,optional"`
+	PostEntrypoint hcl.Expression  `hcl:"post_entrypoint,optional"`
+	Steps          hcl.Expression  `hcl:"steps,optional"`
+	Env            []hclNamedBlock `hcl:"env,block"`
 }
 
 type hclActionBrandingBlock struct {
