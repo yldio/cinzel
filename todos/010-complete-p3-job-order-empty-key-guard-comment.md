@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p3
 issue_id: "010"
 tags: [code-review, quality]
@@ -71,10 +71,26 @@ _To be filled during triage._
 
 ## Acceptance Criteria
 
-- [ ] The intent of the empty-key guard is clear from a comment or explicit alias check
+- [x] The intent of the empty-key guard is resolved — the guard is gone and what it stood for is handled where it belongs
 
 ## Work Log
 
 - 2026-03-31: Finding created during code review
 - 2026-09-15: Guard confirmed reachable by probe via alias keys and empty
   keys. Interpretation 2 confirmed. Merged with issue 008.
+- 2026-09-15: Both interpretations turned out to be wrong, and the guard is
+  gone rather than commented.
+
+  Interpretation 2 rested on an alias key having `Value == ""`. It does not: an
+  alias node in key position holds the anchor's name, so the guard never saw
+  one. Alias resolution is now explicit in `jobKeyName`.
+
+  Interpretation 1 was closer but the guard was doing it by accident. A literal
+  `"":` key is the only thing it skipped, and skipping it is what later
+  produced `job '' is defined but was not included in the job order` — a
+  message about ordering for what is really an unnamed job. The validator now
+  refuses an empty job name outright, matching what the parse direction already
+  did, and the guard has nothing left to do.
+
+  Resolved with 008, which carries the rest of the detail and the two further
+  defects the re-probe turned up.

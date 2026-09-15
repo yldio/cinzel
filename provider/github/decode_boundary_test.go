@@ -175,3 +175,18 @@ func unparse(t *testing.T, yaml string) string {
 
 	return hcl.String()
 }
+
+// unparseErr writes the YAML to a file and returns the error unparsing it
+// gives, if any.
+func unparseErr(t *testing.T, yaml string) error {
+	t.Helper()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "workflow.yaml")
+
+	if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	return New().Unparse(provider.ProviderOps{File: path, OutputDirectory: filepath.Join(dir, "out")})
+}

@@ -1,6 +1,6 @@
 ---
-status: pending
-priority: p3
+status: complete
+priority: p1
 issue_id: "008"
 tags: [code-review, quality, architecture]
 dependencies: []
@@ -99,8 +99,9 @@ question about the `key != ""` guard and should be resolved with it.
 ## Acceptance Criteria
 
 - [x] Reachability of both guards established by probe
-- [ ] Alias-key and empty-key inputs are covered by regression tests
-- [ ] Both guards keep a comment naming the input that reaches them
+- [x] Alias-key and empty-key inputs are covered by regression tests
+- [x] The inputs that reached the guards are fixed at their source
+- [x] A crash on a null mapping key is fixed
 
 ## Work Log
 
@@ -109,3 +110,33 @@ question about the `key != ""` guard and should be resolved with it.
   reachable via alias keys and empty keys. Reclassified from "remove dead
   code" to "add the missing regression tests". Priority lowered to p3: the
   code is correct as written, only its coverage is missing.
+- 2026-09-15: Re-probed against 9ed4be6 and found my own earlier triage
+  half wrong, plus a crash neither review had seen.
+
+  The alias claim was right that the guard fires, wrong about why. An alias in
+  key position does not have an empty `Value` — it holds the anchor's name
+  ("k"), with the text it stands for in `.Alias`. So `key != ""` never skipped
+  it. `jobOrderFromNode` now resolves the alias, and the order matches the map.
+
+  The empty-key claim was also half wrong. Removing `key != ""` does not break
+  anything: the workflow unparses and emits `id = ""`. So the guard was the
+  only thing rejecting an unnamed job, and it did it through a message about
+  job order that says nothing about the real problem. The parse direction
+  already refuses an empty id with `errJobIDNotString`; the validator now says
+  the same thing on the way in, and the guard is gone.
+
+  Two more inputs turned up that neither issue mentions:
+
+  A **null mapping key crashed the process**. yaml.v3 decodes a mapping with a
+  non-string key into `map[any]any`, and a nil key there panics the goccy
+  encoder the validator runs the document through — a segmentation fault from
+  the CLI on a six-line file, at any depth, not just in `jobs`. Integer and
+  boolean keys did not crash but were dropped silently. `rejectNonStringKeys`
+  refuses all of them before the decode.
+
+  A **merge key inside the jobs mapping** put "<<" in the job order and lost
+  the merged job. The order now falls back to sorted keys when one is present.
+
+  With those four fixed, both guards in `buildWorkflowJobIndex` are unreachable
+  by any input probed. They are left in place: they cost nothing, and the
+  history here is that each round of probing found another way to reach them.
