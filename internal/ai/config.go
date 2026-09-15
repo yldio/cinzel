@@ -6,6 +6,7 @@ package ai
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -66,12 +67,32 @@ func (c Config) ResolveProviderName(cliFlag string) string {
 // ResolveAPIKey returns the API key for the given provider, applying the
 // resolution order: env var > config file.
 func (c Config) ResolveAPIKey(providerName string) string {
+	if envVar := apiKeyEnvVar(providerName); envVar != "" {
+		if key := os.Getenv(envVar); key != "" {
+			return key
+		}
+	}
+
 	pc, ok := c.Providers[providerName]
 	if ok && pc.APIKey != "" {
 		return pc.APIKey
 	}
 
 	return ""
+}
+
+// apiKeyEnvVar returns the environment variable holding the API key for the
+// given provider, or an empty string for a provider that has none. The empty
+// name resolves to the default provider, matching ResolveProviderName.
+func apiKeyEnvVar(providerName string) string {
+	switch strings.ToLower(providerName) {
+	case "anthropic", "":
+		return anthropicAPIKeyEnvVar
+	case "openai":
+		return openaiAPIKeyEnvVar
+	default:
+		return ""
+	}
 }
 
 // ResolveModel returns the model for the given provider, applying the
