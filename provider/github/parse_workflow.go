@@ -59,6 +59,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 
 		if len(job.StepRefs) > 0 {
 			steps := make([]any, 0, len(job.StepRefs))
+			emitted := make(map[string]struct{}, len(job.StepRefs))
 
 			for _, stepID := range job.StepRefs {
 				stepVal, exists := stepMap[stepID]
@@ -66,6 +67,14 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 				if !exists {
 					return nil, nil, nil, fmt.Errorf("error in job '%s': cannot find step '%s'", j.ID, stepID)
 				}
+
+				// A job may run the same step more than once. GitHub requires a
+				// step id to be unique within its job, so only the first
+				// occurrence carries one.
+				if _, repeat := emitted[stepID]; repeat {
+					stepVal = stepValueWithoutID(stepVal)
+				}
+				emitted[stepID] = struct{}{}
 
 				steps = append(steps, stepVal)
 			}
@@ -912,6 +921,25 @@ func getOrCreateMap(target map[string]any, key string) map[string]any {
 	target[key] = mapping
 
 	return mapping
+}
+
+// stepValueWithoutID copies a converted step with its "id" left out, for a
+// repeat occurrence of a step within one job.
+func stepValueWithoutID(stepVal any) any {
+	m, ok := stepVal.(map[string]any)
+	if !ok {
+		return stepVal
+	}
+
+	out := make(map[string]any, len(m))
+
+	for key, value := range m {
+		if key != "id" {
+			out[key] = value
+		}
+	}
+
+	return out
 }
 
 func stepsToMap(steps step.Steps) (map[string]any, error) {
