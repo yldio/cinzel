@@ -74,8 +74,10 @@ func workflowExt(opts provider.ProviderOps) string {
 }
 
 func parseStepsFromYAML(content []byte) ([]step.Step, error) {
-	typ := cty.Map(cty.DynamicPseudoType)
-	val, err := ctyyaml.Unmarshal(content, typ)
+	// The document is read as a whole rather than as a map of a single element
+	// type: a map forces every step to unify to one type, so two steps that do
+	// not carry exactly the same keys would be rejected outright.
+	val, err := ctyyaml.Unmarshal(content, cty.DynamicPseudoType)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func parseStepsFromYAML(content []byte) ([]step.Step, error) {
 		return nil, nil
 	}
 
-	if !val.Type().IsMapType() {
+	if !val.Type().IsObjectType() && !val.Type().IsMapType() {
 		return nil, fmt.Errorf("expected top-level map, found %s", val.Type().FriendlyName())
 	}
 
