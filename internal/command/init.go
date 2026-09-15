@@ -14,18 +14,21 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// The template holds no API key. A key belongs in the environment, where
+// it is not written to disk and not picked up by a backup of this file.
+// LoadConfig still reads an api_key someone put here by hand, and the
+// environment wins over it.
 const configTemplate = `# cinzel AI configuration
-# API keys are stored here (never commit this file)
+# API keys are read from the environment:
+#   ANTHROPIC_API_KEY, OPENAI_API_KEY
 
 ai:
   default: %s
   providers:
     anthropic:
       model: claude-sonnet-4-5-20250514
-      api_key: "%s"
     openai:
       model: gpt-4o
-      api_key: "%s"
 `
 
 func (cmd *Cli) initCommand() *cli.Command {
@@ -68,27 +71,11 @@ func (cmd *Cli) initCommand() *cli.Command {
 				}
 			}
 
-			_, _ = fmt.Fprintf(cmd.Writer, "Anthropic API key (leave empty to skip): ")
-
-			var anthropicKey string
-
-			if scanner.Scan() {
-				anthropicKey = strings.TrimSpace(scanner.Text())
-			}
-
-			_, _ = fmt.Fprintf(cmd.Writer, "OpenAI API key (leave empty to skip): ")
-
-			var openaiKey string
-
-			if scanner.Scan() {
-				openaiKey = strings.TrimSpace(scanner.Text())
-			}
-
 			if err := os.MkdirAll(configDir, 0700); err != nil {
 				return fmt.Errorf("failed to create config directory: %w", err)
 			}
 
-			content := fmt.Sprintf(configTemplate, defaultProvider, anthropicKey, openaiKey)
+			content := fmt.Sprintf(configTemplate, defaultProvider)
 
 			if err := os.WriteFile(configFile, []byte(content), 0600); err != nil {
 				return fmt.Errorf("failed to write config file: %w", err)
@@ -96,14 +83,15 @@ func (cmd *Cli) initCommand() *cli.Command {
 
 			// WriteFile only applies the mode when it creates the file, so an
 			// existing config kept whatever permissions it had while the line
-			// below claimed 0600. The file holds API keys.
+			// below claimed 0600. A config written before this command stopped
+			// asking for keys may still hold one.
 			if err := os.Chmod(configFile, 0600); err != nil {
 				return fmt.Errorf("failed to set config file permissions: %w", err)
 			}
 
 			absPath, _ := filepath.Abs(configFile)
 			_, _ = fmt.Fprintf(cmd.Writer, "\nConfig written to %s (permissions: 0600)\n", absPath)
-			_, _ = fmt.Fprintf(cmd.Writer, "You can also set keys via environment variables:\n")
+			_, _ = fmt.Fprintf(cmd.Writer, "Set your API key in the environment:\n")
 			_, _ = fmt.Fprintf(cmd.Writer, "  export ANTHROPIC_API_KEY=sk-ant-...\n")
 			_, _ = fmt.Fprintf(cmd.Writer, "  export OPENAI_API_KEY=sk-...\n")
 

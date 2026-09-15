@@ -95,13 +95,7 @@ cinzel/assist/
     assist.hcl
 ```
 
-Requires an API key. Set up with:
-
-```sh
-cinzel init
-```
-
-Or set environment variables directly:
+Requires an API key, read from the environment:
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -109,6 +103,18 @@ export ANTHROPIC_API_KEY=sk-ant-...
 export OPENAI_API_KEY=sk-...
 cinzel github assist --ai openai --prompt "..."
 ```
+
+`cinzel init` writes a config file holding the default provider and the model
+to use for each. It does not store a key: the config is written to disk and
+swept up by a backup of your home directory, so the environment is the place
+for one.
+
+```sh
+cinzel init
+```
+
+A key set in the environment wins over an `api_key` added to that file by
+hand.
 
 Refine previous output (targets the latest session by default):
 
