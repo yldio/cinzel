@@ -95,7 +95,10 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName)
 	}
 
-	currentWorkflowOutputs := make(map[string]struct{}, len(workflows))
+	// Every file this run writes has to be recorded, actions included: the
+	// prune below walks the whole tree, and anything it does not find here is
+	// read as stale and removed.
+	currentOutputs := make(map[string]struct{}, len(workflows)+len(actions))
 
 	for _, workflowFile := range workflows {
 		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder)
@@ -106,8 +109,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
 
 		outputPath := filepath.Join(outputDir, workflowFile.Filename+workflowExt(opts))
-		cleanOutputPath := filepath.Clean(outputPath)
-		currentWorkflowOutputs[cleanOutputPath] = struct{}{}
+		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
@@ -127,6 +129,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		}
 
 		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
+		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
@@ -143,7 +146,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return nil
 	}
 
-	return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName)
+	return fsutil.PruneStaleGeneratedYAML(outputDir, currentOutputs, providerName)
 }
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.

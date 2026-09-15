@@ -73,36 +73,40 @@ func HasGeneratedMarker(path, provider string) (bool, error) {
 }
 
 // PruneStaleGeneratedYAML removes stale YAML files owned by provider.
+//
+// The whole tree under outputDir is walked, not only its top level. An output
+// can sit in a subdirectory, either because a filename names one or because
+// an action is written to its own folder, and a file left there was never
+// reached: renaming an action kept the old one beside the new one for good.
+//
+// Only files carrying the provider's marker are removed, so anything the
+// caller wrote by hand is left where it is. currentOutputs has to name every
+// file this run produced, actions included, or a live file is read as stale
+// and deleted.
 func PruneStaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{}, provider string) error {
-	entries, err := os.ReadDir(outputDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-
-		return err
-	}
-
 	cleanOutputDir, err := filepath.Abs(outputDir)
 	if err != nil {
 		return err
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+	err = filepath.WalkDir(outputDir, func(current string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
 
-		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		if d.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(current))
 		if ext != ".yaml" && ext != ".yml" {
-			continue
+			return nil
 		}
 
-		filePath := filepath.Join(outputDir, entry.Name())
-		cleanPath := filepath.Clean(filePath)
+		cleanPath := filepath.Clean(current)
 
 		if _, ok := currentOutputs[cleanPath]; ok {
-			continue
+			return nil
 		}
 
 		isOwned, err := HasGeneratedMarker(cleanPath, provider)
@@ -111,7 +115,7 @@ func PruneStaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{
 		}
 
 		if !isOwned {
-			continue
+			return nil
 		}
 
 		absPath, err := filepath.Abs(cleanPath)
@@ -120,12 +124,17 @@ func PruneStaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{
 		}
 
 		if !strings.HasPrefix(absPath, cleanOutputDir+string(os.PathSeparator)) {
-			continue
+			return nil
 		}
 
-		if err := os.Remove(absPath); err != nil {
-			return err
+		return os.Remove(absPath)
+	})
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
+
+		return err
 	}
 
 	return nil

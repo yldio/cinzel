@@ -102,3 +102,56 @@ func TestPruneStaleGeneratedYAML(t *testing.T) {
 		t.Fatalf("expected current file preserved, stat err=%v", err)
 	}
 }
+
+// An output can sit in a subdirectory, because a filename may name one. The
+// prune read only the top level, so a file left there was never reached and
+// stayed beside the current one for good.
+func TestPruneReachesASubdirectory(t *testing.T) {
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "sub")
+
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	owned := "# generated-by: cinzel\n# cinzel-provider: github\nname: x\n"
+
+	files := map[string]string{
+		filepath.Join(nested, "stale.yaml"):   owned,
+		filepath.Join(nested, "current.yaml"): owned,
+		filepath.Join(nested, "manual.yaml"):  "name: manual\n",
+		// Another provider's output is not this one's to delete.
+		filepath.Join(nested, "other.yaml"): "# generated-by: cinzel\n# cinzel-provider: gitlab\nname: x\n",
+	}
+
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	current := map[string]struct{}{filepath.Clean(filepath.Join(nested, "current.yaml")): {}}
+
+	if err := PruneStaleGeneratedYAML(dir, current, "github"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(nested, "stale.yaml")); !os.IsNotExist(err) {
+		t.Errorf("want the nested stale file removed, stat err=%v", err)
+	}
+
+	for _, keep := range []string{"current.yaml", "manual.yaml", "other.yaml"} {
+		if _, err := os.Stat(filepath.Join(nested, keep)); err != nil {
+			t.Errorf("want %s kept, got %v", keep, err)
+		}
+	}
+}
+
+// An output directory that does not exist yet is the first run, not an error.
+func TestPruneToleratesAMissingDirectory(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "not-there")
+
+	if err := PruneStaleGeneratedYAML(missing, map[string]struct{}{}, "github"); err != nil {
+		t.Errorf("want no error for a missing directory, got %v", err)
+	}
+}
