@@ -13,4 +13,5 @@ var (
 	errBlockIDNotString      = errors.New("'id' must be a non-empty string")
 	errNoDefinitions         = errors.New("no pipeline definitions found in input")
 	errYAMLExhausting        = errors.New("input would exhaust memory during YAML alias expansion")
+	errNonStringKey          = errors.New("a mapping key must be a string")
 )
