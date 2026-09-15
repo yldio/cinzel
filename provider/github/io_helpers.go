@@ -5,6 +5,7 @@ package github
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -112,4 +113,49 @@ func parseStepsFromYAML(content []byte) ([]step.Step, error) {
 	}
 
 	return steps, nil
+}
+
+// checkFilenameStaysInside refuses a filename that would place the output
+// somewhere other than the directory it was asked for. A filename is written
+// straight into the output path, so "../../x" walked out of it and an absolute
+// path ignored it altogether, both without a word. That turns a pipeline
+// definition into a write anywhere the process can reach.
+//
+// A plain subdirectory is still allowed: it is the only way an action can sit
+// under its own folder, which is what the action writer already relies on.
+func checkFilenameStaysInside(filename string) error {
+	if filename == "" {
+		return nil
+	}
+
+	// A filename is written in HCL, and the same HCL is read on every
+	// platform, so what counts as a separator or as rooted cannot be left to
+	// the one running. Both separators are folded to "/" and judged there:
+	// "/x" is not absolute on Windows, "C:x" is not absolute anywhere, and
+	// "..\\x" is a single name on Linux, yet none of them belongs under the
+	// output directory.
+	slashed := strings.ReplaceAll(filename, `\`, "/")
+
+	if filepath.IsAbs(filename) || strings.HasPrefix(slashed, "/") || hasDriveLetter(filename) {
+		return fmt.Errorf("%w: %s", errFilenameEscapes, filename)
+	}
+
+	if clean := path.Clean(slashed); clean == ".." || strings.HasPrefix(clean, "../") {
+		return fmt.Errorf("%w: %s", errFilenameEscapes, filename)
+	}
+
+	return nil
+}
+
+// hasDriveLetter reports whether the name starts with a Windows drive, such
+// as "C:" or "C:x". filepath.VolumeName answers this only when the tool is
+// running on Windows, and the same HCL is read everywhere.
+func hasDriveLetter(name string) bool {
+	if len(name) < 2 || name[1] != ':' {
+		return false
+	}
+
+	c := name[0]
+
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }

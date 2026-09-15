@@ -19,4 +19,5 @@ var (
 	errJobIDNotString         = errors.New("job 'id' must be a non-empty string")
 	errMultipleDocuments      = errors.New("a workflow file must hold a single YAML document")
 	errNonStringKey           = errors.New("a mapping key must be a string")
+	errFilenameEscapes        = errors.New("'filename' must stay inside the output directory")
 )
