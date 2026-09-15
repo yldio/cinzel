@@ -40,17 +40,6 @@ func SanitizeIdentifier(in string) string {
 	return out
 }
 
-// UniqueIdentifier returns base or a suffixed variant that does not collide with existing.
-func UniqueIdentifier(base string, existing []string) string {
-	set := make(map[string]struct{}, len(existing))
-
-	for _, s := range existing {
-		set[s] = struct{}{}
-	}
-
-	return UniqueIdentifierInSet(base, set)
-}
-
 // UniqueIdentifierInSet returns base or a suffixed variant not present in the existing set.
 func UniqueIdentifierInSet(base string, existing map[string]struct{}) string {
 	if _, ok := existing[base]; !ok {

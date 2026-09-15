@@ -291,8 +291,8 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 	jobNames := make([]string, 0)
 	jobIDMap := make(map[string]string)
 	templateIDMap := make(map[string]string)
-	usedIDs := make([]string, 0)
-	usedTemplateIDs := make([]string, 0)
+	usedIDs := make(map[string]struct{})
+	usedTemplateIDs := make(map[string]struct{})
 
 	for _, key := range sortedKeys(doc) {
 		if !strings.HasPrefix(key, ".") {
@@ -311,8 +311,8 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			tplID = "template"
 		}
 
-		tplID = naming.UniqueIdentifier(tplID, usedTemplateIDs)
-		usedTemplateIDs = append(usedTemplateIDs, tplID)
+		tplID = naming.UniqueIdentifierInSet(tplID, usedTemplateIDs)
+		usedTemplateIDs[tplID] = struct{}{}
 		templateIDMap[key] = tplID
 	}
 
@@ -327,8 +327,8 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 		if id == "" {
 			id = "job"
 		}
-		id = naming.UniqueIdentifier(id, usedIDs)
-		usedIDs = append(usedIDs, id)
+		id = naming.UniqueIdentifierInSet(id, usedIDs)
+		usedIDs[id] = struct{}{}
 		jobIDMap[key] = id
 	}
 	sort.Strings(jobNames)
