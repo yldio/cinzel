@@ -117,7 +117,9 @@ func TestActionRoundtripFixtures(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			hclFile := filepath.Join(unparseDir, "action.hcl")
+			// An action is named by the directory holding it, so the
+			// round-trip returns it under the name it went in with.
+			hclFile := filepath.Join(unparseDir, fixture+".hcl")
 
 			if err := p.Parse(provider.ProviderOps{File: hclFile, OutputDirectory: parse2Dir}); err != nil {
 				t.Fatal(err)
@@ -128,7 +130,7 @@ func TestActionRoundtripFixtures(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			second, err := os.ReadFile(filepath.Join(parse2Dir, "action", "action.yml"))
+			second, err := os.ReadFile(filepath.Join(parse2Dir, fixture, "action.yml"))
 			if err != nil {
 				t.Fatal(err)
 			}

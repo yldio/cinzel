@@ -27,7 +27,15 @@ runs:
 // 'unknown field "post-entrypoint"'.
 func TestDockerEntrypointHooksRoundtrip(t *testing.T) {
 	tmp := t.TempDir()
-	in := filepath.Join(tmp, "action.yml")
+
+	// An action is named by the directory holding it, so it is written into
+	// one rather than straight into the temporary directory.
+	dir := filepath.Join(tmp, "hooked")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	in := filepath.Join(dir, "action.yml")
 
 	if err := os.WriteFile(in, []byte(dockerAction), 0o644); err != nil {
 		t.Fatal(err)
@@ -39,7 +47,7 @@ func TestDockerEntrypointHooksRoundtrip(t *testing.T) {
 		t.Fatalf("unparse: %v", err)
 	}
 
-	hclBytes, err := os.ReadFile(filepath.Join(hclDir, "action.hcl"))
+	hclBytes, err := os.ReadFile(filepath.Join(hclDir, "hooked.hcl"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +99,12 @@ func TestDockerEntrypointHooksRoundtrip(t *testing.T) {
 // An action without the hooks must not grow empty ones.
 func TestDockerActionWithoutHooksIsUnchanged(t *testing.T) {
 	tmp := t.TempDir()
-	in := filepath.Join(tmp, "action.yml")
+	dir := filepath.Join(tmp, "plain")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	in := filepath.Join(dir, "action.yml")
 
 	plain := `name: My Action
 description: does things
@@ -111,7 +124,7 @@ runs:
 		t.Fatalf("unparse: %v", err)
 	}
 
-	got, err := os.ReadFile(filepath.Join(hclDir, "action.hcl"))
+	got, err := os.ReadFile(filepath.Join(hclDir, "plain.hcl"))
 	if err != nil {
 		t.Fatal(err)
 	}
