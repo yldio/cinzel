@@ -92,6 +92,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	remapJobNeeds(parsedJobs)
 
 	parsedWorkflows := make([]WorkflowYAMLFile, 0, len(cfg.Workflows))
+	takenFilenames := make(map[string]string, len(cfg.Workflows))
 
 	for _, wf := range cfg.Workflows {
 		workflow, err := parseWorkflowConfig(wf, hv)
@@ -105,6 +106,10 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 
 		if err := checkFilenameStaysInside(workflow.Filename); err != nil {
 			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
+		}
+
+		if err := claimFilename(takenFilenames, workflow.Filename, wf.ID); err != nil {
+			return nil, nil, nil, err
 		}
 
 		if err := validateParsedWorkflow(workflow); err != nil {

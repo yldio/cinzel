@@ -20,4 +20,5 @@ var (
 	errMultipleDocuments      = errors.New("a workflow file must hold a single YAML document")
 	errNonStringKey           = errors.New("a mapping key must be a string")
 	errFilenameEscapes        = errors.New("'filename' must stay inside the output directory")
+	errDuplicateFilename      = errors.New("two definitions write to the same file")
 )

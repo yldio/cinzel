@@ -159,3 +159,22 @@ func hasDriveLetter(name string) bool {
 
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
+
+// claimFilename records a filename and refuses one already taken. Two
+// definitions naming the same file wrote one on top of the other and said
+// nothing: the output held the last one and the rest were simply gone.
+//
+// The comparison folds case, because a filename that differs only in case is
+// the same file on macOS and Windows, and the same input then produces
+// different output depending on where it ran.
+func claimFilename(taken map[string]string, filename, id string) error {
+	key := strings.ToLower(filepath.Clean(filepath.FromSlash(filename)))
+
+	if other, ok := taken[key]; ok {
+		return fmt.Errorf("%w: '%s' and '%s' both write to '%s'", errDuplicateFilename, other, id, filename)
+	}
+
+	taken[key] = id
+
+	return nil
+}
