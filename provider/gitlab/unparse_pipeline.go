@@ -24,7 +24,7 @@ import (
 )
 
 func parseYAMLDocument(content []byte) (map[string]any, error) {
-	if err := rejectExhaustingYAML(content); err != nil {
+	if err := checkYAMLSoundness(content); err != nil {
 		return nil, err
 	}
 
@@ -58,21 +58,29 @@ func parseYAMLDocument(content []byte) (map[string]any, error) {
 	return merged, nil
 }
 
-// rejectExhaustingYAML refuses input whose aliases would expand without
-// bound. goccy resolves an alias every time it is named, so a chain of
-// anchors that each reference the one below ten times grows ten-fold per
-// level: a 380-byte file reaches 110MB of output and does not stop there.
-// goccy has no limit of its own, so the document goes through yaml.v3
-// first, whose decoder caps both alias expansion and nesting depth. That
-// costs a second decode, around 400ms on a 1.4MB pipeline, which is worth
-// it against a file a hundred times smaller taking the machine down.
-func rejectExhaustingYAML(content []byte) error {
+// checkYAMLSoundness runs the document through yaml.v3 before goccy sees
+// it, for two things goccy does not do.
+//
+// Aliases: goccy resolves one every time it is named and caps nothing, so a
+// chain of anchors each referencing the one below ten times grows ten-fold
+// per level. A 380-byte file reached 110MB of output and did not stop
+// there. yaml.v3's decoder caps both alias expansion and nesting depth.
+//
+// Keys: goccy renders a non-string key as its text, so "~", "null" and
+// "NULL" all arrive as the key "null" and quietly overwrite one another,
+// and the emitted HCL then reads back as the string "null", which is a
+// different pipeline. Rejecting those keys is the only honest answer,
+// which is what the GitHub provider already does.
+//
+// This costs a second decode, around 400ms on a 1.4MB pipeline, which is
+// worth it against a file a hundred times smaller taking the machine down.
+func checkYAMLSoundness(content []byte) error {
 	dec := yamlv3.NewDecoder(bytes.NewReader(content))
 
 	for {
-		var discard any
+		var node yamlv3.Node
 
-		err := dec.Decode(&discard)
+		err := dec.Decode(&node)
 
 		if errors.Is(err, io.EOF) {
 			return nil
@@ -89,7 +97,45 @@ func rejectExhaustingYAML(content []byte) error {
 
 			return nil
 		}
+
+		if err := rejectNonStringKeys(&node); err != nil {
+			return err
+		}
+
+		// Decoding into a Node parses the document without resolving a
+		// single alias, so the cap has not been tested yet. Decoding that
+		// node into a plain value is what expands them, and what trips it.
+		var discard any
+
+		if err := node.Decode(&discard); err != nil {
+			if strings.Contains(err.Error(), "excessive aliasing") {
+				return fmt.Errorf("%w: %s", errYAMLExhausting, err)
+			}
+
+			return nil
+		}
 	}
+}
+
+// rejectNonStringKeys refuses a mapping key that is not a string. A merge
+// key is left alone: it is how a pipeline shares a block between jobs, and
+// the decoder folds away what it points at.
+func rejectNonStringKeys(node *yamlv3.Node) error {
+	if node.Kind == yamlv3.MappingNode {
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if tag := node.Content[i].Tag; tag != "" && tag != "!!str" && tag != "!!merge" {
+				return fmt.Errorf("%w: %s", errNonStringKey, node.Content[i].Value)
+			}
+		}
+	}
+
+	for _, child := range node.Content {
+		if err := rejectNonStringKeys(child); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func classifyPipelineDocument(doc map[string]any) bool {
@@ -358,6 +404,14 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 	for _, key := range sortedKeys(doc) {
 		if isReservedTopLevelKey(key) || !isJobKey(doc, key) {
 			continue
+		}
+
+		// An unnamed job cannot be referred to by needs or extends and has
+		// no key to emit. Emitting one wrote id = "", which the parse
+		// direction then refused with this same error, so the pipeline
+		// could not come back.
+		if key == "" {
+			return nil, errBlockIDNotString
 		}
 
 		jobNames = append(jobNames, key)
