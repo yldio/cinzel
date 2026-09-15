@@ -17,6 +17,7 @@ type ActionYAMLFile struct {
 
 func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) ([]ActionYAMLFile, error) {
 	result := make([]ActionYAMLFile, 0, len(actions))
+	takenFilenames := make(map[string]string, len(actions))
 
 	for _, a := range actions {
 		content, filename, err := parseActionConfig(a, hv, stepMap)
@@ -30,6 +31,10 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 
 		if err := checkFilenameStaysInside(filename); err != nil {
 			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
+		}
+
+		if err := claimFilename(takenFilenames, filename, a.ID); err != nil {
+			return nil, err
 		}
 
 		result = append(result, ActionYAMLFile{
