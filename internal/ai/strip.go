@@ -25,6 +25,11 @@ const (
 // literal values, heredoc content, and comments, then returns the structural
 // skeleton. Returns an empty string if the directory doesn't exist or has no
 // HCL files.
+//
+// The skeleton is not anonymous: file names, block types, block labels and
+// attribute names are kept as written, since the structure is what makes the
+// context worth sending at all. Only values are removed. Callers sending this
+// to a third party have to say so.
 func StripHCLContext(dir string) (string, bool) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
