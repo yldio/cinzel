@@ -156,3 +156,29 @@ func actionBlock(id, filename string) string {
 		"  }\n" +
 		"}\n\n"
 }
+
+// A workflow written into a subdirectory and then renamed left the old file
+// there, because the prune read only the top level of the output directory.
+func TestRenamedNestedWorkflowIsPruned(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "in.hcl")
+	output := filepath.Join(dir, "out")
+
+	for _, filename := range []string{"sub/before", "sub/after"} {
+		if err := os.WriteFile(path, []byte(workflowHCL(filename)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := New().Parse(provider.ProviderOps{File: path, OutputDirectory: output}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(output, "sub", "before.yaml")); !os.IsNotExist(err) {
+		t.Errorf("want the renamed-away file removed, stat err=%v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(output, "sub", "after.yaml")); err != nil {
+		t.Errorf("want the current file kept, got %v", err)
+	}
+}
