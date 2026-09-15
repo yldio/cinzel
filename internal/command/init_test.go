@@ -58,40 +58,57 @@ func runInit(t *testing.T, home string, answers string) string {
 }
 
 // The overwrite prompt used to read stdin through a scanner of its own. The
-// scanner that followed started with an empty buffer, so on a re-run every
-// answer came back blank and the keys were written as "".
+// scanner that followed started with an empty buffer, so on a re-run the
+// answer after it came back blank.
 func TestInitRereadsAnswersAfterTheOverwritePrompt(t *testing.T) {
 	home := t.TempDir()
-	first := runInit(t, home, "anthropic\nsk-ant-one\nsk-oa-one\n")
+	first := runInit(t, home, "anthropic\n")
 
 	if got, err := os.ReadFile(first); err != nil {
 		t.Fatal(err)
-	} else if !strings.Contains(string(got), "sk-ant-one") {
-		t.Fatalf("first run lost its answers:\n%s", got)
+	} else if !strings.Contains(string(got), "default: anthropic") {
+		t.Fatalf("first run lost its answer:\n%s", got)
 	}
 
 	// Same HOME, so the file is already there and the overwrite prompt runs.
-	second := runInit(t, home, "y\nopenai\nsk-ant-two\nsk-oa-two\n")
+	second := runInit(t, home, "y\nopenai\n")
 
 	got, err := os.ReadFile(second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, want := range []string{"default: openai", "sk-ant-two", "sk-oa-two"} {
-		if !strings.Contains(string(got), want) {
-			t.Errorf("want %q kept after the overwrite prompt, got:\n%s", want, got)
-		}
-	}
-
-	if strings.Contains(string(got), `api_key: ""`) {
-		t.Errorf("an answered key was written empty:\n%s", got)
+	if !strings.Contains(string(got), "default: openai") {
+		t.Errorf("want the provider kept after the overwrite prompt, got:\n%s", got)
 	}
 }
 
-// The file holds API keys and the command says it is 0600. os.WriteFile only
-// applies a mode when it creates the file, so a config left group-readable
-// stayed that way while the message claimed otherwise.
+// The config is written to disk and swept up by a backup of the home
+// directory, so init does not put a key in it. The environment is the
+// documented place for one, and it wins over a key added here by hand.
+func TestInitWritesNoAPIKey(t *testing.T) {
+	configFile := runInit(t, t.TempDir(), "anthropic\n")
+
+	got, err := os.ReadFile(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(string(got), "api_key") {
+		t.Errorf("init wrote an api_key field:\n%s", got)
+	}
+
+	for _, want := range []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("want %q named in the written config, got:\n%s", want, got)
+		}
+	}
+}
+
+// The command says the file is 0600. os.WriteFile only applies a mode when
+// it creates the file, so a config left group-readable stayed that way while
+// the message claimed otherwise. A config written before init stopped asking
+// for keys may still hold one, so the mode still matters.
 func TestInitTightensPermissionsOnAnExistingFile(t *testing.T) {
 	// Windows has no Unix permission bits: os.Chmod only toggles the read-only
 	// flag there, and a file reads back as 0666 whatever it was set to.
@@ -100,13 +117,13 @@ func TestInitTightensPermissionsOnAnExistingFile(t *testing.T) {
 	}
 
 	home := t.TempDir()
-	configFile := runInit(t, home, "anthropic\nsk-ant-one\nsk-oa-one\n")
+	configFile := runInit(t, home, "anthropic\n")
 
 	if err := os.Chmod(configFile, 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	runInit(t, home, "y\nanthropic\nsk-ant-two\nsk-oa-two\n")
+	runInit(t, home, "y\nanthropic\n")
 
 	info, err := os.Stat(configFile)
 	if err != nil {
