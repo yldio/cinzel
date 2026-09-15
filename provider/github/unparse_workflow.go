@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -61,6 +62,8 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
 		return nil, nil, nil
 	}
 
+	keepWholeNumbersExact(first)
+
 	var doc map[string]any
 
 	if err := first.Decode(&doc); err != nil {
@@ -68,6 +71,31 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
 	}
 
 	return doc, jobOrderFromNode(first), nil
+}
+
+// keepWholeNumbersExact retags a whole number too large for an integer so it
+// decodes as the text it was written as.
+//
+// yaml.v3 resolves a run of digits that does not fit in int64 or uint64 to a
+// float, and a float that wide has no room for every digit: an ID written as
+// 99999999999999999999 comes back as 1e+20 and is emitted as
+// 100000000000000000000, a different number, without a word. Left as text the
+// digits survive, which is what goccy does with the same input and what the
+// GitLab provider therefore already does.
+//
+// Only a plain run of digits is retagged. A quoted or explicitly tagged scalar
+// carries a style, and .inf and .nan are not whole numbers, so both keep the
+// float the file asked for.
+func keepWholeNumbersExact(node *yamlv3.Node) {
+	if node.Kind == yamlv3.ScalarNode && node.Tag == "!!float" && node.Style == 0 {
+		if _, whole := new(big.Int).SetString(node.Value, 10); whole {
+			node.Tag = "!!str"
+		}
+	}
+
+	for _, child := range node.Content {
+		keepWholeNumbersExact(child)
+	}
 }
 
 // isNullNode reports whether a document holds nothing. A stray "---" marker
