@@ -39,7 +39,9 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 		// The failure goes to stderr, where the warnings above already go.
 		// On stdout it would land in whatever file or pipe the converted
 		// output was being collected into.
-		_, _ = fmt.Fprintf(cmd.Cmd.ErrWriter, "%s\n", cinzelerror.New(err).Err.Error())
+		message := cinzelerror.SafeForTerminal(cinzelerror.New(err).Err.Error())
+
+		_, _ = fmt.Fprintf(cmd.Cmd.ErrWriter, "%s\n", message)
 
 		return err
 	}

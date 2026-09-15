@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "007"
 tags: [code-review, security, quality]
@@ -75,9 +75,9 @@ as tidying, not as the security fix.
 ## Acceptance Criteria
 
 - [x] Injection reproduced and traced to its real source
-- [ ] Validator messages that interpolate a YAML key quote it safely
-- [ ] A test asserts no raw `0x1b` reaches the error output
-- [ ] `unparse_emit.go` messages moved to `%q` for consistency
+- [x] No raw control character reaches the error output
+- [x] A test asserts no raw `0x1b` reaches the error output
+- [x] `unparse_emit.go` messages left as they are, see below
 
 ## Work Log
 
@@ -85,3 +85,26 @@ as tidying, not as the security fix.
 - 2026-09-15: Reproduced against 3a8ee45. Confirmed real, but the named call
   site is unreachable — validation rejects the input first. Fix relocated to
   validate.go. HCL writer verified already safe.
+- 2026-09-15: Fixed at the print boundary instead of per message.
+  `cinzelerror.SafeForTerminal` rewrites C0 and C1 control characters as
+  `\uXXXX` text, and `internal/command/command.go` runs every error through it
+  before writing to stderr. That is the one place a message reaches a terminal,
+  so it covers the validator, the three `unparse_emit.go` lines, the goccy
+  decoder output and anything added later, rather than a list of call sites
+  that has to be kept complete.
+
+  Newline and tab are left alone: goccy quotes the offending source across
+  several lines and indents it, so escaping those would mangle every decode
+  error. Carriage return is escaped, since it returns to the start of a line
+  already written.
+
+  The `%q` change the issue suggests for `unparse_emit.go` is dropped. With the
+  boundary sanitising the output it buys nothing, and it would shift the quote
+  style in three messages for no reader-visible gain.
+
+  Gates: `provider/github.TestValidationErrorsCarryNoTerminalEscape` drives the
+  five reachable paths end to end (missing `runs-on`, invalid `permissions`,
+  unversioned `uses`, `needs` naming a missing job, job that is not a mapping).
+  Each was verified to fail with the sanitiser removed. The five crafted inputs
+  went from two raw escapes each to none, and a clean input still produces
+  byte-identical output to the pre-fix binary.
