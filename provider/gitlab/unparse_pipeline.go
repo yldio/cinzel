@@ -20,9 +20,14 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/cinzel/internal/naming"
 	"github.com/zclconf/go-cty/cty"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 func parseYAMLDocument(content []byte) (map[string]any, error) {
+	if err := rejectExhaustingYAML(content); err != nil {
+		return nil, err
+	}
+
 	// A pipeline carrying a "spec" header is two documents: the header, then
 	// the configuration. Merging them keeps the whole file, which a single
 	// Unmarshal would silently cut short at the first document.
@@ -51,6 +56,40 @@ func parseYAMLDocument(content []byte) (map[string]any, error) {
 	}
 
 	return merged, nil
+}
+
+// rejectExhaustingYAML refuses input whose aliases would expand without
+// bound. goccy resolves an alias every time it is named, so a chain of
+// anchors that each reference the one below ten times grows ten-fold per
+// level: a 380-byte file reaches 110MB of output and does not stop there.
+// goccy has no limit of its own, so the document goes through yaml.v3
+// first, whose decoder caps both alias expansion and nesting depth. That
+// costs a second decode, around 400ms on a 1.4MB pipeline, which is worth
+// it against a file a hundred times smaller taking the machine down.
+func rejectExhaustingYAML(content []byte) error {
+	dec := yamlv3.NewDecoder(bytes.NewReader(content))
+
+	for {
+		var discard any
+
+		err := dec.Decode(&discard)
+
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+
+		if err != nil {
+			// Anything else wrong with the document is goccy's to report, so
+			// its own decode below says it, with the messages and positions
+			// the rest of this package is written against.
+			if strings.Contains(err.Error(), "excessive aliasing") ||
+				strings.Contains(err.Error(), "exceeded max depth") {
+				return fmt.Errorf("%w: %s", errYAMLExhausting, err)
+			}
+
+			return nil
+		}
+	}
 }
 
 func classifyPipelineDocument(doc map[string]any) bool {
