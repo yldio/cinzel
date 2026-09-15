@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/suzuki-shunsuke/ghalint/v1.5.6/json-schema/ghalint.json
+
+excludes:
+  # stefanzweifel/git-auto-commit-action pushes the changelog commit with the
+  # credentials actions/checkout leaves in .git/config, so this one checkout
+  # has to keep them. The token is the release app's, scoped to contents.
+  - policy_name: checkout_persist_credentials_should_be_false
+    workflow_file_path: .github/workflows/release.yaml
+    job_name: release
+    step_id: checkout_release_with_credentials

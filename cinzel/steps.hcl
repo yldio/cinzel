@@ -9,6 +9,13 @@ step "checkout" {
     action  = "actions/checkout"
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
+
+  // Nothing in the pull request workflow pushes, so the checkout leaves no
+  // credentials behind in .git/config for a later step to pick up.
+  with {
+    name  = "persist-credentials"
+    value = "false"
+  }
 }
 
 step "checkout_release" {
@@ -79,6 +86,14 @@ step "release_app_token" {
   with {
     name  = "repositories"
     value = "cinzel,homebrew-cinzel"
+  }
+
+  // Everything this token does is contents-level: tag, commit the changelog,
+  // create the release, upload its assets and push the homebrew cask. Without
+  // an explicit scope the token carries every permission the app was granted.
+  with {
+    name  = "permission-contents"
+    value = "write"
   }
 }
 

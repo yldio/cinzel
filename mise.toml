@@ -41,8 +41,7 @@ run = "mkdir -p ./coverage"
 
 [tasks.lint]
 # gofmt writes nothing here: a formatting drift is a CI failure, not a
-# silent rewrite. ghalint is deliberately not run yet, since it reports
-# four findings in the release workflows that have to be fixed first.
+# silent rewrite.
 run = """
 unformatted=$(gofmt -l .)
 if [ -n "$unformatted" ]; then
@@ -52,6 +51,7 @@ if [ -n "$unformatted" ]; then
 fi
 go vet ./...
 actionlint .github/workflows/*.yaml
+ghalint run
 """
 
 [tasks.drift]
