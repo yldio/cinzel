@@ -10,12 +10,9 @@ step "checkout" {
     version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
   }
 
-  // Nothing in the pull request workflow pushes, so the checkout leaves no
-  // credentials behind in .git/config for a later step to pick up.
-  with {
-    name  = "persist-credentials"
-    value = "false"
-  }
+  // The coverage step below pushes refs/notes/gocoverage with the credentials
+  // this checkout leaves in .git/config, so they have to stay. See the
+  // exclusion in ghalint.yaml.
 }
 
 step "checkout_release" {

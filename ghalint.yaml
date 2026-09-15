@@ -8,3 +8,12 @@ excludes:
     workflow_file_path: .github/workflows/release.yaml
     job_name: release
     step_id: checkout_release_with_credentials
+
+  # gwatts/go-coverage-action pushes refs/notes/gocoverage with a bare
+  # "git push origin", using the credentials actions/checkout leaves in
+  # .git/config. Its own token input only reaches the API call that writes
+  # the PR comment, never the push, so this checkout has to keep them.
+  - policy_name: checkout_persist_credentials_should_be_false
+    workflow_file_path: .github/workflows/pull-request.yaml
+    job_name: pull_request
+    step_id: checkout
