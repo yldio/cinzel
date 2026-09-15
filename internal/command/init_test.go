@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -92,6 +93,12 @@ func TestInitRereadsAnswersAfterTheOverwritePrompt(t *testing.T) {
 // applies a mode when it creates the file, so a config left group-readable
 // stayed that way while the message claimed otherwise.
 func TestInitTightensPermissionsOnAnExistingFile(t *testing.T) {
+	// Windows has no Unix permission bits: os.Chmod only toggles the read-only
+	// flag there, and a file reads back as 0666 whatever it was set to.
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not meaningful on windows")
+	}
+
 	home := t.TempDir()
 	configFile := runInit(t, home, "anthropic\nsk-ant-one\nsk-oa-one\n")
 
