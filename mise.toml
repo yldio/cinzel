@@ -79,10 +79,12 @@ depends = ["test"]
 run = "go tool cover -html=${COVERAGE_REPORT_PATH} -o ${COVERAGE_HTML_PATH}"
 
 [tasks.license]
-run = "go tool addlicense -v -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' -l apache -s=only -c 'YLD Limited' ."
+# Casks/ is GoReleaser output and says not to edit it. A release
+# rewrites it in the tap, so a header added here would not survive.
+run = "go tool addlicense -v -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' -ignore 'Casks/**' -l apache -s=only -c 'YLD Limited' ."
 
 [tasks.license-check]
-run = "go tool addlicense -check -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' ."
+run = "go tool addlicense -check -ignore '**/*.hcl' -ignore '**/*.yaml' -ignore '**/*.yml' -ignore '**/*.md' -ignore 'Casks/**' ."
 
 [tasks.bench]
 run = """
