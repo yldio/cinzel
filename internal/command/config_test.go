@@ -441,3 +441,25 @@ func captureStdout(t *testing.T, fn func()) string {
 
 	return string(out)
 }
+
+// single-file and filename were type-checked and then thrown away: nothing
+// read them. They are gone, so they warn like any other unknown key.
+func TestDroppedKeysWarn(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    single-file: true\n    filename: ci\n"))
+
+		app, errBuf, p := newConfigTestApp(t)
+		err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		got := errBuf.String()
+		want := "warning: .cinzelrc.yaml.github.parse.filename: unknown key\n" +
+			"warning: .cinzelrc.yaml.github.parse.single-file: unknown key\n"
+
+		if got != want {
+			t.Fatalf("warnings = %q, want %q", got, want)
+		}
+	})
+}

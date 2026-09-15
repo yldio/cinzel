@@ -146,14 +146,6 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 			}
 			config.outputDirectory = valueNode.Value
 			config.hasOutputDir = true
-		case "single-file":
-			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
-				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.single-file must be boolean", path, providerName, commandName)
-			}
-		case "filename":
-			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.filename must be string", path, providerName, commandName)
-			}
 		case "yml":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
 				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.yml must be a boolean", path, providerName, commandName)
