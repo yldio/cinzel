@@ -50,10 +50,10 @@ a quoted one-liner. `internal/unescape` restores the escaped characters but
 cannot restore the block style. That is an encoder defect, not a
 representation one; fixing it means replacing or patching yaml.v3.
 
-The GitLab emitter (`provider/gitlab/pipeline_yaml.go`) still does the old
-byte rewrite, though it now shares `internal/unescape`. It has not been
-moved, and it does not have the corruption bug: it never forces literal style,
-so a multi-line script containing `overrides: {}` is double-quoted and the
-rewrite cannot reach it. Moving it is a tidying job, not a fix, and an attempt
-showed the swap is not behaviour-preserving: `yamldoc.Null()` and
-`yamldoc.Map()` do not reproduce `cache: null` or a `- {}` sequence entry.
+The GitLab emitter (`provider/gitlab/pipeline_yaml.go`) has not been moved
+here. It no longer does the `: {}` byte rewrite — that turned an empty
+`include` into a null GitLab reads differently — and it shares
+`internal/unescape`, so what is left is its own node building. Moving it is a
+tidying job, not a fix, and an attempt showed the swap is not
+behaviour-preserving: `yamldoc.Null()` and `yamldoc.Map()` do not reproduce
+`cache: null` or a `- {}` sequence entry.

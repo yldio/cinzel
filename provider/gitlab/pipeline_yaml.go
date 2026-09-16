@@ -63,9 +63,7 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 		return nil, err
 	}
 
-	out := bytes.ReplaceAll(buf.Bytes(), []byte(": {}\n"), []byte(":\n"))
-
-	return unescape.Unicode(out), nil
+	return unescape.Unicode(buf.Bytes()), nil
 }
 
 func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {

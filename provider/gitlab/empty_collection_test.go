@@ -167,3 +167,35 @@ func TestNonEmptyCollectionAttributeIsRejected(t *testing.T) {
 		})
 	}
 }
+
+// An empty mapping used to be collapsed to a bare key by a byte replacement
+// over the whole document, which turned it into a YAML null. GitLab reads the
+// two differently, and unparse rejected the null outright.
+func TestEmptyMappingStaysAMapping(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		yaml string
+		want string
+	}{
+		{
+			name: "pipeline include",
+			yaml: "include: {}\njob1:\n  script:\n    - make\n",
+			want: "include: {}",
+		},
+		{
+			name: "job variables",
+			yaml: "job1:\n  script:\n    - make\n  variables: {}\n",
+			want: "variables: {}",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hcl, back := roundtripYAML(t, tc.yaml)
+
+			// roundtripYAML parses the HCL back, so reaching here at all means
+			// the emitted YAML was readable — a bare key is not.
+			if !strings.Contains(back, tc.want) {
+				t.Errorf("roundtrip lost %q\nHCL:\n%s\nYAML:\n%s", tc.want, hcl, back)
+			}
+		})
+	}
+}
