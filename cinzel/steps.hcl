@@ -52,18 +52,32 @@ step "verify_release_token" {
   // job, which this job triggers by creating the release, so this is the last
   // point where a missing scope can be reported without a release already
   // being published.
+  //
+  // Scope is what is checkable here, not permission. The token is an app
+  // installation token, so "repos/$repo" was the wrong place to ask: its
+  // "permissions" object describes the authenticated user, and an
+  // installation token has no user behind it, so the field came back absent
+  // and the check could never pass. /installation/repositories answers for
+  // the installation itself, which is what the token actually is.
+  //
+  // contents:write is settled at mint time — create-github-app-token fails
+  // when the installation was never granted a permission the step asks for —
+  // and the dry run below proves it for this repository outright.
   run = <<EOF
 set -euo pipefail
 
+scoped=$(gh api /installation/repositories --paginate --jq '.repositories[].full_name')
+
 for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
-  if [ "$(gh api "repos/$repo" --jq '.permissions.push')" != "true" ]; then
-    echo "the release token cannot write to $repo"
+  if ! printf '%s\n' "$scoped" | grep -qxF "$repo"; then
+    echo "the release token is not scoped to $repo"
+    echo "it reaches: $scoped"
     exit 1
   fi
 done
 
-# Never writes: a dry run still authenticates, so it rehearses the push the
-# changelog commit makes later with the same environment.
+# Never writes, but the server still runs its permission check on
+# git-receive-pack, so a read-only token fails here rather than at the tag.
 git push --dry-run origin "HEAD:refs/heads/$GITHUB_REF_NAME"
 EOF
 
