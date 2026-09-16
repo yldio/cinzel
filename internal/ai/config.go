@@ -29,6 +29,16 @@ type configFile struct {
 	AI Config `yaml:"ai"`
 }
 
+// DefaultModels returns the model each provider uses when the config names
+// none, keyed by provider name. cinzel init writes the template from this, so
+// a new config starts on whatever the code already defaults to.
+func DefaultModels() map[string]string {
+	return map[string]string{
+		"anthropic": anthropicDefaultModel,
+		"openai":    openaiDefaultModel,
+	}
+}
+
 // LoadConfig reads the cinzel config file from os.UserConfigDir()/cinzel/config.yaml.
 // Returns an empty Config (not an error) if the file doesn't exist, and a
 // warning for each thing worth saying about the file it did read.

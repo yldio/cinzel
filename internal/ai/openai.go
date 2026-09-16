@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	openaiDefaultModel = "gpt-4o"
+	// Taken from the SDK rather than written out, so a dependency bump moves
+	// the default with it.
+	openaiDefaultModel = string(openai.ChatModelGPT5_4)
 	openaiAPIKeyEnvVar = "OPENAI_API_KEY"
 )
 

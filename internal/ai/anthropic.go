@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	anthropicDefaultModel = "claude-sonnet-4-5-20250514"
+	// Taken from the SDK rather than written out, so a dependency bump moves
+	// the default with it. The literal it replaced, "claude-sonnet-4-5-20250514",
+	// named no model at all: it carried Sonnet 4.5's name and Sonnet 4's date.
+	anthropicDefaultModel = string(anthropic.ModelClaudeSonnet4_6)
 	anthropicAPIKeyEnvVar = "ANTHROPIC_API_KEY"
 )
 

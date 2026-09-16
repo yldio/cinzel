@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/urfave/cli/v3"
+	"github.com/yldio/cinzel/internal/ai"
 )
 
 // The template holds no API key. A key belongs in the environment, where
@@ -25,11 +27,29 @@ const configTemplate = `# cinzel AI configuration
 ai:
   default: %s
   providers:
-    anthropic:
-      model: claude-sonnet-4-5-20250514
-    openai:
-      model: gpt-4o
-`
+%s`
+
+// providerDefaults renders the per-provider block of the config template from
+// the models the code actually defaults to. The template used to restate them,
+// so a new config started on whatever was current when the string was written.
+func providerDefaults() string {
+	models := ai.DefaultModels()
+	names := make([]string, 0, len(models))
+
+	for name := range models {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	var b strings.Builder
+
+	for _, name := range names {
+		fmt.Fprintf(&b, "    %s:\n      model: %s\n", name, models[name])
+	}
+
+	return b.String()
+}
 
 func (cmd *Cli) initCommand() *cli.Command {
 	return &cli.Command{
@@ -75,7 +95,7 @@ func (cmd *Cli) initCommand() *cli.Command {
 				return fmt.Errorf("failed to create config directory: %w", err)
 			}
 
-			content := fmt.Sprintf(configTemplate, defaultProvider)
+			content := fmt.Sprintf(configTemplate, defaultProvider, providerDefaults())
 
 			if err := os.WriteFile(configFile, []byte(content), 0600); err != nil {
 				return fmt.Errorf("failed to write config file: %w", err)
