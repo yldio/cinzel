@@ -1,4 +1,11 @@
 cinzel
+## [0.6.2](https://github.com/yldio/cinzel/compare/v0.6.1..v0.6.2) - 2026-09-16
+
+### 🐛 Bug Fixes
+
+- *(github)* Say where two step blocks share a label - ([68766ae](https://github.com/yldio/cinzel/commit/68766aefce2e9b8f2133e59b2c1a7d5322650b66))
+
+
 ## [0.6.1](https://github.com/yldio/cinzel/compare/v0.6.0..v0.6.1) - 2026-09-16
 
 ### 🐛 Bug Fixes
