@@ -6,8 +6,14 @@ package ai
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/openai/openai-go/v3"
 )
 
 func TestStripFences(t *testing.T) {
@@ -51,6 +57,28 @@ func TestStripFences(t *testing.T) {
 			input: "   \n\n  ",
 			want:  "",
 		},
+		// A response cut off at the token limit ends mid-fence. The opening
+		// line used to be handed to the YAML parser along with the document.
+		{
+			name:  "unclosed fence runs to the end",
+			input: "```yaml\nname: test\non:\n  push:",
+			want:  "name: test\non:\n  push:",
+		},
+		{
+			name:  "unclosed bare fence",
+			input: "Here you go:\n\n```\nname: test",
+			want:  "name: test",
+		},
+		{
+			name:  "a closed fence then a truncated one",
+			input: "```yaml\nname: one\n```\n\n```yaml\nname: two",
+			want:  "name: one\n---\nname: two",
+		},
+		{
+			name:  "text after a closed fence is not a fence",
+			input: "```yaml\nname: test\n```\n\nHope this helps!",
+			want:  "name: test",
+		},
 	}
 
 	for _, tt := range tests {
@@ -61,6 +89,27 @@ func TestStripFences(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Both SDK error types print themselves out of their Request and Response, so
+// a bare struct panics when classifyError falls through to the message. A real
+// one always carries both.
+func apiRequestAndResponse(status int) (*http.Request, *http.Response) {
+	req := httptest.NewRequest(http.MethodPost, "https://api.example.com/v1/messages", nil)
+
+	return req, &http.Response{StatusCode: status, Request: req}
+}
+
+func openaiError(status int) *openai.Error {
+	req, res := apiRequestAndResponse(status)
+
+	return &openai.Error{StatusCode: status, Request: req, Response: res}
+}
+
+func anthropicError(status int) *anthropic.Error {
+	req, res := apiRequestAndResponse(status)
+
+	return &anthropic.Error{StatusCode: status, Request: req, Response: res}
 }
 
 func TestClassifyError(t *testing.T) {
@@ -92,6 +141,40 @@ func TestClassifyError(t *testing.T) {
 		{
 			name:     "generic error",
 			err:      errors.New("something unexpected"),
+			contains: "LLM API error",
+		},
+		// The status comes off the typed error, so a message that happens to
+		// carry other digits does not decide the classification.
+		{
+			name:     "a 429 carried in a typed error",
+			err:      openaiError(http.StatusTooManyRequests),
+			contains: "rate limited",
+		},
+		{
+			name:     "a 401 carried in a typed error",
+			err:      anthropicError(http.StatusUnauthorized),
+			contains: "invalid API key",
+		},
+		{
+			name:     "a 402 carried in a typed error",
+			err:      openaiError(http.StatusPaymentRequired),
+			contains: "quota exceeded",
+		},
+		{
+			name:     "a wrapped typed error is still read",
+			err:      fmt.Errorf("openai API: %w", openaiError(http.StatusTooManyRequests)),
+			contains: "rate limited",
+		},
+		{
+			name:     "a status with no advice falls through",
+			err:      openaiError(http.StatusInternalServerError),
+			contains: "LLM API error",
+		},
+		// An SDK error prints its response body, so a server fault whose body
+		// mentions a rate limit read as one under the old text search.
+		{
+			name:     "text is not consulted when the status is known",
+			err:      fmt.Errorf("%w: rate_limit_exceeded", openaiError(http.StatusInternalServerError)),
 			contains: "LLM API error",
 		},
 	}

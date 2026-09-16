@@ -7,10 +7,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/openai/openai-go/v3"
 )
 
 const (
@@ -22,6 +26,10 @@ const (
 )
 
 var fencePattern = regexp.MustCompile("(?s)```(?:ya?ml)?\\s*\n(.*?)```")
+
+// openFencePattern matches a fence that is never closed, which is what a
+// response cut off at the token limit looks like.
+var openFencePattern = regexp.MustCompile("(?s)^.*?```(?:ya?ml)?[ \\t]*\n(.*)$")
 
 // GenerateRequest holds the parameters for an LLM generation call.
 type GenerateRequest struct {
@@ -65,12 +73,40 @@ func GenerateWithTimeout(ctx context.Context, p Provider, req GenerateRequest) (
 	return response, nil
 }
 
+// classifyError turns a provider error into advice the user can act on.
+//
+// Both SDKs wrap an HTTP failure in a typed error carrying the status code, so
+// that is read first. Searching the message text for "401" or "429" got this
+// wrong in both directions: a model name or a prompt echoed back in the message
+// could carry those digits, and a status that never reached the text was
+// missed.
+//
+// The text search stays as a fallback, for a provider error that is not one of
+// the two SDK types.
 func classifyError(err error, providerName string) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("LLM request timed out after %s. Try a simpler prompt", DefaultTimeout)
+	}
+
 	msg := err.Error()
 
+	// A known status is the answer, and the text is not consulted at all: an
+	// SDK error prints its response body, so a 500 whose body happens to
+	// mention a rate limit would otherwise be reported as one.
+	if status, ok := apiStatusCode(err); ok {
+		switch status {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return fmt.Errorf("invalid API key for %s. Check your API key is correct", providerName)
+		case http.StatusPaymentRequired:
+			return fmt.Errorf("API quota exceeded for %s. Check your plan and billing at your provider's dashboard", providerName)
+		case http.StatusTooManyRequests:
+			return fmt.Errorf("API rate limited. Try again in a moment")
+		default:
+			return fmt.Errorf("LLM API error (%s): %s", providerName, msg)
+		}
+	}
+
 	switch {
-	case errors.Is(err, context.DeadlineExceeded):
-		return fmt.Errorf("LLM request timed out after %s. Try a simpler prompt", DefaultTimeout)
 	case strings.Contains(msg, "authentication") || strings.Contains(msg, "401"):
 		return fmt.Errorf("invalid API key for %s. Check your API key is correct", providerName)
 	case strings.Contains(msg, "insufficient_quota") || strings.Contains(msg, "billing"):
@@ -80,6 +116,24 @@ func classifyError(err error, providerName string) error {
 	default:
 		return fmt.Errorf("LLM API error (%s): %s", providerName, msg)
 	}
+}
+
+// apiStatusCode reads the HTTP status out of whichever SDK raised the error.
+// The two types are unrelated, so each is unwrapped in turn.
+func apiStatusCode(err error) (int, bool) {
+	var anthropicErr *anthropic.Error
+
+	if errors.As(err, &anthropicErr) {
+		return anthropicErr.StatusCode, true
+	}
+
+	var openaiErr *openai.Error
+
+	if errors.As(err, &openaiErr) {
+		return openaiErr.StatusCode, true
+	}
+
+	return 0, false
 }
 
 // resolveAPIKey returns the provided key, or falls back to the environment
@@ -97,6 +151,10 @@ func resolveAPIKey(provided, envVar string, missingErr error) (string, error) {
 }
 
 // StripFences removes markdown code fences from LLM output, returning clean YAML.
+//
+// An opening fence with no closer runs to the end of the text. A response cut
+// off at the token limit ends that way, and it used to be returned verbatim, so
+// the YAML parser was handed the "```yaml" line along with the document.
 func StripFences(s string) string {
 	matches := fencePattern.FindAllStringSubmatch(s, -1)
 	if len(matches) > 0 {
@@ -105,10 +163,38 @@ func StripFences(s string) string {
 			parts = append(parts, strings.TrimSpace(m[1]))
 		}
 
+		// A closed fence may still be followed by an unclosed one, when the
+		// response was cut off partway through a second document.
+		if tail := trailingOpenFence(s, matches); tail != "" {
+			parts = append(parts, tail)
+		}
+
 		return strings.Join(parts, "\n---\n")
 	}
 
+	if m := openFencePattern.FindStringSubmatch(s); m != nil {
+		return strings.TrimSpace(m[1])
+	}
+
 	return strings.TrimSpace(s)
+}
+
+// trailingOpenFence returns the content of an unclosed fence after the last
+// closed one, or "" when there is none.
+func trailingOpenFence(s string, matches [][]string) string {
+	last := matches[len(matches)-1][0]
+
+	idx := strings.LastIndex(s, last)
+	if idx < 0 {
+		return ""
+	}
+
+	m := openFencePattern.FindStringSubmatch(s[idx+len(last):])
+	if m == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(m[1])
 }
 
 // SystemPrompt returns the system prompt for the given CI provider name.
