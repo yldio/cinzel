@@ -66,3 +66,22 @@ func TestEncodeQuotesReservedIndicatorsWithDoubleQuotes(t *testing.T) {
 		}
 	}
 }
+
+// TestEncodeKeepsAuthoredEscape covers a string holding the four characters
+// "\u00e9": the encoder doubles the backslash, and rewriting the escape
+// would leave a "\é" the YAML parser rejects.
+func TestEncodeKeepsAuthoredEscape(t *testing.T) {
+	doc := New()
+	doc.Set("run", Scalar(`echo '{"msg": "caf\u00e9"}'`))
+
+	got, err := Encode(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "run: \"echo '{\\\"msg\\\": \\\"caf\\\\u00e9\\\"}'\"\n"
+
+	if string(got) != want {
+		t.Errorf("Encode() = %q, want %q", got, want)
+	}
+}

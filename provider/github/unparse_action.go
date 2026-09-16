@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -217,7 +218,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 		}
 	}
 
-	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), nil
+	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
 func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {

@@ -6,11 +6,10 @@ package yamldoc
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
+	"github.com/yldio/cinzel/internal/unescape"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
@@ -37,7 +36,7 @@ func Encode(d *Doc) ([]byte, error) {
 		return nil, err
 	}
 
-	return unescapeUnicode(buf.Bytes()), nil
+	return unescape.Unicode(buf.Bytes()), nil
 }
 
 func mapNode(d *Doc) (*yamlv3.Node, error) {
@@ -165,24 +164,3 @@ func needsQuoting(v string) bool {
 
 	return false
 }
-
-// unescapeUnicode replaces \uXXXX and \UXXXXXXXX escapes with their raw UTF-8
-// equivalents for characters above U+009F. gopkg.in/yaml.v3 escapes
-// supplementary-plane characters (emoji etc.) because its is_printable helper
-// only handles 3-byte UTF-8 sequences. Replacing the escapes restores readable
-// output without changing the YAML semantics.
-func unescapeUnicode(src []byte) []byte {
-	return reUnicodeEscape.ReplaceAllFunc(src, func(match []byte) []byte {
-		n, err := strconv.ParseInt(string(match[2:]), 16, 32)
-		if err != nil || n <= 0x9F || !utf8.ValidRune(rune(n)) {
-			return match
-		}
-
-		var buf [utf8.UTFMax]byte
-		l := utf8.EncodeRune(buf[:], rune(n))
-
-		return append([]byte(nil), buf[:l]...)
-	})
-}
-
-var reUnicodeEscape = regexp.MustCompile(`\\U[0-9A-Fa-f]{8}|\\u[0-9A-Fa-f]{4}`)

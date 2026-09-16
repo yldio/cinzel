@@ -46,12 +46,12 @@ reconstructing them.
 `Encode` still uses yaml.v3's Node API and inherits one of its defects: its
 `is_printable` helper only recognises 3-byte UTF-8, so a 4-byte character
 (an emoji) forces double-quoted style and downgrades a `|` literal block to
-a quoted one-liner. `unescapeUnicode` restores the escaped characters but
+a quoted one-liner. `internal/unescape` restores the escaped characters but
 cannot restore the block style. That is an encoder defect, not a
 representation one; fixing it means replacing or patching yaml.v3.
 
 The GitLab emitter (`provider/gitlab/pipeline_yaml.go`) still does the old
-byte rewrite and has its own copy of the unicode unescape. It has not been
+byte rewrite, though it now shares `internal/unescape`. It has not been
 moved, and it does not have the corruption bug: it never forces literal style,
 so a multi-line script containing `overrides: {}` is double-quoted and the
 rewrite cannot reach it. Moving it is a tidying job, not a fix, and an attempt

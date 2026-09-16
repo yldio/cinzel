@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/cinzel/internal/fsutil"
+	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/yldio/cinzel/provider"
 )
 
@@ -257,7 +258,7 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string) ([]byte, str
 		}
 	}
 
-	return unescapeHCLUnicode(hclwrite.Format(f.Bytes())), baseName, nil
+	return unescape.Unicode(hclwrite.Format(f.Bytes())), baseName, nil
 }
 
 // actionNameFor picks the name an action is known by. An action lives at
