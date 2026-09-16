@@ -587,13 +587,20 @@ func latestAssistDir(baseDir string) string {
 
 // validateRelativePath ensures a path is relative and does not escape the
 // current working directory via ".." traversal or absolute paths.
+//
+// Only a leading element that is exactly ".." escapes anything. Testing the
+// first two characters refused "..hidden" and "...x" as well, which are
+// ordinary directory names.
 func validateRelativePath(p string) error {
 	if filepath.IsAbs(p) {
 		return errAbsolutePath
 	}
 
 	cleaned := filepath.Clean(p)
-	if strings.HasPrefix(cleaned, "..") {
+
+	// Clean leaves any ".." it could not resolve at the front, so checking the
+	// first element covers "a/../../b" too.
+	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
 		return errPathTraversal
 	}
 

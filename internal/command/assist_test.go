@@ -306,6 +306,13 @@ func TestValidateRelativePath(t *testing.T) {
 		{name: "parent traversal", path: "../../../etc", wantErr: errPathTraversal},
 		{name: "hidden traversal", path: "foo/../../bar", wantErr: errPathTraversal},
 		{name: "current dir", path: ".", wantErr: nil},
+		// A name that merely starts with ".." escapes nothing. Testing the
+		// first two characters refused these.
+		{name: "a name beginning with two dots", path: "..hidden", wantErr: nil},
+		{name: "three dots", path: "...x", wantErr: nil},
+		{name: "two dots inside the path", path: "a/..hidden/b", wantErr: nil},
+		{name: "bare parent", path: "..", wantErr: errPathTraversal},
+		{name: "parent then a name", path: "../x", wantErr: errPathTraversal},
 	}
 
 	for _, tt := range tests {
