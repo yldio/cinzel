@@ -61,3 +61,44 @@ func TestEscapeTemplateMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestFreeHeredocMarker(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		lines []string
+		want  string
+	}{
+		{"no clash", []string{"echo hi"}, "EOF"},
+		{"body writes its own heredoc", []string{"cat <<EOF", "x", "EOF"}, "EOF_1"},
+		{"indented marker still clashes", []string{"  EOF"}, "EOF_1"},
+		{"walks past a taken suffix", []string{"EOF", "EOF_1", "EOF_2"}, "EOF_3"},
+		{"a marker inside a line is not a clash", []string{"echo EOF now"}, "EOF"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := freeHeredocMarker(tc.lines); got != tc.want {
+				t.Errorf("freeHeredocMarker(%q) = %q, want %q", tc.lines, got, tc.want)
+			}
+		})
+	}
+}
+
+// A script writing its own "EOF" heredoc used to close ours early, leaving HCL
+// where the rest of the script was read as block syntax.
+func TestSetAsHeredocPicksAFreeMarker(t *testing.T) {
+	script := strings.Join([]string{"cat > cfg <<EOF", "key: value", "EOF", "echo done"}, "\n")
+
+	file := hclwrite.NewEmptyFile()
+	file.Body().AppendNewBlock("step", []string{"s"}).Body().
+		SetAttributeRaw("run", setAsHeredoc(script))
+
+	got := string(hclwrite.Format(file.Bytes()))
+
+	if !strings.Contains(got, "<<-EOF_1\n") || !strings.Contains(got, "\nEOF_1\n") {
+		t.Errorf("heredoc did not move off the clashing marker:\n%s", got)
+	}
+
+	// The body's own marker must survive untouched.
+	if !strings.Contains(got, "cat > cfg <<EOF\n") {
+		t.Errorf("body marker was rewritten:\n%s", got)
+	}
+}

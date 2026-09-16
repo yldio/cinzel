@@ -6,6 +6,7 @@ package step
 import (
 	"errors"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -263,10 +264,12 @@ func setAsHeredoc(content string) hclwrite.Tokens {
 	// "${{" becomes "${ {", ">>" becomes "> >", "if [ -n" becomes "if[-n".
 	// Typed this way the body is opaque to it. The "<<-" form is required
 	// because Format indents the closing marker.
+	marker := freeHeredocMarker(lines)
+
 	tokens := hclwrite.Tokens{
 		{
 			Type:  hclsyntax.TokenOHeredoc,
-			Bytes: []byte("<<-EOF\n"),
+			Bytes: []byte("<<-" + marker + "\n"),
 		},
 	}
 
@@ -279,10 +282,33 @@ func setAsHeredoc(content string) hclwrite.Tokens {
 
 	tokens = append(tokens, &hclwrite.Token{
 		Type:  hclsyntax.TokenCHeredoc,
-		Bytes: []byte("EOF"),
+		Bytes: []byte(marker),
 	})
 
 	return tokens
+}
+
+// freeHeredocMarker returns a marker no line of the body would be read as, so
+// a script writing its own heredoc does not close ours early. The "<<-" form
+// matches a closing marker after stripping the line's indentation, so the
+// comparison is against the trimmed line. escapeTemplateMarkers leaves a bare
+// marker alone, so the raw lines are what to check.
+func freeHeredocMarker(lines []string) string {
+	taken := make(map[string]struct{}, len(lines))
+
+	for _, line := range lines {
+		taken[strings.TrimSpace(line)] = struct{}{}
+	}
+
+	marker := "EOF"
+
+	for i := 1; ; i++ {
+		if _, clash := taken[marker]; !clash {
+			return marker
+		}
+
+		marker = "EOF_" + strconv.Itoa(i)
+	}
 }
 
 // escapeTemplateMarkers doubles the "$" and "%" that open an HCL template
