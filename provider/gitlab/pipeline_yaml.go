@@ -48,7 +48,13 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 		return nil, err
 	}
 
-	docs = append(docs, &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{root}})
+	// A pipeline that is nothing but a spec header has nothing left for the
+	// root document, and appending it anyway wrote a second document holding
+	// "{}". Kept when it is the only document, so an empty pipeline still
+	// writes something a reader accepts.
+	if len(root.Content) > 0 || len(docs) == 0 {
+		docs = append(docs, &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{root}})
+	}
 
 	var buf bytes.Buffer
 	enc := yamlv3.NewEncoder(&buf)
