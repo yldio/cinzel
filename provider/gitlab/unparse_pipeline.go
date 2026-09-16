@@ -283,6 +283,18 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			body.AppendNewline()
 		}
 
+		// The three keys below are the whole of GitLab's workflow, and the HCL
+		// block has nowhere to put anything else, so an unknown key can only be
+		// dropped. Say so, the way the top-level loop does, rather than losing
+		// it in silence.
+		for _, key := range sortedKeys(workflowMap) {
+			switch key {
+			case "name", "auto_cancel", "rules":
+			default:
+				fmt.Fprintf(os.Stderr, "warning: unsupported workflow key '%s' dropped\n", key)
+			}
+		}
+
 		wb := body.AppendNewBlock("workflow", nil)
 		wbody := wb.Body()
 

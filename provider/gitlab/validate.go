@@ -82,6 +82,15 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		}
 	}
 
+	// config.go accepts a top-level "services" alongside the one under
+	// "default", but only the default was checked, so a top-level entry with no
+	// name went straight through.
+	if rawServices, ok := pipeline["services"]; ok {
+		if err := validateServices(rawServices, "pipeline"); err != nil {
+			return err
+		}
+	}
+
 	if rawDefault, ok := pipeline["default"]; ok {
 		defaultMap, ok := rawDefault.(map[string]any)
 
