@@ -44,13 +44,28 @@ func ErrJobEmptySteps(jobId string) error {
 }
 
 // ProcessHCLDiags converts HCL diagnostics into a single joined error.
+//
+// A diagnostic's summary stands in when it carries no detail. Only the detail
+// used to be collected, so a summary-only diagnostic left nothing to join and
+// errors.Join returned nil, which the caller printed as "%!w(<nil>)" with the
+// report-an-issue line after it and no sign of what was actually wrong.
 func ProcessHCLDiags(diags hcl.Diagnostics) error {
 	errs := make([]error, 0, len(diags))
 
 	for _, diag := range diags {
-		if diag.Detail != "" {
-			errs = append(errs, errors.New(diag.Detail))
+		message := diag.Detail
+
+		if message == "" {
+			message = diag.Summary
 		}
+
+		if message != "" {
+			errs = append(errs, errors.New(message))
+		}
+	}
+
+	if len(errs) == 0 {
+		return ErrOpenIssue
 	}
 
 	return fmt.Errorf("%w, %w", errors.Join(errs...), ErrOpenIssue)
