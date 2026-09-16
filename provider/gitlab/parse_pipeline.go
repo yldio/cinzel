@@ -636,6 +636,7 @@ func parseNeedBlocks(blocks []hclNeedBlock, hv *hclparser.HCLVars) ([]any, error
 		}{
 			{"artifacts", block.Artifacts},
 			{"optional", block.Optional},
+			{"parallel", block.Parallel},
 			{"project", block.Project},
 			{"ref", block.Ref},
 			{"pipeline", block.Pipeline},

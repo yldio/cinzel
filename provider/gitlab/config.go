@@ -43,6 +43,7 @@ type hclNeedBlock struct {
 	Job       hcl.Expression `hcl:"job,optional"`
 	Artifacts hcl.Expression `hcl:"artifacts,optional"`
 	Optional  hcl.Expression `hcl:"optional,optional"`
+	Parallel  hcl.Expression `hcl:"parallel,optional"`
 	Project   hcl.Expression `hcl:"project,optional"`
 	Ref       hcl.Expression `hcl:"ref,optional"`
 	Pipeline  hcl.Expression `hcl:"pipeline,optional"`

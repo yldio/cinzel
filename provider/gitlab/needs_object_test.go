@@ -22,6 +22,26 @@ func TestNeedsAsObjects(t *testing.T) {
 		wantYAML []string
 	}{
 		{
+			// "parallel" was written into the need block but absent from the
+			// schema, so the file did not parse back.
+			name: "need with a parallel matrix",
+			yaml: `build:
+  parallel:
+    matrix:
+      - ARCH: [amd64, arm64]
+  script: [make]
+test:
+  script: [make test]
+  needs:
+    - job: build
+      parallel:
+        matrix:
+          - ARCH: [amd64]
+`,
+			wantHCL:  []string{"need {", "job = job.build", "parallel = {"},
+			wantYAML: []string{"job: build", "parallel:", "matrix:"},
+		},
+		{
 			name: "job with artifacts",
 			yaml: `build:
   script: [make]
