@@ -152,10 +152,8 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 	// Validate schedule cron expressions.
 
 	if schedule, ok := onMap["schedule"]; ok {
-		if scheduleMap, mapOK := toStringAnyMap(schedule); mapOK {
-			if err := ghworkflow.ValidateSchedule(scheduleMap); err != nil {
-				return withPath("workflow."+workflow.ID+".on.schedule", err)
-			}
+		if err := validateScheduleEvent(schedule); err != nil {
+			return withPath("workflow."+workflow.ID+".on.schedule", err)
 		}
 	}
 
@@ -163,6 +161,35 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 
 	if err := validateExpressions(plainMap(workflow.Body)); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateScheduleEvent checks the cron expressions under a schedule event in
+// either shape it arrives in. The parse path runs DenormalizeScheduleEvent
+// first, which turns the event into a list of {"cron": ...} entries, so the
+// map-only check this replaced was dead there and a nonsense expression reached
+// the YAML unrefused.
+func validateScheduleEvent(schedule any) error {
+	if entries, listOK := schedule.([]any); listOK {
+		for i, entry := range entries {
+			entryMap, mapOK := toStringAnyMap(entry)
+
+			if !mapOK {
+				return fmt.Errorf("schedule[%d] must be an object", i)
+			}
+
+			if err := ghworkflow.ValidateSchedule(entryMap); err != nil {
+				return fmt.Errorf("schedule[%d]: %w", i, err)
+			}
+		}
+
+		return nil
+	}
+
+	if scheduleMap, mapOK := toStringAnyMap(schedule); mapOK {
+		return ghworkflow.ValidateSchedule(scheduleMap)
 	}
 
 	return nil

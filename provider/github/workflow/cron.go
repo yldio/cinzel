@@ -9,19 +9,50 @@ import (
 	"strings"
 )
 
-// cronFieldSpec defines the valid range for a single cron field.
+// cronFieldSpec defines the valid range for a single cron field, and the names
+// that field accepts in place of a number.
 type cronFieldSpec struct {
-	name string
-	min  int
-	max  int
+	name  string
+	min   int
+	max   int
+	names map[string]int
 }
 
+var monthNames = map[string]int{
+	"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+	"JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
+
+var dayNames = map[string]int{
+	"SUN": 0, "MON": 1, "TUE": 2, "WED": 3, "THU": 4, "FRI": 5, "SAT": 6,
+}
+
+// day-of-week runs to 7 because both 0 and 7 name Sunday. Every name a field
+// accepts resolves to a number in its own range, so the range checks below need
+// no separate case for them.
 var cronFields = []cronFieldSpec{
 	{name: "minute", min: 0, max: 59},
 	{name: "hour", min: 0, max: 23},
 	{name: "day-of-month", min: 1, max: 31},
-	{name: "month", min: 1, max: 12},
-	{name: "day-of-week", min: 0, max: 6},
+	{name: "month", min: 1, max: 12, names: monthNames},
+	{name: "day-of-week", min: 0, max: 7, names: dayNames},
+}
+
+// cronValue resolves one cron field value to a number, taking either a literal
+// or one of the three-letter names the field accepts. GitHub takes "MON-FRI"
+// and "JAN", which a plain strconv.Atoi refused.
+func cronValue(s string, spec cronFieldSpec) (int, error) {
+	if n, found := spec.names[strings.ToUpper(s)]; found {
+		return n, nil
+	}
+
+	n, err := strconv.Atoi(s)
+
+	if err != nil {
+		return 0, fmt.Errorf("invalid value %q", s)
+	}
+
+	return n, nil
 }
 
 // ValidateCron checks that a cron expression has 5 fields with valid ranges.
@@ -56,7 +87,14 @@ func validateCronField(field string, spec cronFieldSpec) error {
 	// Handle step on wildcard: */n
 
 	if strings.HasPrefix(field, "*/") {
-		return validateCronNumber(field[2:], spec)
+		step := field[2:]
+
+		// A step is a count, not a point in the field, so no name belongs here.
+		if _, err := strconv.Atoi(step); err != nil {
+			return fmt.Errorf("invalid step %q in %q", step, field)
+		}
+
+		return validateCronNumber(step, spec)
 	}
 
 	// Handle list: a,b,c
@@ -98,12 +136,12 @@ func validateCronRange(field string, spec cronFieldSpec) error {
 		return fmt.Errorf("invalid range %q", field)
 	}
 
-	low, err := strconv.Atoi(bounds[0])
+	low, err := cronValue(bounds[0], spec)
 	if err != nil {
 		return fmt.Errorf("invalid range start %q in %q", bounds[0], field)
 	}
 
-	high, err := strconv.Atoi(bounds[1])
+	high, err := cronValue(bounds[1], spec)
 	if err != nil {
 		return fmt.Errorf("invalid range end %q in %q", bounds[1], field)
 	}
@@ -124,9 +162,9 @@ func validateCronRange(field string, spec cronFieldSpec) error {
 }
 
 func validateCronNumber(s string, spec cronFieldSpec) error {
-	n, err := strconv.Atoi(s)
+	n, err := cronValue(s, spec)
 	if err != nil {
-		return fmt.Errorf("invalid value %q", s)
+		return err
 	}
 
 	if n < spec.min || n > spec.max {

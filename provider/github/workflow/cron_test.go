@@ -21,6 +21,13 @@ func TestValidateCron(t *testing.T) {
 		{name: "list", expr: "0 0 1,15 * *"},
 		{name: "range with step", expr: "0 0-23/2 * * *"},
 		{name: "complex", expr: "30 4,8 1-15 1,6 0-4"},
+		{name: "day name range", expr: "0 9 * * MON-FRI"},
+		{name: "day name", expr: "0 9 * * SUN"},
+		{name: "month name", expr: "0 0 1 JAN *"},
+		{name: "month name range with step", expr: "0 0 1 JAN-JUN/2 *"},
+		{name: "lower case name", expr: "0 9 * * mon"},
+		{name: "day-of-week 7 is sunday", expr: "0 9 * * 7"},
+		{name: "name in a list", expr: "0 9 * * MON,FRI"},
 	}
 
 	for _, tt := range valid {
@@ -43,7 +50,11 @@ func TestValidateCron(t *testing.T) {
 		{name: "hour out of range", expr: "0 24 * * *", wantErr: "out of range"},
 		{name: "day out of range", expr: "0 0 32 * *", wantErr: "out of range"},
 		{name: "month out of range", expr: "0 0 * 13 *", wantErr: "out of range"},
-		{name: "dow out of range", expr: "0 0 * * 7", wantErr: "out of range"},
+		// 7 is Sunday, so the first value past the field is 8.
+		{name: "dow out of range", expr: "0 0 * * 8", wantErr: "out of range"},
+		{name: "a day name in the month field", expr: "0 0 * MON *", wantErr: "invalid value"},
+		{name: "a name as a step", expr: "*/MON * * * *", wantErr: "invalid step"},
+		{name: "not a name at all", expr: "0 9 * * FOO", wantErr: "invalid value"},
 		{name: "invalid character", expr: "abc * * * *", wantErr: "invalid value"},
 		{name: "inverted range", expr: "0 17-9 * * *", wantErr: "greater than end"},
 	}
