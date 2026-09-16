@@ -334,6 +334,11 @@ func TestBlockSignature(t *testing.T) {
 		{`step "checkout" {` + "\n  name = \"Checkout\"\n}", `step "checkout"`},
 		{`workflow "pr" {` + "\n  name = \"PR\"\n}", `workflow "pr"`},
 		{`variable "os" {` + "\n  value = []\n}", `variable "os"`},
+		// Every pinned action carries a tag comment. The first line used to be
+		// taken outright, so the comment became the signature.
+		{"// action tag: v4\n" + `step "checkout" {` + "\n  name = \"Checkout\"\n}", `step "checkout"`},
+		{"# a hash comment\n\n" + `job "build" {` + "\n}", `job "build"`},
+		{"// nothing but a comment\n", ""},
 	}
 
 	for _, tt := range tests {
@@ -411,6 +416,38 @@ step "deploy" {
 	// New step should be kept as-is.
 	if !strings.Contains(result, `step "deploy"`) {
 		t.Errorf("new deploy step should be kept\ngot:\n%s", result)
+	}
+}
+
+// A pinned step carries an "// action tag" comment. Its signature used to come
+// out as that comment, which matched nothing, so the block was emitted in full
+// instead of as a reference to the one already in context.
+func TestDeduplicateMatchesACommentedBlock(t *testing.T) {
+	contextDir := t.TempDir()
+
+	block := `// action tag: v4
+step "checkout" {
+  name = "Checkout"
+
+  uses {
+    action  = "actions/checkout"
+    version = "abc123"
+  }
+}
+`
+
+	if err := os.WriteFile(filepath.Join(contextDir, "steps.hcl"), []byte(block), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := deduplicateWithExisting(block, contextDir)
+
+	if !strings.Contains(result, `// reuses: step "checkout" from steps.hcl`) {
+		t.Errorf("expected a reuse comment naming the block\ngot:\n%s", result)
+	}
+
+	if strings.Contains(result, `action  = "actions/checkout"`) {
+		t.Errorf("the identical block should be replaced, not kept\ngot:\n%s", result)
 	}
 }
 

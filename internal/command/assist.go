@@ -368,12 +368,23 @@ type existingBlock struct {
 
 // blockSignature extracts the type and labels from an HCL block string,
 // e.g. `step "checkout" {` → `step "checkout"`.
+//
+// Leading comments and blank lines are skipped. Taking the first line outright
+// returned the comment on any block carrying one — every action pin writes an
+// "// action tag" line — so the signature matched nothing and the block could
+// never be recognised as one the context already holds.
 func blockSignature(block string) string {
-	line := strings.SplitN(block, "\n", 2)[0]
-	line = strings.TrimSpace(line)
-	line = strings.TrimSuffix(line, "{")
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(line)
 
-	return strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "//") || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		return strings.TrimSpace(strings.TrimSuffix(line, "{"))
+	}
+
+	return ""
 }
 
 // deduplicateWithExisting compares generated blocks against existing HCL files
