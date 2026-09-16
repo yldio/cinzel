@@ -22,6 +22,14 @@ func TestValidateExpressionSyntax(t *testing.T) {
 		{name: "empty expression", input: "${{  }}", wantErr: "empty expression"},
 		{name: "nested braces ok", input: "${{ toJSON(github.event) }}"},
 		{name: "plain braces no error", input: "obj = {a: 1}"},
+		// A shell script closing nested JSON was read as an orphaned closer as
+		// soon as the same string also held a real expression.
+		{name: "json then an expression", input: `echo '{"a": {"b": 1}}' && echo ${{ github.sha }}`},
+		{name: "an expression then json", input: `echo ${{ github.sha }} && echo '{"a": {"b": 1}}'`},
+		{name: "json with no expression", input: `echo '{"a": {"b": 1}}'`},
+		{name: "a closer with nothing to close", input: "echo }} && echo ${{ github.sha }}", wantErr: "orphaned"},
+		{name: "a closer after the expression closed", input: "${{ github.sha }} }}", wantErr: "orphaned"},
+		{name: "a lone closer in a plain string", input: "echo }}"},
 	}
 
 	for _, tt := range tests {

@@ -18,58 +18,58 @@ func validateExpressions(workflow map[string]any) error {
 
 // validateExpressionSyntax checks that ${{ }} delimiters in a string are
 // balanced and non-empty.
+//
+// A "}}" outside an expression is not always a mistake: a shell script holding
+// JSON ends nested objects that way. The old check compared the first "}}" in
+// the string against the first "${{" and refused anything where the closer came
+// first, so a script with JSON and a later expression did not parse. Count the
+// plain braces instead, and report a closer only when there is none for it to
+// close.
 func validateExpressionSyntax(path, s string) error {
-	rest := s
+	braces := 0
 
-	for {
-		idx := strings.Index(rest, "${{")
+	for i := 0; i < len(s); {
+		rest := s[i:]
 
-		if idx < 0 {
-			break
-		}
+		switch {
+		case strings.HasPrefix(rest, "${{"):
+			end := strings.Index(rest[3:], "}}")
 
-		after := rest[idx+3:]
-		end := strings.Index(after, "}}")
+			if end < 0 {
+				return fmt.Errorf("%s: unclosed expression '${{' (missing '}}') in %q", path, s)
+			}
 
-		if end < 0 {
-			return fmt.Errorf("%s: unclosed expression '${{' (missing '}}') in %q", path, s)
-		}
+			if strings.TrimSpace(rest[3:3+end]) == "" {
+				return fmt.Errorf("%s: empty expression '${{ }}' in %q", path, s)
+			}
 
-		body := strings.TrimSpace(after[:end])
+			i += 3 + end + 2
 
-		if body == "" {
-			return fmt.Errorf("%s: empty expression '${{ }}' in %q", path, s)
-		}
-
-		rest = after[end+2:]
-	}
-
-	// Check for orphaned }} without opening ${{
-	temp := s
-
-	for {
-		openIdx := strings.Index(temp, "${{")
-		closeIdx := strings.Index(temp, "}}")
-
-		if closeIdx < 0 {
-			break
-		}
-
-		if openIdx < 0 || closeIdx < openIdx {
-			// }} appears before any ${{ — could be a false positive in non-expression contexts.
-			// Only flag if the string contains at least one ${{ somewhere.
-			if strings.Contains(s, "${{") {
+		case strings.HasPrefix(rest, "}}"):
+			// A string with no expression at all is left alone, the way it was
+			// before: "}}" in a script that never interpolates is just text.
+			if braces < 2 && strings.Contains(s, "${{") {
 				return fmt.Errorf("%s: orphaned '}}' without matching '${{' in %q", path, s)
 			}
-			break
-		}
-		// Skip past this matched pair.
-		end := strings.Index(temp[openIdx+3:], "}}")
 
-		if end < 0 {
-			break
+			if braces >= 2 {
+				braces -= 2
+			}
+
+			i += 2
+
+		default:
+			switch rest[0] {
+			case '{':
+				braces++
+			case '}':
+				if braces > 0 {
+					braces--
+				}
+			}
+
+			i++
 		}
-		temp = temp[openIdx+3+end+2:]
 	}
 
 	return nil
