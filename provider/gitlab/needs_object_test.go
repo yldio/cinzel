@@ -49,6 +49,34 @@ test:
 			wantYAML: []string{"job: other", "project: group/proj"},
 		},
 		{
+			// A hyphenated name is sanitized for the HCL label, and the
+			// object form used to keep the sanitized name, so the file did
+			// not parse back.
+			name: "job with a name that needs sanitizing",
+			yaml: `build-app:
+  script: [make]
+test:
+  script: [make test]
+  needs:
+    - job: build-app
+      artifacts: true
+`,
+			wantHCL:  []string{"job       = job.build_app", `id     = "build-app"`},
+			wantYAML: []string{"job: build-app"},
+		},
+		{
+			// The string branch does the same remap and must keep doing it.
+			name: "string need to a name that needs sanitizing",
+			yaml: `build-app:
+  script: [make]
+test:
+  script: [make test]
+  needs: [build-app]
+`,
+			wantHCL:  []string{"depends_on = [", "job.build_app,"},
+			wantYAML: []string{"- build-app"},
+		},
+		{
 			name: "plain string list still an attribute",
 			yaml: `build:
   script: [make]

@@ -1263,14 +1263,26 @@ func remapJobRefs(jobs map[string]any, keys map[string]string) {
 			}
 
 			for i, ref := range refs {
-				label, ok := ref.(string)
+				switch ref := ref.(type) {
+				case string:
+					if key, found := keys[ref]; found {
+						refs[i] = key
+					}
 
-				if !ok {
-					continue
-				}
+				case map[string]any:
+					// The object form of a need holds the label under "job".
+					// It used to be skipped, so a job whose name needed
+					// sanitizing kept the sanitized name and the output did
+					// not parse back.
+					label, ok := ref["job"].(string)
 
-				if key, found := keys[label]; found {
-					refs[i] = key
+					if !ok {
+						continue
+					}
+
+					if key, found := keys[label]; found {
+						ref["job"] = key
+					}
 				}
 			}
 		}
