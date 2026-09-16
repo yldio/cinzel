@@ -1,4 +1,98 @@
 cinzel
+## [0.6.0](https://github.com/yldio/cinzel/compare/v0.5.6..v0.6.0) - 2026-09-16
+
+### ⛰️  Features
+
+- *(ai)* Warn about a config others can read (#79) - ([4ca7309](https://github.com/yldio/cinzel/commit/4ca73096792b5c372893e2e788ebef031d256f81))
+
+### 🐛 Bug Fixes
+
+- *(ai)* Take the default models from the SDKs - ([23d7bf6](https://github.com/yldio/cinzel/commit/23d7bf6ec60c78a6990aba2d3f41a6dff45f80bd))
+- *(ai)* Classify provider errors from the status code - ([8b6c270](https://github.com/yldio/cinzel/commit/8b6c2707fc95ab8ee71410fc2e4fcb147bd3f99b))
+- *(assist)* Only treat a leading ".." element as traversal - ([1e93f89](https://github.com/yldio/cinzel/commit/1e93f89632a71bbffac1e3a9496923ba4c195ab6))
+- *(assist)* Skip comments when reading a block signature - ([d9ca538](https://github.com/yldio/cinzel/commit/d9ca53878dbbc016f64620453a6e5b455bfd5440))
+- *(assist)* Read the API key env var first (#74) - ([4e6cd3b](https://github.com/yldio/cinzel/commit/4e6cd3bbf48c92d77e35327af542aac152d28ee4))
+- *(cli)* Escape control characters before an error reaches the terminal (#57) - ([2fc5fe5](https://github.com/yldio/cinzel/commit/2fc5fe5b8e861e82c707b563cd50143bddcf2890))
+- *(errors)* Fall back to a diagnostic's summary - ([6e4f220](https://github.com/yldio/cinzel/commit/6e4f220acfc3ca6e5b8600eb2b006ebe1dc87b7b))
+- *(github)* Detect an action without requiring a name - ([2cafc50](https://github.com/yldio/cinzel/commit/2cafc5042104666586ad4a15b0613849db6b6dea))
+- *(github)* Stop reading JSON braces as an orphaned closer - ([1a738c9](https://github.com/yldio/cinzel/commit/1a738c95bcb822c090fbb753fb6e2360e9963181))
+- *(github)* Check cron on the parse path, and accept names - ([c72427e](https://github.com/yldio/cinzel/commit/c72427e04de895270d43cccb6245cda1a75e9ca5))
+- *(github)* Validate a workflow once its jobs are in it - ([2ac6579](https://github.com/yldio/cinzel/commit/2ac65796afe395ab1cf06b19651772b58f83267e))
+- *(github)* Keep an authored id in the step fingerprint - ([8e5a825](https://github.com/yldio/cinzel/commit/8e5a825e266dfd9100f1ec1f5df197eea8a9e672))
+- *(github)* Spell deprecationMessage the way GitHub does - ([5dba9a3](https://github.com/yldio/cinzel/commit/5dba9a3a4fb498d385bee191f5bc040e834cab33))
+- *(github)* Stop handing two steps the same label - ([c3f3627](https://github.com/yldio/cinzel/commit/c3f362765cf8869b01dc7c1adb81c228dd76323a))
+- *(github)* Reject two jobs that write the same key - ([55d8540](https://github.com/yldio/cinzel/commit/55d8540a2266508a4cff74237d8259617964b2ac))
+- *(github)* Mark an emitted action so a renamed one is pruned (#68) - ([445aaf4](https://github.com/yldio/cinzel/commit/445aaf4391d29ee42e72d47265adcb14dc222462))
+- *(github)* Keep an action's name when unparsing it (#66) - ([2477964](https://github.com/yldio/cinzel/commit/2477964b84df5d6195b2c7dfa441fddd78077eb2))
+- *(github)* Prune a stale generated file in a subdirectory (#65) - ([ce8c0f9](https://github.com/yldio/cinzel/commit/ce8c0f98e7b5a1dee606d260a9cec532a2f64b22))
+- *(github)* Refuse two definitions writing to the same file (#64) - ([1066b8f](https://github.com/yldio/cinzel/commit/1066b8f765b25dcb325ce621ae0a429f704cc0ad))
+- *(github)* Keep a filename inside the output directory (#63) - ([a786403](https://github.com/yldio/cinzel/commit/a78640324cc3f448b8873b897f64d4fe074467cf))
+- *(gitlab)* Drop the empty root document from a spec-only pipeline - ([92feabe](https://github.com/yldio/cinzel/commit/92feabe7e2d50e47e7e8a27a32ab3cc4a824c618))
+- *(gitlab)* Refuse a passthrough key that is not an identifier - ([6f4b068](https://github.com/yldio/cinzel/commit/6f4b068071f2aed3c12cc7acb8222ad09272b014))
+- *(gitlab)* Declare parallel on a need block - ([7c0f8b7](https://github.com/yldio/cinzel/commit/7c0f8b72a4d3f5de97507b3bcff203dfd137c90c))
+- *(gitlab)* Report a dropped workflow key, check top-level services - ([02f1900](https://github.com/yldio/cinzel/commit/02f1900c549fd4b71fbff4db713bbf4637707529))
+- *(gitlab)* Refuse an artifacts list at write time - ([3580031](https://github.com/yldio/cinzel/commit/3580031ac6e3b820869f42deaffe9fdeb3eb5526))
+- *(gitlab)* Remap the job name inside an object need - ([da84f6c](https://github.com/yldio/cinzel/commit/da84f6c0639099639d95f1b92ffb844e4dd14180))
+- *(gitlab)* Reject a job named after a pipeline keyword - ([da64279](https://github.com/yldio/cinzel/commit/da6427962538e7bfc4e610a1bf9a52d15e3f3320))
+- *(gitlab)* Stop collapsing an empty mapping into a null - ([23622aa](https://github.com/yldio/cinzel/commit/23622aadf3587c848b86d889f9f2833f59eec593))
+- *(gitlab)* Refuse a template key with nothing after the dot (#73) - ([c971e9c](https://github.com/yldio/cinzel/commit/c971e9c8298522043fc2397396d6c598b7719ff8))
+- *(gitlab)* Refuse a needs entry that names no job (#72) - ([ee5c11d](https://github.com/yldio/cinzel/commit/ee5c11dbdd6c5a5a867e72c6de67631ee8da7985))
+- *(gitlab)* Refuse an unparse that converted nothing (#67) - ([b236f63](https://github.com/yldio/cinzel/commit/b236f638af836b85bcce2c3130b536d6fd8c1316))
+- *(gitlab)* Refuse input that is not valid UTF-8 (#62) - ([2c48b19](https://github.com/yldio/cinzel/commit/2c48b19da13d43740384fb7927be9eaca6c900d8))
+- *(gitlab)* Reject a key that is not a string, and a job with no name (#61) - ([1e25e11](https://github.com/yldio/cinzel/commit/1e25e1113371cbbf8a22b504ee0e87647d19c883))
+- *(gitlab)* Refuse YAML whose aliases expand without bound (#60) - ([28525cf](https://github.com/yldio/cinzel/commit/28525cfa26a3f1f5e791b4cbe6bd75f32af1da9b))
+- *(gitlab)* Keep a spec header, a run job and the global default keywords (#52) - ([49234a4](https://github.com/yldio/cinzel/commit/49234a4c240d8e1d74471ccc3e350814f35d6207))
+- *(gitlab)* Keep a null rules, artifacts, only or except (#50) - ([3a15b2c](https://github.com/yldio/cinzel/commit/3a15b2cfa746dabdfe154780950bd4ad651f05cd))
+- *(gitlab)* Keep an explicitly empty needs, cache, services or rules (#48) - ([b6c2520](https://github.com/yldio/cinzel/commit/b6c2520e3bf4d2d766c046a69c74280d0a2dd921))
+- *(gitlab)* Let a workflow rule carry its own auto_cancel (#41) - ([cc8af29](https://github.com/yldio/cinzel/commit/cc8af29e7921444b0915d4b1c8a12c0e1bf3a570))
+- *(gitlab)* Declare a job's inputs and publish (#45) - ([ce7249a](https://github.com/yldio/cinzel/commit/ce7249a751a49279de6e9bea092acad72c9ad1b2))
+- *(gitlab)* Accept a script given as a single string (#43) - ([0806c32](https://github.com/yldio/cinzel/commit/0806c322c972c3bcf3518b25b0bb52271854e4d8))
+- *(gitlab)* Carry only/except and a variable's expand through (#39) - ([acbef33](https://github.com/yldio/cinzel/commit/acbef3346e09b791c461a8b9be9ac108abbffad6))
+- *(gitlab)* Treat a pipeline of only includes as a pipeline (#37) - ([f491753](https://github.com/yldio/cinzel/commit/f491753ce8a617644f039a1bb88df44ae4e3ca72))
+- *(gitlab)* Declare the documented GitLab keywords in the HCL schema (#34) - ([7ed949b](https://github.com/yldio/cinzel/commit/7ed949bd09f6af5364832412767ea10a2f5aa870))
+- *(gitlab)* Support several caches on a job or default (#28) - ([3e1cc09](https://github.com/yldio/cinzel/commit/3e1cc092f068a4a18147ae66f89650ae1a4554ca))
+- *(gitlab)* Accept 'variables' and 'needs' in rule blocks (#29) - ([978777a](https://github.com/yldio/cinzel/commit/978777ac7fd564adabbcb0d76b1a916926992bbf))
+- *(gitlab)* Support 'needs' entries in object form (#30) - ([21422ea](https://github.com/yldio/cinzel/commit/21422ea4aa2fd6de3656c05110cec145e520403b))
+- *(gitlab)* Write nested maps as blocks only where the schema declares one (#26) - ([4419da4](https://github.com/yldio/cinzel/commit/4419da4be0a94fce09fb6f1617fd42c34c5bcfab))
+- *(gitlab)* Treat a job without its own script as a job (#27) - ([e20cbfb](https://github.com/yldio/cinzel/commit/e20cbfbd9ef15d37743ef38f7456fe756238e04c))
+- *(gitlab)* Write a leading "@" with double quotes (#25) - ([a7dbae4](https://github.com/yldio/cinzel/commit/a7dbae461ac20e4f1c74342601200371010fa701))
+- *(parse)* Reject an input that declares nothing (#53) - ([8d72fad](https://github.com/yldio/cinzel/commit/8d72fadf7914446c312e74cdd2b0505c90afdbda))
+- *(pin)* Refuse a resolve that is not a commit SHA - ([ba58454](https://github.com/yldio/cinzel/commit/ba58454e5f59025018089256d0cfb167380a3f25))
+- *(pin)* Read uses blocks from the parse, not from the text (#71) - ([dcad045](https://github.com/yldio/cinzel/commit/dcad04537f041fd447e83bbc3d0612bf2489246b))
+- *(pin)* Write a resolved SHA to the action it belongs to (#69) - ([48ed324](https://github.com/yldio/cinzel/commit/48ed324266f9a7191ccf9eb3ca8581eba4d6e83b))
+- *(step)* Pick a heredoc marker the script does not use - ([20c3523](https://github.com/yldio/cinzel/commit/20c3523f827d8919bea8de3f23d93bde87f7f161))
+- *(unicode)* Stop rewriting an escape the author wrote - ([2f65651](https://github.com/yldio/cinzel/commit/2f65651fff60384e05cd5091e95684c0f261a34f))
+- *(unparse)* Stop two inputs writing to one output file - ([a9e18bb](https://github.com/yldio/cinzel/commit/a9e18bbaeb48ae903a4090210912530b8f874315))
+- *(unparse)* Reject a key that is not a string, and resolve one that is an alias (#59) - ([b6221f1](https://github.com/yldio/cinzel/commit/b6221f1d8c6278ec2a0f32f71266d19f072637ca))
+- *(unparse)* Keep a whole number too large for an integer exact (#58) - ([9ed4be6](https://github.com/yldio/cinzel/commit/9ed4be6cc284290d630205e1b45706f82f700c43))
+- *(yaml)* Close three gaps in the quoting rule - ([ee7454d](https://github.com/yldio/cinzel/commit/ee7454d32fda20f497e8d883f4b76003241697b1))
+- Fifteen conversion, CLI and repo defects (#54) - ([22c4de3](https://github.com/yldio/cinzel/commit/22c4de3e42f070cb265463ee433af9ed9c73f8a7))
+
+### 📚 Documentation
+
+- Record the workflow key order and the parse defaults - ([098724d](https://github.com/yldio/cinzel/commit/098724d32e1059ff860913252fec4d6d2dca52a6))
+
+### ⚡ Performance
+
+- *(unparse)* Build job identifiers against a set, not a slice (#56) - ([7474995](https://github.com/yldio/cinzel/commit/7474995b82e11321ae39dcf765557a07fcfc64c2))
+
+### 🧪 Testing
+
+- *(pin)* Stop the upgrade tests calling the live GitHub API (#70) - ([239a423](https://github.com/yldio/cinzel/commit/239a423db774b8416d682949d74d9f83f08f3be1))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(config)* Drop two keys that did nothing (#78) - ([0c3079c](https://github.com/yldio/cinzel/commit/0c3079c2e192bd6b523e2383c067b4595b10a03c))
+- *(init)* Stop writing API keys to the config (#77) - ([aca3b25](https://github.com/yldio/cinzel/commit/aca3b254246572b812f4f85b0c4fe0d1a03b075f))
+- Check release token scope against the installation - ([4982199](https://github.com/yldio/cinzel/commit/49821990b5961b0b67f54428b2eacfeacd0021ca))
+- Delete filereader and filewriter - ([60746c5](https://github.com/yldio/cinzel/commit/60746c50e05f2692aacbb1c38d30083495e9b1fc))
+- Let the licence check skip the cask (#76) - ([da69af6](https://github.com/yldio/cinzel/commit/da69af6c2d65a6888b0e7ec57221f4936527166e))
+- Add the missing licence headers (#75) - ([a1c62cb](https://github.com/yldio/cinzel/commit/a1c62cbcc53327de3bdefa6b2b514c9e8f969378))
+- Resolve the ghalint findings and gate on them (#55) - ([3a8ee45](https://github.com/yldio/cinzel/commit/3a8ee459f7e6271d21511ee20dfbffae608dd5f0))
+- Move the toolchain to Go 1.27 and git-cliff 2.14.1 (#46) - ([c02127d](https://github.com/yldio/cinzel/commit/c02127dfb02475c64bb27b56e06cc98a51c05e70))
+- Release only on manual dispatch (#22) - ([54f2174](https://github.com/yldio/cinzel/commit/54f217428231ec90acd7907c3b9e40891f69f407))
+
+
 ## [0.5.6](https://github.com/yldio/cinzel/compare/v0.5.5..v0.5.6) - 2026-09-11
 
 ### 🐛 Bug Fixes
