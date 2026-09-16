@@ -564,18 +564,16 @@ func stepFirstWord(run string) string {
 }
 
 // stepFingerprint returns a canonical string representing the content of a
-// step, excluding the step id field which is assigned by the unparser.
-// Used to detect duplicate steps across jobs.
+// step. Used to detect duplicate steps across jobs, so one block can stand for
+// all of them.
+//
+// An "id" the source wrote is part of the identity. Stripping it merged two
+// steps that differ only by id, and the second id was then gone: a
+// "steps.<id>.outputs" reference to it had nothing left to name. An id the
+// unparser assigns is not in this map, so a step with no id of its own still
+// dedupes against its twin.
 func stepFingerprint(stepMap map[string]any) string {
-	m := make(map[string]any, len(stepMap))
-
-	for k, v := range stepMap {
-		if k != "id" {
-			m[k] = v
-		}
-	}
-
-	b, _ := json.Marshal(m)
+	b, _ := json.Marshal(stepMap)
 
 	return string(b)
 }
