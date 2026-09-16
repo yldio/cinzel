@@ -108,7 +108,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 			inputBody := inputBlock.Body()
 
 			for _, attr := range sortedKeys(inputMap) {
-				if err := writeAttributeAny(inputBody, toHCLKey(attr), inputMap[attr]); err != nil {
+				if err := writeAttributeAny(inputBody, inputAttrHCLKey(attr), inputMap[attr]); err != nil {
 					return nil, err
 				}
 			}
@@ -284,4 +284,16 @@ func validateActionDocument(doc map[string]any) error {
 	}
 
 	return nil
+}
+
+// inputAttrHCLKey names an action input attribute in HCL. The general rule
+// only swaps hyphens for underscores, which leaves GitHub's lone camel-case
+// key as a literal "deprecationMessage" attribute the schema does not declare,
+// so the emitted file did not parse back.
+func inputAttrHCLKey(attr string) string {
+	if attr == "deprecationMessage" {
+		return "deprecation_message"
+	}
+
+	return toHCLKey(attr)
 }

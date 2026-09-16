@@ -85,7 +85,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 			return nil, "", err
 		}
 
-		if err := setOptionalYAMLAttr(inputMap, "deprecation-message", input.DeprecationMessage, hv); err != nil {
+		// GitHub spells this one in camel case, alone among the input keys.
+		// Writing "deprecation-message" produced a file GitHub ignores and
+		// cinzel's own strict shape rejects on the way back.
+		if err := setOptionalYAMLAttr(inputMap, "deprecationMessage", input.DeprecationMessage, hv); err != nil {
 			return nil, "", err
 		}
 
