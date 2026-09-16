@@ -13,6 +13,12 @@ var errNoHCLFiles = errors.New("no HCL files found in the specified path")
 
 var errNotHCLSyntax = errors.New("file is not native HCL syntax")
 
+// errShortSHA reports a resolve that came back with something that is not a
+// commit SHA.
+func errShortSHA(sha string) error {
+	return fmt.Errorf("GitHub API returned %q, which is not a commit SHA", sha)
+}
+
 // validateGitHubNames checks that owner, repo, and tag contain only safe
 // characters to prevent URL injection.
 func validateGitHubNames(owner, repo, tag string) error {

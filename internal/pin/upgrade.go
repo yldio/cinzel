@@ -76,6 +76,13 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 
 		// Resolve the latest tag to a SHA.
 		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], latestTag)
+
+		// See PinFile: a response with no "sha" decodes to "" and no error,
+		// and writing it out reports an upgrade that did not happen.
+		if err == nil && !isCommitSHA(sha) {
+			err = errShortSHA(sha)
+		}
+
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "warning: could not pin %s@%s: %v\n", ref.Action, latestTag, err)
 
@@ -110,7 +117,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			text:  versionLine(sha, latestTag),
 		})
 
-		_, _ = fmt.Fprintf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, sha[:12])
+		_, _ = fmt.Fprintf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, shortSHA(sha))
 
 		results = append(results, UpgradeResult{
 			Action:     ref.Action,

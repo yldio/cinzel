@@ -296,6 +296,39 @@ func applyVersionEdits(content string, edits []versionEdit) string {
 	return content
 }
 
+// isCommitSHA reports whether s is a full 40-character hex commit SHA, which
+// is the only thing a resolve is allowed to return.
+func isCommitSHA(s string) bool {
+	const shaLength = 40
+
+	if len(s) != shaLength {
+		return false
+	}
+
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// shortSHA abbreviates a SHA for a progress line, returning it whole when it is
+// already shorter than the abbreviation. The API's own response used to decide
+// this: a missing "sha" field decodes to "" with no error, and slicing that to
+// twelve panicked in the middle of a run that had already rewritten earlier
+// lines.
+func shortSHA(sha string) string {
+	const abbrev = 12
+
+	if len(sha) <= abbrev {
+		return sha
+	}
+
+	return sha[:abbrev]
+}
+
 // versionLine renders the assignment written in place of the old one.
 func versionLine(sha, comment string) string {
 	return fmt.Sprintf(`version = %q # %s`, sha, comment)
@@ -381,6 +414,14 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		}
 
 		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], ref.Version)
+
+		// A response with no "sha" decodes to "" and no error. Writing that
+		// out gave the file a version = "" and reported the action pinned, so
+		// refuse it here and take the same path as a failed request.
+		if err == nil && !isCommitSHA(sha) {
+			err = errShortSHA(sha)
+		}
+
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "warning: could not pin %s@%s: %v\n", ref.Action, ref.Version, err)
 
@@ -405,7 +446,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			text:  versionLine(sha, ref.Version),
 		})
 
-		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, sha[:12])
+		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
 
 		results = append(results, PinResult{
 			Action: ref.Action,
