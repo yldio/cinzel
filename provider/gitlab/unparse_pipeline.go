@@ -713,6 +713,14 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				entries = []any{value}
 			}
 
+			// A cache may repeat; "artifacts" may not. Writing a block per
+			// entry produced a file parse refuses with "job can include at
+			// most one artifacts block", so the refusal belongs here, where
+			// the input that caused it is still in hand.
+			if key == "artifacts" && len(entries) > 1 {
+				return fmt.Errorf("%w, got %d", errArtifactsNotAList, len(entries))
+			}
+
 			for _, entry := range entries {
 				mapVal, ok := toStringAnyMap(entry)
 

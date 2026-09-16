@@ -18,4 +18,5 @@ var (
 	errInvalidUTF8           = errors.New("input is not valid UTF-8")
 	errNeedsJobEmpty         = errors.New("needs entries must name a job")
 	errJobNamedAfterKeyword  = errors.New("a job is named after a pipeline keyword")
+	errArtifactsNotAList     = errors.New("artifacts takes a single object")
 )
