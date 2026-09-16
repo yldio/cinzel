@@ -1,4 +1,16 @@
 cinzel
+## [0.6.1](https://github.com/yldio/cinzel/compare/v0.6.0..v0.6.1) - 2026-09-16
+
+### 🐛 Bug Fixes
+
+- *(github)* Keep unparse output readable by parse - ([63491ba](https://github.com/yldio/cinzel/commit/63491ba2252f4e1acf6720f7f68c0f5d95485081))
+- *(github)* Refuse two steps in one job writing the same step id - ([2b02924](https://github.com/yldio/cinzel/commit/2b02924a2d158cc8d07befa75482355f3d27b35a))
+
+### 📚 Documentation
+
+- Record the deferred embedded actionlint investigation - ([d1a7ce7](https://github.com/yldio/cinzel/commit/d1a7ce7bd4d239ea0955a2523f66f39f960b3386))
+
+
 ## [0.6.0](https://github.com/yldio/cinzel/compare/v0.5.6..v0.6.0) - 2026-09-16
 
 ### ⛰️  Features
