@@ -134,8 +134,20 @@ Key order:
 1. name
 2. run-name
 3. on
-4. jobs
-5. rest sorted
+4. permissions
+5. env
+6. defaults
+7. concurrency
+8. jobs
+9. rest sorted
+
+`jobs` goes last, the way a hand-written workflow reads: the short top-level
+keys first, then the long tail.
+
+Defaults on parse:
+
+- a workflow with no permissions gets `permissions: {}`
+- a step with no `id` gets one from its block label, unless `ignore_id` is set
 
 ---
 
