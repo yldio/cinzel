@@ -3,7 +3,10 @@
 
 package gitlab
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	errInputPathRequired     = errors.New("`file` or `directory` must be set")
@@ -20,3 +23,9 @@ var (
 	errJobNamedAfterKeyword  = errors.New("a job is named after a pipeline keyword")
 	errArtifactsNotAList     = errors.New("artifacts takes a single object")
 )
+
+// errKeyNotAnIdentifier reports a passed-through top-level key that cannot be
+// written as an HCL attribute name.
+func errKeyNotAnIdentifier(key string) error {
+	return fmt.Errorf("top-level key %q is not a valid HCL identifier, so it cannot be passed through", key)
+}

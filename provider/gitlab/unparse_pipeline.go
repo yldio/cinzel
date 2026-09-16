@@ -517,6 +517,14 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 				return nil, err
 			}
 		} else {
+			// The key is written as an attribute name, so a key that is not an
+			// identifier produced HCL nothing can read back: "my weird key =
+			// v" is three block labels and an equals sign. It went out with
+			// only the passthrough warning and exit 0.
+			if naming.SanitizeIdentifier(key) != key {
+				return nil, errKeyNotAnIdentifier(key)
+			}
+
 			if err := writeAttributeAny(body, key, escapeGitLabVariables(doc[key])); err != nil {
 				return nil, err
 			}
