@@ -166,6 +166,13 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	}
 
 	for name, job := range jobs {
+		// The reserved keys are already in the map. A job named after one of
+		// them used to overwrite it, so "stages" as a job name took the stage
+		// list out of the file and the command still exited 0.
+		if _, taken := pipeline[name]; taken {
+			return nil, fmt.Errorf("%w: '%s'", errJobNamedAfterKeyword, name)
+		}
+
 		pipeline[name] = job
 	}
 

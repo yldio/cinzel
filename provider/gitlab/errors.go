@@ -17,4 +17,5 @@ var (
 	errNonStringKey          = errors.New("a mapping key must be a string")
 	errInvalidUTF8           = errors.New("input is not valid UTF-8")
 	errNeedsJobEmpty         = errors.New("needs entries must name a job")
+	errJobNamedAfterKeyword  = errors.New("a job is named after a pipeline keyword")
 )
