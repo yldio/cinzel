@@ -23,14 +23,18 @@ func classifyActionDocument(doc map[string]any) map[string]any {
 }
 
 // isActionDocument returns true if the YAML document looks like a GitHub Action
-// definition (has "name" and "runs" but not "on" or "jobs").
+// definition (has "runs" but not "on" or "jobs").
+//
+// A "name" is no longer part of the test. It is required of an action and
+// validateActionDocument says so, but requiring it here sent a nameless action
+// down the step-only path, which refused it with "not a valid type" and no
+// mention of the field that was missing.
 func isActionDocument(doc map[string]any) bool {
 	_, hasRuns := doc["runs"]
-	_, hasName := doc["name"]
 	_, hasOn := doc["on"]
 	_, hasJobs := doc["jobs"]
 
-	return hasRuns && hasName && !hasOn && !hasJobs
+	return hasRuns && !hasOn && !hasJobs
 }
 
 func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
