@@ -21,4 +21,6 @@ var (
 	errNonStringKey           = errors.New("a mapping key must be a string")
 	errFilenameEscapes        = errors.New("'filename' must stay inside the output directory")
 	errDuplicateFilename      = errors.New("two definitions write to the same file")
+	errDuplicateJobLabel      = errors.New("two job blocks share a label")
+	errDuplicateJobKey        = errors.New("two jobs write to the same YAML key")
 )

@@ -52,6 +52,12 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	parsedJobs := make(map[string]ghjob.Parsed)
 
 	for _, j := range cfg.Jobs {
+		// Two blocks with the same label used to overwrite one another in the
+		// map, leaving the last one and no word about the rest.
+		if _, taken := parsedJobs[j.ID]; taken {
+			return nil, nil, nil, fmt.Errorf("%w: '%s' is declared twice", errDuplicateJobLabel, j.ID)
+		}
+
 		job, err := parseJobConfig(j, hv)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
@@ -121,12 +127,24 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 
 			jobOrder := make([]string, 0, len(workflow.JobRefs))
 
+			// Two jobs can reach the same YAML key through their "id"
+			// attributes, which used to leave one of them out of the file
+			// silently. The check is per workflow: each is its own file, so
+			// the same key in another one is not a collision.
+			takenKeys := make(map[string]string, len(workflow.JobRefs))
+
 			for _, jobID := range workflow.JobRefs {
 				jobContent, exists := parsedJobs[jobID]
 
 				if !exists {
 					return nil, nil, nil, fmt.Errorf("error in workflow '%s': cannot find job '%s'", wf.ID, jobID)
 				}
+
+				if other, taken := takenKeys[jobContent.Key]; taken {
+					return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w: '%s' and '%s' both write '%s'",
+						wf.ID, errDuplicateJobKey, other, jobID, jobContent.Key)
+				}
+				takenKeys[jobContent.Key] = jobID
 
 				jobs[jobContent.Key] = jobContent.Body
 				jobOrder = append(jobOrder, jobContent.Key)
