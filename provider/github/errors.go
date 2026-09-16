@@ -24,4 +24,5 @@ var (
 	errDuplicateJobLabel      = errors.New("two job blocks share a label")
 	errDuplicateJobKey        = errors.New("two jobs write to the same YAML key")
 	errDuplicateStepID        = errors.New("two steps in one job write the same step id")
+	errDuplicateStepLabel     = errors.New("two step blocks share a label")
 )

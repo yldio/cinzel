@@ -39,6 +39,12 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 		return nil, nil, nil, err
 	}
 
+	// Ahead of the decode below, which finds the same collision but cannot
+	// say where either block is.
+	if err := checkDuplicateStepLabels(body); err != nil {
+		return nil, nil, nil, err
+	}
+
 	parsedSteps, err := cfg.Steps.Parse(hv)
 	if err != nil {
 		return nil, nil, nil, err
@@ -1021,4 +1027,38 @@ func stepsToMap(steps step.Steps) (map[string]any, error) {
 	}
 
 	return out, nil
+}
+
+// checkDuplicateStepLabels reports two step blocks sharing a label.
+//
+// A step label is the address `step.<label>` resolves, so a repeat leaves the
+// reference ambiguous. step.Parse catches this too, but it works from decoded
+// values and has no source position to report, which sent the author hunting
+// through every file in the directory. Read here from the block headers, where
+// the ranges survive the merge.
+func checkDuplicateStepLabels(body hcl.Body) error {
+	content, _, diags := body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{{Type: "step", LabelNames: []string{"id"}}},
+	})
+
+	// Left to the full decode, which reports it with the detail this pass
+	// deliberately does not collect.
+	if diags.HasErrors() {
+		return nil
+	}
+
+	seen := make(map[string]hcl.Range, len(content.Blocks))
+
+	for _, block := range content.Blocks {
+		label := block.Labels[0]
+
+		if first, taken := seen[label]; taken {
+			return fmt.Errorf("%w: '%s' is declared at %s and again at %s",
+				errDuplicateStepLabel, label, first, block.DefRange)
+		}
+
+		seen[label] = block.DefRange
+	}
+
+	return nil
 }
