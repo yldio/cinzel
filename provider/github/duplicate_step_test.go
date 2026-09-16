@@ -4,123 +4,133 @@
 package github
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yldio/cinzel/provider"
 )
 
-// countIn returns how many times sub occurs in s.
-func countIn(s, sub string) int {
-	return strings.Count(s, sub)
-}
+// GitHub requires a step id to be unique within its job. Two step blocks
+// reaching the same id through their own "id" attributes went out as a written
+// file and exit 0, and only actionlint or GitHub itself said otherwise.
+func TestTwoStepsInOneJobCannotShareAnID(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		hcl   string
+		want  error
+		named []string
+	}{
+		{
+			name:  "the same id attribute",
+			hcl:   oneJobTwoStepsHCL(`  id = "same"`),
+			want:  errDuplicateStepID,
+			named: []string{"first", "second", "same"},
+		},
+		{
+			name: "distinct steps are unaffected",
+			hcl:  oneJobTwoStepsHCL(""),
+			want: nil,
+		},
+		{
+			// Neither writes an id at all, so there is nothing to collide.
+			name: "ignore_id on both",
+			hcl:  oneJobTwoStepsHCL("  ignore_id = true"),
+			want: nil,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "in.hcl")
 
-// A job may reference the same step twice, which the unparser encourages by
-// collapsing identical steps onto one block. GitHub requires a step id to be
-// unique within its job, so the repeat must not carry the id again.
-func TestRepeatedStepEmitsOneID(t *testing.T) {
-	got := parseHCLToYAML(t, `
-step "build" {
-  run = "make build"
-}
+			if err := os.WriteFile(path, []byte(tc.hcl), 0o600); err != nil {
+				t.Fatal(err)
+			}
 
-step "check" {
-  run = "make test"
-}
+			err := New().Parse(provider.ProviderOps{File: path, OutputDirectory: filepath.Join(dir, "out")})
 
-job "a" {
-  runs_on {
-    runners = "ubuntu-latest"
-  }
+			if tc.want == nil {
+				if err != nil {
+					t.Fatalf("distinct steps must parse, got %v", err)
+				}
 
-  steps = [step.build, step.check, step.build]
-}
+				return
+			}
 
-workflow "wf" {
-  filename = "wf"
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("want %v, got %v", tc.want, err)
+			}
 
-  on "push" {}
-
-  jobs = [job.a]
-}
-`)
-
-	if n := countIn(got, "id: build"); n != 1 {
-		t.Errorf("want one 'id: build', got %d:\n%s", n, got)
-	}
-
-	if n := countIn(got, "run: make build"); n != 2 {
-		t.Errorf("want the step run twice, got %d:\n%s", n, got)
-	}
-}
-
-// The same id in two different jobs is fine: the uniqueness GitHub asks for is
-// per job, not per workflow.
-func TestSameStepInTwoJobsKeepsBothIDs(t *testing.T) {
-	got := parseHCLToYAML(t, `
-step "build" {
-  run = "make build"
-}
-
-job "a" {
-  runs_on {
-    runners = "ubuntu-latest"
-  }
-
-  steps = [step.build]
-}
-
-job "b" {
-  runs_on {
-    runners = "ubuntu-latest"
-  }
-
-  steps = [step.build]
-}
-
-workflow "wf" {
-  filename = "wf"
-
-  on "push" {}
-
-  jobs = [job.a, job.b]
-}
-`)
-
-	if n := countIn(got, "id: build"); n != 2 {
-		t.Errorf("want 'id: build' once per job, got %d:\n%s", n, got)
+			// The message has to name what collided, or there is nothing to
+			// go and fix.
+			for _, want := range tc.named {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("want %q named in %q", want, err)
+				}
+			}
+		})
 	}
 }
 
-// Steps referenced once each keep their ids, which is every other workflow.
-func TestDistinctStepsKeepTheirIDs(t *testing.T) {
-	got := parseHCLToYAML(t, `
-step "one" {
-  run = "echo one"
-}
+// The same step id in two jobs is not a collision: GitHub scopes a step id to
+// its own job.
+func TestTheSameStepIDInTwoJobsIsFine(t *testing.T) {
+	hcl := stepBlock("first", `  id = "same"`) +
+		stepBlock("second", `  id = "same"`) +
+		"job \"build\" {\n  runs_on { runners = \"ubuntu-latest\" }\n  steps = [step.first]\n}\n\n" +
+		"job \"test\" {\n  runs_on { runners = \"ubuntu-latest\" }\n  steps = [step.second]\n}\n\n" +
+		"workflow \"w\" {\n  filename = \"w\"\n  on \"push\" {}\n  jobs = [job.build, job.test]\n}\n"
 
-step "two" {
-  run = "echo two"
-}
+	out := parseWorkflow(t, hcl)
 
-job "a" {
-  runs_on {
-    runners = "ubuntu-latest"
-  }
-
-  steps = [step.one, step.two]
-}
-
-workflow "wf" {
-  filename = "wf"
-
-  on "push" {}
-
-  jobs = [job.a]
-}
-`)
-
-	for _, want := range []string{"id: one", "id: two"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("want %q in output, got:\n%s", want, got)
-		}
+	content, err := os.ReadFile(filepath.Join(out, "w.yaml"))
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	if got := strings.Count(string(content), "id: same"); got != 2 {
+		t.Errorf("want both jobs to keep the id, got %d in:\n%s", got, content)
+	}
+}
+
+// A job running the same step twice keeps the id on the first occurrence only,
+// which is what makes the run legal. The check must not mistake that for a
+// collision.
+func TestAStepRepeatedInOneJobStillParses(t *testing.T) {
+	hcl := stepBlock("only", "") +
+		"job \"build\" {\n  runs_on { runners = \"ubuntu-latest\" }\n  steps = [step.only, step.only]\n}\n\n" +
+		"workflow \"w\" {\n  filename = \"w\"\n  on \"push\" {}\n  jobs = [job.build]\n}\n"
+
+	out := parseWorkflow(t, hcl)
+
+	content, err := os.ReadFile(filepath.Join(out, "w.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := strings.Count(string(content), "id: only"); got != 1 {
+		t.Errorf("want the id on the first occurrence only, got %d in:\n%s", got, content)
+	}
+}
+
+// stepBlock returns a step block with the given label and extra attribute line.
+func stepBlock(label, extra string) string {
+	block := "step \"" + label + "\" {\n  run = \"echo hi\"\n"
+
+	if extra != "" {
+		block += extra + "\n"
+	}
+
+	return block + "}\n\n"
+}
+
+// oneJobTwoStepsHCL returns a workflow whose single job runs two steps, each
+// carrying the same extra attribute line.
+func oneJobTwoStepsHCL(extra string) string {
+	return stepBlock("first", extra) +
+		stepBlock("second", extra) +
+		"job \"build\" {\n  runs_on { runners = \"ubuntu-latest\" }\n  steps = [step.first, step.second]\n}\n\n" +
+		"workflow \"w\" {\n  filename = \"w\"\n  on \"push\" {}\n  jobs = [job.build]\n}\n"
 }

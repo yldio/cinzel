@@ -23,4 +23,5 @@ var (
 	errDuplicateFilename      = errors.New("two definitions write to the same file")
 	errDuplicateJobLabel      = errors.New("two job blocks share a label")
 	errDuplicateJobKey        = errors.New("two jobs write to the same YAML key")
+	errDuplicateStepID        = errors.New("two steps in one job write the same step id")
 )

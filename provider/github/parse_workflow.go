@@ -67,6 +67,12 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 			steps := make([]any, 0, len(job.StepRefs))
 			emitted := make(map[string]struct{}, len(job.StepRefs))
 
+			// Two step blocks can reach the same "id" through their own "id"
+			// attributes, which GitHub refuses: a step id has to be unique
+			// within its job. That went out as a written file and exit 0, and
+			// only actionlint or GitHub itself said otherwise.
+			takenIDs := make(map[string]string, len(job.StepRefs))
+
 			for _, stepID := range job.StepRefs {
 				stepVal, exists := stepMap[stepID]
 
@@ -79,7 +85,15 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 				// occurrence carries one.
 				if _, repeat := emitted[stepID]; repeat {
 					stepVal = stepValueWithoutID(stepVal)
+				} else if id, ok := emittedStepID(stepVal); ok {
+					if other, taken := takenIDs[id]; taken {
+						return nil, nil, nil, fmt.Errorf("error in job '%s': %w: '%s' and '%s' both write '%s'",
+							j.ID, errDuplicateStepID, other, stepID, id)
+					}
+
+					takenIDs[id] = stepID
 				}
+
 				emitted[stepID] = struct{}{}
 
 				steps = append(steps, stepVal)
@@ -952,6 +966,19 @@ func getOrCreateMap(target map[string]any, key string) map[string]any {
 	target[key] = mapping
 
 	return mapping
+}
+
+// emittedStepID returns the "id" a converted step writes, and whether it writes
+// one at all. A step carrying ignore_id has none.
+func emittedStepID(stepVal any) (string, bool) {
+	m, ok := stepVal.(map[string]any)
+	if !ok {
+		return "", false
+	}
+
+	id, ok := m["id"].(string)
+
+	return id, ok && id != ""
 }
 
 // stepValueWithoutID copies a converted step with its "id" left out, for a
