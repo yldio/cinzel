@@ -20,8 +20,12 @@ func (s *Step) Update(filename string) {
 
 // Step holds the parsed fields of a single GitHub Actions workflow step.
 type Step struct {
-	Identifier       string    `yaml:"-"`
-	Id               cty.Value `yaml:"id,omitempty" hcl:"id"`
+	Identifier string    `yaml:"-"`
+	Id         cty.Value `yaml:"id,omitempty" hcl:"id"`
+	// IgnoreId marks a step that must not be given an id on the way out.
+	// Unparse sets it for a step whose source YAML carried no "id", so
+	// converting back writes the step exactly as it was read.
+	IgnoreId         bool      `yaml:"-"`
 	If               cty.Value `yaml:"if,omitempty" hcl:"if"`
 	Name             cty.Value `yaml:"name,omitempty" hcl:"name"`
 	Uses             cty.Value `yaml:"uses,omitempty" hcl:"uses"`

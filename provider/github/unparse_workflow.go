@@ -205,21 +205,23 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}
 
 	f, root, workflowBody := newWorkflowRoot(filename)
 	generatedVariables := map[string]any{}
+	// Held per file on purpose, unlike usedStepIDs: a shared registry would
+	// have the second file reference a step block declared in the first, and
+	// neither file would stand on its own any more.
 	stepRegistry := map[string]string{}
-	usedStepIDs := map[string]struct{}{}
 
 	if len(doc.Jobs) == 0 {
 		return nil, errors.New("workflow must define at least one job in 'jobs'")
 	}
 
-	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs, jobOrder)
+	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs, jobOrder, usedJobIDs)
 	if err != nil {
 		return nil, err
 	}

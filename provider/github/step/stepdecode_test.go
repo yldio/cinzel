@@ -42,7 +42,9 @@ func TestStepDecodeEmptyStep(t *testing.T) {
 	}
 
 	got := string(hclwrite.Format(f.Bytes()))
-	want := "step \"my-step\" {\n}\n"
+	// The source step carried no "id", so it must not gain one on the way
+	// back. "ignore_id" is what says so, and it is the only thing in the block.
+	want := "step \"my-step\" {\n  ignore_id = true\n}\n"
 
 	if got != want {
 		t.Fatalf("unexpected output:\n--- got ---\n%s\n--- want ---\n%s", got, want)

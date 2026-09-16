@@ -116,7 +116,7 @@ func BenchmarkUnparseWorkflowInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if _, _, err := unparseYAMLFile(content, "workflow_call", "workflow_call"); err != nil {
+		if _, _, err := unparseYAMLFile(content, "workflow_call", "workflow_call", map[string]struct{}{}, map[string]struct{}{}); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -142,7 +142,7 @@ func BenchmarkWorkflowToHCLInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if _, err := workflowToHCL(*doc, "workflow_call", nil); err != nil {
+		if _, err := workflowToHCL(*doc, "workflow_call", nil, map[string]struct{}{}, map[string]struct{}{}); err != nil {
 			b.Fatal(err)
 		}
 	}

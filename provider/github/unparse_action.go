@@ -37,7 +37,7 @@ func isActionDocument(doc map[string]any) bool {
 	return hasRuns && !hasOn && !hasJobs
 }
 
-func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
+func actionToHCL(doc map[string]any, filename string, usedStepIDs map[string]struct{}) ([]byte, error) {
 	if err := validateActionDocument(doc); err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	if runs, ok := toStringAnyMap(doc["runs"]); ok {
 		if using, _ := runs["using"].(string); using == "composite" {
 			if stepsRaw, ok := runs["steps"]; ok {
-				refs, err := writeActionSteps(root, stepsRaw)
+				refs, err := writeActionSteps(root, stepsRaw, usedStepIDs)
 				if err != nil {
 					return nil, err
 				}
@@ -225,14 +225,13 @@ func actionToHCL(doc map[string]any, filename string) ([]byte, error) {
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
-func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
+func writeActionSteps(root *hclwrite.Body, raw any, used map[string]struct{}) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
 		return nil, errors.New("action runs.steps must be a list")
 	}
 
-	used := map[string]struct{}{}
 	stepRefs := make([]string, 0, len(items))
 
 	for idx, item := range items {

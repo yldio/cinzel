@@ -178,6 +178,16 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	// two directories each holding a "ci.yaml" aimed both at one path.
 	takenNames := make(map[string]struct{}, len(files))
 
+	// Step block labels are the address space parse reads, and parse merges
+	// every file in a directory into one body. Held per run rather than per
+	// file, because two workflows each holding a "mise setup" step used to
+	// produce two "step \"mise_setup\"" blocks, and cinzel then refused to read
+	// its own output back.
+	usedStepIDs := map[string]struct{}{}
+
+	// Job block labels share the same address space for the same reason.
+	usedJobIDs := map[string]struct{}{}
+
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
@@ -186,7 +196,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
-		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file))
+		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file), usedStepIDs, usedJobIDs)
 		if err != nil {
 			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
@@ -214,7 +224,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
 // the document is a workflow, action, or step-only file. Returns nil if
 // the document is empty or unrecognized.
-func unparseYAMLFile(yamlBytes []byte, baseName, actionName string) ([]byte, string, error) {
+func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, error) {
 	doc, jobOrder, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
 		return nil, "", err
@@ -233,13 +243,13 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string) ([]byte, str
 	}
 
 	if workflowDoc != nil {
-		out, err := workflowToHCL(*workflowDoc, baseName, jobOrder)
+		out, err := workflowToHCL(*workflowDoc, baseName, jobOrder, usedStepIDs, usedJobIDs)
 
 		return out, baseName, err
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
-		out, err := actionToHCL(actionDoc, actionName)
+		out, err := actionToHCL(actionDoc, actionName, usedStepIDs)
 
 		return out, actionName, err
 	}

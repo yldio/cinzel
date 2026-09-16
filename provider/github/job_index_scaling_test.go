@@ -24,7 +24,7 @@ func TestJobIndexAllocationGrowsLinearly(t *testing.T) {
 		}
 
 		return testing.AllocsPerRun(3, func() {
-			if _, _, _, err := buildWorkflowJobIndex(jobs, order); err != nil {
+			if _, _, _, err := buildWorkflowJobIndex(jobs, order, map[string]struct{}{}); err != nil {
 				t.Fatal(err)
 			}
 		})

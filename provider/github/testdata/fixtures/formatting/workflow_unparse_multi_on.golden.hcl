@@ -26,5 +26,7 @@ job "build" {
 }
 
 step "echo" {
+  ignore_id = true
+
   run = "echo hi"
 }

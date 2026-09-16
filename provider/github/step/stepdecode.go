@@ -32,6 +32,12 @@ func (s *Step) PreDecode(val cty.Value) error {
 		if err := s.parseId(valId); err != nil {
 			return err
 		}
+	} else {
+		// No "id" in the source. Recorded here because this is the only point
+		// that still sees the YAML as written: further down the step carries a
+		// block label, and a label is indistinguishable from an id the author
+		// wrote.
+		s.IgnoreId = true
 	}
 
 	valIf, ok := mapping["if"]
@@ -126,7 +132,13 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 	stepBlock := body.AppendNewBlock(attr, []string{s.Identifier})
 	stepBody := stepBlock.Body()
 
-	if s.Id != cty.NilVal {
+	// A step read from YAML with no "id" of its own must not gain one when it
+	// is converted back, and parse defaults a step with no id to its block
+	// label. "ignore_id" is what turns that default off, so it is written here
+	// rather than an "id" the source never had.
+	if s.IgnoreId {
+		stepBody.SetAttributeValue("ignore_id", cty.True)
+	} else if s.Id != cty.NilVal {
 		stepBody.SetAttributeValue("id", s.Id)
 	}
 

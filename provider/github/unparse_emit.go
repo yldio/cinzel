@@ -17,7 +17,7 @@ type workflowJobEntry struct {
 	Body map[string]any
 }
 
-func buildWorkflowJobIndex(jobs map[string]any, order []string) ([]workflowJobEntry, []string, map[string]string, error) {
+func buildWorkflowJobIndex(jobs map[string]any, order []string, usedRefs map[string]struct{}) ([]workflowJobEntry, []string, map[string]string, error) {
 	jobNames := order
 	if len(jobNames) == 0 {
 		jobNames = sortedKeys(jobs)
@@ -25,7 +25,6 @@ func buildWorkflowJobIndex(jobs map[string]any, order []string) ([]workflowJobEn
 	entries := make([]workflowJobEntry, 0, len(jobs))
 	jobRefs := make([]string, 0, len(jobs))
 	jobIDMap := make(map[string]string, len(jobs))
-	usedRefs := make(map[string]struct{}, len(jobs))
 
 	for _, jobName := range jobNames {
 		raw, exists := jobs[jobName]
