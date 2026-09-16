@@ -228,7 +228,7 @@ func writeActionSteps(root *hclwrite.Body, raw any) ([]string, error) {
 		return nil, errors.New("action runs.steps must be a list")
 	}
 
-	used := map[string]int{}
+	used := map[string]struct{}{}
 	stepRefs := make([]string, 0, len(items))
 
 	for idx, item := range items {

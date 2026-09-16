@@ -115,7 +115,7 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 	return nil
 }
 
-func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]int) error {
+func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	for _, job := range jobs {
 		jobName := job.Name
 		jobMap := job.Body
@@ -163,7 +163,7 @@ func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]
 	return nil
 }
 
-func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]int, stepRefs *[]string) error {
+func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}, stepRefs *[]string) error {
 	switch key {
 	case "steps":
 		refs, err := writeJobSteps(root, value, stepRegistry, usedStepIDs)
@@ -205,7 +205,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	}
 }
 
-func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string, usedStepIDs map[string]int) ([]string, error) {
+func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {

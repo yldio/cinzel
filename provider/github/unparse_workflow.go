@@ -213,7 +213,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []stri
 	f, root, workflowBody := newWorkflowRoot(filename)
 	generatedVariables := map[string]any{}
 	stepRegistry := map[string]string{}
-	usedStepIDs := map[string]int{}
+	usedStepIDs := map[string]struct{}{}
 
 	if len(doc.Jobs) == 0 {
 		return nil, errors.New("workflow must define at least one job in 'jobs'")
@@ -247,7 +247,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []stri
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
-func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]int) error {
+func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	stepRefs := []string{}
 
 	for _, key := range sortedKeys(job) {
@@ -496,7 +496,7 @@ func stepFromMap(value map[string]any) (step.Step, error) {
 	return s, nil
 }
 
-func stepIdentifier(idx int, stepMap map[string]any, used map[string]int) string {
+func stepIdentifier(idx int, stepMap map[string]any, used map[string]struct{}) string {
 	id := ""
 
 	if raw, ok := stepMap["id"].(string); ok && raw != "" {
@@ -525,15 +525,8 @@ func stepIdentifier(idx int, stepMap map[string]any, used map[string]int) string
 		id = fmt.Sprintf("step_%d", idx+1)
 	}
 
-	id = strings.ToLower(id)
-
-	if count, exists := used[id]; exists {
-		used[id] = count + 1
-
-		return fmt.Sprintf("%s_%d", id, count+1)
-	}
-
-	used[id] = 0
+	id = naming.UniqueIdentifierInSet(strings.ToLower(id), used)
+	used[id] = struct{}{}
 
 	return id
 }
