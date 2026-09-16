@@ -174,6 +174,10 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 	outputDir := resolveUnparseOutputDirectory(opts)
 
+	// The output name comes from the input's basename, so a recursive run over
+	// two directories each holding a "ci.yaml" aimed both at one path.
+	takenNames := make(map[string]struct{}, len(files))
+
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
@@ -191,7 +195,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			continue
 		}
 
-		outputPath := filepath.Join(outputDir, name+".hcl")
+		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, name)+".hcl")
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)

@@ -153,3 +153,27 @@ func joinExtensions(exts []string) string {
 
 	return strings.Join(exts[:len(exts)-1], ", ") + ", or " + exts[len(exts)-1]
 }
+
+// UniqueOutputName returns base, or a suffixed variant when base is already
+// taken, and records whichever it returns. Output paths are built from the
+// input's basename alone, so two files a directory apart wrote to one path and
+// the first result was gone with nothing said.
+//
+// Case is folded because a name differing only in case is the same file on
+// macOS and Windows, and the same input would otherwise produce different
+// output depending on where it ran.
+func UniqueOutputName(taken map[string]struct{}, base string) string {
+	name := base
+
+	for i := 2; ; i++ {
+		key := strings.ToLower(name)
+
+		if _, clash := taken[key]; !clash {
+			taken[key] = struct{}{}
+
+			return name
+		}
+
+		name = fmt.Sprintf("%s_%d", base, i)
+	}
+}

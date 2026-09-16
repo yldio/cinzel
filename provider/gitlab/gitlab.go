@@ -112,6 +112,10 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 	// found the pipeline and only skipped the write it was told to skip.
 	found := false
 
+	// The output name comes from the input's basename, so a recursive run over
+	// two directories each holding a ".gitlab-ci.yml" aimed both at one path.
+	takenNames := make(map[string]struct{}, len(files))
+
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
@@ -135,7 +139,7 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
 
-		outputPath := filepath.Join(outputDir, baseName+".hcl")
+		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, baseName)+".hcl")
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
