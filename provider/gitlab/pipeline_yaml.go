@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/yldio/cinzel/internal/unescape"
 	yamlv3 "gopkg.in/yaml.v3"
@@ -128,6 +129,13 @@ func appendMappingPair(node *yamlv3.Node, key string, value any) error {
 		return err
 	}
 	keyNode := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: key}
+
+	// Keys never went through a quoting check at all, so yaml.v3 single-quoted
+	// the ones that needed quoting, against the project rule.
+	if keyNeedsQuoting(key) {
+		keyNode.Style = yamlv3.DoubleQuotedStyle
+	}
+
 	node.Content = append(node.Content, keyNode, valueNode)
 
 	return nil
@@ -204,9 +212,68 @@ func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
 	return node, nil
 }
 
+// keyNeedsQuoting reports whether a mapping key would be misread unquoted.
+//
+// A key is looser than a value: a colon inside one only ends it when a space
+// follows, and GitLab job names such as "test:unit" rely on that, so running
+// keys through stringNeedsQuoting would quote a large share of real pipelines.
+// What does need quoting is a key that ends in a colon, holds ": ", starts a
+// comment, or is one of the scalars a reader turns into a bool or a null.
+func keyNeedsQuoting(key string) bool {
+	if key == "" || key == "~" {
+		return true
+	}
+
+	if _, found := plainWords[strings.ToLower(key)]; found {
+		return true
+	}
+
+	if strings.TrimSpace(key) != key {
+		return true
+	}
+
+	if strings.Contains(key, ": ") || strings.HasSuffix(key, ":") ||
+		strings.Contains(key, " #") || strings.HasPrefix(key, "#") {
+		return true
+	}
+
+	for _, c := range key {
+		switch c {
+		case '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '`':
+			return true
+		}
+	}
+
+	switch key[0] {
+	case '?', '-', '"', '\'', '@':
+		return true
+	}
+
+	return false
+}
+
+// plainWords are the strings a YAML 1.1 reader turns into a boolean or a null,
+// held lower-cased because the comparison is case-insensitive.
+var plainWords = map[string]struct{}{
+	"true": {}, "false": {}, "null": {},
+	"y": {}, "n": {}, "yes": {}, "no": {}, "on": {}, "off": {},
+}
+
 func stringNeedsQuoting(v string) bool {
-	if v == "" || v == "true" || v == "false" || v == "null" || v == "~" ||
-		v == "yes" || v == "no" || v == "on" || v == "off" {
+	if v == "" || v == "~" {
+		return true
+	}
+
+	// YAML 1.1 reads a boolean or a null in any case, so "Yes" and "OFF" are
+	// as much booleans as "yes" and "off". Matching only the lower-case forms
+	// let a capitalized one out unquoted, where a reader turns it into a bool.
+	if _, found := plainWords[strings.ToLower(v)]; found {
+		return true
+	}
+
+	// yaml.v3 quotes a value whose ends are whitespace, but reaches for single
+	// quotes to do it, and the project rule is double.
+	if strings.TrimSpace(v) != v {
 		return true
 	}
 

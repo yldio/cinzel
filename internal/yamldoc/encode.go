@@ -114,12 +114,31 @@ func scalarNode(scalar any) (*yamlv3.Node, error) {
 	}
 }
 
+// plainWords are the strings a YAML 1.1 reader turns into a boolean or a null,
+// held lower-cased because the comparison is case-insensitive.
+var plainWords = map[string]struct{}{
+	"true": {}, "false": {}, "null": {},
+	"y": {}, "n": {}, "yes": {}, "no": {}, "on": {}, "off": {},
+}
+
 // needsQuoting reports whether a string would be misread without quotes,
 // because it looks like a number, boolean or null, or holds a YAML special
 // character.
 func needsQuoting(v string) bool {
-	if v == "" || v == "true" || v == "false" || v == "null" || v == "~" ||
-		v == "yes" || v == "no" || v == "on" || v == "off" {
+	if v == "" || v == "~" {
+		return true
+	}
+
+	// YAML 1.1 reads a boolean or a null in any case, so "Yes" and "OFF" are
+	// as much booleans as "yes" and "off". Matching only the lower-case forms
+	// let a capitalized one out unquoted, where a reader turns it into a bool.
+	if _, found := plainWords[strings.ToLower(v)]; found {
+		return true
+	}
+
+	// yaml.v3 quotes a value whose ends are whitespace, but reaches for single
+	// quotes to do it, and the project rule is double.
+	if strings.TrimSpace(v) != v {
 		return true
 	}
 
