@@ -118,10 +118,6 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 			return nil, nil, nil, err
 		}
 
-		if err := validateParsedWorkflow(workflow); err != nil {
-			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
-		}
-
 		if len(workflow.JobRefs) > 0 {
 			jobs := make(map[string]any)
 
@@ -152,6 +148,14 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 
 			workflow.Body["jobs"] = jobs
 			workflow.JobRefs = jobOrder
+		}
+
+		// Validation runs here rather than above, because every check that
+		// walks jobs and steps — the expression syntax check among them — saw
+		// an empty workflow while "jobs" was still unassigned, so they were
+		// dead on the parse path.
+		if err := validateParsedWorkflow(workflow); err != nil {
+			return nil, nil, nil, fmt.Errorf("error in workflow '%s': %w", wf.ID, err)
 		}
 
 		parsedWorkflows = append(parsedWorkflows, WorkflowYAMLFile{
