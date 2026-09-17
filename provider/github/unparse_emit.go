@@ -6,7 +6,9 @@ package github
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
 	"github.com/zclconf/go-cty/cty"
@@ -114,7 +116,7 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 	return nil
 }
 
-func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
+func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap, jobComments map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	for _, job := range jobs {
 		jobName := job.Name
 		jobMap := job.Body
@@ -122,6 +124,8 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 		if len(root.Attributes()) > 0 || len(root.Blocks()) > 0 {
 			root.AppendNewline()
 		}
+
+		writeLeadingComment(root, jobComments[jobName])
 
 		jobID := jobIDMap[jobName]
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
@@ -256,4 +260,31 @@ func newWorkflowRoot(filename string) (*hclwrite.File, *hclwrite.Body, *hclwrite
 	workflowBody.SetAttributeValue("filename", cty.StringVal(filename))
 
 	return f, root, workflowBody
+}
+
+// writeLeadingComment emits comment as HCL comment lines above whatever is
+// appended next. An empty comment writes nothing.
+//
+// The text arrives as yaml.v3 read it, which is the source lines joined by
+// newlines with each "#" still on the front. Each line is re-prefixed anyway:
+// a YAML comment may be written with any amount of leading whitespace or
+// none, and a line that reaches HCL without a "#" is not a comment but a
+// syntax error in the generated file.
+func writeLeadingComment(body *hclwrite.Body, comment string) {
+	if comment == "" {
+		return
+	}
+
+	tokens := hclwrite.Tokens{}
+
+	for _, line := range strings.Split(comment, "\n") {
+		text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "#"))
+
+		tokens = append(tokens, &hclwrite.Token{
+			Type:  hclsyntax.TokenComment,
+			Bytes: []byte(strings.TrimRight("# "+text, " ") + "\n"),
+		})
+	}
+
+	body.AppendUnstructuredTokens(tokens)
 }

@@ -22,9 +22,10 @@ import (
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
-// parseYAMLDocument parses YAML content into a document map and extracts
-// job names in source order in a single pass using the yaml.v3 Node API.
-func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
+// parseYAMLDocument parses YAML content into a document map and extracts job
+// names in source order, plus the comment written above each job, in a single
+// pass using the yaml.v3 Node API.
+func parseYAMLDocument(content []byte) (map[string]any, []string, map[string]string, error) {
 	// GitHub reads one document per file. A file holding more than one used to
 	// be cut short at the first, losing the rest without a word, so the whole
 	// file is rejected instead.
@@ -42,7 +43,7 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
 		}
 
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		if len(node.Content) == 0 || isNullNode(node.Content[0]) {
@@ -50,18 +51,18 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
 		}
 
 		if first != nil {
-			return nil, nil, errMultipleDocuments
+			return nil, nil, nil, errMultipleDocuments
 		}
 
 		first = node.Content[0]
 	}
 
 	if first == nil {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	if err := rejectNonStringKeys(first); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	keepWholeNumbersExact(first)
@@ -69,10 +70,12 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, error) {
 	var doc map[string]any
 
 	if err := first.Decode(&doc); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return doc, jobOrderFromNode(first), nil
+	order, comments := jobsFromNode(first)
+
+	return doc, order, comments, nil
 }
 
 // keepWholeNumbersExact retags a whole number too large for an integer so it
@@ -136,12 +139,13 @@ func isNullNode(node *yamlv3.Node) bool {
 	return node.Kind == yamlv3.ScalarNode && node.Tag == "!!null"
 }
 
-// jobOrderFromNode extracts job names in source order from a yaml.v3 mapping
-// node. It relies on the Node API's preservation of mapping key order, which
-// is not available when unmarshaling directly into map[string]any.
-func jobOrderFromNode(root *yamlv3.Node) []string {
+// jobsFromNode extracts job names in source order, and the comment written
+// above each one, from a yaml.v3 mapping node. It relies on the Node API's
+// preservation of mapping key order and of comment text, neither of which is
+// available when unmarshaling directly into map[string]any.
+func jobsFromNode(root *yamlv3.Node) ([]string, map[string]string) {
 	if root.Kind != yamlv3.MappingNode {
-		return nil
+		return nil, nil
 	}
 
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -149,10 +153,11 @@ func jobOrderFromNode(root *yamlv3.Node) []string {
 			jobs := root.Content[i+1]
 
 			if jobs.Kind != yamlv3.MappingNode {
-				return nil
+				return nil, nil
 			}
 
 			keys := make([]string, 0, len(jobs.Content)/2)
+			comments := map[string]string{}
 
 			for j := 0; j+1 < len(jobs.Content); j += 2 {
 				// A merge key is not a job. The decoder folds what it
@@ -160,17 +165,22 @@ func jobOrderFromNode(root *yamlv3.Node) []string {
 				// the keys they arrive under, which is more than this pass
 				// can see: the order falls back to sorted keys instead.
 				if jobs.Content[j].Tag == "!!merge" {
-					return nil
+					return nil, nil
 				}
 
-				keys = append(keys, jobKeyName(jobs.Content[j]))
+				name := jobKeyName(jobs.Content[j])
+				keys = append(keys, name)
+
+				if head := jobs.Content[j].HeadComment; head != "" {
+					comments[name] = head
+				}
 			}
 
-			return keys
+			return keys, comments
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // jobKeyName returns the name a job key node carries once it is resolved.
@@ -205,7 +215,7 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string, jobComments map[string]string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}
@@ -238,7 +248,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []stri
 		return nil, err
 	}
 
-	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, generatedVariables, stepRegistry, usedStepIDs); err != nil {
+	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, jobComments, generatedVariables, stepRegistry, usedStepIDs); err != nil {
 		return nil, err
 	}
 

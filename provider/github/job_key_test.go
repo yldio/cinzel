@@ -24,7 +24,7 @@ func TestAliasInJobKeyPositionResolves(t *testing.T) {
 		"    steps:\n" +
 		"      - run: echo second\n"
 
-	_, order, err := parseYAMLDocument([]byte(yaml))
+	_, order, _, err := parseYAMLDocument([]byte(yaml))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestMergeKeyInsideJobsKeepsEveryJob(t *testing.T) {
 		"    steps:\n" +
 		"      - run: echo listed\n"
 
-	if _, order, err := parseYAMLDocument([]byte(yaml)); err != nil {
+	if _, order, _, err := parseYAMLDocument([]byte(yaml)); err != nil {
 		t.Fatal(err)
 	} else if len(order) != 0 {
 		t.Errorf("want no source order when a merge key is present, got %q", order)

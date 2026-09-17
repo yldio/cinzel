@@ -14,7 +14,7 @@ import (
 
 func mustParseYAMLDoc(b *testing.B, content []byte) map[string]any {
 	b.Helper()
-	doc, _, err := parseYAMLDocument(content)
+	doc, _, _, err := parseYAMLDocument(content)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func BenchmarkWorkflowToHCLInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if _, err := workflowToHCL(*doc, "workflow_call", nil, map[string]struct{}{}, map[string]struct{}{}); err != nil {
+		if _, err := workflowToHCL(*doc, "workflow_call", nil, nil, map[string]struct{}{}, map[string]struct{}{}); err != nil {
 			b.Fatal(err)
 		}
 	}
