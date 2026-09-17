@@ -12,6 +12,11 @@ import (
 type hclNamedBlock struct {
 	Name  hcl.Expression `hcl:"name"`
 	Value hcl.Expression `hcl:"value"`
+
+	// Carried only for its source range, which is where the comment written
+	// above the block is found. The decode fills it with what the two
+	// attributes above did not take, which for these blocks is nothing.
+	Body hcl.Body `hcl:",remain"`
 }
 
 type hclOnBlock struct {

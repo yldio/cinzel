@@ -78,6 +78,13 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument, com
 
 		appendSection()
 
+		comment := comments.at(key)
+
+		// Written here rather than inside each case: every key below becomes
+		// either an attribute or a block, and the comment above it belongs
+		// above whichever it becomes.
+		writeLeadingComment(body, comment.head)
+
 		value := doc.Raw[key]
 		switch key {
 		case "on":
@@ -107,7 +114,7 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument, com
 				return err
 			}
 		default:
-			if err := writeCommentedAttribute(body, toHCLKey(key), value, comments.at(key)); err != nil {
+			if err := writeCommentedAttribute(body, toHCLKey(key), value, comment.withoutHead()); err != nil {
 				return err
 			}
 		}
@@ -206,7 +213,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	case "permissions", "defaults", "concurrency", "container", "environment":
 		return writeNestedMapAsBlock(body, key, value, comments.child(key))
 	default:
-		return writeCommentedAttribute(body, toHCLKey(key), value, comments.at(key))
+		return writeCommentedAttribute(body, toHCLKey(key), value, comments.at(key).withoutHead())
 	}
 }
 

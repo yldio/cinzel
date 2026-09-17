@@ -4,6 +4,7 @@
 package github
 
 import (
+	"github.com/yldio/cinzel/internal/fsutil"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
@@ -12,6 +13,14 @@ import (
 type nodeComment struct {
 	head string
 	line string
+}
+
+// withoutHead returns the comment with its head run dropped, for a writer
+// whose caller has already emitted it.
+func (c nodeComment) withoutHead() nodeComment {
+	c.head = ""
+
+	return c
 }
 
 // empty reports whether the key carried no comment at all.
@@ -71,7 +80,10 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 
 		// The head comment is written above the key and the inline one after
 		// the value, which is where yaml.v3 records each of them.
-		comment := nodeComment{head: key.HeadComment, line: value.LineComment}
+		comment := nodeComment{
+			head: fsutil.WithoutGeneratedMarker(key.HeadComment),
+			line: value.LineComment,
+		}
 
 		if !comment.empty() {
 			if out.own == nil {

@@ -313,7 +313,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		withMap := getOrCreateMap(out, "with")
-		withMap[key] = value
+		withMap[key] = withHead(value, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.EnvBlocks {
@@ -323,7 +323,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		envMap := getOrCreateMap(out, "env")
-		envMap[key] = value
+		envMap[key] = withHead(value, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.OutputBlocks {
@@ -333,7 +333,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		outputsMap := getOrCreateMap(out, "outputs")
-		outputsMap[key] = value
+		outputsMap[key] = withHead(value, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.SecretBlocks {
@@ -343,7 +343,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		secretsMap := getOrCreateMap(out, "secrets")
-		secretsMap[key] = value
+		secretsMap[key] = withHead(value, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.ServiceBlocks {
@@ -353,7 +353,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		servicesMap := getOrCreateMap(out, "services")
-		servicesMap[block.ID] = serviceVal
+		servicesMap[block.ID] = withHead(serviceVal, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.RunsOnBlocks {
@@ -362,10 +362,12 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		head := blockHeadComment(block.Body, hv)
+
 		if runners, ok := runsOnValue["runners"]; ok && len(runsOnValue) == 1 {
-			out["runs-on"] = runners
+			out["runs-on"] = withHead(runners, head)
 		} else {
-			out["runs-on"] = runsOnValue
+			out["runs-on"] = withHead(runsOnValue, head)
 		}
 	}
 
@@ -375,7 +377,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		out["strategy"] = strategyValue
+		out["strategy"] = withHead(strategyValue, blockHeadComment(block.Body, hv))
 	}
 
 	if err := setOptionalYAMLAttr(out, "permissions", cfg.PermAttr, hv); err != nil {
@@ -400,7 +402,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		out["permissions"] = child
+		out["permissions"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.Defaults {
@@ -409,7 +411,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		out["defaults"] = child
+		out["defaults"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.Concurrency {
@@ -418,7 +420,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		out["concurrency"] = child
+		out["concurrency"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.Container {
@@ -427,7 +429,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		out["container"] = child
+		out["container"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.Environment {
@@ -436,7 +438,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		out["environment"] = child
+		out["environment"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	return job, nil
@@ -486,15 +488,16 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 
 		eventName := on.ID
 		eventValue = ghworkflow.NormalizeOnEvent(eventName, eventValue)
+		head := blockHeadComment(on.Body, hv)
 
 		onMap := getOrCreateMap(out, "on")
 
 		if eventName == "schedule" {
-			onMap[eventName] = ghworkflow.DenormalizeScheduleEvent(eventValue)
+			onMap[eventName] = withHead(ghworkflow.DenormalizeScheduleEvent(eventValue), head)
 		} else if len(eventValue) == 0 {
-			onMap[eventName] = map[string]any{}
+			onMap[eventName] = withHead(map[string]any{}, head)
 		} else {
-			onMap[eventName] = eventValue
+			onMap[eventName] = withHead(eventValue, head)
 		}
 	}
 
@@ -505,7 +508,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 		}
 
 		envMap := getOrCreateMap(out, "env")
-		envMap[key] = value
+		envMap[key] = withHead(value, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.PermBlocks {
@@ -514,7 +517,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
-		out["permissions"] = child
+		out["permissions"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	if _, ok := out["permissions"]; !ok {
@@ -527,7 +530,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
-		out["defaults"] = child
+		out["defaults"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	for _, block := range cfg.ConcBlocks {
@@ -536,7 +539,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
-		out["concurrency"] = child
+		out["concurrency"] = withHead(child, blockHeadComment(block.Body, hv))
 	}
 
 	return workflow, nil
@@ -558,6 +561,32 @@ func setOptionalYAMLAttr(out map[string]any, yamlKey string, expr hcl.Expression
 	out[yamlKey] = annotate(val, hv, expr.Range())
 
 	return nil
+}
+
+// blockHeadComment returns the comment written above the block whose body this
+// is.
+//
+// The typed decode hands back a body and not the block header, so the line to
+// look above is the body's own start: that is the open brace, which shares a
+// line with the block type in every block these providers write.
+func blockHeadComment(body hcl.Body, hv *hclparser.HCLVars) string {
+	sb, ok := body.(*hclsyntax.Body)
+
+	if !ok {
+		return ""
+	}
+
+	return hv.HeadComment(sb.SrcRange)
+}
+
+// withHead wraps val with the comment written above it, returning val
+// unwrapped when there was none.
+func withHead(val any, head string) any {
+	if head == "" {
+		return val
+	}
+
+	return annotated{value: val, head: head}
 }
 
 // annotate wraps val with whatever comments were written above or beside r,
@@ -644,6 +673,12 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 	}
 
 	for _, block := range sb.Blocks {
+		// A block becomes a key in the YAML, so the comment above it belongs
+		// above that key. Read once here rather than in each case below,
+		// which differ in where the key lands and not in where its comment
+		// was written.
+		blockHead := hv.HeadComment(block.TypeRange)
+
 		switch {
 		case scope == "workflow" && block.Type == "on":
 			if len(block.Labels) != 1 {
@@ -660,11 +695,11 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			eventValue = ghworkflow.NormalizeOnEvent(eventName, eventValue)
 
 			if eventName == "schedule" {
-				onMap[eventName] = ghworkflow.DenormalizeScheduleEvent(eventValue)
+				onMap[eventName] = withHead(ghworkflow.DenormalizeScheduleEvent(eventValue), blockHead)
 			} else if len(eventValue) == 0 {
-				onMap[eventName] = map[string]any{}
+				onMap[eventName] = withHead(map[string]any{}, blockHead)
 			} else {
-				onMap[eventName] = eventValue
+				onMap[eventName] = withHead(eventValue, blockHead)
 			}
 		case block.Type == "uses":
 			usesValue, err := parseUsesBlock(block.Body, hv)
@@ -672,7 +707,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			out["uses"] = usesValue
+			out["uses"] = withHead(usesValue, blockHead)
 		case block.Type == "with":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
@@ -680,7 +715,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			withMap := getOrCreateMap(out, "with")
-			withMap[key] = value
+			withMap[key] = withHead(value, blockHead)
 		case block.Type == "env":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
@@ -688,7 +723,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			envMap := getOrCreateMap(out, "env")
-			envMap[key] = value
+			envMap[key] = withHead(value, blockHead)
 		case block.Type == "output" && scope == "job":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
@@ -696,7 +731,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			outputsMap := getOrCreateMap(out, "outputs")
-			outputsMap[key] = value
+			outputsMap[key] = withHead(value, blockHead)
 		case block.Type == "secret" && scope == "job":
 			key, value, err := parseNamedBlock(block.Body, hv)
 			if err != nil {
@@ -704,7 +739,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			secretsMap := getOrCreateMap(out, "secrets")
-			secretsMap[key] = value
+			secretsMap[key] = withHead(value, blockHead)
 		case block.Type == "service" && scope == "job":
 			if len(block.Labels) != 1 {
 				return nil, errors.New("service block must have exactly one label")
@@ -716,7 +751,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			servicesMap := getOrCreateMap(out, "services")
-			servicesMap[block.Labels[0]] = serviceVal
+			servicesMap[block.Labels[0]] = withHead(serviceVal, blockHead)
 		case block.Type == "runs_on" && scope == "job":
 			runsOnValue, err := parseBodyMap(block.Body, hv, "runs_on")
 			if err != nil {
@@ -724,9 +759,9 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			if runners, ok := runsOnValue["runners"]; ok && len(runsOnValue) == 1 {
-				out["runs-on"] = runners
+				out["runs-on"] = withHead(runners, blockHead)
 			} else {
-				out["runs-on"] = runsOnValue
+				out["runs-on"] = withHead(runsOnValue, blockHead)
 			}
 		case block.Type == "matrix" && scope == "strategy":
 			matrixValue, err := parseBodyMap(block.Body, hv, "matrix")
@@ -739,14 +774,14 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			out["matrix"] = normalized
+			out["matrix"] = withHead(normalized, blockHead)
 		default:
 			child, err := parseBodyMap(block.Body, hv, block.Type)
 			if err != nil {
 				return nil, err
 			}
 
-			addGenericBlock(out, naming.ToYAMLKey(block.Type), block.Labels, child)
+			addGenericBlock(out, naming.ToYAMLKey(block.Type), block.Labels, withHead(child, blockHead))
 		}
 	}
 

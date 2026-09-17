@@ -25,6 +25,30 @@ func PrependGeneratedMarker(content []byte, provider string) []byte {
 	return append([]byte(prefix), content...)
 }
 
+// WithoutGeneratedMarker returns comment with the cinzel generation markers
+// removed, and empty string if that is all it held.
+//
+// The markers are written at the top of every generated file, so a YAML reader
+// hands them back as the comment above the file's first key. They are cinzel's
+// own note and not something an author wrote, and carrying them into the HCL
+// would copy them into the source a person edits, one more line on each
+// roundtrip.
+func WithoutGeneratedMarker(comment string) string {
+	kept := []string{}
+
+	for _, line := range strings.Split(comment, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == generatedByHeader || strings.HasPrefix(trimmed, "# cinzel-provider:") {
+			continue
+		}
+
+		kept = append(kept, line)
+	}
+
+	return strings.Join(kept, "\n")
+}
+
 // HasGeneratedMarker reports whether path has cinzel markers for provider.
 func HasGeneratedMarker(path, provider string) (bool, error) {
 	f, err := os.Open(path)

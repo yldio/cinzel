@@ -268,6 +268,8 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 			jobBody.AppendNewline()
 		}
 
+		writeLeadingComment(jobBody, comments.at(key).head)
+
 		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, comments, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
 			return err
 		}
