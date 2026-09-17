@@ -157,10 +157,15 @@ Each is independently reviewable and leaves the tree green.
    decode. `UsesComment` collapses into whichever wins.
 5. **Confirm or fix `stepFingerprint`.** Verify comments reach it. If they do,
    this is a test and a note. If they do not, fold them in.
-6. **GitLab.** The same rule in its own parse and emit paths.
+6. **Translate the comment marker.** Unplanned, and found by `mise run drift`
+   rather than by reading: see "Out of scope" above.
+7. **Foot comments.** Deferred out of commit 1, which read the head form only.
+   A foot comment belongs to a body rather than to a value, so `annotated`
+   has nowhere to hang one and it needs a carrier of its own.
+8. **GitLab.** The same rule in its own parse and emit paths.
 
 Order matters: 4 is the largest and depends on 1-3 existing. 5 cannot be judged
-until 4 lands.
+until 4 lands. 8 comes last so it implements a rule that is finished.
 
 ## Comment text is never rewritten
 
@@ -182,8 +187,12 @@ unreachable — it stays because it is the only case that can emit invalid HCL.
 - Comments inside expressions, such as between elements of a list. HCL accepts
   them and they round-trip, but they have no YAML home and no author writes
   them today.
-- `//` and `/* */` HCL comment forms. Only `#` is read now; widening is a
-  separate question.
+- Comment reflow across markers beyond swapping the marker itself. HCL writes
+  a comment three ways and YAML has only `#`, so a `//` has its marker
+  translated on the way across and a `/* */` keeps its own, having no YAML
+  equivalent. This was out of scope until `mise run drift` proved it was not:
+  this repo's own `cinzel/steps.hcl` uses `//`, and carrying one verbatim put
+  the marker in the prose as `# // x`. Landed in the commit list below.
 
 ## Acceptance
 
