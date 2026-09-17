@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	"github.com/yldio/cinzel/internal/maputil"
 	"github.com/yldio/cinzel/internal/naming"
 	"github.com/yldio/cinzel/internal/unescape"
@@ -255,7 +256,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 
 	for _, key := range sortedKeys(job) {
 		if key == "steps" {
-			refs, err := writeJobSteps(root, job[key], stepRegistry, usedStepIDs)
+			refs, err := writeJobSteps(root, job[key], comments, stepRegistry, usedStepIDs)
 			if err != nil {
 				return err
 			}
@@ -268,7 +269,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 			jobBody.AppendNewline()
 		}
 
-		writeLeadingComment(jobBody, comments.at(key).head)
+		hclcomment.WriteLeading(jobBody, comments.at(key).head)
 
 		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, comments, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
 			return err
@@ -458,7 +459,7 @@ func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment 
 		return err
 	}
 
-	writeLeadingComment(body, comment.head)
+	hclcomment.WriteLeading(body, comment.head)
 
 	if comment.line == "" {
 		body.SetAttributeValue(attr, ctyValue)
@@ -470,13 +471,7 @@ func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment 
 	// has to ride along with the expression tokens to end up on the same line.
 	// No newline in the comment bytes: the attribute brings its own, and a
 	// second one leaves a blank line after every commented attribute.
-	tokens := hclwrite.TokensForValue(ctyValue)
-	tokens = append(tokens, &hclwrite.Token{
-		Type:  hclsyntax.TokenComment,
-		Bytes: []byte(" " + commentLine(comment.line)),
-	})
-
-	body.SetAttributeRaw(attr, tokens)
+	body.SetAttributeRaw(attr, hclcomment.Trailing(hclwrite.TokensForValue(ctyValue), comment.line))
 
 	return nil
 }
@@ -511,7 +506,7 @@ func traversalTokens(root string, attr string) hclwrite.Tokens {
 	}
 }
 
-func stepFromMap(value map[string]any) (step.Step, error) {
+func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error) {
 	ctyValue, err := anyToCty(value)
 	if err != nil {
 		return step.Step{}, err
@@ -523,7 +518,54 @@ func stepFromMap(value map[string]any) (step.Step, error) {
 		return step.Step{}, err
 	}
 
+	s.Comments = stepComments(comments)
+
 	return s, nil
+}
+
+// stepComments converts the comments collected off one step's YAML mapping
+// into the form the step package writes back out.
+//
+// The two are separate types on purpose: the collector mirrors any YAML
+// mapping, and a step is one particular shape. Converting here keeps the step
+// package free of the collector, which it would otherwise have to import from
+// the provider that imports it.
+func stepComments(comments *yamlComments) step.Comments {
+	out := step.Comments{Head: comments.above()}
+
+	if comments == nil {
+		return out
+	}
+
+	for key, comment := range comments.own {
+		if out.Attrs == nil {
+			out.Attrs = map[string]step.Comment{}
+		}
+
+		out.Attrs[key] = step.Comment{Head: comment.head, Line: comment.line}
+	}
+
+	// "env" and "with" are the only mappings nested in a step, and their
+	// entries carry comments of their own.
+	for key, nested := range comments.children {
+		entries := map[string]step.Comment{}
+
+		for name, comment := range nested.own {
+			entries[name] = step.Comment{Head: comment.head, Line: comment.line}
+		}
+
+		if len(entries) == 0 {
+			continue
+		}
+
+		if out.Nested == nil {
+			out.Nested = map[string]map[string]step.Comment{}
+		}
+
+		out.Nested[key] = entries
+	}
+
+	return out
 }
 
 func stepIdentifier(idx int, stepMap map[string]any, used map[string]struct{}) string {
@@ -602,10 +644,20 @@ func stepFirstWord(run string) string {
 // "steps.<id>.outputs" reference to it had nothing left to name. An id the
 // unparser assigns is not in this map, so a step with no id of its own still
 // dedupes against its twin.
-func stepFingerprint(stepMap map[string]any) string {
+func stepFingerprint(stepMap map[string]any, comments *yamlComments) string {
 	b, _ := json.Marshal(stepMap)
 
-	return string(b)
+	if comments == nil {
+		return string(b)
+	}
+
+	// A comment is part of a step's identity. Two steps that differ only by
+	// what is written on them are two steps, and collapsing them into one
+	// block drops whichever comment came second. The comments live beside the
+	// map rather than in it, so they are marshalled alongside.
+	c, _ := json.Marshal(stepComments(comments))
+
+	return string(b) + string(c)
 }
 
 func normalizeNeeds(raw any, jobIDMap map[string]string) ([]string, error) {

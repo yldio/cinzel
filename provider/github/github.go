@@ -249,7 +249,7 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
-		out, err := actionToHCL(actionDoc, actionName, usedStepIDs)
+		out, err := actionToHCL(actionDoc, actionName, comments, usedStepIDs)
 
 		return out, actionName, err
 	}

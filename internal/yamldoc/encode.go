@@ -85,6 +85,10 @@ func kindNode(v Value) (*yamlv3.Node, error) {
 				return nil, err
 			}
 
+			// A sequence item has no key to hang a head comment on, so it
+			// goes on the item itself. That is also where a reader hands it
+			// back, so the comment above a list entry survives a roundtrip.
+			child.HeadComment = item.head
 			node.Content = append(node.Content, child)
 		}
 

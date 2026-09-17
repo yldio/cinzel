@@ -6,10 +6,9 @@ package github
 import (
 	"errors"
 	"fmt"
-	"strings"
 
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -83,7 +82,7 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument, com
 		// Written here rather than inside each case: every key below becomes
 		// either an attribute or a block, and the comment above it belongs
 		// above whichever it becomes.
-		writeLeadingComment(body, comment.head)
+		hclcomment.WriteLeading(body, comment.head)
 
 		value := doc.Raw[key]
 		switch key {
@@ -134,7 +133,7 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 			root.AppendNewline()
 		}
 
-		writeLeadingComment(root, jobComments.at(jobName).head)
+		hclcomment.WriteLeading(root, jobComments.at(jobName).head)
 
 		jobID := jobIDMap[jobName]
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
@@ -178,7 +177,7 @@ func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]
 func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}, stepRefs *[]string) error {
 	switch key {
 	case "steps":
-		refs, err := writeJobSteps(root, value, stepRegistry, usedStepIDs)
+		refs, err := writeJobSteps(root, value, comments, stepRegistry, usedStepIDs)
 		if err != nil {
 			return err
 		}
@@ -217,7 +216,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	}
 }
 
-func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) ([]string, error) {
+func writeJobSteps(root *hclwrite.Body, raw any, comments *yamlComments, stepRegistry map[string]string, usedStepIDs map[string]struct{}) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
@@ -233,7 +232,7 @@ func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string,
 			return nil, errors.New("job step must be an object")
 		}
 
-		if fp := stepFingerprint(stepObj); fp != "" {
+		if fp := stepFingerprint(stepObj, comments.item("steps", idx)); fp != "" {
 			if existingID, exists := stepRegistry[fp]; exists {
 				stepRefs = append(stepRefs, existingID)
 				continue
@@ -241,7 +240,7 @@ func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string,
 		}
 
 		stepID := stepIdentifier(idx, stepObj, usedStepIDs)
-		parsedStep, err := stepFromMap(stepObj)
+		parsedStep, err := stepFromMap(stepObj, comments.item("steps", idx))
 		if err != nil {
 			return nil, err
 		}
@@ -252,7 +251,7 @@ func writeJobSteps(root *hclwrite.Body, raw any, stepRegistry map[string]string,
 			return nil, err
 		}
 
-		stepRegistry[stepFingerprint(stepObj)] = stepID
+		stepRegistry[stepFingerprint(stepObj, comments.item("steps", idx))] = stepID
 		stepRefs = append(stepRefs, stepID)
 	}
 
@@ -269,39 +268,4 @@ func newWorkflowRoot(filename string) (*hclwrite.File, *hclwrite.Body, *hclwrite
 	workflowBody.SetAttributeValue("filename", cty.StringVal(filename))
 
 	return f, root, workflowBody
-}
-
-// writeLeadingComment emits comment as HCL comment lines above whatever is
-// appended next. An empty comment writes nothing.
-//
-// The text is written as it was read. A comment is prose, and its spacing,
-// its "#" count and its indentation are things its author chose, so
-// rewriting them changes what was written for no gain. The one thing added
-// is a missing "#": a line reaching HCL without one is not a comment but a
-// syntax error in the generated file.
-func writeLeadingComment(body *hclwrite.Body, comment string) {
-	if comment == "" {
-		return
-	}
-
-	tokens := hclwrite.Tokens{}
-
-	for _, line := range strings.Split(comment, "\n") {
-		tokens = append(tokens, &hclwrite.Token{
-			Type:  hclsyntax.TokenComment,
-			Bytes: []byte(commentLine(line) + "\n"),
-		})
-	}
-
-	body.AppendUnstructuredTokens(tokens)
-}
-
-// commentLine returns line as an HCL comment, adding a "#" only if the line
-// does not already carry one. Everything else about the text is left alone.
-func commentLine(line string) string {
-	if strings.HasPrefix(strings.TrimSpace(line), "#") {
-		return line
-	}
-
-	return "# " + line
 }

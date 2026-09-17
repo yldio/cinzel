@@ -29,7 +29,6 @@ type Step struct {
 	If               cty.Value `yaml:"if,omitempty" hcl:"if"`
 	Name             cty.Value `yaml:"name,omitempty" hcl:"name"`
 	Uses             cty.Value `yaml:"uses,omitempty" hcl:"uses"`
-	UsesComment      string    `yaml:"-"`
 	Run              cty.Value `yaml:"run,omitempty" hcl:"run"`
 	WorkingDirectory cty.Value `yaml:"working-directory,omitempty" hcl:"working_directory"`
 	Shell            cty.Value `yaml:"shell,omitempty" hcl:"shell"`
@@ -37,6 +36,10 @@ type Step struct {
 	Env              cty.Value `yaml:"env,omitempty" hcl:"env"`
 	ContinueOnError  cty.Value `yaml:"continue-on-error,omitempty" hcl:"continue_on_error"`
 	TimeoutMinutes   cty.Value `yaml:"timeout-minutes,omitempty" hcl:"timeout_minutes"`
+	// Comments holds what was written above and beside the step and its
+	// attributes. Not a field of the step as GitHub reads it, so it stays out
+	// of the marshalled YAML and is applied to the document separately.
+	Comments Comments `yaml:"-"`
 }
 
 // StepListConfig is a slice of StepConfig decoded from HCL step blocks.
@@ -57,4 +60,9 @@ type StepConfig struct {
 	Env              action.EnvListConfig  `hcl:"env,block"`
 	ContinueOnError  hcl.Expression        `hcl:"continue_on_error,attr"`
 	TimeoutMinutes   hcl.Expression        `hcl:"timeout_minutes,attr"`
+
+	// Carried only for its source range, which is where the comment written
+	// above the step block is found. The decode fills it with what the
+	// attributes above did not take, which for a step is nothing.
+	Body hcl.Body `hcl:",remain"`
 }

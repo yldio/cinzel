@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -123,11 +124,27 @@ func (s *Step) PreDecode(val cty.Value) error {
 	return nil
 }
 
+// openAttr prepares stepBody for the attribute emitted as key: a blank line
+// between it and whatever came before, then whatever comment was written above
+// it. Returns the trailing comment, which the caller writes with the value.
+func (s *Step) openAttr(stepBody *hclwrite.Body, key string) string {
+	if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
+		stepBody.AppendNewline()
+	}
+
+	comment := s.Comments.At(key)
+	hclcomment.WriteLeading(stepBody, comment.Head)
+
+	return comment.Line
+}
+
 // Decode writes the step as an HCL block into the given body.
 func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 	if len(body.Blocks()) > 0 || len(body.Attributes()) > 0 {
 		body.AppendNewline()
 	}
+
+	hclcomment.WriteLeading(body, s.Comments.Head)
 
 	stepBlock := body.AppendNewBlock(attr, []string{s.Identifier})
 	stepBody := stepBlock.Body()
@@ -139,30 +156,22 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 	if s.IgnoreId {
 		stepBody.SetAttributeValue("ignore_id", cty.True)
 	} else if s.Id != cty.NilVal {
-		stepBody.SetAttributeValue("id", s.Id)
+		line := s.openAttr(stepBody, "id")
+		stepBody.SetAttributeRaw("id", hclcomment.Trailing(hclwrite.TokensForValue(s.Id), line))
 	}
 
 	if s.If != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
-		stepBody.SetAttributeValue("if", s.If)
+		line := s.openAttr(stepBody, "if")
+		stepBody.SetAttributeRaw("if", hclcomment.Trailing(hclwrite.TokensForValue(s.If), line))
 	}
 
 	if s.Name != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
-		stepBody.SetAttributeValue("name", s.Name)
+		line := s.openAttr(stepBody, "name")
+		stepBody.SetAttributeRaw("name", hclcomment.Trailing(hclwrite.TokensForValue(s.Name), line))
 	}
 
 	if s.Uses != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
+		line := s.openAttr(stepBody, "uses")
 		parts := strings.SplitN(s.Uses.AsString(), "@", 2)
 
 		usesBlock := stepBody.AppendNewBlock("uses", nil)
@@ -170,39 +179,37 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 		usesBody.SetAttributeValue("action", cty.StringVal(parts[0]))
 
 		if len(parts) == 2 {
-			usesBody.SetAttributeValue("version", cty.StringVal(parts[1]))
+			// The comment rides the version, not the block: that is where the
+			// pin tag names what the SHA above it stands for, and where parse
+			// reads it back from.
+			version := hclwrite.TokensForValue(cty.StringVal(parts[1]))
+			usesBody.SetAttributeRaw("version", hclcomment.Trailing(version, line))
 		}
 	}
 
 	if s.Run != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
+		line := s.openAttr(stepBody, "run")
 		runStr := s.Run.AsString()
 
 		if strings.Contains(runStr, "\n") {
-			tokens := setAsHeredoc(runStr)
-			stepBody.SetAttributeRaw("run", tokens)
+			// A heredoc ends on its closing marker's own line, so a comment
+			// after the tokens would land past it rather than beside the
+			// attribute. It goes above instead, which is a place it can be.
+			hclcomment.WriteLeading(stepBody, line)
+			stepBody.SetAttributeRaw("run", setAsHeredoc(runStr))
 		} else {
-			stepBody.SetAttributeValue("run", s.Run)
+			stepBody.SetAttributeRaw("run", hclcomment.Trailing(hclwrite.TokensForValue(s.Run), line))
 		}
 	}
 
 	if s.WorkingDirectory != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
-		stepBody.SetAttributeValue("working_directory", s.WorkingDirectory)
+		line := s.openAttr(stepBody, "working-directory")
+		stepBody.SetAttributeRaw("working_directory", hclcomment.Trailing(hclwrite.TokensForValue(s.WorkingDirectory), line))
 	}
 
 	if s.Shell != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
-		stepBody.SetAttributeValue("shell", s.Shell)
+		line := s.openAttr(stepBody, "shell")
+		stepBody.SetAttributeRaw("shell", hclcomment.Trailing(hclwrite.TokensForValue(s.Shell), line))
 	}
 
 	if s.With != cty.NilVal {
@@ -214,15 +221,26 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 		}
 		sort.Strings(keys)
 
+		entries := s.Comments.Nest("with")
+
 		for _, key := range keys {
 			if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
 				stepBody.AppendNewline()
 			}
 
+			comment := entries[key]
+
 			withBlock := stepBody.AppendNewBlock("with", nil)
 			withBody := withBlock.Body()
 			withBody.SetAttributeValue("name", cty.StringVal(key))
-			withBody.SetAttributeValue("value", withMap[key])
+
+			// The entry is one block here but one value in the YAML, so both
+			// its comments go on the value: that is the half a reader sees,
+			// and it is where parse looks for them coming back.
+			hclcomment.WriteLeading(withBody, comment.Head)
+
+			value := hclwrite.TokensForValue(withMap[key])
+			withBody.SetAttributeRaw("value", hclcomment.Trailing(value, comment.Line))
 		}
 	}
 
@@ -235,32 +253,37 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 		}
 		sort.Strings(keys)
 
+		entries := s.Comments.Nest("env")
+
 		for _, name := range keys {
 			if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
 				stepBody.AppendNewline()
 			}
 
+			comment := entries[name]
+
 			envBlock := stepBody.AppendNewBlock("env", nil)
 			envBody := envBlock.Body()
 			envBody.SetAttributeValue("name", cty.StringVal(name))
-			envBody.SetAttributeValue("value", envMap[name])
+
+			// The entry is one block here but one value in the YAML, so both
+			// its comments go on the value: that is the half a reader sees,
+			// and it is where parse looks for them coming back.
+			hclcomment.WriteLeading(envBody, comment.Head)
+
+			value := hclwrite.TokensForValue(envMap[name])
+			envBody.SetAttributeRaw("value", hclcomment.Trailing(value, comment.Line))
 		}
 	}
 
 	if s.ContinueOnError != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
-		stepBody.SetAttributeValue("continue_on_error", s.ContinueOnError)
+		line := s.openAttr(stepBody, "continue-on-error")
+		stepBody.SetAttributeRaw("continue_on_error", hclcomment.Trailing(hclwrite.TokensForValue(s.ContinueOnError), line))
 	}
 
 	if s.TimeoutMinutes != cty.NilVal {
-		if len(stepBody.Blocks()) > 0 || len(stepBody.Attributes()) > 0 {
-			stepBody.AppendNewline()
-		}
-
-		stepBody.SetAttributeValue("timeout_minutes", s.TimeoutMinutes)
+		line := s.openAttr(stepBody, "timeout-minutes")
+		stepBody.SetAttributeRaw("timeout_minutes", hclcomment.Trailing(hclwrite.TokensForValue(s.TimeoutMinutes), line))
 	}
 
 	return nil

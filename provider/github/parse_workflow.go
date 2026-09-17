@@ -1034,6 +1034,47 @@ func stepValueWithoutID(stepVal any) any {
 	return out
 }
 
+// annotateStep attaches the comments read off a step block to the converted
+// step, wrapping each attribute that carried one and the step itself if a
+// comment was written above the block.
+func annotateStep(converted any, comments step.Comments) any {
+	m, ok := converted.(map[string]any)
+
+	if !ok {
+		return converted
+	}
+
+	for key, value := range m {
+		comment := comments.At(key)
+
+		if comment.Empty() {
+			continue
+		}
+
+		m[key] = annotated{value: value, comment: comment.Line, head: comment.Head}
+	}
+
+	for key, entries := range comments.Nested {
+		nested, ok := m[key].(map[string]any)
+
+		if !ok {
+			continue
+		}
+
+		for name, comment := range entries {
+			value, exists := nested[name]
+
+			if !exists {
+				continue
+			}
+
+			nested[name] = annotated{value: value, comment: comment.Line, head: comment.Head}
+		}
+	}
+
+	return withHead(m, comments.Head)
+}
+
 func stepsToMap(steps step.Steps) (map[string]any, error) {
 	out := make(map[string]any, len(steps))
 
@@ -1043,15 +1084,7 @@ func stepsToMap(steps step.Steps) (map[string]any, error) {
 			return nil, err
 		}
 
-		if parsedStep.UsesComment != "" {
-			if m, ok := converted.(map[string]any); ok {
-				if usesVal, exists := m["uses"]; exists {
-					m["uses"] = annotated{value: usesVal, comment: parsedStep.UsesComment}
-				}
-			}
-		}
-
-		out[stepID] = converted
+		out[stepID] = annotateStep(converted, parsedStep.Comments)
 	}
 
 	return out, nil

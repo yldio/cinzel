@@ -41,6 +41,13 @@ func (c nodeComment) empty() bool {
 type yamlComments struct {
 	own      map[string]nodeComment
 	children map[string]*yamlComments
+	// items holds the comments of each mapping in a sequence under this key,
+	// by position. Steps are the only sequence the providers write, and a
+	// step has no key of its own to be found under.
+	items map[string][]*yamlComments
+	// head is the comment written above this mapping itself, which is how a
+	// sequence item carries one: it has no key for it to sit on.
+	head string
 }
 
 // at returns the comments written on key, or an empty nodeComment.
@@ -62,12 +69,29 @@ func (c *yamlComments) child(key string) *yamlComments {
 	return c.children[key]
 }
 
-// collectComments reads the comments off a mapping node and every mapping
-// nested under it, returning nil when there are none to read.
-//
-// A comment on a sequence item is not collected. Steps are the only sequence
-// the providers write and they take their own path out, so a comment picked up
-// here would have nowhere to be written back to.
+// item returns the comments of the idx-th mapping in the sequence under key,
+// which is nil when there is no such item or it holds no comments.
+func (c *yamlComments) item(key string, idx int) *yamlComments {
+	if c == nil || idx < 0 || idx >= len(c.items[key]) {
+		return nil
+	}
+
+	return c.items[key][idx]
+}
+
+// above returns the comment written above this mapping, which is only ever set
+// for a sequence item.
+func (c *yamlComments) above() string {
+	if c == nil {
+		return ""
+	}
+
+	return c.head
+}
+
+// collectComments reads the comments off a mapping node, every mapping nested
+// under it, and every mapping in a sequence under it, returning nil when there
+// are none to read.
 func collectComments(node *yamlv3.Node) *yamlComments {
 	if node == nil || node.Kind != yamlv3.MappingNode {
 		return nil
@@ -100,9 +124,56 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 
 			out.children[key.Value] = nested
 		}
+
+		if seq := collectSeqComments(value); seq != nil {
+			if out.items == nil {
+				out.items = map[string][]*yamlComments{}
+			}
+
+			out.items[key.Value] = seq
+		}
 	}
 
-	if out.own == nil && out.children == nil {
+	if out.own == nil && out.children == nil && out.items == nil {
+		return nil
+	}
+
+	return out
+}
+
+// collectSeqComments reads the comments off each mapping in a sequence,
+// returning nil when no item carries one. The slice is positional, so an item
+// with no comments is a nil entry rather than a missing one.
+//
+// A comment written above a whole item sits on the item's mapping node, since
+// there is no key above it for yaml.v3 to hang it on.
+func collectSeqComments(node *yamlv3.Node) []*yamlComments {
+	if node == nil || node.Kind != yamlv3.SequenceNode {
+		return nil
+	}
+
+	out := make([]*yamlComments, len(node.Content))
+	found := false
+
+	for i, item := range node.Content {
+		comments := collectComments(item)
+
+		if head := fsutil.WithoutGeneratedMarker(item.HeadComment); head != "" {
+			if comments == nil {
+				comments = &yamlComments{}
+			}
+
+			comments.head = head
+		}
+
+		if comments != nil {
+			found = true
+		}
+
+		out[i] = comments
+	}
+
+	if !found {
 		return nil
 	}
 

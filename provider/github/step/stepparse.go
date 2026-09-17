@@ -24,6 +24,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedStep := Step{
 		Identifier: config.Identifier,
+		Comments:   Comments{Head: blockHead(config.Body, hv)},
 	}
 
 	parsedIgnoreId, err := config.parseIgnoreId(hv)
@@ -47,6 +48,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 			if err := parsedStep.parseId(parsedId); err != nil {
 				return Step{}, err
 			}
+
+			parsedStep.Comments.setExpr(hv, "id", config.Id, parsedId)
 		} else {
 			// Keep backward compatibility with legacy behavior where step label
 			// is used as the emitted step id unless explicitly ignored.
@@ -65,6 +68,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseIf(parsedIf); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "if", config.If, parsedIf)
 	}
 
 	parsedName, err := config.parseName(hv)
@@ -76,6 +81,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseName(parsedName); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "name", config.Name, parsedName)
 	}
 
 	parsedUses, usesComment, err := config.parseUses(hv)
@@ -88,7 +95,16 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 			return Step{}, err
 		}
 
-		parsedStep.UsesComment = usesComment
+		// The uses block's comment is written on its "version" attribute,
+		// which is where the pin tag lands, and the whole block becomes the
+		// single "uses" key.
+		if usesComment != "" {
+			if parsedStep.Comments.Attrs == nil {
+				parsedStep.Comments.Attrs = map[string]Comment{}
+			}
+
+			parsedStep.Comments.Attrs["uses"] = Comment{Line: usesComment}
+		}
 	}
 
 	parsedRun, err := config.parseRun(hv)
@@ -100,6 +116,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseRun(parsedRun); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "run", config.Run, parsedRun)
 	}
 
 	parsedWorkingDirectory, err := config.parseWorkingDirectory(hv)
@@ -111,6 +129,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseWorkingDirectory(parsedWorkingDirectory); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "working-directory", config.WorkingDirectory, parsedWorkingDirectory)
 	}
 
 	parsedShell, err := config.parseShell(hv)
@@ -122,6 +142,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseShell(parsedShell); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "shell", config.Shell, parsedShell)
 	}
 
 	parsedWith, err := config.parseWith(hv)
@@ -133,6 +155,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseWith(parsedWith); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setNested(hv, "with", config.With.ValueRanges(hv))
 	}
 
 	parsedEnv, err := config.parseEnv(hv)
@@ -144,6 +168,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseEnv(parsedEnv); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setNested(hv, "env", config.Env.ValueRanges(hv))
 	}
 
 	parsedContinueOnError, err := config.parseContinueOnError(hv)
@@ -155,6 +181,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseContinueOnError(parsedContinueOnError); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "continue-on-error", config.ContinueOnError, parsedContinueOnError)
 	}
 
 	parsedTimeoutMinutes, err := config.parseTimeoutMinutes(hv)
@@ -166,6 +194,8 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		if err := parsedStep.parseTimeoutMinutes(parsedTimeoutMinutes); err != nil {
 			return Step{}, err
 		}
+
+		parsedStep.Comments.setExpr(hv, "timeout-minutes", config.TimeoutMinutes, parsedTimeoutMinutes)
 	}
 
 	return parsedStep, nil

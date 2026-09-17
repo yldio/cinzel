@@ -50,6 +50,28 @@ jobs:
           GIT_CONFIG_VALUE_0: "https://github.com/"
         id: verify_release_token
         name: Verify the release token before anything changes
+        # The release job's first mutation pushes a tag. Everything after it
+        # assumes the token can write and that the credentials the pushing steps
+        # carry in their environment actually authenticate, and neither is
+        # checkable until it is used. Both are checked here instead, while the
+        # repository is still untouched: a scope that turns out to be too narrow
+        # fails before the tag exists rather than after.
+        #
+        # homebrew-cinzel is checked here too. It is pushed by the release-packages
+        # job, which this job triggers by creating the release, so this is the last
+        # point where a missing scope can be reported without a release already
+        # being published.
+        #
+        # Scope is what is checkable here, not permission. The token is an app
+        # installation token, so "repos/$repo" was the wrong place to ask: its
+        # "permissions" object describes the authenticated user, and an
+        # installation token has no user behind it, so the field came back absent
+        # and the check could never pass. /installation/repositories answers for
+        # the installation itself, which is what the token actually is.
+        #
+        # contents:write is settled at mint time — create-github-app-token fails
+        # when the installation was never granted a permission the step asks for —
+        # and the dry run below proves it for this repository outright.
         run: |
           set -euo pipefail
 
