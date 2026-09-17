@@ -6,6 +6,7 @@ package hclparser
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -13,6 +14,7 @@ import (
 type HCLVars struct {
 	variables map[string]cty.Value
 	sources   map[string][]byte
+	lexed     map[string][]hclsyntax.Token
 }
 
 // NewHCLVars creates an empty HCLVars store.

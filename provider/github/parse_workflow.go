@@ -54,7 +54,7 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 	}
 
 	parsedJobs := make(map[string]ghjob.Parsed)
-	jobComments := jobHeadComments(sources, jobBlocks(body))
+	jobComments := jobHeadComments(hv, jobBlocks(body))
 
 	for _, j := range cfg.Jobs {
 		// Two blocks with the same label used to overwrite one another in the
