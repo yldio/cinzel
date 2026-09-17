@@ -4,11 +4,8 @@
 package action
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/cinzel/internal/hclparser"
@@ -72,40 +69,6 @@ func (config *UsesConfig) parseVersion(hv *hclparser.HCLVars) (cty.Value, error)
 	return hp.Result(), nil
 }
 
-// extractExprComment reads the source file at the position immediately after
-// the expression's range end and returns any trailing # comment on the same
-// line, or empty string if none is present.
-func extractExprComment(expr hcl.Expression) string {
-	if expr == nil {
-		return ""
-	}
-
-	r := expr.Range()
-	if r.Filename == "" {
-		return ""
-	}
-
-	src, err := os.ReadFile(r.Filename)
-	if err != nil || int(r.End.Byte) >= len(src) {
-		return ""
-	}
-
-	rest := src[r.End.Byte:]
-	newline := bytes.IndexByte(rest, '\n')
-
-	if newline < 0 {
-		newline = len(rest)
-	}
-
-	tail := strings.TrimSpace(string(rest[:newline]))
-
-	if !strings.HasPrefix(tail, "#") {
-		return ""
-	}
-
-	return tail
-}
-
 // Parse resolves the uses block into a single "action@version" cty string value
 // and the inline comment on the version attribute (if any).
 func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, string, error) {
@@ -146,7 +109,9 @@ func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, string, e
 			return cty.NilVal, "", err
 		}
 
-		comment = extractExprComment(c.Version)
+		if c.Version != nil {
+			comment = hv.TrailingComment(c.Version.Range())
+		}
 	}
 
 	var uses string

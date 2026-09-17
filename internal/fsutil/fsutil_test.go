@@ -86,7 +86,7 @@ func TestWriteFile(t *testing.T) {
 
 func TestParseHCLInputNoFiles(t *testing.T) {
 	tmp := t.TempDir()
-	_, err := ParseHCLInput(tmp, false)
+	_, _, err := ParseHCLInput(tmp, false)
 
 	if !errors.Is(err, ErrNoHCLFiles) {
 		t.Fatalf("expected ErrNoHCLFiles, got %v", err)

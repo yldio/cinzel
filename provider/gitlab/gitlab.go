@@ -48,7 +48,7 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
-	body, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
+	body, _, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
 	if err != nil {
 		return err
 	}

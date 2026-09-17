@@ -99,7 +99,7 @@ func BenchmarkParseWorkflowInMemory(b *testing.B) {
 			b.Fatal(diags.Error())
 		}
 
-		if _, _, _, err := parseHCLToWorkflows(file.Body); err != nil {
+		if _, _, _, err := parseHCLToWorkflows(file.Body, parser.Sources()); err != nil {
 			b.Fatal(err)
 		}
 	}

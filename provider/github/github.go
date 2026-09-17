@@ -50,12 +50,12 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
-	body, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
+	body, sources, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
 	if err != nil {
 		return err
 	}
 
-	workflows, stepMap, actions, err := parseHCLToWorkflows(body)
+	workflows, stepMap, actions, err := parseHCLToWorkflows(body, sources)
 	if err != nil {
 		return err
 	}

@@ -18,26 +18,31 @@ import (
 // ErrNoHCLFiles is returned when no HCL files are found in the given path.
 var ErrNoHCLFiles = cinzelerror.UserInput(errors.New("no HCL files found in input"))
 
-// ParseHCLInput parses one or more HCL files from path and returns a merged body.
-func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
+// ParseHCLInput parses one or more HCL files from path and returns a merged
+// body along with the bytes each file was parsed from, keyed by filename.
+//
+// The sources are the parser's own, so anything reading back from a source
+// range sees the text the body was built from rather than whatever the file
+// holds by the time it is looked at.
+func ParseHCLInput(path string, recursive bool) (hcl.Body, map[string][]byte, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	parser := hclparse.NewParser()
+
 	if !stat.IsDir() {
-		parser := hclparse.NewParser()
 		file, diags := parser.ParseHCLFile(path)
 
 		if diags.HasErrors() {
-			return nil, cinzelerror.ProcessHCLDiags(diags)
+			return nil, nil, cinzelerror.ProcessHCLDiags(diags)
 		}
 
-		return file.Body, nil
+		return file.Body, parser.Sources(), nil
 	}
 
 	var bodies []hcl.Body
-	parser := hclparse.NewParser()
 
 	err = filepath.WalkDir(path, func(current string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -67,14 +72,14 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(bodies) == 0 {
-		return nil, ErrNoHCLFiles
+		return nil, nil, ErrNoHCLFiles
 	}
 
-	return hcl.MergeBodies(bodies), nil
+	return hcl.MergeBodies(bodies), parser.Sources(), nil
 }
 
 // ListFilesWithExtensions returns files under path matching the given extensions.

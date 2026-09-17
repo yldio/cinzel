@@ -4,11 +4,8 @@
 package github
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -25,7 +22,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []ActionYAMLFile, error) {
+func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYAMLFile, map[string]any, []ActionYAMLFile, error) {
 	var cfg parseConfig
 	diags := gohcl.DecodeBody(body, nil, &cfg)
 
@@ -34,6 +31,7 @@ func parseHCLToWorkflows(body hcl.Body) ([]WorkflowYAMLFile, map[string]any, []A
 	}
 
 	hv := hclparser.NewHCLVars()
+	hv.SetSources(sources)
 
 	if err := cfg.Variables.Parse(hv); err != nil {
 		return nil, nil, nil, err
@@ -535,34 +533,6 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 	return workflow, nil
 }
 
-// extractInlineComment reads the source file and returns the trailing # comment
-// on the same line as the attribute, or empty string if none is present.
-func extractInlineComment(attr *hclsyntax.Attribute) string {
-	if attr.SrcRange.Filename == "" {
-		return ""
-	}
-
-	src, err := os.ReadFile(attr.SrcRange.Filename)
-	if err != nil || int(attr.SrcRange.End.Byte) >= len(src) {
-		return ""
-	}
-
-	rest := src[attr.SrcRange.End.Byte:]
-	newline := bytes.IndexByte(rest, '\n')
-
-	if newline < 0 {
-		newline = len(rest)
-	}
-
-	tail := strings.TrimSpace(string(rest[:newline]))
-
-	if !strings.HasPrefix(tail, "#") {
-		return ""
-	}
-
-	return tail
-}
-
 func setOptionalYAMLAttr(out map[string]any, yamlKey string, expr hcl.Expression, hv *hclparser.HCLVars) error {
 	val, err := parseAttr(expr, hv)
 	if err != nil {
@@ -642,7 +612,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 
 			yamlKey := naming.ToYAMLKey(name)
 
-			if c := extractInlineComment(attr); c != "" {
+			if c := hv.TrailingComment(attr.SrcRange); c != "" {
 				out[yamlKey] = annotated{value: val, comment: c}
 			} else {
 				out[yamlKey] = val

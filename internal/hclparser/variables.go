@@ -12,6 +12,7 @@ import (
 // HCLVars is a key-value store for HCL variable values.
 type HCLVars struct {
 	variables map[string]cty.Value
+	sources   map[string][]byte
 }
 
 // NewHCLVars creates an empty HCLVars store.
