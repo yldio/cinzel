@@ -77,7 +77,7 @@ func commentRunAbove(tokens []hclsyntax.Token, line int) string {
 			continue
 		}
 
-		lines[tok.Range.Start.Line] = strings.TrimRight(string(tok.Bytes), "\n")
+		lines[tok.Range.Start.Line] = asYAMLComment(strings.TrimRight(string(tok.Bytes), "\n"))
 	}
 
 	var run []string
@@ -97,4 +97,27 @@ func commentRunAbove(tokens []hclsyntax.Token, line int) string {
 	}
 
 	return strings.Join(run, "\n")
+}
+
+// asYAMLComment swaps an HCL comment marker for the one YAML uses, leaving the
+// prose after it byte for byte.
+//
+// HCL writes a comment three ways and YAML has only "#", so a "// x" carried
+// across verbatim arrives as "# // x": the marker read as part of the text.
+// The marker is syntax rather than something its author wrote, so it is the
+// one part of a comment that is translated.
+//
+// A block comment keeps its "/*" and "*/". Those wrap text that can run over
+// several lines and have no YAML equivalent to swap in, and a reader seeing
+// them knows what they came from.
+func asYAMLComment(text string) string {
+	trimmed := strings.TrimSpace(text)
+
+	if !strings.HasPrefix(trimmed, "//") {
+		return text
+	}
+
+	indent := text[:len(text)-len(strings.TrimLeft(text, " \t"))]
+
+	return indent + "#" + strings.TrimPrefix(trimmed, "//")
 }

@@ -44,9 +44,9 @@ func (av *HCLVars) TrailingComment(r hcl.Range) string {
 
 	tail := strings.TrimSpace(string(rest[:newline]))
 
-	if !strings.HasPrefix(tail, "#") {
+	if !strings.HasPrefix(tail, "#") && !strings.HasPrefix(tail, "//") {
 		return ""
 	}
 
-	return tail
+	return asYAMLComment(tail)
 }
