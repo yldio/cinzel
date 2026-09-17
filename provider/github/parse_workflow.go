@@ -54,6 +54,7 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 	}
 
 	parsedJobs := make(map[string]ghjob.Parsed)
+	jobComments := jobHeadComments(sources, jobBlocks(body))
 
 	for _, j := range cfg.Jobs {
 		// Two blocks with the same label used to overwrite one another in the
@@ -160,7 +161,15 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 				}
 				takenKeys[jobContent.Key] = jobID
 
-				jobs[jobContent.Key] = jobContent.Body
+				// The comment was written above the block, so it is keyed by
+				// the block label rather than by the YAML key the job lands
+				// under, which may have been set by an "id" attribute.
+				if head := jobComments[jobID]; head != "" {
+					jobs[jobContent.Key] = annotated{value: jobContent.Body, head: head}
+				} else {
+					jobs[jobContent.Key] = jobContent.Body
+				}
+
 				jobOrder = append(jobOrder, jobContent.Key)
 			}
 

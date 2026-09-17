@@ -108,7 +108,7 @@ func appendSorted(doc *yamldoc.Doc, mapping map[string]any, seen map[string]stru
 func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 	switch v := value.(type) {
 	case annotated:
-		return docValue(key, v.value, append(opts, yamldoc.WithComment(v.comment))...)
+		return docValue(key, v.value, append(opts, yamldoc.WithComment(v.comment), yamldoc.WithHeadComment(v.head))...)
 	case nil:
 		return yamldoc.Null(opts...)
 	case map[string]any:
@@ -144,9 +144,10 @@ func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 	}
 }
 
-// annotated wraps a value with an optional inline YAML comment. It threads
-// HCL trailing # comments through the map[string]any parse pipeline so that
-// docValue can attach them to the document value.
+// annotated wraps a value with an optional inline YAML comment and an optional
+// comment written above its key. It threads HCL comments through the
+// map[string]any parse pipeline so that docValue can attach them to the
+// document value.
 //
 // Nothing outside the emitter should see it: plain is the single boundary
 // where it comes back off, and every consumer that reads parsed content
@@ -154,6 +155,7 @@ func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 type annotated struct {
 	value   any
 	comment string
+	head    string
 }
 
 // plain returns value with every annotated wrapper removed, at any depth.

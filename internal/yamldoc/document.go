@@ -21,6 +21,7 @@ type Value struct {
 	doc     *Doc
 	seq     []Value
 	comment string
+	head    string
 }
 
 // Opt configures a Value at construction.
@@ -31,6 +32,14 @@ type Opt func(*Value)
 func WithComment(comment string) Opt {
 	return func(v *Value) {
 		v.comment = comment
+	}
+}
+
+// WithHeadComment attaches a comment emitted on its own lines above the key.
+// An empty comment is ignored.
+func WithHeadComment(comment string) Opt {
+	return func(v *Value) {
+		v.head = comment
 	}
 }
 

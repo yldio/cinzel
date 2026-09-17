@@ -14,9 +14,9 @@ import (
 )
 
 // Encode renders the document as YAML. Items are emitted in document order,
-// inline comments are attached to their value, a null encodes as a bare "key:"
-// and an empty map as "key: {}". Nothing in the output is recovered by
-// rewriting encoded bytes.
+// inline comments are attached to their value and head comments to their key,
+// a null encodes as a bare "key:" and an empty map as "key: {}". Nothing in
+// the output is recovered by rewriting encoded bytes.
 func Encode(d *Doc) ([]byte, error) {
 	root, err := mapNode(d)
 	if err != nil {
@@ -48,7 +48,10 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 			return nil, err
 		}
 
-		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: it.key}
+		// The head comment sits on the key, not the value: on the value it
+		// is emitted inside the mapping, above its first key, rather than
+		// above the key it belongs to.
+		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: it.key, HeadComment: it.value.head}
 		node.Content = append(node.Content, key, value)
 	}
 
