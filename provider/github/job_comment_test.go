@@ -54,6 +54,22 @@ func TestJobCommentsSurviveUnparse(t *testing.T) {
 			want: []string{"#\njob \"check\""},
 			gone: []string{"# \n"},
 		},
+		{
+			// A comment is prose. Its spacing is the author's, so a "#" tight
+			// against the text stays tight rather than being opened up.
+			name: "no space after the hash",
+			jobs: "  #no space\n" + commentJob("check"),
+			want: []string{"#no space\njob \"check\""},
+			gone: []string{"# no space"},
+		},
+		{
+			// A second "#" used to be split off as text and re-prefixed,
+			// turning "##" into "# #" and inventing a space mid-comment.
+			name: "a double hash and wide spacing",
+			jobs: "  ##  banner   style\n" + commentJob("check"),
+			want: []string{"##  banner   style\njob \"check\""},
+			gone: []string{"# #"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := unparse(t, "name: ci\non:\n  push: {}\njobs:\n"+tc.jobs)

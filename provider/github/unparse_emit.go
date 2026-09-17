@@ -265,10 +265,10 @@ func newWorkflowRoot(filename string) (*hclwrite.File, *hclwrite.Body, *hclwrite
 // writeLeadingComment emits comment as HCL comment lines above whatever is
 // appended next. An empty comment writes nothing.
 //
-// The text arrives as yaml.v3 read it, which is the source lines joined by
-// newlines with each "#" still on the front. Each line is re-prefixed anyway:
-// a YAML comment may be written with any amount of leading whitespace or
-// none, and a line that reaches HCL without a "#" is not a comment but a
+// The text is written as it was read. A comment is prose, and its spacing,
+// its "#" count and its indentation are things its author chose, so
+// rewriting them changes what was written for no gain. The one thing added
+// is a missing "#": a line reaching HCL without one is not a comment but a
 // syntax error in the generated file.
 func writeLeadingComment(body *hclwrite.Body, comment string) {
 	if comment == "" {
@@ -278,13 +278,21 @@ func writeLeadingComment(body *hclwrite.Body, comment string) {
 	tokens := hclwrite.Tokens{}
 
 	for _, line := range strings.Split(comment, "\n") {
-		text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "#"))
-
 		tokens = append(tokens, &hclwrite.Token{
 			Type:  hclsyntax.TokenComment,
-			Bytes: []byte(strings.TrimRight("# "+text, " ") + "\n"),
+			Bytes: []byte(commentLine(line) + "\n"),
 		})
 	}
 
 	body.AppendUnstructuredTokens(tokens)
+}
+
+// commentLine returns line as an HCL comment, adding a "#" only if the line
+// does not already carry one. Everything else about the text is left alone.
+func commentLine(line string) string {
+	if strings.HasPrefix(strings.TrimSpace(line), "#") {
+		return line
+	}
+
+	return "# " + line
 }
