@@ -64,7 +64,7 @@ func buildWorkflowJobIndex(jobs map[string]any, order []string, usedRefs map[str
 	return entries, jobRefs, jobIDMap, nil
 }
 
-func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) error {
+func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument, comments *yamlComments) error {
 	appendSection := func() {
 		if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
 			body.AppendNewline()
@@ -103,11 +103,11 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 				return err
 			}
 		case "permissions", "defaults", "concurrency":
-			if err := writeNestedMapAsBlock(body, key, value); err != nil {
+			if err := writeNestedMapAsBlock(body, key, value, comments.child(key)); err != nil {
 				return err
 			}
 		default:
-			if err := writeAttributeAny(body, toHCLKey(key), value); err != nil {
+			if err := writeCommentedAttribute(body, toHCLKey(key), value, comments.at(key)); err != nil {
 				return err
 			}
 		}
@@ -116,7 +116,9 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument) err
 	return nil
 }
 
-func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap, jobComments map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
+func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
+	jobComments := comments.child("jobs")
+
 	for _, job := range jobs {
 		jobName := job.Name
 		jobMap := job.Body
@@ -125,7 +127,7 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap, j
 			root.AppendNewline()
 		}
 
-		writeLeadingComment(root, jobComments[jobName])
+		writeLeadingComment(root, jobComments.at(jobName).head)
 
 		jobID := jobIDMap[jobName]
 		jobBlock := root.AppendNewBlock("job", []string{jobID})
@@ -138,7 +140,7 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap, j
 			jobBlock.Body().SetAttributeValue("id", cty.StringVal(jobName))
 		}
 
-		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, generatedVariables, stepRegistry, usedStepIDs); err != nil {
+		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, jobComments.child(jobName), generatedVariables, stepRegistry, usedStepIDs); err != nil {
 			return fmt.Errorf("error in job '%s': %w", jobName, err)
 		}
 	}
@@ -166,7 +168,7 @@ func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]
 	return nil
 }
 
-func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}, stepRefs *[]string) error {
+func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}, stepRefs *[]string) error {
 	switch key {
 	case "steps":
 		refs, err := writeJobSteps(root, value, stepRegistry, usedStepIDs)
@@ -202,9 +204,9 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	case "strategy":
 		return writeStrategyBlock(body, value, generatedVariables)
 	case "permissions", "defaults", "concurrency", "container", "environment":
-		return writeNestedMapAsBlock(body, key, value)
+		return writeNestedMapAsBlock(body, key, value, comments.child(key))
 	default:
-		return writeAttributeAny(body, toHCLKey(key), value)
+		return writeCommentedAttribute(body, toHCLKey(key), value, comments.at(key))
 	}
 }
 

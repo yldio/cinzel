@@ -23,9 +23,9 @@ import (
 )
 
 // parseYAMLDocument parses YAML content into a document map and extracts job
-// names in source order, plus the comment written above each job, in a single
+// names in source order, plus every comment written in the file, in a single
 // pass using the yaml.v3 Node API.
-func parseYAMLDocument(content []byte) (map[string]any, []string, map[string]string, error) {
+func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments, error) {
 	// GitHub reads one document per file. A file holding more than one used to
 	// be cut short at the first, losing the rest without a word, so the whole
 	// file is rejected instead.
@@ -73,9 +73,7 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, map[string]str
 		return nil, nil, nil, err
 	}
 
-	order, comments := jobsFromNode(first)
-
-	return doc, order, comments, nil
+	return doc, jobOrder(first), collectComments(first), nil
 }
 
 // keepWholeNumbersExact retags a whole number too large for an integer so it
@@ -139,13 +137,12 @@ func isNullNode(node *yamlv3.Node) bool {
 	return node.Kind == yamlv3.ScalarNode && node.Tag == "!!null"
 }
 
-// jobsFromNode extracts job names in source order, and the comment written
-// above each one, from a yaml.v3 mapping node. It relies on the Node API's
-// preservation of mapping key order and of comment text, neither of which is
+// jobOrder extracts job names in source order from a yaml.v3 mapping node. It
+// relies on the Node API's preservation of mapping key order, which is not
 // available when unmarshaling directly into map[string]any.
-func jobsFromNode(root *yamlv3.Node) ([]string, map[string]string) {
+func jobOrder(root *yamlv3.Node) []string {
 	if root.Kind != yamlv3.MappingNode {
-		return nil, nil
+		return nil
 	}
 
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -153,11 +150,10 @@ func jobsFromNode(root *yamlv3.Node) ([]string, map[string]string) {
 			jobs := root.Content[i+1]
 
 			if jobs.Kind != yamlv3.MappingNode {
-				return nil, nil
+				return nil
 			}
 
 			keys := make([]string, 0, len(jobs.Content)/2)
-			comments := map[string]string{}
 
 			for j := 0; j+1 < len(jobs.Content); j += 2 {
 				// A merge key is not a job. The decoder folds what it
@@ -165,22 +161,17 @@ func jobsFromNode(root *yamlv3.Node) ([]string, map[string]string) {
 				// the keys they arrive under, which is more than this pass
 				// can see: the order falls back to sorted keys instead.
 				if jobs.Content[j].Tag == "!!merge" {
-					return nil, nil
+					return nil
 				}
 
-				name := jobKeyName(jobs.Content[j])
-				keys = append(keys, name)
-
-				if head := jobs.Content[j].HeadComment; head != "" {
-					comments[name] = head
-				}
+				keys = append(keys, jobKeyName(jobs.Content[j]))
 			}
 
-			return keys, comments
+			return keys
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 // jobKeyName returns the name a job key node carries once it is resolved.
@@ -215,7 +206,7 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []string, jobComments map[string]string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string, comments *yamlComments, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}
@@ -231,12 +222,12 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []stri
 		return nil, errors.New("workflow must define at least one job in 'jobs'")
 	}
 
-	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs, jobOrder, usedJobIDs)
+	jobEntries, jobRefs, jobIDMap, err := buildWorkflowJobIndex(doc.Jobs, order, usedJobIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := writeWorkflowMetadata(workflowBody, doc); err != nil {
+	if err := writeWorkflowMetadata(workflowBody, doc, comments); err != nil {
 		return nil, err
 	}
 
@@ -248,7 +239,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []stri
 		return nil, err
 	}
 
-	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, jobComments, generatedVariables, stepRegistry, usedStepIDs); err != nil {
+	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, comments, generatedVariables, stepRegistry, usedStepIDs); err != nil {
 		return nil, err
 	}
 
@@ -259,7 +250,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, jobOrder []stri
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
-func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
+func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	stepRefs := []string{}
 
 	for _, key := range sortedKeys(job) {
@@ -277,7 +268,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 			jobBody.AppendNewline()
 		}
 
-		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
+		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, comments, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
 			return err
 		}
 	}
@@ -320,7 +311,7 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 					return err
 				}
 			case "credentials":
-				if err := writeNestedMapAsBlock(serviceBody, key, value); err != nil {
+				if err := writeNestedMapAsBlock(serviceBody, key, value, nil); err != nil {
 					return err
 				}
 			default:
@@ -361,7 +352,7 @@ func writeRunsOn(body *hclwrite.Body, raw any) error {
 	return nil
 }
 
-func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any) error {
+func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any, comments *yamlComments) error {
 	if blockType == "env" {
 		return writeNameValueBlocks(body, "env", raw)
 	}
@@ -395,13 +386,13 @@ func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any) error
 		}
 
 		if nestedMap, isMap := toStringAnyMap(value); isMap {
-			if err := writeNestedMapAsBlock(blockBody, key, nestedMap); err != nil {
+			if err := writeNestedMapAsBlock(blockBody, key, nestedMap, comments.child(key)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		if err := writeAttributeAny(blockBody, toHCLKey(key), value); err != nil {
+		if err := writeCommentedAttribute(blockBody, toHCLKey(key), value, comments.at(key)); err != nil {
 			return err
 		}
 	}
@@ -453,12 +444,37 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error 
 }
 
 func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
+	return writeCommentedAttribute(body, attr, raw, nodeComment{})
+}
+
+// writeCommentedAttribute writes the attribute with whatever comments its YAML
+// key carried: the head run on its own lines above, the inline one after the
+// value. An empty comment writes nothing and leaves the attribute as it was.
+func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment nodeComment) error {
 	ctyValue, err := anyToCty(raw)
 	if err != nil {
 		return err
 	}
 
-	body.SetAttributeValue(attr, ctyValue)
+	writeLeadingComment(body, comment.head)
+
+	if comment.line == "" {
+		body.SetAttributeValue(attr, ctyValue)
+
+		return nil
+	}
+
+	// SetAttributeValue writes the value and nothing after it, so the comment
+	// has to ride along with the expression tokens to end up on the same line.
+	// No newline in the comment bytes: the attribute brings its own, and a
+	// second one leaves a blank line after every commented attribute.
+	tokens := hclwrite.TokensForValue(ctyValue)
+	tokens = append(tokens, &hclwrite.Token{
+		Type:  hclsyntax.TokenComment,
+		Bytes: []byte(" " + commentLine(comment.line)),
+	})
+
+	body.SetAttributeRaw(attr, tokens)
 
 	return nil
 }
