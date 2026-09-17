@@ -548,11 +548,31 @@ func setOptionalYAMLAttr(out map[string]any, yamlKey string, expr hcl.Expression
 		return err
 	}
 
-	if val != nil {
-		out[yamlKey] = val
+	if val == nil {
+		return nil
 	}
 
+	// The expression range starts at the value and ends where it ends, which
+	// is the same line the attribute is written on either way, so a comment
+	// above it or beside it is found from here without the attribute itself.
+	out[yamlKey] = annotate(val, hv, expr.Range())
+
 	return nil
+}
+
+// annotate wraps val with whatever comments were written above or beside r,
+// returning val unwrapped when there were none. The wrapper is what carries a
+// comment to the emitter, and an unconditional one would put every value
+// behind it for nothing.
+func annotate(val any, hv *hclparser.HCLVars, r hcl.Range) any {
+	trailing := hv.TrailingComment(r)
+	head := hv.HeadComment(r)
+
+	if trailing == "" && head == "" {
+		return val
+	}
+
+	return annotated{value: val, comment: trailing, head: head}
 }
 
 func parseNamedConfig(cfg hclNamedBlock, hv *hclparser.HCLVars) (string, any, error) {
@@ -619,13 +639,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			yamlKey := naming.ToYAMLKey(name)
-
-			if c := hv.TrailingComment(attr.SrcRange); c != "" {
-				out[yamlKey] = annotated{value: val, comment: c}
-			} else {
-				out[yamlKey] = val
-			}
+			out[naming.ToYAMLKey(name)] = annotate(val, hv, attr.SrcRange)
 		}
 	}
 
