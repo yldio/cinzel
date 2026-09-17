@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/yldio/cinzel/internal/cinzelerror"
 )
 
-var errNoHCLFiles = errors.New("no HCL files found in the specified path")
+var errNoHCLFiles = cinzelerror.UserInput(errors.New("no HCL files found in the specified path"))
 
-var errNotHCLSyntax = errors.New("file is not native HCL syntax")
+var errNotHCLSyntax = cinzelerror.UserInput(errors.New("file is not native HCL syntax"))
 
 // errShortSHA reports a resolve that came back with something that is not a
 // commit SHA.

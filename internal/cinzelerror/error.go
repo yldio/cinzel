@@ -64,11 +64,15 @@ func ProcessHCLDiags(diags hcl.Diagnostics) error {
 		}
 	}
 
+	// Diagnostics that carry no message at all leave nothing to report, and
+	// that is cinzel's problem rather than the author's.
 	if len(errs) == 0 {
 		return ErrOpenIssue
 	}
 
-	return fmt.Errorf("%w, %w", errors.Join(errs...), ErrOpenIssue)
+	// A diagnostic describes what is wrong with what was written, so it is
+	// reported without the invitation to file a bug.
+	return UserInput(errors.Join(errs...))
 }
 
 func errOpenIssue() error {
@@ -97,6 +101,16 @@ func New(err error, messages ...string) Error {
 	prefix := strings.Join(parts, ", ")
 
 	if err != nil {
+		// What the input caused is the author's to fix, so it is reported
+		// without the invitation to file a bug.
+		if IsUserInput(err) {
+			if prefix != "" {
+				return Error{Err: fmt.Errorf("%s: %w", prefix, err)}
+			}
+
+			return Error{Err: err}
+		}
+
 		// Several errors are built with the suffix already on them, either
 		// through ErrOpenIssue or through ProcessHCLDiags. Adding a second
 		// copy here printed the same sentence twice.
@@ -142,3 +156,27 @@ func (e *Error) Error() string { return e.Err.Error() }
 
 // Unwrap returns the underlying error.
 func (e *Error) Unwrap() error { return e.Err }
+
+// userInputError marks an error the input caused, as against one cinzel is at
+// fault for.
+type userInputError struct{ err error }
+
+func (e userInputError) Error() string { return e.err.Error() }
+func (e userInputError) Unwrap() error { return e.err }
+
+// UserInput marks err as caused by what was written, not by a defect in
+// cinzel. New leaves the open-an-issue line off these: a duplicate label or a
+// misspelled attribute is the author's to fix, and pointing them at the issue
+// tracker over it wasted their time and ours.
+//
+// Wrapping a sentinel at its declaration carries the mark through every
+// fmt.Errorf("%w") built on it, and leaves errors.Is comparisons against that
+// sentinel working unchanged.
+func UserInput(err error) error { return userInputError{err: err} }
+
+// IsUserInput reports whether err, or anything it wraps, is marked.
+func IsUserInput(err error) bool {
+	var target userInputError
+
+	return errors.As(err, &target)
+}

@@ -3,11 +3,15 @@
 
 package command
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/yldio/cinzel/internal/cinzelerror"
+)
 
 var (
-	errCancelled      = errors.New("cancelled")
-	errPromptRequired = errors.New("--prompt is required (or use --refine to iterate on previous output)")
-	errAbsolutePath   = errors.New("path must be relative to the project directory")
-	errPathTraversal  = errors.New("path must not escape the project directory (no .. traversal)")
+	errCancelled      = cinzelerror.UserInput(errors.New("cancelled"))
+	errPromptRequired = cinzelerror.UserInput(errors.New("--prompt is required (or use --refine to iterate on previous output)"))
+	errAbsolutePath   = cinzelerror.UserInput(errors.New("path must be relative to the project directory"))
+	errPathTraversal  = cinzelerror.UserInput(errors.New("path must not escape the project directory (no .. traversal)"))
 )

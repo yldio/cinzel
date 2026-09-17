@@ -59,10 +59,18 @@ func TestProcessHCLDiags(t *testing.T) {
 				}
 			}
 
-			// The report-an-issue line goes on every one of these, and a caller
-			// checks for it to avoid printing it twice.
-			if !strings.Contains(got, OpenIssue) {
-				t.Errorf("want the issue line in %q", got)
+			// A diagnostic says what is wrong with what the author wrote, so
+			// there is nothing here to report to us. The exception is a set of
+			// diagnostics carrying no message at all, which leaves the author
+			// nothing to act on and is ours to fix.
+			wantIssueLine := len(tc.want) == 0
+
+			if strings.Contains(got, OpenIssue) != wantIssueLine {
+				t.Errorf("want the issue line present=%v in %q", wantIssueLine, got)
+			}
+
+			if !wantIssueLine && !IsUserInput(ProcessHCLDiags(tc.diags)) {
+				t.Errorf("want %q marked as caused by the input", got)
 			}
 		})
 	}

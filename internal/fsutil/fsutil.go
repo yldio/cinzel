@@ -16,7 +16,7 @@ import (
 )
 
 // ErrNoHCLFiles is returned when no HCL files are found in the given path.
-var ErrNoHCLFiles = errors.New("no HCL files found in input")
+var ErrNoHCLFiles = cinzelerror.UserInput(errors.New("no HCL files found in input"))
 
 // ParseHCLInput parses one or more HCL files from path and returns a merged body.
 func ParseHCLInput(path string, recursive bool) (hcl.Body, error) {
