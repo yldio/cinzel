@@ -101,6 +101,12 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	// read as stale and removed.
 	currentOutputs := make(map[string]struct{}, len(workflows)+len(actions))
 
+	// Checked before anything is written, so a collision leaves the directory
+	// as it was rather than partway through the run.
+	if err := checkOutputPaths(workflows, actions, outputDir, workflowExt(opts)); err != nil {
+		return err
+	}
+
 	for _, workflowFile := range workflows {
 		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder, workflowFile.FootComment)
 		if err != nil {

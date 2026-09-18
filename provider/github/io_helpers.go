@@ -160,6 +160,46 @@ func checkFilenameStaysInside(filename string) error {
 	return nil
 }
 
+// checkOutputPaths refuses two definitions that write one file. It is the
+// filename guards' counterpart at the point the extension is known: an action
+// is written to "<filename>/action.yml" and a workflow to "<filename>.yml", so
+// a workflow called "build/action" lands exactly where the action called
+// "build" does. Each kind compared its own filenames against its own kind, and
+// compared the filenames rather than the paths they become, so neither saw the
+// other and the second write landed on the first.
+//
+// Run before anything is written, so a collision leaves the output directory as
+// it was. The comparison folds case, for the reason claimFilename gives.
+func checkOutputPaths(workflows []WorkflowYAMLFile, actions []ActionYAMLFile, outputDir, ext string) error {
+	taken := make(map[string]string, len(workflows)+len(actions))
+
+	claim := func(path, filename string) error {
+		key := strings.ToLower(filepath.Clean(path))
+
+		if other, ok := taken[key]; ok {
+			return fmt.Errorf("%w: '%s' and '%s' both write to '%s'", errDuplicateFilename, other, filename, path)
+		}
+
+		taken[key] = filename
+
+		return nil
+	}
+
+	for _, w := range workflows {
+		if err := claim(filepath.Join(outputDir, w.Filename+ext), w.Filename); err != nil {
+			return err
+		}
+	}
+
+	for _, a := range actions {
+		if err := claim(filepath.Join(outputDir, a.Filename, "action.yml"), a.Filename); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // hasDriveLetter reports whether the name starts with a Windows drive, such
 // as "C:" or "C:x". filepath.VolumeName answers this only when the tool is
 // running on Windows, and the same HCL is read everywhere.
