@@ -574,8 +574,10 @@ func latestAssistDir(baseDir string) string {
 
 		name := entry.Name()
 
-		// Timestamped folders match YYYYMMDD-HHMMSS pattern.
-		if len(name) != 15 {
+		// Timestamped folders match YYYYMMDD-HHMMSS. Checking the length
+		// alone took any 15-character directory, so an unrelated one sorting
+		// above the real sessions was handed to --refine as the last one.
+		if _, err := time.Parse("20060102-150405", name); err != nil {
 			continue
 		}
 
