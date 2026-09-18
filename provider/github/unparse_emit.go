@@ -93,19 +93,31 @@ func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument, com
 				return errors.New("workflow 'on' must be an object")
 			}
 
+			onComments := comments.child(key)
+
 			for i, eventName := range sortedKeys(events) {
 				if i > 0 {
 					appendSection()
 				}
 
+				// The comment above the whole "on" mapping is written by the
+				// caller, above the first block it becomes. This is the one
+				// above the event itself, which is the block being written.
+				//
+				// Both land above the same block when both were written, since
+				// two YAML keys become one HCL block and there is nowhere else
+				// for either to go. Stacked rather than dropped: a comment its
+				// author wrote is worth more than a tidier line.
+				hclcomment.WriteLeading(body, onComments.at(eventName).head)
+
 				eventBlock := body.AppendNewBlock("on", []string{eventName})
 
-				if err := writeOnEventBody(eventName, events[eventName], eventBlock.Body()); err != nil {
+				if err := writeOnEventBody(eventName, events[eventName], eventBlock.Body(), onComments.child(eventName)); err != nil {
 					return err
 				}
 			}
 		case "env":
-			if err := writeNameValueBlocks(body, "env", value); err != nil {
+			if err := writeNameValueBlocks(body, "env", value, comments.child(key)); err != nil {
 				return err
 			}
 		case "permissions", "defaults", "concurrency":
@@ -185,7 +197,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 
 		return nil
 	case "runs-on":
-		return writeRunsOn(body, value)
+		return writeRunsOn(body, value, comments.child(key))
 	case "needs":
 		refs, err := normalizeNeeds(value, jobIDMap)
 		if err != nil {
@@ -194,11 +206,11 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 
 		return writeReferenceListAttribute(body, "depends_on", "job", refs)
 	case "env":
-		return writeNameValueBlocks(body, "env", value)
+		return writeNameValueBlocks(body, "env", value, comments.child(key))
 	case "with":
-		return writeNameValueBlocks(body, "with", value)
+		return writeNameValueBlocks(body, "with", value, comments.child(key))
 	case "outputs":
-		return writeNameValueBlocks(body, "output", value)
+		return writeNameValueBlocks(body, "output", value, comments.child(key))
 	case "services":
 		return writeServicesBlocks(body, value)
 	case "secrets":
@@ -206,7 +218,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 			return writeAttributeAny(body, "secrets", str)
 		}
 
-		return writeNameValueBlocks(body, "secret", value)
+		return writeNameValueBlocks(body, "secret", value, comments.child(key))
 	case "strategy":
 		return writeStrategyBlock(body, value, generatedVariables)
 	case "permissions", "defaults", "concurrency", "container", "environment":

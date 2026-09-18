@@ -314,7 +314,7 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 			value := svcVal[key]
 			switch key {
 			case "env":
-				if err := writeNameValueBlocks(serviceBody, "env", value); err != nil {
+				if err := writeNameValueBlocks(serviceBody, "env", value, nil); err != nil {
 					return err
 				}
 			case "credentials":
@@ -332,16 +332,30 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 	return nil
 }
 
-func writeRunsOn(body *hclwrite.Body, raw any) error {
+func writeRunsOn(body *hclwrite.Body, raw any, comments *yamlComments) error {
 	block := body.AppendNewBlock("runs_on", nil)
 	blockBody := block.Body()
 
+	// A list of runners becomes one "runners" attribute, so a comment closing
+	// that list closes the block it became.
 	if str, ok := raw.(string); ok {
-		return writeAttributeAny(blockBody, "runners", str)
+		if err := writeAttributeAny(blockBody, "runners", str); err != nil {
+			return err
+		}
+
+		hclcomment.WriteLeading(blockBody, comments.below())
+
+		return nil
 	}
 
 	if list, ok := raw.([]any); ok {
-		return writeAttributeAny(blockBody, "runners", list)
+		if err := writeAttributeAny(blockBody, "runners", list); err != nil {
+			return err
+		}
+
+		hclcomment.WriteLeading(blockBody, comments.below())
+
+		return nil
 	}
 
 	mapping, ok := toStringAnyMap(raw)
@@ -351,29 +365,31 @@ func writeRunsOn(body *hclwrite.Body, raw any) error {
 	}
 
 	for _, key := range sortedKeys(mapping) {
-		if err := writeAttributeAny(blockBody, toHCLKey(key), mapping[key]); err != nil {
+		if err := writeCommentedAttribute(blockBody, toHCLKey(key), mapping[key], comments.at(key)); err != nil {
 			return err
 		}
 	}
+
+	hclcomment.WriteLeading(blockBody, comments.below())
 
 	return nil
 }
 
 func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any, comments *yamlComments) error {
 	if blockType == "env" {
-		return writeNameValueBlocks(body, "env", raw)
+		return writeNameValueBlocks(body, "env", raw, comments)
 	}
 
 	if blockType == "with" {
-		return writeNameValueBlocks(body, "with", raw)
+		return writeNameValueBlocks(body, "with", raw, comments)
 	}
 
 	if blockType == "output" || blockType == "outputs" {
-		return writeNameValueBlocks(body, "output", raw)
+		return writeNameValueBlocks(body, "output", raw, comments)
 	}
 
 	if blockType == "secret" || blockType == "secrets" {
-		return writeNameValueBlocks(body, "secret", raw)
+		return writeNameValueBlocks(body, "secret", raw, comments)
 	}
 
 	mapping, ok := toStringAnyMap(raw)
@@ -429,7 +445,11 @@ func checkHCLKeyRoundtrips(blockType string, key string) error {
 	return nil
 }
 
-func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error {
+// writeNameValueBlocks writes a mapping as one block per key. A comment on
+// that key was written above or beside the pair, and the block is what the
+// pair became, so the head goes above the block and the inline one beside the
+// value it was written beside.
+func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, comments *yamlComments) error {
 	mapping, ok := toStringAnyMap(raw)
 
 	if !ok {
@@ -437,6 +457,9 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error 
 	}
 
 	for _, key := range sortedKeys(mapping) {
+		comment := comments.at(key)
+		hclcomment.WriteLeading(body, comment.head)
+
 		block := body.AppendNewBlock(blockType, nil)
 		blockBody := block.Body()
 
@@ -444,10 +467,12 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any) error 
 			return err
 		}
 
-		if err := writeAttributeAny(blockBody, "value", mapping[key]); err != nil {
+		if err := writeCommentedAttribute(blockBody, "value", mapping[key], comment.withoutHead()); err != nil {
 			return err
 		}
 	}
+
+	hclcomment.WriteLeading(body, comments.below())
 
 	return nil
 }

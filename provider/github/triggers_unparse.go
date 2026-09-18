@@ -7,10 +7,11 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
 )
 
-func writeOnEventBody(event string, raw any, body *hclwrite.Body) error {
+func writeOnEventBody(event string, raw any, body *hclwrite.Body, comments *yamlComments) error {
 	if raw == nil {
 		return nil
 	}
@@ -25,21 +26,34 @@ func writeOnEventBody(event string, raw any, body *hclwrite.Body) error {
 		value := eventMap[key]
 
 		if blockType, ok := ghworkflow.TriggerBlockTypeForEventKey(event, key); ok {
-			if err := writeLabeledBlocks(body, blockType, value); err != nil {
+			// The key becomes one block per entry under it, so the comment
+			// above the key goes above the first of them.
+			hclcomment.WriteLeading(body, comments.at(key).head)
+
+			if err := writeLabeledBlocks(body, blockType, value, comments.child(key)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		if err := writeAttributeAny(body, toHCLKey(key), value); err != nil {
+		// A list value closes with a comment of its own, which is kept under
+		// the key because a sequence has no node to carry it. The attribute
+		// the list became is one line, so that comment closes the body.
+		comment := comments.at(key)
+
+		if err := writeCommentedAttribute(body, toHCLKey(key), value, comment); err != nil {
 			return err
 		}
+
+		hclcomment.WriteLeading(body, comments.child(key).below())
 	}
+
+	hclcomment.WriteLeading(body, comments.below())
 
 	return nil
 }
 
-func writeLabeledBlocks(body *hclwrite.Body, blockType string, raw any) error {
+func writeLabeledBlocks(body *hclwrite.Body, blockType string, raw any, comments *yamlComments) error {
 	items, ok := toStringAnyMap(raw)
 
 	if !ok {
@@ -47,6 +61,8 @@ func writeLabeledBlocks(body *hclwrite.Body, blockType string, raw any) error {
 	}
 
 	for _, label := range sortedKeys(items) {
+		hclcomment.WriteLeading(body, comments.at(label).head)
+
 		child := body.AppendNewBlock(blockType, []string{label})
 		childBody := child.Body()
 
@@ -56,12 +72,20 @@ func writeLabeledBlocks(body *hclwrite.Body, blockType string, raw any) error {
 			return fmt.Errorf("%s '%s' must be an object", blockType, label)
 		}
 
+		labelComments := comments.child(label)
+
 		for _, key := range sortedKeys(childMap) {
-			if err := writeAttributeAny(childBody, toHCLKey(key), childMap[key]); err != nil {
+			if err := writeCommentedAttribute(childBody, toHCLKey(key), childMap[key], labelComments.at(key)); err != nil {
 				return err
 			}
+
+			hclcomment.WriteLeading(childBody, labelComments.child(key).below())
 		}
+
+		hclcomment.WriteLeading(childBody, labelComments.below())
 	}
+
+	hclcomment.WriteLeading(body, comments.below())
 
 	return nil
 }

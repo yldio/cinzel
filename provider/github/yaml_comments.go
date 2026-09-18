@@ -151,6 +151,22 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 
 			out.items[key.Value] = seq
 		}
+
+		// A comment closing a sequence is handed back on its last item, and
+		// belongs to the sequence rather than to that item. There is no node
+		// for a sequence itself, so it is kept under the key, which is what a
+		// writer has in hand when it comes to close the block it wrote.
+		if foot := seqFoot(value); foot != "" {
+			if out.children == nil {
+				out.children = map[string]*yamlComments{}
+			}
+
+			if out.children[key.Value] == nil {
+				out.children[key.Value] = &yamlComments{}
+			}
+
+			out.children[key.Value].foot = foot
+		}
 	}
 
 	if out.own == nil && out.children == nil && out.items == nil && out.foot == "" {
@@ -158,6 +174,16 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 	}
 
 	return out
+}
+
+// seqFoot returns the comment closing a sequence, which yaml.v3 hands back on
+// the sequence's last item.
+func seqFoot(node *yamlv3.Node) string {
+	if node == nil || node.Kind != yamlv3.SequenceNode || len(node.Content) == 0 {
+		return ""
+	}
+
+	return fsutil.WithoutGeneratedMarker(node.Content[len(node.Content)-1].FootComment)
 }
 
 // collectSeqComments reads the comments off each mapping in a sequence,

@@ -173,7 +173,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 			}
 
 			if key == "env" {
-				if err := writeNameValueBlocks(runsBody, "env", runsMap[key]); err != nil {
+				if err := writeNameValueBlocks(runsBody, "env", runsMap[key], nil); err != nil {
 					return nil, err
 				}
 				continue
