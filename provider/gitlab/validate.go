@@ -29,10 +29,13 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		}
 	}
 
-	for jobName, rawJob := range jobs {
+	// By name rather than by map range. Two jobs failing the same check gave
+	// whichever one the range reached first, so the same file reported a
+	// different job on a rerun and there was no first error to fix.
+	for _, jobName := range sortedKeys(jobs) {
 		isTemplate := len(jobName) > 0 && jobName[0] == '.'
 
-		jobMap, ok := rawJob.(map[string]any)
+		jobMap, ok := jobs[jobName].(map[string]any)
 
 		if !ok {
 			return fmt.Errorf("job '%s' must be an object", jobName)
@@ -111,8 +114,8 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 
 	graph := make(map[string][]string, len(jobs))
 
-	for jobName, rawJob := range jobs {
-		jobMap := rawJob.(map[string]any)
+	for _, jobName := range sortedKeys(jobs) {
+		jobMap := jobs[jobName].(map[string]any)
 		graph[jobName] = []string{}
 
 		if rawNeeds, ok := jobMap["needs"]; ok {
