@@ -481,3 +481,57 @@ func TestDeduplicateWithExistingNoContextDir(t *testing.T) {
 		t.Errorf("should return input unchanged for nonexistent dir\ngot: %q", result)
 	}
 }
+
+// "--refine" with no session named picks the last one, which the length check
+// got wrong: any 15-character directory counted, so an unrelated one sorting
+// above the real sessions was handed to --refine as the last session.
+func TestLatestAssistDirTakesOnlyATimestamp(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dirs []string
+		want string
+	}{
+		{
+			name: "the newest of several sessions",
+			dirs: []string{"20260101-101500", "20260918-090000", "20260305-235959"},
+			want: "20260918-090000",
+		},
+		{
+			// 15 characters, and it sorts above every real session, so the
+			// length check handed this one to --refine.
+			name: "a 15-character decoy is skipped",
+			dirs: []string{"20260918-090000", "zzzzzzzz-zzzzzz"},
+			want: "20260918-090000",
+		},
+		{
+			// The right length and the right shape, but not a date.
+			name: "a malformed timestamp is skipped",
+			dirs: []string{"20260918-090000", "99999999-999999"},
+			want: "20260918-090000",
+		},
+		{
+			name: "no session at all",
+			dirs: []string{"notes", "zzzzzzzz-zzzzzz"},
+			want: "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base := t.TempDir()
+
+			for _, dir := range tc.dirs {
+				if err := os.Mkdir(filepath.Join(base, dir), 0o750); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			want := ""
+			if tc.want != "" {
+				want = filepath.Join(base, tc.want)
+			}
+
+			if got := latestAssistDir(base); got != want {
+				t.Errorf("latestAssistDir() = %q, want %q", got, want)
+			}
+		})
+	}
+}
