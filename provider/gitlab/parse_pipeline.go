@@ -272,6 +272,19 @@ func relabel(mapping *comments, keys map[string]string) {
 		return
 	}
 
+	// The renames are collected before any of them is applied: inserting into
+	// a map while ranging over it leaves whether the new key is visited
+	// undefined, so a rename whose target is another block's label was applied
+	// twice on some runs and once on others, moving a comment onto the wrong
+	// key. Same input, different output.
+	type rename struct {
+		from string
+		to   string
+		node *comments
+	}
+
+	renames := make([]rename, 0, len(mapping.children))
+
 	for label, child := range mapping.children {
 		key, renamed := keys[label]
 
@@ -279,8 +292,15 @@ func relabel(mapping *comments, keys map[string]string) {
 			continue
 		}
 
-		delete(mapping.children, label)
-		mapping.children[key] = child
+		renames = append(renames, rename{from: label, to: key, node: child})
+	}
+
+	for _, r := range renames {
+		delete(mapping.children, r.from)
+	}
+
+	for _, r := range renames {
+		mapping.children[r.to] = r.node
 	}
 }
 
