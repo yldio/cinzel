@@ -52,12 +52,21 @@ func LoadConfig() (Config, []string) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Config{}, nil
+		// A config nobody wrote is the normal case and says nothing. Any other
+		// read failure is a config that exists and was not used: silence there
+		// looked exactly like having none, so a permission problem or a typo in
+		// the file came out as every setting quietly falling back to its
+		// default.
+		if os.IsNotExist(err) {
+			return Config{}, nil
+		}
+
+		return Config{}, []string{fmt.Sprintf("%s could not be read (%v). Running without it.", path, err)}
 	}
 
 	var cfg configFile
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return Config{}, nil
+		return Config{}, []string{fmt.Sprintf("%s is not valid YAML (%v). Running without it.", path, err)}
 	}
 
 	return cfg.AI, configWarnings(path, cfg.AI)
