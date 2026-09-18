@@ -102,7 +102,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	currentOutputs := make(map[string]struct{}, len(workflows)+len(actions))
 
 	for _, workflowFile := range workflows {
-		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder)
+		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder, workflowFile.FootComment)
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	}
 
 	for _, actionFile := range actions {
-		outputBytes, err := marshalWorkflowYAML(actionFile.Content, nil)
+		outputBytes, err := marshalWorkflowYAML(actionFile.Content, nil, actionFile.FootComment)
 		if err != nil {
 			return err
 		}

@@ -22,6 +22,7 @@ type Value struct {
 	seq     []Value
 	comment string
 	head    string
+	foot    string
 }
 
 // Opt configures a Value at construction.
@@ -40,6 +41,16 @@ func WithComment(comment string) Opt {
 func WithHeadComment(comment string) Opt {
 	return func(v *Value) {
 		v.head = comment
+	}
+}
+
+// WithFootComment attaches a comment emitted on its own lines at the end of
+// the mapping, below its last key. Only a mapping has a foot: it is the
+// comment written with nothing after it inside a block. An empty comment is
+// ignored.
+func WithFootComment(comment string) Opt {
+	return func(v *Value) {
+		v.foot = comment
 	}
 }
 
@@ -98,6 +109,16 @@ type item struct {
 // which for a parsed document is the order they appeared in the source.
 type Doc struct {
 	items []item
+	// foot is the comment written at the end of the document with nothing
+	// after it. A nested mapping carries its own on the Value wrapping it;
+	// the root has no Value above it to hold one.
+	foot string
+}
+
+// SetFootComment attaches a comment emitted on its own lines at the end of the
+// document, below its last key.
+func (d *Doc) SetFootComment(comment string) {
+	d.foot = comment
 }
 
 // New returns an empty Doc.

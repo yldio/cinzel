@@ -29,7 +29,10 @@ func (c Comment) Empty() bool {
 // in YAML keys at the point they read this: parse is about to build the YAML
 // mapping, and unparse has just decoded one.
 type Comments struct {
-	Head  string
+	Head string
+	// Foot is the comment written at the end of the step block with nothing
+	// after it. It belongs to the block rather than to any one attribute.
+	Foot  string
 	Attrs map[string]Comment
 	// Nested holds the comments on the entries of a step's "env" and "with"
 	// maps, keyed by the map's own key and then by the entry's.
@@ -102,16 +105,19 @@ func (c *Comments) setExpr(hv *hclparser.HCLVars, key string, expr hcl.Expressio
 	c.set(hv, key, expr.Range())
 }
 
-// blockHead returns the comment written above the step block whose body this
-// is. The decode hands back a body and not the block header, so the line to
-// look above is the body's own start: that is the open brace, which shares a
-// line with the block type.
-func blockHead(body hcl.Body, hv *hclparser.HCLVars) string {
+// blockComments returns the comments written above the step block whose body
+// this is and at the end of it.
+//
+// The decode hands back a body and not the block header, so the line to look
+// above is the body's own start: that is the open brace, which shares a line
+// with the block type. The foot is the run above the closing brace, which is
+// where the body ends.
+func blockComments(body hcl.Body, hv *hclparser.HCLVars) (head, foot string) {
 	sb, ok := body.(*hclsyntax.Body)
 
 	if !ok {
-		return ""
+		return "", ""
 	}
 
-	return hv.HeadComment(sb.SrcRange)
+	return hv.HeadComment(sb.SrcRange), hv.HeadComment(sb.EndRange)
 }

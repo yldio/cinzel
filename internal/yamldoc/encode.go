@@ -23,6 +23,8 @@ func Encode(d *Doc) ([]byte, error) {
 		return nil, err
 	}
 
+	setFoot(root, d.foot)
+
 	var buf bytes.Buffer
 
 	enc := yamlv3.NewEncoder(&buf)
@@ -58,6 +60,27 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 	return node, nil
 }
 
+// setFoot writes the comment that closes a value onto the last node inside it,
+// which is where it renders at the value's own indentation and where a reader
+// hands it back. On a collection node itself it renders at column 0 after the
+// whole document, which is not where its author wrote it.
+//
+// A scalar has nothing inside it, so its own foot is the last node there is.
+func setFoot(node *yamlv3.Node, foot string) {
+	if foot == "" {
+		return
+	}
+
+	switch {
+	case node.Kind == yamlv3.MappingNode && len(node.Content) >= 2:
+		node.Content[len(node.Content)-2].FootComment = foot
+	case node.Kind == yamlv3.SequenceNode && len(node.Content) > 0:
+		node.Content[len(node.Content)-1].FootComment = foot
+	case node.Kind == yamlv3.ScalarNode:
+		node.FootComment = foot
+	}
+}
+
 func valueNode(v Value) (*yamlv3.Node, error) {
 	node, err := kindNode(v)
 	if err != nil {
@@ -65,6 +88,7 @@ func valueNode(v Value) (*yamlv3.Node, error) {
 	}
 
 	node.LineComment = v.comment
+	setFoot(node, v.foot)
 
 	return node, nil
 }

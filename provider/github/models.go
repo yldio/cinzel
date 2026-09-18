@@ -9,4 +9,6 @@ type WorkflowYAMLFile struct {
 	Filename string
 	Content  map[string]any
 	JobOrder []string
+	// FootComment closes the document, below its last key.
+	FootComment string
 }

@@ -48,6 +48,9 @@ type yamlComments struct {
 	// head is the comment written above this mapping itself, which is how a
 	// sequence item carries one: it has no key for it to sit on.
 	head string
+	// foot is the comment written at the end of this mapping with nothing
+	// after it. It belongs to the mapping rather than to any key in it.
+	foot string
 }
 
 // at returns the comments written on key, or an empty nodeComment.
@@ -89,6 +92,15 @@ func (c *yamlComments) above() string {
 	return c.head
 }
 
+// below returns the comment written at the end of this mapping.
+func (c *yamlComments) below() string {
+	if c == nil {
+		return ""
+	}
+
+	return c.foot
+}
+
 // collectComments reads the comments off a mapping node, every mapping nested
 // under it, and every mapping in a sequence under it, returning nil when there
 // are none to read.
@@ -98,6 +110,13 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 	}
 
 	out := &yamlComments{}
+
+	// A mapping's closing comment is handed back on its last key, which is
+	// also where it was written to. It belongs to the mapping rather than to
+	// that key, so it is lifted off here.
+	if len(node.Content) >= 2 {
+		out.foot = fsutil.WithoutGeneratedMarker(node.Content[len(node.Content)-2].FootComment)
+	}
 
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		key, value := node.Content[i], node.Content[i+1]
@@ -134,7 +153,7 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 		}
 	}
 
-	if out.own == nil && out.children == nil && out.items == nil {
+	if out.own == nil && out.children == nil && out.items == nil && out.foot == "" {
 		return nil
 	}
 

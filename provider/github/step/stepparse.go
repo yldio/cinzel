@@ -22,9 +22,11 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 		return Step{}, fmt.Errorf("error in step: no identifier, %w", cinzelerror.ErrOpenIssue)
 	}
 
+	head, foot := blockComments(config.Body, hv)
+
 	parsedStep := Step{
 		Identifier: config.Identifier,
-		Comments:   Comments{Head: blockHead(config.Body, hv)},
+		Comments:   Comments{Head: head, Foot: foot},
 	}
 
 	parsedIgnoreId, err := config.parseIgnoreId(hv)

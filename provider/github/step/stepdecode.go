@@ -286,6 +286,10 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 		stepBody.SetAttributeRaw("timeout_minutes", hclcomment.Trailing(hclwrite.TokensForValue(s.TimeoutMinutes), line))
 	}
 
+	// Last, so it closes the block: a foot comment is the one written with
+	// nothing after it.
+	hclcomment.WriteLeading(stepBody, s.Comments.Foot)
+
 	return nil
 }
 

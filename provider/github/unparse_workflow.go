@@ -286,6 +286,10 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 		}
 	}
 
+	// Last, so it closes the block: a foot comment is the one written with
+	// nothing after it.
+	hclcomment.WriteLeading(jobBody, comments.below())
+
 	return nil
 }
 
@@ -399,6 +403,8 @@ func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any, comme
 			return err
 		}
 	}
+
+	hclcomment.WriteLeading(blockBody, comments.below())
 
 	return nil
 }
@@ -531,7 +537,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 // package free of the collector, which it would otherwise have to import from
 // the provider that imports it.
 func stepComments(comments *yamlComments) step.Comments {
-	out := step.Comments{Head: comments.above()}
+	out := step.Comments{Head: comments.above(), Foot: comments.below()}
 
 	if comments == nil {
 		return out

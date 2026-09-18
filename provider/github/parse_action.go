@@ -6,6 +6,7 @@ package github
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/cinzel/internal/hclparser"
 )
 
@@ -13,11 +14,14 @@ import (
 type ActionYAMLFile struct {
 	Filename string
 	Content  map[string]any
+	// FootComment closes the document, below its last key.
+	FootComment string
 }
 
-func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) ([]ActionYAMLFile, error) {
+func parseHCLActions(actions []hclActionBlock, body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]any) ([]ActionYAMLFile, error) {
 	result := make([]ActionYAMLFile, 0, len(actions))
 	takenFilenames := make(map[string]string, len(actions))
+	comments := labelledBlockComments(hv, labelledBlocks(body, "action"))
 
 	for _, a := range actions {
 		content, filename, err := parseActionConfig(a, hv, stepMap)
@@ -38,8 +42,9 @@ func parseHCLActions(actions []hclActionBlock, hv *hclparser.HCLVars, stepMap ma
 		}
 
 		result = append(result, ActionYAMLFile{
-			Filename: filename,
-			Content:  content,
+			Filename:    filename,
+			Content:     content,
+			FootComment: comments[a.ID].foot,
 		})
 	}
 

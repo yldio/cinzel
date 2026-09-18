@@ -22,9 +22,12 @@ var workflowKeyOrder = []string{
 }
 
 // marshalWorkflowYAML renders a workflow or action. jobOrder is the order the
-// jobs were declared in; an empty order sorts them.
-func marshalWorkflowYAML(workflow map[string]any, jobOrder []string) ([]byte, error) {
-	return yamldoc.Encode(workflowDoc(workflow, jobOrder))
+// jobs were declared in; an empty order sorts them. foot closes the document.
+func marshalWorkflowYAML(workflow map[string]any, jobOrder []string, foot string) ([]byte, error) {
+	doc := workflowDoc(workflow, jobOrder)
+	doc.SetFootComment(foot)
+
+	return yamldoc.Encode(doc)
 }
 
 // marshalStepsYAML renders the step-only output: a mapping of step id to
@@ -108,7 +111,7 @@ func appendSorted(doc *yamldoc.Doc, mapping map[string]any, seen map[string]stru
 func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 	switch v := value.(type) {
 	case annotated:
-		return docValue(key, v.value, append(opts, yamldoc.WithComment(v.comment), yamldoc.WithHeadComment(v.head))...)
+		return docValue(key, v.value, append(opts, yamldoc.WithComment(v.comment), yamldoc.WithHeadComment(v.head), yamldoc.WithFootComment(v.foot))...)
 	case nil:
 		return yamldoc.Null(opts...)
 	case map[string]any:
@@ -156,6 +159,10 @@ type annotated struct {
 	value   any
 	comment string
 	head    string
+	// foot is the comment written at the end of a block body with nothing
+	// after it. It belongs to the body rather than to any one attribute, so
+	// it is carried on the value the body becomes.
+	foot string
 }
 
 // plain returns value with every annotated wrapper removed, at any depth.
