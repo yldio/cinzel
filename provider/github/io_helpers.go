@@ -92,6 +92,19 @@ func parseStepsFromYAML(content []byte) ([]step.Step, error) {
 	}
 
 	rawMap := val.AsValueMap()
+
+	// The step-only path is the end of the detection chain, so every document
+	// that is neither a workflow nor an action arrives here — a dependabot
+	// config and an issue template among them. A step is a mapping, so a
+	// document holding anything else at the top is not a set of steps. Handing
+	// one to the decoder anyway came back "not a valid type", which aborted the
+	// whole directory it sat in before the workflows beside it were reached.
+	for _, v := range rawMap {
+		if v.IsNull() || !v.IsKnown() || !v.Type().IsObjectType() {
+			return nil, nil
+		}
+	}
+
 	ids := make([]string, 0, len(rawMap))
 
 	for id := range rawMap {
