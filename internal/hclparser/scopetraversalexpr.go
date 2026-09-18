@@ -49,7 +49,18 @@ func (ste *ScopeTraversalExpr) Parse() (cty.Value, error) {
 		case hcl.TraverseAttr:
 			variableRef.Attr = expressionType.Name
 		case hcl.TraverseIndex:
-			idx, _ := expressionType.Key.AsBigFloat().Int64()
+			// The key is whatever the user wrote between the brackets, and
+			// AsBigFloat panics on anything that is not a known number:
+			// var.envs["prod"] took the command down with a stack trace
+			// naming no file. A recovered syntax error arrives here as
+			// cty.DynamicVal, which is unknown, and panics the same way.
+			key := expressionType.Key
+
+			if key == cty.NilVal || key.IsNull() || !key.IsKnown() || key.Type() != cty.Number {
+				return cty.NilVal, errNonNumericIndex
+			}
+
+			idx, _ := key.AsBigFloat().Int64()
 			variableRef.Index = &idx
 		default:
 			return cty.NilVal, fmt.Errorf("unsupported %s", expressionType)

@@ -4,6 +4,7 @@
 package hclparser
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -241,6 +242,51 @@ func TestTemplateExprKeepsEveryPart(t *testing.T) {
 
 			if !got.RawEquals(tc.want) {
 				t.Errorf("got %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
+// The key between the brackets is whatever the user wrote there, and
+// cty.Value.AsBigFloat panics on anything that is not a known number. A string
+// key took the whole command down with a stack trace naming no file.
+func TestScopeTraversalRejectsANonNumericIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		hcl  string
+	}{
+		{"string key", `value = var.envs["prod"]`},
+		{"bool key", `value = var.envs[true]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file, diags := hclsyntax.ParseConfig([]byte(tc.hcl+"\n"), "test.hcl", hcl.Pos{Line: 1, Column: 1})
+			if diags.HasErrors() {
+				t.Fatal(diags)
+			}
+
+			body, ok := file.Body.(*hclsyntax.Body)
+			if !ok {
+				t.Fatalf("body is %T", file.Body)
+			}
+
+			attr := body.Attributes["value"]
+
+			traversal, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr)
+			if !ok {
+				t.Fatalf("expression is %T, want a scope traversal", attr.Expr)
+			}
+
+			hv := NewHCLVars()
+			hv.Add("envs", cty.ObjectVal(map[string]cty.Value{"prod": cty.StringVal("x")}))
+
+			got, err := NewScopeTraversalExpr(traversal, hv).Parse()
+
+			if err == nil {
+				t.Fatalf("Parse() = %#v, want an error rather than a panic", got)
+			}
+
+			if !errors.Is(err, errNonNumericIndex) {
+				t.Errorf("error = %v, want errNonNumericIndex", err)
 			}
 		})
 	}
