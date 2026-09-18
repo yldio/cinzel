@@ -1,4 +1,71 @@
 cinzel
+## [0.7.0](https://github.com/yldio/cinzel/compare/v0.6.2..v0.7.0) - 2026-09-18
+
+### ⛰️  Features
+
+- *(github)* Carry comments into nested unparse bodies - ([39635ec](https://github.com/yldio/cinzel/commit/39635ec75ba730d5fbd4badeed8a850091f2be97))
+- *(github)* Carry foot comments in both directions - ([62c2319](https://github.com/yldio/cinzel/commit/62c231901013a91134178472174acf886337065b))
+- *(github)* Keep every comment written on a step - ([69a2963](https://github.com/yldio/cinzel/commit/69a29636d1b6141ec8e3ed59fe70f8a7a1ff4935))
+- *(github)* Keep the comment written above any block - ([6332435](https://github.com/yldio/cinzel/commit/63324353898f18bcb874e8121a93f14f83b88edd))
+- *(github)* Write attribute comments back to HCL - ([692504d](https://github.com/yldio/cinzel/commit/692504dade732d4408761104574aadd88693d302))
+- *(github)* Keep the comment written above an attribute - ([091d411](https://github.com/yldio/cinzel/commit/091d41197a0d00e4c9e13698e6b00cc60ef006f2))
+- *(github)* Keep the comment above a job block when parsing - ([7f1b114](https://github.com/yldio/cinzel/commit/7f1b1149fe96b6744f444f3d23b625c39cfa757a))
+- *(github)* Keep the comment above a job when unparsing - ([9ab4c71](https://github.com/yldio/cinzel/commit/9ab4c71f495d2df1761b602127c9225ac4a1f2b6))
+- *(gitlab)* Carry comments from YAML to HCL - ([55da191](https://github.com/yldio/cinzel/commit/55da19156c44ae88090b462d2ff1fbf76e907725))
+- *(gitlab)* Carry comments from HCL to YAML - ([317067c](https://github.com/yldio/cinzel/commit/317067cea094007dfa015cc8938884a2773365c4))
+
+### 🐛 Bug Fixes
+
+- *(ai)* Say when a config holds an api_key, not only when it is exposed - ([470e2e3](https://github.com/yldio/cinzel/commit/470e2e390025b680c22e347ea2fdd7395fa5f5f2))
+- *(assist)* Pick the last session by its timestamp, not its name length - ([52b78ba](https://github.com/yldio/cinzel/commit/52b78ba6901d5e03c25aea0472871db1ffffc8f0))
+- *(assist)* Only treat a "---" at column 0 as a document separator - ([07acb5a](https://github.com/yldio/cinzel/commit/07acb5a8fad71a4f8ffe184dce2622d3ff58112f))
+- *(github)* Report a NaN rather than panicking on one - ([8cff9f9](https://github.com/yldio/cinzel/commit/8cff9f9134b80d89603106e0d4a76a8f45e11c78))
+- *(github)* Keep the comments written on an action's runs.env - ([9672180](https://github.com/yldio/cinzel/commit/96721807403bc0cab3bd7f4b60bd137ff88cf136))
+- *(github)* Refuse two steps in a composite action sharing an id - ([17338f2](https://github.com/yldio/cinzel/commit/17338f241630206312a80935e122f207a8e2909b))
+- *(github)* Read the step id through the comment wrapper - ([75a8773](https://github.com/yldio/cinzel/commit/75a87734ab4cbdb25b874dfbe2646363f4f6e54b))
+- *(github)* Write a comment as it was written, not as we would write it - ([af9dd2b](https://github.com/yldio/cinzel/commit/af9dd2b0f123a5e17e01efe50164246c96686018))
+- *(gitlab)* Refuse an artifacts or reports list of more than one - ([2c7d0bc](https://github.com/yldio/cinzel/commit/2c7d0bc8f1ea423f3e2b8fd8cf04e9c6cd61bdd3))
+- *(gitlab)* Keep an explicit null services - ([fb1969b](https://github.com/yldio/cinzel/commit/fb1969bf3cf7946566baea9386a55852827eb650))
+- *(gitlab)* Refuse a need block naming more than one job - ([1f3971e](https://github.com/yldio/cinzel/commit/1f3971e66e6b52a343ac605fd8bcdbcc7c74ec33))
+- *(gitlab)* Apply the comment renames deterministically - ([4919517](https://github.com/yldio/cinzel/commit/4919517601d4dae2dc9e9da43a04a2ac5c7d2f56))
+- *(gitlab)* Refuse a job named after a reserved keyword - ([e97dac4](https://github.com/yldio/cinzel/commit/e97dac41bba98f8dcfca1d07d5215bd3d0541702))
+- *(hclparser)* Keep every part of a template - ([0331c55](https://github.com/yldio/cinzel/commit/0331c55df3f830e320a13f40ccde472155cdc5a9))
+- *(hclparser)* Refuse a non-number operand instead of panicking - ([e08db52](https://github.com/yldio/cinzel/commit/e08db52da19b0a42e389fe4c2629f04d5db2c892))
+- *(hclparser)* Read a comment HCL wrote with any of its markers - ([08a2792](https://github.com/yldio/cinzel/commit/08a27924e0043d85cdfd1f597d6789e73f6c82d3))
+- *(pin)* Report what cannot be pinned instead of calling it pinned - ([656536d](https://github.com/yldio/cinzel/commit/656536d635fcc79b1e676719335d454824b11112))
+- Refuse configuration paths that name one machine - ([001ecb0](https://github.com/yldio/cinzel/commit/001ecb012e42ae46cc32442ff8cd5801f5799e11))
+- Stop telling authors to file a bug over their own typos - ([1d425c8](https://github.com/yldio/cinzel/commit/1d425c8bb812e37c567b1de99c5adc2433c8359d))
+
+### 🚜 Refactor
+
+- Move the comment collector to where every parse can reach it - ([77659b9](https://github.com/yldio/cinzel/commit/77659b9fc31d97c8fc2d3cd9a503352e0a23e081))
+- Read inline comments from what was parsed, not from disk - ([e4d9dec](https://github.com/yldio/cinzel/commit/e4d9dec16a2f9ad3502166f4adfd5816c46995de))
+
+### 📚 Documentation
+
+- Record the four bugs worth a solution note - ([3fd2ab0](https://github.com/yldio/cinzel/commit/3fd2ab031c588249ffcb970995dfe4b1be8fde3c))
+- Bring the README back in step with the commands - ([2b9fd2a](https://github.com/yldio/cinzel/commit/2b9fd2a8f3c542995a7ca990829ef84c005da260))
+- Move the reference detail out of CLAUDE.md into docs/architecture - ([a5b66c4](https://github.com/yldio/cinzel/commit/a5b66c4fafdba807e49cdd51f907f5468ea80008))
+- Rewrite CLAUDE.md around what the code actually does - ([f472603](https://github.com/yldio/cinzel/commit/f47260319c225e59a3378c32a48669aaad80479f))
+- Drop winget and stop offering api_key as an option - ([60de39f](https://github.com/yldio/cinzel/commit/60de39f5c07980547dd51a5bf777343fa9e8dc2c))
+- Reconcile the solution notes with the code they describe - ([3f692a0](https://github.com/yldio/cinzel/commit/3f692a0757588ea252a72b177a242f8fcf0f4343))
+- Say where the deleted plans went - ([2495008](https://github.com/yldio/cinzel/commit/249500800ff4dd970ba1f7e3966bab4577be6b2b))
+- Remove the brainstorms and the release follow-up plan - ([1a755dd](https://github.com/yldio/cinzel/commit/1a755dd7a6db13e73ab7ba679a69f84b993c27ad))
+- Remove the assist plan - ([64f8348](https://github.com/yldio/cinzel/commit/64f8348b41fe494678a809151446f615117a7906))
+- Remove the comment fidelity plan - ([088565f](https://github.com/yldio/cinzel/commit/088565f6b475953fc601537b6a6c5ae4d9a32a54))
+- Remove the completed plans - ([5a115de](https://github.com/yldio/cinzel/commit/5a115def4a15a4e476e2b531bbb2fe59759fbf41))
+- Record the GitHub nested-body commit in the plan - ([1b5e55e](https://github.com/yldio/cinzel/commit/1b5e55ef88a9b5e131e77c9d6850a3117a2b878a))
+- Record the GitLab commits and split item 8 in the plan - ([18c3ea6](https://github.com/yldio/cinzel/commit/18c3ea6ac8fd7ad871a87160436616e9eac66730))
+- Record the marker commit and the foot comment one in the plan - ([42cf210](https://github.com/yldio/cinzel/commit/42cf21095fbf78f8d5a34f576235bf62fe7a6f86))
+- Plan comment fidelity across both providers - ([32a4a36](https://github.com/yldio/cinzel/commit/32a4a3688c16f1d98cdce8d967b321228092f3dc))
+
+### 🧪 Testing
+
+- *(assist)* Cover the session picked by --refine - ([5fa62e3](https://github.com/yldio/cinzel/commit/5fa62e3c5a25899ce3fb68cc5efe2d64cc72e757))
+- Make the main subtest pass on its own - ([4b65665](https://github.com/yldio/cinzel/commit/4b65665795e7a32cbcbd0a2bf25851d82ae08efa))
+- Close the roundtrip gaps in the comment acceptance list - ([eaed2d5](https://github.com/yldio/cinzel/commit/eaed2d5c339e5636905d215bdb7ca67711300c5f))
+
+
 ## [0.6.2](https://github.com/yldio/cinzel/compare/v0.6.1..v0.6.2) - 2026-09-16
 
 ### 🐛 Bug Fixes
