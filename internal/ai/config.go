@@ -63,17 +63,16 @@ func LoadConfig() (Config, []string) {
 	return cfg.AI, configWarnings(path, cfg.AI)
 }
 
-// configWarnings reports a config file that others can read while it holds a
-// key. cinzel init writes 0600 and no key, so this only fires on a file that
-// predates that or was edited by hand. A file with no key in it is nobody
-// else's business either way, so it says nothing.
+// configWarnings reports what is worth saying about a config file holding an
+// api_key. cinzel init has not written that field since it stopped asking for
+// keys, so a file with one in it predates that or was edited by hand.
+//
+// Two separate things are wrong with such a file, and they are said
+// separately: the key is in a file at all, which is why the field is only a
+// migration path, and the file may be one others can read, which is the
+// urgent one. A file with no key in it is nobody else's business either way,
+// so it says nothing.
 func configWarnings(path string, cfg Config) []string {
-	// Windows has no Unix permission bits: a file reads back as 0666 whatever
-	// it was set to, so the check would warn about every config there.
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-
 	hasKey := false
 
 	for _, pc := range cfg.Providers {
@@ -88,20 +87,32 @@ func configWarnings(path string, cfg Config) []string {
 		return nil
 	}
 
+	warnings := []string{fmt.Sprintf(
+		"%s holds an api_key. Set the key in the environment instead and drop the field: it is read for configs written before cinzel init stopped asking for one, and that will not last.",
+		path,
+	)}
+
+	// Windows has no Unix permission bits: a file reads back as 0666 whatever
+	// it was set to, so the mode check would fire on every config there. The
+	// key is still in a file, which is what the warning above is for.
+	if runtime.GOOS == "windows" {
+		return warnings
+	}
+
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil
+		return warnings
 	}
 
 	mode := info.Mode().Perm()
 	if mode&0077 == 0 {
-		return nil
+		return warnings
 	}
 
-	return []string{fmt.Sprintf(
-		"%s holds an api_key and is readable by others (mode %#o). Run chmod 600 on it, or drop the key and set the API key in the environment instead.",
+	return append(warnings, fmt.Sprintf(
+		"%s is readable by others (mode %#o) while it holds that key. Run chmod 600 on it.",
 		path, mode,
-	)}
+	))
 }
 
 // ResolveProviderName returns the provider name to use, applying the

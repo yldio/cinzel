@@ -55,13 +55,16 @@ func TestConfigWarnings(t *testing.T) {
 		name string
 		body string
 		mode os.FileMode
-		want bool
+		want int
 	}{
-		{"a key others can read warns", withKey, 0644, true},
-		{"group-readable counts too", withKey, 0640, true},
-		{"a key only the owner can read is fine", withKey, 0600, false},
-		{"no key, no business of ours", withoutKey, 0644, false},
-		{"no key and tight is fine", withoutKey, 0600, false},
+		// The key is in a file, and the file is open: two things, said twice.
+		{"a key others can read warns twice", withKey, 0644, 2},
+		{"group-readable counts too", withKey, 0640, 2},
+		// Tight permissions answer the second warning, not the first: the
+		// field is a migration path, so a key in it is still worth saying.
+		{"a key only the owner can read still warns", withKey, 0600, 1},
+		{"no key, no business of ours", withoutKey, 0644, 0},
+		{"no key and tight is fine", withoutKey, 0600, 0},
 	}
 
 	for _, tt := range tests {
@@ -71,18 +74,15 @@ func TestConfigWarnings(t *testing.T) {
 			cfg := configOf(t, tt.body)
 			got := configWarnings(path, cfg)
 
-			if tt.want && len(got) == 0 {
-				t.Fatalf("want a warning for mode %#o, got none", tt.mode)
-			}
-
-			if !tt.want && len(got) != 0 {
-				t.Fatalf("want no warning for mode %#o, got %q", tt.mode, got)
+			if len(got) != tt.want {
+				t.Fatalf("want %d warnings for mode %#o, got %d: %q", tt.want, tt.mode, len(got), got)
 			}
 		})
 	}
 }
 
-// The warning names the file and what to do. It must never name the key.
+// A warning names the file and what to do. It must never name the key, which
+// is the thing a warning is most likely to be pasted into a bug report with.
 func TestConfigWarningKeepsTheKeyOut(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("permission bits are not meaningful on windows")
@@ -91,23 +91,30 @@ func TestConfigWarningKeepsTheKeyOut(t *testing.T) {
 	path := writeConfig(t, withKey, 0644)
 
 	got := configWarnings(path, configOf(t, withKey))
-	if len(got) != 1 {
-		t.Fatalf("want one warning, got %q", got)
+	if len(got) != 2 {
+		t.Fatalf("want two warnings, got %q", got)
 	}
 
-	if strings.Contains(got[0], "sk-ant-secret") {
-		t.Errorf("the warning leaks the key: %q", got[0])
-	}
+	for _, warning := range got {
+		if strings.Contains(warning, "sk-ant-secret") {
+			t.Errorf("the warning leaks the key: %q", warning)
+		}
 
-	if !strings.Contains(got[0], path) {
-		t.Errorf("want the path named, got %q", got[0])
+		if !strings.Contains(warning, path) {
+			t.Errorf("want the path named, got %q", warning)
+		}
 	}
 }
 
-// A file cinzel cannot stat says nothing rather than guessing.
+// A file cinzel cannot stat has no mode to judge, so the permission warning is
+// not guessed at. The key is in the config either way, so that one still runs.
 func TestConfigWarningsOnAMissingFile(t *testing.T) {
 	got := configWarnings(filepath.Join(t.TempDir(), "gone.yaml"), configOf(t, withKey))
-	if len(got) != 0 {
-		t.Fatalf("want no warning for a missing file, got %q", got)
+	if len(got) != 1 {
+		t.Fatalf("want only the api_key warning for a missing file, got %q", got)
+	}
+
+	if strings.Contains(got[0], "readable by others") {
+		t.Errorf("a file with no mode to read should not be called open: %q", got[0])
 	}
 }
