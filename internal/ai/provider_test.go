@@ -79,6 +79,19 @@ func TestStripFences(t *testing.T) {
 			input: "```yaml\nname: test\n```\n\nHope this helps!",
 			want:  "name: test",
 		},
+		// A workflow that writes a fence of its own, inside a "run: |" block,
+		// carries backticks at column 4. Taking those for a fence returned the
+		// one line after the last of them and the workflow was gone.
+		{
+			name:  "an indented fence inside a run block is not one",
+			input: "name: test\njobs:\n  build:\n    steps:\n      - run: |\n          cat <<EOF\n          ```sh\n          echo hi\n          ```\n          EOF\n",
+			want:  "name: test\njobs:\n  build:\n    steps:\n      - run: |\n          cat <<EOF\n          ```sh\n          echo hi\n          ```\n          EOF",
+		},
+		{
+			name:  "a wrapped workflow keeps the fence it writes",
+			input: "```yaml\nname: test\njobs:\n  build:\n    steps:\n      - run: |\n          echo '```'\n```\n",
+			want:  "name: test\njobs:\n  build:\n    steps:\n      - run: |\n          echo '```'",
+		},
 	}
 
 	for _, tt := range tests {

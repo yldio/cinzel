@@ -25,11 +25,15 @@ const (
 	DefaultMaxTokens = 4096
 )
 
-var fencePattern = regexp.MustCompile("(?s)```(?:ya?ml)?\\s*\n(.*?)```")
+// Both patterns anchor a fence line to column 0. Matching one anywhere took
+// the backticks a workflow writes inside a "run: |" block as a fence of its
+// own: a response with no wrapper at all, holding a fenced README, came back
+// as the one line after the last of them and the workflow was gone.
+var fencePattern = regexp.MustCompile("(?ms)^```(?:ya?ml)?[ \\t]*\n(.*?)^```[ \\t]*$")
 
 // openFencePattern matches a fence that is never closed, which is what a
 // response cut off at the token limit looks like.
-var openFencePattern = regexp.MustCompile("(?s)^.*?```(?:ya?ml)?[ \\t]*\n(.*)$")
+var openFencePattern = regexp.MustCompile("(?ms)\\A.*?^```(?:ya?ml)?[ \\t]*\n(.*)\\z")
 
 // GenerateRequest holds the parameters for an LLM generation call.
 type GenerateRequest struct {
