@@ -98,6 +98,11 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		}
 
 		inputs := getOrCreateMap(out, "inputs")
+
+		if err := claimBlockKey(inputs, "input", input.ID); err != nil {
+			return nil, "", err
+		}
+
 		inputs[input.ID] = inputMap
 	}
 
@@ -113,6 +118,11 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		}
 
 		outputs := getOrCreateMap(out, "outputs")
+
+		if err := claimBlockKey(outputs, "output", output.ID); err != nil {
+			return nil, "", err
+		}
+
 		outputs[output.ID] = outputMap
 	}
 
@@ -236,6 +246,11 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 		}
 
 		envMap := getOrCreateMap(out, "env")
+
+		if err := claimBlockKey(envMap, "env", key); err != nil {
+			return nil, err
+		}
+
 		envMap[key] = withComments(value, blockComments(env.Body, hv))
 	}
 

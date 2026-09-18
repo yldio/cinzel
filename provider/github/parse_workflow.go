@@ -311,6 +311,11 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		withMap := getOrCreateMap(out, "with")
+
+		if err := claimBlockKey(withMap, "with", key); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		withMap[key] = withComments(value, blockComments(block.Body, hv))
 	}
 
@@ -321,6 +326,11 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		envMap := getOrCreateMap(out, "env")
+
+		if err := claimBlockKey(envMap, "env", key); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		envMap[key] = withComments(value, blockComments(block.Body, hv))
 	}
 
@@ -331,6 +341,11 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		outputsMap := getOrCreateMap(out, "outputs")
+
+		if err := claimBlockKey(outputsMap, "output", key); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		outputsMap[key] = withComments(value, blockComments(block.Body, hv))
 	}
 
@@ -341,6 +356,11 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		secretsMap := getOrCreateMap(out, "secrets")
+
+		if err := claimBlockKey(secretsMap, "secret", key); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		secretsMap[key] = withComments(value, blockComments(block.Body, hv))
 	}
 
@@ -351,6 +371,11 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 		}
 
 		servicesMap := getOrCreateMap(out, "services")
+
+		if err := claimBlockKey(servicesMap, "service", block.ID); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		servicesMap[block.ID] = withComments(serviceVal, blockComments(block.Body, hv))
 	}
 
@@ -490,6 +515,10 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 
 		onMap := getOrCreateMap(out, "on")
 
+		if err := claimBlockKey(onMap, "on", eventName); err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
 		if eventName == "schedule" {
 			onMap[eventName] = withComments(ghworkflow.DenormalizeScheduleEvent(eventValue), comments)
 		} else if len(eventValue) == 0 {
@@ -506,6 +535,11 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 		}
 
 		envMap := getOrCreateMap(out, "env")
+
+		if err := claimBlockKey(envMap, "env", key); err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
 		envMap[key] = withComments(value, blockComments(block.Body, hv))
 	}
 
@@ -748,6 +782,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			eventName := block.Labels[0]
 			eventValue = ghworkflow.NormalizeOnEvent(eventName, eventValue)
 
+			if err := claimBlockKey(onMap, "on", eventName); err != nil {
+				return nil, err
+			}
+
 			if eventName == "schedule" {
 				onMap[eventName] = withComments(ghworkflow.DenormalizeScheduleEvent(eventValue), comments)
 			} else if len(eventValue) == 0 {
@@ -769,6 +807,11 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			withMap := getOrCreateMap(out, "with")
+
+			if err := claimBlockKey(withMap, "with", key); err != nil {
+				return nil, err
+			}
+
 			withMap[key] = withComments(value, comments)
 		case block.Type == "env":
 			key, value, err := parseNamedBlock(block.Body, hv)
@@ -777,6 +820,11 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			envMap := getOrCreateMap(out, "env")
+
+			if err := claimBlockKey(envMap, "env", key); err != nil {
+				return nil, err
+			}
+
 			envMap[key] = withComments(value, comments)
 		case block.Type == "output" && scope == "job":
 			key, value, err := parseNamedBlock(block.Body, hv)
@@ -785,6 +833,11 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			outputsMap := getOrCreateMap(out, "outputs")
+
+			if err := claimBlockKey(outputsMap, "output", key); err != nil {
+				return nil, err
+			}
+
 			outputsMap[key] = withComments(value, comments)
 		case block.Type == "secret" && scope == "job":
 			key, value, err := parseNamedBlock(block.Body, hv)
@@ -793,6 +846,11 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			secretsMap := getOrCreateMap(out, "secrets")
+
+			if err := claimBlockKey(secretsMap, "secret", key); err != nil {
+				return nil, err
+			}
+
 			secretsMap[key] = withComments(value, comments)
 		case block.Type == "service" && scope == "job":
 			if len(block.Labels) != 1 {
@@ -805,6 +863,11 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			servicesMap := getOrCreateMap(out, "services")
+
+			if err := claimBlockKey(servicesMap, "service", block.Labels[0]); err != nil {
+				return nil, err
+			}
+
 			servicesMap[block.Labels[0]] = withComments(serviceVal, comments)
 		case block.Type == "runs_on" && scope == "job":
 			runsOnValue, err := parseBodyMap(block.Body, hv, "runs_on")
@@ -835,7 +898,9 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			addGenericBlock(out, yamlKeyIn(scope, block.Type), block.Labels, withComments(child, comments))
+			if err := addGenericBlock(out, yamlKeyIn(scope, block.Type), block.Type, block.Labels, withComments(child, comments)); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -987,7 +1052,11 @@ func parseReference(expr *hclsyntax.ScopeTraversalExpr, expectedRoot string) (st
 	return attr.Name, nil
 }
 
-func addGenericBlock(target map[string]any, key string, labels []string, value any) {
+// addGenericBlock files a nested block under key. A labelled one is keyed by
+// its label, so two sharing a label are refused rather than written one over
+// the other. An unlabelled one is appended, which is the shape the caller wants
+// there.
+func addGenericBlock(target map[string]any, key, blockType string, labels []string, value any) error {
 	if len(labels) == 1 {
 		mapping, ok := target[key].(map[string]any)
 
@@ -995,10 +1064,14 @@ func addGenericBlock(target map[string]any, key string, labels []string, value a
 			mapping = map[string]any{}
 		}
 
+		if err := claimBlockKey(mapping, blockType, labels[0]); err != nil {
+			return err
+		}
+
 		mapping[labels[0]] = value
 		target[key] = mapping
 
-		return
+		return nil
 	}
 
 	if existing, ok := target[key]; ok {
@@ -1009,10 +1082,12 @@ func addGenericBlock(target map[string]any, key string, labels []string, value a
 			target[key] = []any{casted, value}
 		}
 
-		return
+		return nil
 	}
 
 	target[key] = value
+
+	return nil
 }
 
 func isNilOrEmptyCollectionExpr(expr hcl.Expression) bool {
@@ -1037,6 +1112,23 @@ func isNilOrEmptyCollectionExpr(expr hcl.Expression) bool {
 	}
 
 	return false
+}
+
+// claimBlockKey refuses a second block writing a key an earlier one already
+// wrote.
+//
+// The key comes from whoever wrote the file — a "name" attribute, a block
+// label — so two blocks are free to name the same one, and the map simply took
+// the last. The rest went out neither written nor reported, so a workflow
+// shipped with a value nobody in the file meant to set. A job and a step
+// already refuse the same input, and so does the GitLab provider for its
+// variable blocks.
+func claimBlockKey(target map[string]any, blockType, key string) error {
+	if _, taken := target[key]; taken {
+		return fmt.Errorf("%w: two '%s' blocks both write '%s'", errDuplicateBlockKey, blockType, key)
+	}
+
+	return nil
 }
 
 func getOrCreateMap(target map[string]any, key string) map[string]any {
