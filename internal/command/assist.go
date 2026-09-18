@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -25,6 +26,7 @@ import (
 const (
 	defaultAssistOutputDir = "cinzel/assist"
 	maxRawYAMLErrorLen     = 500
+	truncatedSuffix        = "\n... (truncated)"
 )
 
 func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
@@ -238,6 +240,30 @@ func buildRefinePrompt(refine, prompt, outputDir, from string) (string, string, 
 	return systemAddition, userPrompt, nil
 }
 
+// truncatePreview cuts s to at most maxLen bytes for display in an error.
+//
+// maxLen is a byte budget, so the cut lands wherever it falls, which on a
+// multibyte rune is mid-rune: the partial encoding left behind is not a rune
+// and reaches the terminal as U+FFFD. Drop it. An encoding is at most four
+// bytes, so at most three trailing bytes can be a partial one.
+func truncatePreview(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+
+	cut := s[:maxLen]
+
+	for range utf8.UTFMax - 1 {
+		if r, size := utf8.DecodeLastRuneInString(cut); r != utf8.RuneError || size != 1 {
+			break
+		}
+
+		cut = cut[:len(cut)-1]
+	}
+
+	return cut + truncatedSuffix
+}
+
 // unparseAndWrite returns the session directory path where output was written (empty if dry-run).
 func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, contextDir string, dryRun bool) (string, error) {
 	tmpYAMLDir, err := os.MkdirTemp("", "cinzel-assist-yaml-*")
@@ -275,10 +301,7 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 		DryRun:          false,
 	})
 	if err != nil {
-		preview := yamlContent
-		if len(preview) > maxRawYAMLErrorLen {
-			preview = preview[:maxRawYAMLErrorLen] + "\n... (truncated)"
-		}
+		preview := truncatePreview(yamlContent, maxRawYAMLErrorLen)
 
 		return "", fmt.Errorf(
 			"generated YAML could not be converted to HCL:\n%s\n\nRaw YAML (preview):\n%s\n\nTry refining your prompt",

@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestSplitYAMLDocuments(t *testing.T) {
@@ -533,5 +534,49 @@ func TestLatestAssistDirTakesOnlyATimestamp(t *testing.T) {
 				t.Errorf("latestAssistDir() = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+// The preview of a failed conversion is cut to a byte budget. A cut that lands
+// inside a multibyte rune leaves a partial encoding behind, and that reaches
+// the terminal as U+FFFD rather than as the character the model wrote.
+func TestErrorPreviewIsNotCutMidRune(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source string
+	}{
+		{"two-byte rune on the boundary", strings.Repeat("a", maxRawYAMLErrorLen-1) + "é" + "tail"},
+		{"four-byte rune on the boundary", strings.Repeat("a", maxRawYAMLErrorLen-2) + "🙂" + "tail"},
+		{"rune straddling by one byte", strings.Repeat("a", maxRawYAMLErrorLen-3) + "🙂" + "tail"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := truncatePreview(tc.source, maxRawYAMLErrorLen)
+
+			if !utf8.ValidString(got) {
+				t.Errorf("preview is not valid UTF-8: %q", got)
+			}
+
+			if strings.ContainsRune(got, utf8.RuneError) {
+				t.Errorf("preview holds U+FFFD: %q", got)
+			}
+
+			content := strings.TrimSuffix(got, truncatedSuffix)
+			if content == got {
+				t.Fatalf("preview was not marked as truncated: %q", got)
+			}
+
+			if len(content) > maxRawYAMLErrorLen {
+				t.Errorf("preview content is %d bytes, over the %d budget", len(content), maxRawYAMLErrorLen)
+			}
+		})
+	}
+}
+
+// A preview inside the budget is returned whole.
+func TestShortErrorPreviewIsUntouched(t *testing.T) {
+	const s = "name: Déploiement 🙂\n"
+
+	if got := truncatePreview(s, maxRawYAMLErrorLen); got != s {
+		t.Errorf("truncatePreview(%q) = %q, want it unchanged", s, got)
 	}
 }
