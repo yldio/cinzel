@@ -231,6 +231,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 		}
 
 		varComments := c.child("variables")
+		usedVarIDs := make(map[string]struct{}, len(variables))
 
 		for _, name := range sortedKeys(variables) {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
@@ -250,6 +251,14 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			if varID == "" {
 				varID = "var"
 			}
+
+			// Made unique the way a job and a template label already are.
+			// "A-B" and "A_B" both sanitize to "a_b", so the file held the
+			// same block label twice, and the parse direction files a block's
+			// comments under its label: the first block's comment was
+			// overwritten by the second and did not come back.
+			varID = naming.UniqueIdentifierInSet(varID, usedVarIDs)
+			usedVarIDs[varID] = struct{}{}
 
 			vb := body.AppendNewBlock("variable", []string{varID})
 			vbody := vb.Body()
