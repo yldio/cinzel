@@ -69,7 +69,7 @@ Implemented a baseline GitLab provider with both directions plus validation and 
 
 ## Validation Evidence
 
-Implemented in commit `16b3a95` (`feat: add gitlab provider parse and unparse baseline`).
+Implemented in commit `82deed2` (`feat: add gitlab provider parse and unparse baseline`).
 
 Test commands passing:
 

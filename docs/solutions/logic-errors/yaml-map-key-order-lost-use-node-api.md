@@ -15,7 +15,12 @@ components:
   - YAMLDocument struct
 severity: medium
 resolved: true
+updated_date: 2026-09-18
 ---
+
+> `jobOrderFromNode` is now called `jobOrder`
+> (`provider/github/unparse_workflow.go:144`). The Node API reasoning below is
+> unchanged.
 
 # Preserve YAML job key order in unparse without double-parsing
 

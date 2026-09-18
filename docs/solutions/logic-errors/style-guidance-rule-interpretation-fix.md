@@ -51,10 +51,10 @@ Style policy was clarified and then enforced across the codebase.
      - `docs/solutions/logic-errors/nondeterministic-map-iteration.md`
      - `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md` (deleted, in `5a115de^`)
 
-4. Landed style-focused commits:
-   - `10809ba` `style: trim blank lines at block starts`
-   - `0cc0cba` `style: attach comments directly to code`
-   - `db725e7` `style: enforce control-flow spacing conventions`
+4. Landed style-focused commits (rewritten since, so these are the current SHAs):
+   - `8569b0b` `style: trim blank lines at block starts`
+   - `3483f10` `style: attach comments directly to code`
+   - `39fafae` `style: enforce control-flow spacing conventions`
 
 ## Verification
 

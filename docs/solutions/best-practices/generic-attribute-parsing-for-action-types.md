@@ -16,8 +16,13 @@ tags:
   - "generic-parsing"
   - "architecture"
 created_date: "2026-03-08"
-updated_date: "2026-03-08"
+updated_date: "2026-09-18"
 ---
+
+> `parseActionRunsBlock` is now `parseActionRunsConfig`
+> (`provider/github/parse_action.go:145`) and takes a typed struct rather than
+> an HCL body. The point below — that every `runs.using` type works because
+> only `steps` is special-cased — still holds.
 
 ## Problem Description
 

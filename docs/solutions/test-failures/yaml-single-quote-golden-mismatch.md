@@ -16,8 +16,13 @@ tags:
   - "zed-editor"
   - "ide"
 created_date: "2026-03-08"
-updated_date: "2026-03-08"
+updated_date: "2026-09-18"
 ---
+
+> The quoting decision moved to `needsQuoting` in `internal/yamldoc/encode.go:158`
+> (GitLab keeps its own `stringNeedsQuoting`). `DoubleQuotedStyle` is still the only
+> style either of them sets, and `needsQuoting` now also quotes a value whose ends are
+> whitespace — yaml.v3 would otherwise quote it itself, with single quotes.
 
 ## Problem Description
 

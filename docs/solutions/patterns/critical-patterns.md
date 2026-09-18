@@ -16,7 +16,7 @@ tags:
   - "yaml"
   - "hcl"
 created_date: "2026-03-08"
-updated_date: "2026-03-08"
+updated_date: "2026-09-18"
 ---
 
 ## Critical Patterns
@@ -51,7 +51,7 @@ Always unmarshal YAML once via `parseYAMLDocument()`, then classify with `classi
 
 ### 4. YAML quote style
 
-Use `DoubleQuotedStyle` exclusively. The Zed editor converts single quotes to double quotes on save, which breaks golden tests if `SingleQuotedStyle` is used.
+Use `DoubleQuotedStyle` exclusively. The Zed editor converts single quotes to double quotes on save, which breaks golden tests if `SingleQuotedStyle` is used. The decision of what to quote lives in `needsQuoting` (`internal/yamldoc/encode.go:158`), with GitLab keeping its own `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:329`) because the shared rules would quote a large share of real pipelines.
 
 ### 5. Return value consistency
 

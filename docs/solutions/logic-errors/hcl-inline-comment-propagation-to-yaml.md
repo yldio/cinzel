@@ -16,8 +16,18 @@ tags:
   - parse
   - workflow
 date: 2026-04-10
+updated_date: 2026-09-18
 status: solved
 ---
+
+> The `annotated` wrapper described here is still how comments travel, but its
+> API has moved on. `unwrapAnnotated` and `unwrapAnnotatedMap` are now one
+> recursive `plain` (with `plainMap` for a value already known to be a map),
+> which strips wrappers at any depth rather than one level. The struct carries
+> `head` and `foot` besides `comment`, so a comment above an attribute and one
+> closing a body travel the same way. `extractInlineComment` is gone; the
+> comments come off the HCL through `internal/hclparser`. The reasoning below
+> is what is worth keeping — the names are of their date.
 
 ## Problem
 
@@ -183,7 +193,7 @@ error in workflow 'ci': workflow.ci.permissions: permissions scope "actions" mus
 
 ### Design Guidance
 
-- **Unwrap at a defined boundary**: establish one normalisation step (e.g. `unwrapAnnotatedMap`) that all validators call, rather than unwrapping ad hoc.
+- **Unwrap at a defined boundary**: establish one normalisation step — `plain` today — that all validators call, rather than unwrapping ad hoc.
 - **Use `annotated` when**: metadata must travel with the value through the pipeline and the consumer count is small and controlled.
 - **Use a separate metadata map when**: consumers are numerous or externally defined — validators never need to see the metadata at all.
 

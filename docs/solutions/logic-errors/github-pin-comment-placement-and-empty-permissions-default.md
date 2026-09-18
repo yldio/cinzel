@@ -16,12 +16,23 @@ affected_components:
   - "provider/github/parse_workflow.go"
   - "provider/github/workflow_yaml.go"
 problem_type: logic-errors
+updated_date: 2026-09-18
 related:
   - docs/solutions/patterns/assist-pin-upgrade-feature-implementation.md
   - docs/solutions/logic-errors/preserve-hcl-job-order-in-yaml-output.md
 ---
 
 # github pin inline comment format and empty permissions least-privilege default
+
+> Problem 4 and its sentinel no longer exist. The global `": {}\n"` strip they
+> worked around is gone: `internal/yamldoc` builds the document node by node, so
+> a null encodes as a bare `key:` and an empty map as `key: {}` because they are
+> different values, not because a post-processor was taught to tell them apart
+> (`internal/yamldoc/encode.go:18`). Problems 1 to 3 still describe the code —
+> the inline `# tag` comment at `internal/pin/pin.go:334`, and the
+> `permissions: {}` default at `provider/github/parse_workflow.go:521`. The
+> sentinel-swap pattern in the prevention section is still a sound technique;
+> it is just no longer used here.
 
 Two independent logic errors in the `github pin`/`upgrade` commands and the workflow permissions parser, both producing semantically wrong output from valid input.
 

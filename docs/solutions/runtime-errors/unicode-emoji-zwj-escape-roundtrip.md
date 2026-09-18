@@ -22,7 +22,14 @@ affected_files:
   - provider/gitlab/pipeline_yaml.go
   - provider/github/roundtrip_test.go
 date: 2026-03-31
+updated_date: 2026-09-18
 ---
+
+> The two post-processors moved into one package. `unescapeHCLUnicode` and
+> `unescapeYAMLUnicode` are now a single `unescape.Unicode`
+> (`internal/unescape`), applied at the same six output boundaries the table
+> below lists. One function rather than two per-format copies: the escapes
+> hclwrite and yaml.v3 emit are the same escapes.
 
 ## Problem Statement
 

@@ -114,4 +114,4 @@ step "git_cliff_release_notes" {
 - [git-cliff action offline token fix](./git-cliff-action-offline-token-fix.md)
 - [GitHub App token auth name mismatch](./github-app-token-auth-name-mismatch.md)
 - [Release automation deprecation cleanup](./release-automation-deprecation-trigger-contract-cleanup.md)
-- [CI git-cliff manual release plan](../../plans/2026-03-11-ci-git-cliff-manual-release-automation-plan.md)
+- CI git-cliff manual release plan — `docs/plans/2026-03-11-ci-git-cliff-manual-release-automation-plan.md` (deleted, in 5a115de^)

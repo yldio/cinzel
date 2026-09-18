@@ -86,18 +86,30 @@ Two implementations: `Anthropic` and `OpenAI`. Shared `resolveAPIKey` helper. Er
 
 ## Configuration (`cinzel init`)
 
-`cinzel init` creates an interactive config file at `os.UserConfigDir()/cinzel/config.yaml` with `0600` permissions:
+`cinzel init` creates an interactive config file at `os.UserConfigDir()/cinzel/config.yaml` with
+`0600` permissions, set both on `os.WriteFile` and by an explicit `os.Chmod` — `WriteFile` only
+applies a mode when it creates the file, so a config written before this existed would have kept
+whatever mode it had while the command said `0600`.
+
+The template holds no `api_key`. A key belongs in the environment, where it is not written to disk
+and not carried into a backup of this file. `LoadConfig` still reads an `api_key` someone wrote
+there by hand, and warns when such a file is group- or world-readable; the environment wins over it
+either way. The models come from `ai.DefaultModels()` rather than from a string in the template,
+so a new config starts on what the code defaults to today rather than on what was current when the
+template was written:
 
 ```yaml
+# cinzel AI configuration
+# API keys are read from the environment:
+#   ANTHROPIC_API_KEY, OPENAI_API_KEY
+
 ai:
   default: anthropic
   providers:
     anthropic:
-      model: claude-sonnet-4-5-20250514
-      api_key: "sk-ant-..."
+      model: claude-sonnet-4-6
     openai:
-      model: gpt-4o
-      api_key: "sk-..."
+      model: gpt-5.4
 ```
 
 Resolution order (highest wins): CLI flags (`--ai`, `--model`) > env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) > config file > hardcoded defaults.
@@ -142,6 +154,6 @@ Three rounds of parallel reviews (architecture, security, simplicity, performanc
 
 ## Related
 
-- [Brainstorm](../../brainstorms/2026-03-16-feat-cinzel-assist-ai-workflow-generation.md)
-- [Plan](../../plans/2026-03-16-feat-cinzel-assist-ai-workflow-generation-plan.md)
+- Brainstorm — `docs/brainstorms/2026-03-16-feat-cinzel-assist-ai-workflow-generation.md` (deleted, in 1a755dd^)
+- Plan — `docs/plans/2026-03-16-feat-cinzel-assist-ai-workflow-generation-plan.md` (deleted, in 64f8348^)
 - [git-cliff release notes fix](../integration-issues/git-cliff-release-notes-wrong-changelog.md)

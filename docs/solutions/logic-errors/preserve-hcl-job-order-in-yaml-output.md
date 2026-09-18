@@ -5,7 +5,18 @@ type: logic-errors
 tags: [go, yaml, hcl, cinzel, job-order, map-ordering, github-actions]
 components: [provider/github/parse_workflow.go, provider/github/workflow_yaml.go]
 symptoms: [jobs output in alphabetical order instead of declared order, HCL jobs list reference order ignored during parse, roundtrip YAML→HCL→YAML changes job sequence]
+updated_date: 2026-09-18
 ---
+
+> The sentinel is gone. The last line of the prevention section below —
+> "consider an explicit ordered map type instead of the sentinel" — is what the
+> code does now: `jobOrder` travels as its own return value out of
+> `parseHCLToWorkflows` and as a parameter into `marshalWorkflowYAML`
+> (`provider/github/workflow_yaml.go:26`), so it never enters the body map and
+> nothing has to remember to exclude it. `workflowMapNode` and
+> `appendOrderedJobsMap` no longer exist; ordering happens in `orderedDoc`
+> (`workflow_yaml.go:70`). Read the note for why order had to be kept, not for
+> how it is kept.
 
 ## Problem
 

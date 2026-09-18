@@ -15,8 +15,17 @@ tags:
   - "stringNeedsQuoting"
   - "workflow_yaml"
 created_date: "2026-03-08"
-updated_date: "2026-03-08"
+updated_date: "2026-09-18"
 ---
+
+> The function moved and the list moved with it. It is `needsQuoting` in
+> `internal/yamldoc/encode.go:158`, shared by both providers; GitLab keeps its own
+> `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:329`) because running GitLab keys
+> through the shared one would quote a large share of real pipelines. The rules below are
+> right in outline and stale in detail — read the code for the current list. What changed:
+> `y` and `n` joined the boolean words (YAML 1.1 reads those too), a value whose ends are
+> whitespace is quoted, and the special characters are now `: # [ ] { } , & * ! | > %` and
+> backtick — `?`, `-`, `<` and `=` are not among them.
 
 ## Problem Description
 

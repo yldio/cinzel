@@ -15,8 +15,15 @@ tags:
   - "golden-tests"
   - "flaky-tests"
 created_date: "2026-03-08"
-updated_date: "2026-03-08"
+updated_date: "2026-09-18"
 ---
+
+> The functions named below were replaced by typed decode. `parse_action.go`
+> no longer ranges over `sb.Attributes` at all: it reads a struct
+> (`parseActionConfig`, `parseActionRunsConfig`), and a struct has field order.
+> `sortedKeys` is still the answer wherever a map does reach output — see
+> `provider/github/unparse_workflow.go:732`. The rule below stands; the call
+> sites it names do not.
 
 ## Problem Description
 
