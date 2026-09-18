@@ -29,7 +29,7 @@ func Convert[T any](input T) (any, error) {
 }
 
 func convert(val reflect.Value) (any, error) {
-	if val.Kind() == reflect.Pointer {
+	for val.Kind() == reflect.Pointer || val.Kind() == reflect.Interface {
 		if val.IsNil() {
 			return nil, nil
 		}
@@ -39,6 +39,16 @@ func convert(val reflect.Value) (any, error) {
 
 	switch val.Kind() {
 	case reflect.Struct:
+		// A cty.Value is a struct of unexported fields, so the walk below reads
+		// nothing off it and writes "{}". The check used to sit on the field,
+		// which caught a field typed cty.Value and missed one reached through an
+		// "any" field, a map value or a slice element: the value was dropped and
+		// the empty map went out in its place. Checking the value catches every
+		// route in.
+		if val.Type() == reflect.TypeOf(cty.Value{}) {
+			return convertCty(val.Interface().(cty.Value))
+		}
+
 		result := make(map[string]any)
 		typ := val.Type()
 
@@ -61,37 +71,13 @@ func convert(val reflect.Value) (any, error) {
 				continue
 			}
 
-			if field.Type() == reflect.TypeOf(cty.Value{}) {
-				ctyVal := field.Interface().(cty.Value)
+			convertedValue, err := convert(field)
+			if err != nil {
+				return nil, err
+			}
 
-				if !ctyVal.IsKnown() || ctyVal.IsNull() {
-					continue
-				}
-
-				// cty.Value requires go-cty-yaml for marshaling (it understands
-				// the cty type system); the result is then decoded into plain Go
-				// types via go-yaml so the rest of the pipeline handles it uniformly.
-				yamlBytes, err := ctyyaml.Marshal(ctyVal)
-				if err != nil {
-					return nil, err
-				}
-
-				var value any
-
-				if err := yaml.Unmarshal(yamlBytes, &value); err != nil {
-					return nil, err
-				}
-
-				result[yamlTag] = value
-			} else {
-				convertedValue, err := convert(field)
-				if err != nil {
-					return nil, err
-				}
-
-				if yamlTag != "" && convertedValue != nil {
-					result[yamlTag] = convertedValue
-				}
+			if yamlTag != "" && convertedValue != nil {
+				result[yamlTag] = convertedValue
 			}
 		}
 
@@ -130,6 +116,31 @@ func convert(val reflect.Value) (any, error) {
 
 		return nil, errors.New("unknown error in convert")
 	}
+}
+
+// convertCty renders a cty.Value as the plain Go value YAML wants, or nil when
+// there is nothing to write.
+//
+// cty.Value requires go-cty-yaml for marshaling (it understands the cty type
+// system); the result is then decoded into plain Go types via go-yaml so the
+// rest of the pipeline handles it uniformly.
+func convertCty(val cty.Value) (any, error) {
+	if !val.IsKnown() || val.IsNull() {
+		return nil, nil
+	}
+
+	yamlBytes, err := ctyyaml.Marshal(val)
+	if err != nil {
+		return nil, err
+	}
+
+	var out any
+
+	if err := yaml.Unmarshal(yamlBytes, &out); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func stripTag(tag string) string {

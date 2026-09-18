@@ -160,3 +160,39 @@ func TestConvertPointer(t *testing.T) {
 		t.Fatalf("expected ptr, got %v", m["name"])
 	}
 }
+
+// A cty.Value is a struct of unexported fields, so the struct walk reads
+// nothing off it and writes "{}". The check that diverted it used to sit on the
+// struct field, so only a field typed cty.Value took the cty path; one reached
+// through an "any" field, a map value or a slice element went out as an empty
+// map with the value gone.
+func TestConvertCtyValueBehindAnAny(t *testing.T) {
+	type boxed struct {
+		Direct cty.Value      `yaml:"direct"`
+		Any    any            `yaml:"any"`
+		Map    map[string]any `yaml:"map"`
+		List   []any          `yaml:"list"`
+	}
+
+	val := cty.StringVal("hello")
+
+	out, err := Marshal(boxed{
+		Direct: val,
+		Any:    val,
+		Map:    map[string]any{"k": val},
+		List:   []any{val},
+	})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	if strings.Contains(string(out), "{}") {
+		t.Errorf("a cty.Value marshalled as an empty map:\n%s", out)
+	}
+
+	for _, want := range []string{"direct: hello", "any: hello", "k: hello", "- hello"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
