@@ -204,6 +204,12 @@ func needsQuoting(v string) bool {
 		}
 	}
 
+	// A leading "..." is the document-end marker. yaml.v3 quotes it without
+	// being asked, in single quotes, and the project writes double.
+	if strings.HasPrefix(v, "...") {
+		return true
+	}
+
 	// Strings starting with YAML indicators.
 
 	if len(v) > 0 {

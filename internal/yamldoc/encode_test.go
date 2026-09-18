@@ -116,3 +116,27 @@ func TestFootCommentSurvivesAnEmptyCollection(t *testing.T) {
 		})
 	}
 }
+
+// A scalar starting with "..." is the document-end marker, so yaml.v3 quotes
+// it on its own — in single quotes, which the project does not write. An
+// editor rewriting those to double on save moves a golden nobody edited.
+func TestEncodeQuotesADocumentEndMarkerWithDoubleQuotes(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"...", "k: \"...\"\n"},
+		{"...x", "k: \"...x\"\n"},
+		{"x ...", "k: x ...\n"},
+		{"..", "k: ..\n"},
+	} {
+		doc := New()
+		doc.Set("k", Scalar(tc.in))
+
+		got, err := Encode(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if string(got) != tc.want {
+			t.Errorf("Encode(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
