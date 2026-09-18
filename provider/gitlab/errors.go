@@ -31,6 +31,7 @@ var (
 	errNeedsHiddenJob          = cinzelerror.UserInput(errors.New("a hidden job never runs, so nothing can wait on one"))
 	errReportsNotAList         = cinzelerror.UserInput(errors.New("reports takes a single object"))
 	errExtendsNameEmpty        = cinzelerror.UserInput(errors.New("extends entries must name a job or template"))
+	errTemplateIDDotted        = cinzelerror.UserInput(errors.New("a template 'id' is its key without the leading '.', which the reader puts back"))
 )
 
 // errUnknownKeyword reports a key the HCL schema does not declare, naming the

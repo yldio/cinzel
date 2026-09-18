@@ -55,3 +55,25 @@ k:
 		t.Fatalf("error does not name the job: %v", err)
 	}
 }
+
+// A template's "id" records its YAML key without the leading dot, which the
+// reader puts back. An "id" written with one was doubled rather than refused,
+// so ".base" went out as the key "..base": a name nobody wrote, at exit 0.
+func TestTemplateIDCannotStartWithADot(t *testing.T) {
+	const hcl = `stages = ["build"]
+
+template "t" {
+  id     = ".base"
+  script = ["make base"]
+}
+`
+
+	err := parseHCLString(t, hcl)
+	if err == nil {
+		t.Fatal("want an error naming the dotted id")
+	}
+
+	if !strings.Contains(err.Error(), ".base") {
+		t.Fatalf("error does not name the id: %v", err)
+	}
+}

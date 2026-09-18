@@ -166,6 +166,14 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 			return nil, nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
 		}
 
+		// The dot is added below, so an "id" carrying one of its own was
+		// doubled rather than refused: ".base" went out as the key "..base",
+		// a name nobody wrote, at exit 0. A job's "id" already refuses its
+		// own dotted case.
+		if strings.HasPrefix(key, ".") {
+			return nil, nil, fmt.Errorf("error in template '%s': %w: '%s'", t.ID, errTemplateIDDotted, key)
+		}
+
 		if _, taken := jobs["."+key]; taken {
 			return nil, nil, fmt.Errorf("duplicate template name '%s'", key)
 		}
