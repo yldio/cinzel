@@ -49,9 +49,18 @@ func TestAJobCannotBeNamedAfterAPipelineKeyword(t *testing.T) {
 			want: false,
 		},
 		{
+			// GitLab reads a reserved key at the top level as the keyword
+			// whether or not the pipeline sets it elsewhere, so the name is
+			// refused either way. Allowing it wrote a pipeline whose one job
+			// came back from unparse as no jobs at all.
 			name: "a keyword that is not in this pipeline",
 			hcl:  jobBlock("stages"),
-			want: false,
+			want: true,
+		},
+		{
+			name: "a global default keyword",
+			hcl:  jobBlock("image"),
+			want: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -70,7 +79,9 @@ func TestAJobCannotBeNamedAfterAPipelineKeyword(t *testing.T) {
 			}
 
 			// The message has to name the key, or there is nothing to rename.
-			if !strings.Contains(err.Error(), "'"+tc.name+"'") && !strings.Contains(err.Error(), "'stages'") {
+			if !strings.Contains(err.Error(), "'"+tc.name+"'") &&
+				!strings.Contains(err.Error(), "'stages'") &&
+				!strings.Contains(err.Error(), "'image'") {
 				t.Errorf("want the colliding name in %q", err)
 			}
 		})

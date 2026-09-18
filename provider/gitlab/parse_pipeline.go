@@ -175,7 +175,12 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 		// The reserved keys are already in the map. A job named after one of
 		// them used to overwrite it, so "stages" as a job name took the stage
 		// list out of the file and the command still exited 0.
-		if _, taken := pipeline[name]; taken {
+		//
+		// The name is refused whether or not the pipeline happens to use that
+		// keyword: GitLab reads "image:" at the top level as the keyword, not
+		// as a job, so a pipeline whose only job was called "image" parsed to
+		// YAML that unparse then read back as no jobs at all.
+		if _, taken := pipeline[name]; taken || isReservedTopLevelKey(name) {
 			return nil, nil, fmt.Errorf("%w: '%s'", errJobNamedAfterKeyword, name)
 		}
 
