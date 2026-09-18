@@ -180,12 +180,14 @@ one.
 1. `77659b9`, `091d411`. 2. `692504d`. 3. `6332435`. 4 and 5. `69a2963`.
 6. `08a2792`. 7. `62c2319`. 8. `317067c`. 9. `55da191`.
 
-Two gaps are known and left for their own commit. A GitLab pipeline's own
+A tenth followed, `39635ec`, closing the GitHub gap recorded in 7: `on`, `env`
+and `runs-on` bodies took no comment tree, so a comment written inside one was
+dropped. Those writers now read the same tree as every other.
+
+One gap is left, and it is a shape rather than a bug. A GitLab pipeline's own
 end carries no comment: a block's foot is the run above its closing brace, and
 the top level of a pipeline is a file rather than a block, with a directory
-holding several of them. On the GitHub side, `on`, `env` and `runs-on` bodies
-carry neither head nor foot comments from YAML back to HCL, because
-`writeOnEventBody` and `writeNameValueBlocks` never receive a `*yamlComments`.
+holding several of them, each with an end of its own.
 
 ## Comment text is never rewritten
 
