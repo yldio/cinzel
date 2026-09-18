@@ -36,6 +36,16 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 		return cty.NilVal, err
 	}
 
+	// Every operator below "==" reads both sides as numbers, and
+	// cty.Value.AsBigFloat panics with "not a number" rather than returning
+	// an error. A bool or a string on either side took the whole command down
+	// with a stack trace, so the operands are checked first.
+	if boe.expression.Op != hclsyntax.OpEqual && boe.expression.Op != hclsyntax.OpNotEqual {
+		if err := requireNumbers(lhs, rhs); err != nil {
+			return cty.NilVal, err
+		}
+	}
+
 	switch boe.expression.Op {
 	case hclsyntax.OpAdd:
 		lVal, _ := lhs.AsBigFloat().Int64()
@@ -53,7 +63,7 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 
 		return cty.NumberIntVal(lVal * rVal), nil
 	case hclsyntax.OpDivide:
-		if rhs.IsNull() || rhs.AsBigFloat().Sign() == 0 {
+		if rhs.AsBigFloat().Sign() == 0 {
 			return cty.NilVal, fmt.Errorf("division by zero")
 		}
 
@@ -76,6 +86,26 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 	default:
 		return cty.NilVal, fmt.Errorf("unsupported binary operator")
 	}
+}
+
+// requireNumbers reports an arithmetic or ordering operand that is not a known
+// number, which is what AsBigFloat panics on.
+func requireNumbers(lhs, rhs cty.Value) error {
+	for _, side := range [...]struct {
+		name  string
+		value cty.Value
+	}{
+		{"left", lhs},
+		{"right", rhs},
+	} {
+		v := side.value
+
+		if v == cty.NilVal || v.IsNull() || !v.IsKnown() || v.Type() != cty.Number {
+			return fmt.Errorf("the %s side of an arithmetic or comparison operator must be a number", side.name)
+		}
+	}
+
+	return nil
 }
 
 func (boe *BinaryOpExpr) parseLHS() (cty.Value, error) {

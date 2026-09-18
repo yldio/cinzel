@@ -182,3 +182,30 @@ func TestResultNormalizesNewlines(t *testing.T) {
 		}
 	})
 }
+
+// cty.Value.AsBigFloat panics with "not a number" rather than returning an
+// error, so an operand that is not one used to take the whole command down
+// with a stack trace.
+func TestBinaryOpExprRefusesNonNumberOperands(t *testing.T) {
+	for _, expr := range []string{
+		`true + 1`,
+		`1 + true`,
+		`"a" * 2`,
+		`true > 1`,
+		`null - 1`,
+	} {
+		t.Run(expr, func(t *testing.T) {
+			parsed, diags := hclsyntax.ParseExpression([]byte(expr), "", hcl.Pos{})
+
+			if diags.HasErrors() {
+				t.Fatal(diags.Error())
+			}
+
+			hp := New(parsed, NewHCLVars())
+
+			if err := hp.Parse(); err == nil {
+				t.Fatalf("expected an error for %q, got %s", expr, hp.Result())
+			}
+		})
+	}
+}
