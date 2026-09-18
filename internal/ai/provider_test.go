@@ -255,6 +255,33 @@ func TestTruncateAtNewline(t *testing.T) {
 			maxLen: 3,
 			want:   "abc",
 		},
+		// With no newline to cut at, the limit lands wherever it lands. A cut
+		// through a multibyte rune left a partial encoding behind, which is
+		// not a rune and reaches the provider as U+FFFD.
+		{
+			name:   "a cut one byte into a three-byte rune",
+			input:  "\u65e5\u672c\u8a9e",
+			maxLen: 4,
+			want:   "\u65e5",
+		},
+		{
+			name:   "a cut two bytes into a three-byte rune",
+			input:  "\u65e5\u672c\u8a9e",
+			maxLen: 5,
+			want:   "\u65e5",
+		},
+		{
+			name:   "a cut on a rune boundary keeps every rune",
+			input:  "\u65e5\u672c\u8a9e",
+			maxLen: 6,
+			want:   "\u65e5\u672c",
+		},
+		{
+			name:   "a cut three bytes into a four-byte rune",
+			input:  "a\U0001f642b",
+			maxLen: 4,
+			want:   "a",
+		},
 	}
 
 	for _, tt := range tests {

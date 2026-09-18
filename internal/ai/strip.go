@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -82,6 +83,18 @@ func truncateAtNewline(s string, maxLen int) string {
 
 	if i := strings.LastIndex(cut, "\n"); i > 0 {
 		return cut[:i]
+	}
+
+	// With no newline to cut at, the cut lands wherever maxLen falls, which on
+	// a multibyte rune is mid-rune: the partial encoding left behind is not a
+	// rune and reaches the provider as U+FFFD. Drop it. An encoding is at most
+	// four bytes, so at most three trailing bytes can be a partial one.
+	for range utf8.UTFMax - 1 {
+		if r, size := utf8.DecodeLastRuneInString(cut); r != utf8.RuneError || size != 1 {
+			break
+		}
+
+		cut = cut[:len(cut)-1]
 	}
 
 	return cut
