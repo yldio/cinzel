@@ -16,6 +16,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	"github.com/yldio/cinzel/internal/naming"
 	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/zclconf/go-cty/cty"
@@ -200,12 +201,12 @@ func isJobKey(doc map[string]any, key string) bool {
 	return ok
 }
 
-func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
+func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, error) {
 	f := hclwrite.NewEmptyFile()
 	body := f.Body()
 
 	if rawStages, ok := doc["stages"]; ok {
-		if err := writeAttributeAny(body, "stages", escapeGitLabVariables(rawStages)); err != nil {
+		if err := writeCommentedAttribute(body, "stages", escapeGitLabVariables(rawStages), c.at("stages")); err != nil {
 			return nil, err
 		}
 	}
@@ -217,7 +218,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			continue
 		}
 
-		if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
+		if err := writeCommentedAttribute(body, key, escapeGitLabVariables(value), c.at(key)); err != nil {
 			return nil, err
 		}
 	}
@@ -229,10 +230,20 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			return nil, fmt.Errorf("variables must be an object")
 		}
 
+		varComments := c.child("variables")
+
 		for _, name := range sortedKeys(variables) {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
 				body.AppendNewline()
 			}
+
+			// A variable written as a plain scalar carries its comments on the
+			// key itself; one written as a mapping carries them inside, on the
+			// keys of that mapping. Both end up in the same block, so both are
+			// read and whichever was written is the one that is there.
+			comment := varComments.at(name)
+			nested := varComments.child(name)
+			hclcomment.WriteLeading(body, firstNonEmpty(comment.head, nested.above()))
 
 			varID := naming.SanitizeIdentifier(strings.ToLower(name))
 
@@ -248,7 +259,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 
 			if vm, ok := toStringAnyMap(raw); ok {
 				if val, hasVal := vm["value"]; hasVal {
-					if err := writeAttributeAny(vbody, "value", escapeGitLabVariables(val)); err != nil {
+					if err := writeCommentedAttribute(vbody, "value", escapeGitLabVariables(val), nested.at("value")); err != nil {
 						return nil, err
 					}
 				}
@@ -260,15 +271,17 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 						continue
 					}
 
-					if err := writeAttributeAny(vbody, key, escapeGitLabVariables(value)); err != nil {
+					if err := writeCommentedAttribute(vbody, key, escapeGitLabVariables(value), nested.at(key)); err != nil {
 						return nil, err
 					}
 				}
 			} else {
-				if err := writeAttributeAny(vbody, "value", escapeGitLabVariables(raw)); err != nil {
+				if err := writeCommentedAttribute(vbody, "value", escapeGitLabVariables(raw), comment.withoutHead()); err != nil {
 					return nil, err
 				}
 			}
+
+			hclcomment.WriteLeading(vbody, nested.below())
 		}
 	}
 
@@ -295,17 +308,20 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			}
 		}
 
+		workflowComments := c.child("workflow")
+		hclcomment.WriteLeading(body, c.at("workflow").head)
+
 		wb := body.AppendNewBlock("workflow", nil)
 		wbody := wb.Body()
 
 		if name, hasName := workflowMap["name"]; hasName {
-			if err := writeAttributeAny(wbody, "name", escapeGitLabVariables(name)); err != nil {
+			if err := writeCommentedAttribute(wbody, "name", escapeGitLabVariables(name), workflowComments.at("name")); err != nil {
 				return nil, err
 			}
 		}
 
 		if autoCancel, hasAutoCancel := workflowMap["auto_cancel"]; hasAutoCancel {
-			if err := writeAttributeAny(wbody, "auto_cancel", escapeGitLabVariables(autoCancel)); err != nil {
+			if err := writeCommentedAttribute(wbody, "auto_cancel", escapeGitLabVariables(autoCancel), workflowComments.at("auto_cancel")); err != nil {
 				return nil, err
 			}
 		}
@@ -329,21 +345,25 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 				}
 			}
 
-			for _, item := range rules {
+			ruleComments := workflowComments.child("rules")
+			hclcomment.WriteLeading(wbody, workflowComments.at("rules").head)
+
+			for idx, item := range rules {
 				ruleMap, ok := toStringAnyMap(item)
 
 				if !ok {
 					return nil, fmt.Errorf("workflow.rules entries must be objects")
 				}
-				rb := wbody.AppendNewBlock("rule", nil)
 
-				for _, key := range sortedKeys(ruleMap) {
-					if err := writeAttributeAny(rb.Body(), key, escapeGitLabVariables(ruleMap[key])); err != nil {
-						return nil, err
-					}
+				if err := writeRuleBlock(wbody, ruleMap, ruleComments.item(idx)); err != nil {
+					return nil, err
 				}
 			}
+
+			hclcomment.WriteLeading(wbody, ruleComments.below())
 		}
+
+		hclcomment.WriteLeading(wbody, workflowComments.below())
 	}
 
 	if rawDefault, ok := doc["default"]; ok {
@@ -357,9 +377,11 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			body.AppendNewline()
 		}
 
+		hclcomment.WriteLeading(body, c.at("default").head)
+
 		db := body.AppendNewBlock("default", nil)
 
-		if err := writeGenericMap(db.Body(), defaultMap, defaultSchema); err != nil {
+		if err := writeGenericMap(db.Body(), defaultMap, defaultSchema, c.child("default")); err != nil {
 			return nil, err
 		}
 	}
@@ -375,13 +397,18 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			body.AppendNewline()
 		}
 
+		specComments := c.child("spec")
+		hclcomment.WriteLeading(body, c.at("spec").head)
+
 		sb := body.AppendNewBlock("spec", nil)
 
 		for _, key := range sortedKeys(specMap) {
-			if err := writeAttributeAny(sb.Body(), key, escapeGitLabVariables(specMap[key])); err != nil {
+			if err := writeCommentedAttribute(sb.Body(), key, escapeGitLabVariables(specMap[key]), specComments.at(key)); err != nil {
 				return nil, err
 			}
 		}
+
+		hclcomment.WriteLeading(sb.Body(), specComments.below())
 	}
 
 	if rawInclude, ok := doc["include"]; ok {
@@ -389,7 +416,9 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			body.AppendNewline()
 		}
 
-		if err := writeIncludeBlocks(body, rawInclude); err != nil {
+		hclcomment.WriteLeading(body, c.at("include").head)
+
+		if err := writeIncludeBlocks(body, rawInclude, c.child("include")); err != nil {
 			return nil, err
 		}
 	}
@@ -461,11 +490,13 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			body.AppendNewline()
 		}
 		jobMap, _ := toStringAnyMap(doc[name])
+		hclcomment.WriteLeading(body, c.at(name).head)
+
 		jb := body.AppendNewBlock("job", []string{jobIDMap[name]})
 
 		writeBlockKey(jb.Body(), name, jobIDMap[name])
 
-		if err := writeJobBlock(jb.Body(), jobMap, jobIDMap, templateIDMap); err != nil {
+		if err := writeJobBlock(jb.Body(), jobMap, jobIDMap, templateIDMap, c.child(name)); err != nil {
 			return nil, fmt.Errorf("error in job '%s': %w", name, err)
 		}
 	}
@@ -494,6 +525,8 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 					tplID = "template"
 				}
 			}
+			hclcomment.WriteLeading(body, c.at(key).head)
+
 			tb := body.AppendNewBlock("template", []string{tplID})
 
 			writeBlockKey(tb.Body(), strings.TrimPrefix(key, "."), tplID)
@@ -501,7 +534,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			// A template body is a job body: it takes the same rule, cache,
 			// artifacts and service blocks, which the generic writer would
 			// write as attributes.
-			if err := writeJobBlock(tb.Body(), hiddenJobMap, jobIDMap, templateIDMap); err != nil {
+			if err := writeJobBlock(tb.Body(), hiddenJobMap, jobIDMap, templateIDMap, c.child(key)); err != nil {
 				return nil, fmt.Errorf("error in template '%s': %w", key, err)
 			}
 			continue
@@ -511,9 +544,11 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
 				body.AppendNewline()
 			}
+			hclcomment.WriteLeading(body, c.at(key).head)
+
 			gb := body.AppendNewBlock(key, nil)
 
-			if err := writeGenericMap(gb.Body(), genericMap, passthroughSchema); err != nil {
+			if err := writeGenericMap(gb.Body(), genericMap, passthroughSchema, c.child(key)); err != nil {
 				return nil, err
 			}
 		} else {
@@ -525,7 +560,7 @@ func pipelineToHCL(doc map[string]any, filename string) ([]byte, error) {
 				return nil, errKeyNotAnIdentifier(key)
 			}
 
-			if err := writeAttributeAny(body, key, escapeGitLabVariables(doc[key])); err != nil {
+			if err := writeCommentedAttribute(body, key, escapeGitLabVariables(doc[key]), c.at(key)); err != nil {
 				return nil, err
 			}
 		}
@@ -573,7 +608,7 @@ func jobRefID(name string, jobIDMap map[string]string) (string, error) {
 // writeNeedBlock writes the object form of a "needs" entry. Its "job" is
 // written as a job reference so it tracks a renamed job like "depends_on"
 // does; everything else is copied through.
-func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[string]string) error {
+func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[string]string, c *comments) error {
 	// A need naming neither a job nor an upstream pipeline is the same empty
 	// reference in block form: it wrote "need {}", which parse then refuses.
 	// This is the rule parse already applies, moved to where the file is
@@ -583,6 +618,8 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 			return errNeedsJobEmpty
 		}
 	}
+
+	hclcomment.WriteLeading(body, c.above())
 
 	nb := body.AppendNewBlock("need", nil)
 
@@ -606,17 +643,44 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 			continue
 		}
 
-		if err := writeAttributeAny(nb.Body(), key, escapeGitLabVariables(value)); err != nil {
+		if err := writeCommentedAttribute(nb.Body(), key, escapeGitLabVariables(value), c.at(key)); err != nil {
 			return err
 		}
 	}
 
+	hclcomment.WriteLeading(nb.Body(), c.below())
+
 	return nil
 }
 
-func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string) error {
+// writeRuleBlock writes one entry of a "rules" list as a rule block, carrying
+// whatever comments that entry held.
+func writeRuleBlock(body *hclwrite.Body, rule map[string]any, c *comments) error {
+	hclcomment.WriteLeading(body, c.above())
+
+	rb := body.AppendNewBlock("rule", nil)
+
+	for _, key := range sortedKeys(rule) {
+		if err := writeCommentedAttribute(rb.Body(), key, escapeGitLabVariables(rule[key]), c.at(key)); err != nil {
+			return err
+		}
+	}
+
+	hclcomment.WriteLeading(rb.Body(), c.below())
+
+	return nil
+}
+
+func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string, c *comments) error {
 	for _, key := range sortedKeys(job) {
 		value := job[key]
+
+		// Written here rather than inside each case: every key below becomes
+		// either an attribute or one or more blocks, and the comment above it
+		// belongs above whichever it becomes.
+		comment := c.at(key)
+		hclcomment.WriteLeading(body, comment.head)
+
 		switch key {
 		case "needs":
 			needs, ok := value.([]any)
@@ -626,13 +690,13 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			}
 			refs := make([]string, 0, len(needs))
 
-			for _, n := range needs {
+			for idx, n := range needs {
 				// A "needs" entry is either a job name or an object
 				// carrying that name plus options. The object form
 				// becomes a "need" block, since an attribute cannot
 				// hold the job reference.
 				if nested, isMap := toStringAnyMap(n); isMap {
-					if err := writeNeedBlock(body, nested, jobIDMap); err != nil {
+					if err := writeNeedBlock(body, nested, jobIDMap, c.child("needs").item(idx)); err != nil {
 						return err
 					}
 
@@ -687,20 +751,21 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				continue
 			}
 
-			for _, item := range rules {
+			ruleComments := c.child("rules")
+
+			for idx, item := range rules {
 				ruleMap, ok := toStringAnyMap(item)
 
 				if !ok {
 					return fmt.Errorf("rules entries must be objects")
 				}
-				rb := body.AppendNewBlock("rule", nil)
 
-				for _, attr := range sortedKeys(ruleMap) {
-					if err := writeAttributeAny(rb.Body(), attr, escapeGitLabVariables(ruleMap[attr])); err != nil {
-						return err
-					}
+				if err := writeRuleBlock(body, ruleMap, ruleComments.item(idx)); err != nil {
+					return err
 				}
 			}
+
+			hclcomment.WriteLeading(body, ruleComments.below())
 		case "cache", "artifacts":
 			schema := cacheSchema
 
@@ -741,20 +806,37 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				return fmt.Errorf("%w, got %d", errArtifactsNotAList, len(entries))
 			}
 
-			for _, entry := range entries {
+			// A key given as a mapping carries its comments on that mapping;
+			// given as a list, each entry carries its own. Both readings are
+			// there, and only the one that was written holds anything.
+			entryComments := c.child(key)
+
+			for idx, entry := range entries {
 				mapVal, ok := toStringAnyMap(entry)
 
 				if !ok {
 					return fmt.Errorf("%s must be an object", key)
 				}
+
+				nested := entryComments
+
+				if isList {
+					nested = entryComments.item(idx)
+					hclcomment.WriteLeading(body, nested.above())
+				}
+
 				b := body.AppendNewBlock(key, nil)
 
-				if err := writeGenericMap(b.Body(), mapVal, schema); err != nil {
+				if err := writeGenericMap(b.Body(), mapVal, schema, nested); err != nil {
 					return err
 				}
 			}
+
+			if isList {
+				hclcomment.WriteLeading(body, entryComments.below())
+			}
 		case "services":
-			if err := writeServicesBlocks(body, value); err != nil {
+			if err := writeServicesBlocks(body, value, c.child("services")); err != nil {
 				return err
 			}
 		case "extends":
@@ -819,11 +901,13 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				return err
 			}
 		default:
-			if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
+			if err := writeCommentedAttribute(body, key, escapeGitLabVariables(value), comment.withoutHead()); err != nil {
 				return err
 			}
 		}
 	}
+
+	hclcomment.WriteLeading(body, c.below())
 
 	return nil
 }
@@ -915,12 +999,18 @@ func allStringAnyMaps(entries []any) bool {
 	return true
 }
 
-func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySchema) error {
+func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySchema, c *comments) error {
 	for _, key := range sortedKeys(mapping) {
 		value := mapping[key]
 
+		// Written here rather than in each branch: the key becomes either an
+		// attribute or one or more blocks, and the comment above it belongs
+		// above whichever it becomes.
+		comment := c.at(key)
+		hclcomment.WriteLeading(body, comment.head)
+
 		if key == "services" {
-			if err := writeServicesBlocks(body, value); err != nil {
+			if err := writeServicesBlocks(body, value, c.child(key)); err != nil {
 				return err
 			}
 			continue
@@ -930,7 +1020,7 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 			if child, isBlock := schema.child(key); isBlock {
 				b := body.AppendNewBlock(key, nil)
 
-				if err := writeGenericMap(b.Body(), nested, child); err != nil {
+				if err := writeGenericMap(b.Body(), nested, child, c.child(key)); err != nil {
 					return err
 				}
 				continue
@@ -950,28 +1040,37 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 			}
 
 			if child, declared := schema.blocks[key]; declared && allStringAnyMaps(entries) {
-				for _, entry := range entries {
+				entryComments := c.child(key)
+
+				for idx, entry := range entries {
 					nested, _ := toStringAnyMap(entry)
+					itemComments := entryComments.item(idx)
+					hclcomment.WriteLeading(body, itemComments.above())
+
 					b := body.AppendNewBlock(key, nil)
 
-					if err := writeGenericMap(b.Body(), nested, child); err != nil {
+					if err := writeGenericMap(b.Body(), nested, child, itemComments); err != nil {
 						return err
 					}
 				}
+
+				hclcomment.WriteLeading(body, entryComments.below())
 
 				continue
 			}
 		}
 
-		if err := writeAttributeAny(body, key, escapeGitLabVariables(value)); err != nil {
+		if err := writeCommentedAttribute(body, key, escapeGitLabVariables(value), comment.withoutHead()); err != nil {
 			return err
 		}
 	}
 
+	hclcomment.WriteLeading(body, c.below())
+
 	return nil
 }
 
-func writeServicesBlocks(body *hclwrite.Body, raw any) error {
+func writeServicesBlocks(body *hclwrite.Body, raw any, c *comments) error {
 	services, ok := raw.([]any)
 
 	if !ok {
@@ -982,7 +1081,10 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 		return writeAttributeAny(body, "services", []any{})
 	}
 
-	for _, item := range services {
+	for idx, item := range services {
+		itemComments := c.item(idx)
+		hclcomment.WriteLeading(body, itemComments.above())
+
 		sb := body.AppendNewBlock("service", nil)
 
 		switch service := item.(type) {
@@ -991,7 +1093,7 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 				return err
 			}
 		case map[string]any:
-			if err := writeGenericMap(sb.Body(), service, serviceSchema); err != nil {
+			if err := writeGenericMap(sb.Body(), service, serviceSchema, itemComments); err != nil {
 				return err
 			}
 		default:
@@ -999,10 +1101,12 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 		}
 	}
 
+	hclcomment.WriteLeading(body, c.below())
+
 	return nil
 }
 
-func writeIncludeBlocks(body *hclwrite.Body, raw any) error {
+func writeIncludeBlocks(body *hclwrite.Body, raw any, c *comments) error {
 	switch include := raw.(type) {
 	case string:
 		ib := body.AppendNewBlock("include", nil)
@@ -1015,9 +1119,12 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any) error {
 	case map[string]any:
 		ib := body.AppendNewBlock("include", nil)
 
-		return writeGenericMap(ib.Body(), include, includeSchema)
+		return writeGenericMap(ib.Body(), include, includeSchema, c)
 	case []any:
-		for _, item := range include {
+		for idx, item := range include {
+			itemComments := c.item(idx)
+			hclcomment.WriteLeading(body, itemComments.above())
+
 			switch v := item.(type) {
 			case string:
 				ib := body.AppendNewBlock("include", nil)
@@ -1028,13 +1135,15 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any) error {
 			case map[string]any:
 				ib := body.AppendNewBlock("include", nil)
 
-				if err := writeGenericMap(ib.Body(), v, includeSchema); err != nil {
+				if err := writeGenericMap(ib.Body(), v, includeSchema, itemComments); err != nil {
 					return err
 				}
 			default:
 				return fmt.Errorf("include entries must be strings or objects")
 			}
 		}
+
+		hclcomment.WriteLeading(body, c.below())
 
 		return nil
 	default:

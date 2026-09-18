@@ -8,15 +8,34 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 )
 
 func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
+	return writeCommentedAttribute(body, attr, raw, nodeComment{})
+}
+
+// writeCommentedAttribute writes the attribute with whatever comments its YAML
+// key carried: the head run on its own lines above it, the inline one after
+// the value. An empty comment writes nothing and leaves the attribute as it
+// was.
+func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment nodeComment) error {
 	ctyValue, err := anyToCty(raw)
 	if err != nil {
 		return err
 	}
 
-	body.SetAttributeValue(attr, ctyValue)
+	hclcomment.WriteLeading(body, comment.head)
+
+	if comment.line == "" {
+		body.SetAttributeValue(attr, ctyValue)
+
+		return nil
+	}
+
+	// SetAttributeValue writes the value and nothing after it, so the comment
+	// has to ride along with the expression tokens to land on the same line.
+	body.SetAttributeRaw(attr, hclcomment.Trailing(hclwrite.TokensForValue(ctyValue), comment.line))
 
 	return nil
 }

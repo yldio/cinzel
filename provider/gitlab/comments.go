@@ -4,9 +4,13 @@
 package gitlab
 
 import (
+	"bytes"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/yldio/cinzel/internal/fsutil"
 	"github.com/yldio/cinzel/internal/hclparser"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 // nodeComment holds the two comments an HCL attribute can carry: the run
@@ -18,6 +22,14 @@ type nodeComment struct {
 
 // empty reports whether the attribute carried no comment at all.
 func (c nodeComment) empty() bool { return c.head == "" && c.line == "" }
+
+// withoutHead returns the comment with its head run dropped, for a writer
+// whose caller has already emitted it.
+func (c nodeComment) withoutHead() nodeComment {
+	c.head = ""
+
+	return c
+}
 
 // comments mirrors the shape of one HCL body, holding the comments written in
 // it and the same again for each body nested inside.
@@ -300,4 +312,161 @@ func addBlockComments(out *comments, blockType string, labels []string, body hcl
 	}
 
 	out.set(key, nested)
+}
+
+// collectComments reads the comments off a YAML mapping node, every mapping
+// nested under it, and every sequence, returning nil when there are none.
+//
+// The tree is keyed by the YAML keys the writer iterates, so nothing is
+// renamed here: which HCL attribute or block a key becomes is the writer's
+// business, and it does the lookup under the name it already has in hand.
+func collectComments(node *yamlv3.Node) *comments {
+	if node == nil || node.Kind != yamlv3.MappingNode {
+		return nil
+	}
+
+	out := &comments{}
+
+	// A mapping's closing comment is handed back on its last key, which is
+	// also where it was written to. It belongs to the mapping rather than to
+	// that key, so it is lifted off here.
+	if len(node.Content) >= 2 {
+		out.foot = fsutil.WithoutGeneratedMarker(node.Content[len(node.Content)-2].FootComment)
+	}
+
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key, value := node.Content[i], node.Content[i+1]
+
+		// The head is written above the key. The inline one sits after the
+		// value when that is a scalar, and after the key when the value is a
+		// collection starting on the line below, which is where the emitter
+		// put it and where a reader hands it back.
+		out.setOwn(key.Value, nodeComment{
+			head: fsutil.WithoutGeneratedMarker(key.HeadComment),
+			line: firstNonEmpty(value.LineComment, key.LineComment),
+		})
+
+		out.set(key.Value, collectComments(value))
+		out.set(key.Value, collectSeqComments(value))
+
+		// A comment closing this mapping is handed back on the last item of a
+		// list ending it rather than on the key holding that list, since both
+		// are the same line and nothing tells them apart. The mapping is the
+		// one that can carry it: a list becomes either a bracket list with no
+		// inside to close or a run of blocks that ends where the mapping ends.
+		//
+		// A nested mapping is left alone. It becomes a block with a brace of
+		// its own, so a comment before that brace closes the block.
+		if i+2 >= len(node.Content) && out.foot == "" && value.Kind == yamlv3.SequenceNode {
+			out.foot = takeFoot(out.child(key.Value))
+		}
+	}
+
+	if out.empty() {
+		return nil
+	}
+
+	return out
+}
+
+// takeFoot removes a node's closing comment and returns it, so it can be
+// written by whoever does have a body to close.
+func takeFoot(c *comments) string {
+	if c == nil {
+		return ""
+	}
+
+	foot := c.foot
+	c.foot = ""
+
+	return foot
+}
+
+// collectSeqComments reads the comments off a sequence: the run above each
+// item, whatever each item holds, and the one closing the whole list. It
+// returns nil when no item carries any.
+//
+// A comment written above a whole item sits on the item's own node, since
+// there is no key above it for yaml.v3 to hang it on.
+func collectSeqComments(node *yamlv3.Node) *comments {
+	if node == nil || node.Kind != yamlv3.SequenceNode {
+		return nil
+	}
+
+	out := &comments{}
+	found := false
+
+	if last := len(node.Content) - 1; last >= 0 {
+		out.foot = fsutil.WithoutGeneratedMarker(node.Content[last].FootComment)
+		found = out.foot != ""
+	}
+
+	for _, item := range node.Content {
+		itemComments := collectComments(item)
+
+		if head := fsutil.WithoutGeneratedMarker(item.HeadComment); head != "" {
+			if itemComments == nil {
+				itemComments = &comments{}
+			}
+
+			itemComments.head = head
+		}
+
+		if itemComments != nil {
+			found = true
+		}
+
+		out.appendItem(itemComments)
+	}
+
+	if !found {
+		return nil
+	}
+
+	return out
+}
+
+// documentComments reads the comments off a pipeline file, merging every
+// document in it the way parseYAMLDocument merges their keys.
+//
+// A pipeline carrying a "spec" header is two documents, and the keys of both
+// are written into one HCL file, so the comments of both belong in one tree.
+func documentComments(content []byte) *comments {
+	dec := yamlv3.NewDecoder(bytes.NewReader(content))
+	out := &comments{}
+
+	for {
+		var doc yamlv3.Node
+
+		if err := dec.Decode(&doc); err != nil {
+			break
+		}
+
+		// A document node holds the mapping rather than being one.
+		for _, node := range doc.Content {
+			merge(out, collectComments(node))
+		}
+	}
+
+	if out.empty() {
+		return nil
+	}
+
+	return out
+}
+
+// merge folds one document's comments into the tree. A key declared twice is
+// refused by parseYAMLDocument, so there is nothing to resolve here.
+func merge(out *comments, from *comments) {
+	if from == nil {
+		return
+	}
+
+	for key, comment := range from.own {
+		out.setOwn(key, comment)
+	}
+
+	for key, child := range from.children {
+		out.set(key, child)
+	}
 }

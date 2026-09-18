@@ -134,7 +134,7 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		found = true
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
-		hclBytes, err := pipelineToHCL(doc, baseName)
+		hclBytes, err := pipelineToHCL(doc, baseName, documentComments(yamlBytes))
 		if err != nil {
 			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
