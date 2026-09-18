@@ -25,6 +25,7 @@ var (
 	errJobNamedAfterKeyword  = cinzelerror.UserInput(errors.New("a job is named after a pipeline keyword"))
 	errNeedJobNotSingle      = cinzelerror.UserInput(errors.New("a need block names one job"))
 	errArtifactsNotAList     = cinzelerror.UserInput(errors.New("artifacts takes a single object"))
+	errReportsNotAList       = cinzelerror.UserInput(errors.New("reports takes a single object"))
 )
 
 // errKeyNotAnIdentifier reports a passed-through top-level key that cannot be

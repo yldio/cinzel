@@ -983,6 +983,13 @@ var (
 	passthroughSchema = bodySchema{any: true}
 )
 
+// singleBlockOnly maps a block key the parse side accepts at most once to the
+// error to report when the YAML gives it as a longer list.
+var singleBlockOnly = map[string]error{
+	"artifacts": errArtifactsNotAList,
+	"reports":   errReportsNotAList,
+}
+
 // allStringAnyMaps reports whether every entry of a list is an object, and the
 // list is not empty.
 func allStringAnyMaps(entries []any) bool {
@@ -1040,6 +1047,15 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 			}
 
 			if child, declared := schema.blocks[key]; declared && allStringAnyMaps(entries) {
+				// A cache or a service may repeat; "artifacts" and "reports"
+				// may not. Writing a block per entry produced a file parse
+				// refuses with "can include at most one ... block", so the
+				// refusal belongs here, where the input that caused it is
+				// still in hand. The job-level writer keeps the same guard.
+				if err, capped := singleBlockOnly[key]; capped && len(entries) > 1 {
+					return fmt.Errorf("%w, got %d", err, len(entries))
+				}
+
 				entryComments := c.child(key)
 
 				for idx, entry := range entries {

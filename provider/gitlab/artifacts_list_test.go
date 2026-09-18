@@ -20,13 +20,36 @@ func TestArtifactsTakesASingleObject(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		yml     string
-		wantErr bool
+		wantErr error
 		wantHCL []string
 	}{
 		{
 			name:    "two entries are refused",
 			yml:     "build:\n  script: [make]\n  artifacts:\n    - paths: [a]\n    - paths: [b]\n",
-			wantErr: true,
+			wantErr: errArtifactsNotAList,
+		},
+		{
+			// "default" goes down the generic writer rather than the job one,
+			// which had no cap at all: two blocks went out and parse then
+			// refused the file that unparse had just written.
+			name:    "two entries under default are refused",
+			yml:     "default:\n  artifacts:\n    - paths: [a]\n    - paths: [b]\nbuild:\n  script: [make]\n",
+			wantErr: errArtifactsNotAList,
+		},
+		{
+			name:    "two reports are refused",
+			yml:     "default:\n  artifacts:\n    reports:\n      - junit: a.xml\n      - junit: b.xml\nbuild:\n  script: [make]\n",
+			wantErr: errReportsNotAList,
+		},
+		{
+			name:    "one artifacts under default is written",
+			yml:     "default:\n  artifacts:\n    paths: [a]\n    reports:\n      junit: a.xml\nbuild:\n  script: [make]\n",
+			wantHCL: []string{"artifacts {", "reports {", `junit = "a.xml"`},
+		},
+		{
+			name:    "a cache list under default keeps repeating",
+			yml:     "default:\n  cache:\n    - key: k1\n      paths: [x]\n    - key: k2\n      paths: [y]\nbuild:\n  script: [make]\n",
+			wantHCL: []string{`key   = "k1"`, `key   = "k2"`},
 		},
 		{
 			name:    "the object form is written",
@@ -56,9 +79,9 @@ func TestArtifactsTakesASingleObject(t *testing.T) {
 			p := New()
 			err := p.Unparse(provider.ProviderOps{File: in, OutputDirectory: hclDir})
 
-			if tc.wantErr {
-				if !errors.Is(err, errArtifactsNotAList) {
-					t.Fatalf("want %v, got %v", errArtifactsNotAList, err)
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("want %v, got %v", tc.wantErr, err)
 				}
 
 				return
