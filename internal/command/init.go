@@ -73,11 +73,16 @@ func (cmd *Cli) initCommand() *cli.Command {
 				_, _ = fmt.Fprintf(cmd.Writer, "Config already exists at %s\n", configFile)
 				_, _ = fmt.Fprintf(cmd.Writer, "Overwrite? [y/N] ")
 
-				if scanner.Scan() {
-					answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
-					if answer != "y" && answer != "yes" {
-						return nil
-					}
+				// The answer has to be read before it can be a "y". Stdin at
+				// EOF gives no answer at all, and the prompt says [y/N], so
+				// anything short of a "y" keeps the file.
+				if !scanner.Scan() {
+					return nil
+				}
+
+				answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+				if answer != "y" && answer != "yes" {
+					return nil
 				}
 			}
 

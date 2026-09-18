@@ -134,3 +134,27 @@ func TestInitTightensPermissionsOnAnExistingFile(t *testing.T) {
 		t.Errorf("want mode 0600, got %#o", mode)
 	}
 }
+
+// Stdin at EOF is not an answer. The overwrite prompt offers [y/N], so the
+// absence of a "y" has to keep the file, the way the prompt says it will.
+func TestInitKeepsAnExistingConfigWhenStdinIsClosed(t *testing.T) {
+	home := t.TempDir()
+
+	configFile := runInit(t, home, "anthropic\n")
+
+	sentinel := "ai:\n  default: anthropic\n  api_key: kept-by-hand\n"
+	if err := os.WriteFile(configFile, []byte(sentinel), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	runInit(t, home, "")
+
+	got, err := os.ReadFile(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(got) != sentinel {
+		t.Errorf("config was overwritten on EOF stdin:\ngot:\n%s\nwant:\n%s", got, sentinel)
+	}
+}
