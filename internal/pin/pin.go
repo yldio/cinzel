@@ -204,17 +204,34 @@ type CachedResolver struct {
 }
 
 // NewCachedResolver creates a resolver that caches results for 24 hours.
+//
+// A machine with nowhere to put a cache — a container with no home directory,
+// say — leaves cacheDir empty and the resolver goes to the API every time.
+// The subdirectory used to be joined onto the empty path regardless, which
+// made it the relative "cinzel/pins": the cache was written into whatever
+// directory the command ran from, which for this tool is the one holding the
+// HCL it manages.
 func NewCachedResolver(inner Resolver) *CachedResolver {
-	cacheDir, _ := os.UserCacheDir()
+	base, err := os.UserCacheDir()
+
+	cacheDir := ""
+
+	if err == nil {
+		cacheDir = filepath.Join(base, cacheSubdir)
+	}
 
 	return &CachedResolver{
 		inner:    inner,
-		cacheDir: filepath.Join(cacheDir, cacheSubdir),
+		cacheDir: cacheDir,
 	}
 }
 
 // ResolveTag checks the cache first, then falls back to the inner resolver.
 func (r *CachedResolver) ResolveTag(ctx context.Context, owner, repo, tag string) (string, error) {
+	if r.cacheDir == "" {
+		return r.inner.ResolveTag(ctx, owner, repo, tag)
+	}
+
 	key := cacheKey(owner, repo, tag)
 	cachePath := filepath.Join(r.cacheDir, key)
 
