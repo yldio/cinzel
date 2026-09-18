@@ -315,7 +315,13 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 	}
 
 	if contextDir != "" {
-		merged = deduplicateWithExisting(merged, contextDir)
+		var warnings []string
+
+		merged, warnings = deduplicateWithExisting(merged, contextDir)
+
+		for _, warning := range warnings {
+			_, _ = fmt.Fprintf(cmd.Writer, "warning: %s\n", warning)
+		}
 	}
 
 	if dryRun {
@@ -413,10 +419,21 @@ func blockSignature(block string) string {
 // deduplicateWithExisting compares generated blocks against existing HCL files
 // in contextDir. Identical blocks are replaced with a reference comment.
 // Blocks with matching signatures but different content are kept with a note.
-func deduplicateWithExisting(merged, contextDir string) string {
+//
+// Warnings name anything that could not be read. A directory nobody created is
+// the normal case and is silent, but one that exists and cannot be read is a
+// deduplication that did not happen: without a word here, assist repeats the
+// blocks the user already has and nothing says why.
+func deduplicateWithExisting(merged, contextDir string) (string, []string) {
+	var warnings []string
+
 	entries, err := os.ReadDir(contextDir)
 	if err != nil {
-		return merged
+		if !os.IsNotExist(err) {
+			warnings = append(warnings, fmt.Sprintf("%s could not be read (%v). Generated blocks were not compared against it.", contextDir, err))
+		}
+
+		return merged, warnings
 	}
 
 	// Build index of existing blocks: signature → existingBlock.
@@ -427,8 +444,12 @@ func deduplicateWithExisting(merged, contextDir string) string {
 			continue
 		}
 
-		content, err := os.ReadFile(filepath.Join(contextDir, entry.Name()))
+		path := filepath.Join(contextDir, entry.Name())
+
+		content, err := os.ReadFile(path)
 		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("%s could not be read (%v). Generated blocks were not compared against it.", path, err))
+
 			continue
 		}
 
@@ -451,7 +472,7 @@ func deduplicateWithExisting(merged, contextDir string) string {
 	}
 
 	if len(existing) == 0 {
-		return merged
+		return merged, warnings
 	}
 
 	// Compare each generated block against existing ones.
@@ -485,7 +506,7 @@ func deduplicateWithExisting(merged, contextDir string) string {
 		result = append(result, fmt.Sprintf("// note: %s also exists in %s (different content)\n%s", sig, eb.filename, block))
 	}
 
-	return strings.Join(result, "\n\n") + "\n"
+	return strings.Join(result, "\n\n") + "\n", warnings
 }
 
 // splitHCLBlocksAST uses the HCL write parser to split content into

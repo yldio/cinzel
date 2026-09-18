@@ -412,7 +412,7 @@ step "deploy" {
 }
 `
 
-	result := deduplicateWithExisting(generated, contextDir)
+	result, _ := deduplicateWithExisting(generated, contextDir)
 
 	// Identical checkout should be replaced with reference.
 	if !strings.Contains(result, `// reuses: step "checkout" from steps.hcl`) {
@@ -460,7 +460,7 @@ step "checkout" {
 		t.Fatal(err)
 	}
 
-	result := deduplicateWithExisting(block, contextDir)
+	result, _ := deduplicateWithExisting(block, contextDir)
 
 	if !strings.Contains(result, `// reuses: step "checkout" from steps.hcl`) {
 		t.Errorf("expected a reuse comment naming the block\ngot:\n%s", result)
@@ -476,7 +476,7 @@ func TestDeduplicateWithExistingNoContextDir(t *testing.T) {
   name = "Checkout"
 }
 `
-	result := deduplicateWithExisting(input, "/nonexistent/path")
+	result, _ := deduplicateWithExisting(input, "/nonexistent/path")
 
 	if result != input {
 		t.Errorf("should return input unchanged for nonexistent dir\ngot: %q", result)
@@ -578,5 +578,75 @@ func TestShortErrorPreviewIsUntouched(t *testing.T) {
 
 	if got := truncatePreview(s, maxRawYAMLErrorLen); got != s {
 		t.Errorf("truncatePreview(%q) = %q, want it unchanged", s, got)
+	}
+}
+
+// A context directory nobody created is the normal case and says nothing. One
+// that exists and cannot be read is different: deduplication silently does not
+// happen, so assist repeats blocks the user already has, with no sign why.
+func TestUnreadableContextDirIsReported(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0000 directory regardless of its mode")
+	}
+
+	dir := filepath.Join(t.TempDir(), "cinzel")
+	if err := os.Mkdir(dir, 0000); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = os.Chmod(dir, 0700) })
+
+	_, warnings := deduplicateWithExisting("step \"x\" {\n  run = \"echo\"\n}\n", dir)
+
+	if len(warnings) == 0 {
+		t.Fatal("no warning for a context directory that could not be read")
+	}
+
+	if !strings.Contains(warnings[0], dir) {
+		t.Errorf("warning does not name the directory: %q", warnings[0])
+	}
+}
+
+// A context directory that is simply absent is silent.
+func TestMissingContextDirIsSilent(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "nope")
+
+	merged := "step \"x\" {\n  run = \"echo\"\n}\n"
+
+	got, warnings := deduplicateWithExisting(merged, missing)
+
+	if len(warnings) != 0 {
+		t.Errorf("warnings = %q, want none", warnings)
+	}
+
+	if got != merged {
+		t.Errorf("merged content changed: %q", got)
+	}
+}
+
+// A file inside the context directory that cannot be read is a block that will
+// not be deduplicated against, which is worth the same warning.
+func TestUnreadableContextFileIsReported(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0000 file regardless of its mode")
+	}
+
+	dir := t.TempDir()
+
+	blocked := filepath.Join(dir, "blocked.hcl")
+	if err := os.WriteFile(blocked, []byte("step \"x\" {\n  run = \"echo\"\n}\n"), 0000); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0600) })
+
+	_, warnings := deduplicateWithExisting("step \"y\" {\n  run = \"echo\"\n}\n", dir)
+
+	if len(warnings) == 0 {
+		t.Fatal("no warning for a context file that could not be read")
+	}
+
+	if !strings.Contains(warnings[0], "blocked.hcl") {
+		t.Errorf("warning does not name the file: %q", warnings[0])
 	}
 }
