@@ -372,6 +372,14 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 			}
 		}
 
+		// A job and a template already refuse a duplicate name. Two variable
+		// blocks naming the same environment variable wrote the last one and
+		// dropped the rest without a word, so a pipeline shipped with a value
+		// nobody in the file meant to set.
+		if _, taken := result[name]; taken {
+			return nil, fmt.Errorf("duplicate variable name '%s'", name)
+		}
+
 		names[b.ID] = name
 
 		if len(expanded) == 1 {
