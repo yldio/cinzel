@@ -64,8 +64,9 @@ test:
 }
 
 // The refusal has to stop at the entry that names nothing. A need carrying a
-// real job name is written as before, whichever form it takes, and comes back
-// through parse.
+// real job name comes back through parse, whichever form it takes: a local one
+// as a reference to the job's label, so it follows a rename, and a remote one
+// as the other pipeline's own name, which nothing here can rename.
 func TestANeedNamingAJobStillRoundTrips(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -103,7 +104,7 @@ test:
       project: group/proj
       ref: main
 `,
-			wantHCL: "job     = job.build",
+			wantHCL: `job     = "build"`,
 		},
 		{
 			name: "cross-pipeline, which carries no project",
@@ -113,7 +114,7 @@ test:
     - job: build
       pipeline: "$UPSTREAM_ID"
 `,
-			wantHCL: "job      = job.build",
+			wantHCL: `job      = "build"`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

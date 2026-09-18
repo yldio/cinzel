@@ -658,6 +658,12 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 
 	hclcomment.WriteLeading(body, c.above())
 
+	// A need carrying "project" or "pipeline" waits on a job in another
+	// pipeline, which this file does not declare.
+	_, crossProject := need["project"]
+	_, crossPipeline := need["pipeline"]
+	remote := crossProject || crossPipeline
+
 	nb := body.AppendNewBlock("need", nil)
 
 	for _, key := range sortedKeys(need) {
@@ -674,6 +680,18 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 
 			if !ok {
 				return fmt.Errorf("needs job must be a string")
+			}
+
+			// A remote job's name was written as a reference to a job here,
+			// so it was sanitized like a local label and came back renamed,
+			// and one that matched a local job followed that job's renames.
+			// It is the other pipeline's name, so it is written as it stands.
+			if remote {
+				if err := writeCommentedAttribute(nb.Body(), "job", name, c.at(key)); err != nil {
+					return err
+				}
+
+				continue
 			}
 
 			refID, err := jobRefID(name, jobIDMap)

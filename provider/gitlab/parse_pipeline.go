@@ -795,12 +795,36 @@ func parseNeedBlocks(blocks []hclNeedBlock, hv *hclparser.HCLVars) ([]any, error
 	for _, block := range blocks {
 		need := make(map[string]any)
 
-		// A need block is one entry of the YAML "needs" list, and an entry
-		// names a single job. A longer list used to be dropped without a
-		// word: with "pipeline" or "project" also set the entry still looked
-		// valid downstream, so the file was written and the command exited 0
-		// with the jobs it was supposed to wait for gone.
-		if refs, err := parseReferenceList(block.Job, "job"); err != nil {
+		// A need waiting on another pipeline names a job this file does not
+		// declare, so its "job" is that pipeline's own name written as a
+		// string rather than a reference to a job here. Written as a
+		// reference it was sanitized like a local label, so "my job" came
+		// back "my_job", and a name a local job also carried followed that
+		// job's renames.
+		if isJobNameString(block.Job) {
+			name, err := parseAttr(block.Job, hv)
+			if err != nil {
+				return nil, fmt.Errorf("need: job: %w", err)
+			}
+
+			// No "job" at all leaves the key unset, the way it was before:
+			// a need naming neither a job nor an upstream pipeline is
+			// reported by the pipeline check, which names the job it is in.
+			if name != nil {
+				text, ok := name.(string)
+
+				if !ok || text == "" {
+					return nil, fmt.Errorf("need: job: %w", errNeedsJobEmpty)
+				}
+
+				need["job"] = text
+			}
+		} else if refs, err := parseReferenceList(block.Job, "job"); err != nil {
+			// A need block is one entry of the YAML "needs" list, and an entry
+			// names a single job. A longer list used to be dropped without a
+			// word: with "pipeline" or "project" also set the entry still
+			// looked valid downstream, so the file was written and the command
+			// exited 0 with the jobs it was supposed to wait for gone.
 			return nil, fmt.Errorf("need: job: %w", err)
 		} else if len(refs) > 1 {
 			return nil, fmt.Errorf("need: job: %w, got %d", errNeedJobNotSingle, len(refs))
@@ -1209,6 +1233,23 @@ func parseAttr(expr hcl.Expression, hv *hclparser.HCLVars) (any, error) {
 	}
 
 	return ctyToAny(hp.Result())
+}
+
+// isJobNameString reports whether a need block's "job" is written as a plain
+// name rather than as a reference to a job declared here. Both shapes are
+// read: a file written before remote names were kept verbatim still holds a
+// reference.
+func isJobNameString(expr hcl.Expression) bool {
+	if expr == nil {
+		return false
+	}
+
+	switch expr.(type) {
+	case *hclsyntax.ScopeTraversalExpr, *hclsyntax.TupleConsExpr:
+		return false
+	default:
+		return true
+	}
 }
 
 func parseReferenceList(expr hcl.Expression, expectedRoot string) ([]string, error) {
