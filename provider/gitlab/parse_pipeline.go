@@ -171,7 +171,10 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 		return nil, nil, err
 	}
 
-	for name, job := range jobs {
+	// By name rather than by map range: two jobs both named after a keyword
+	// reported whichever one the range reached first, so the same file named a
+	// different job on a rerun.
+	for _, name := range sortedKeys(jobs) {
 		// The reserved keys are already in the map. A job named after one of
 		// them used to overwrite it, so "stages" as a job name took the stage
 		// list out of the file and the command still exited 0.
@@ -184,7 +187,7 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 			return nil, nil, fmt.Errorf("%w: '%s'", errJobNamedAfterKeyword, name)
 		}
 
-		pipeline[name] = job
+		pipeline[name] = jobs[name]
 	}
 
 	return pipeline, pipelineComments(body, keys, variableNames, variables, hv), nil

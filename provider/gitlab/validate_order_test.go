@@ -35,3 +35,31 @@ job "beta" {
 		}
 	}
 }
+
+// The keyword check ran off a map range too, so a pipeline with two jobs
+// named after keywords reported whichever one the range reached first.
+func TestKeywordNameReportsTheSameJobEveryRun(t *testing.T) {
+	const hcl = `stages = ["build"]
+
+job "image" {
+  stage  = "build"
+  script = ["make"]
+}
+
+job "stages" {
+  stage  = "build"
+  script = ["make"]
+}
+`
+
+	for range 20 {
+		err := parseHCLString(t, hcl)
+		if err == nil {
+			t.Fatal("want a keyword name error")
+		}
+
+		if !strings.Contains(err.Error(), "keyword: 'image'") {
+			t.Fatalf("want the first job by name, got: %v", err)
+		}
+	}
+}
