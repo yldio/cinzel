@@ -25,6 +25,7 @@ var (
 	errJobNamedAfterKeyword  = cinzelerror.UserInput(errors.New("a job is named after a pipeline keyword"))
 	errNeedJobNotSingle      = cinzelerror.UserInput(errors.New("a need block names one job"))
 	errArtifactsNotAList     = cinzelerror.UserInput(errors.New("artifacts takes a single object"))
+	errJobKeyReservedID      = cinzelerror.UserInput(errors.New("'id' is reserved: it records a job's name when the block label is sanitized"))
 	errReportsNotAList       = cinzelerror.UserInput(errors.New("reports takes a single object"))
 )
 

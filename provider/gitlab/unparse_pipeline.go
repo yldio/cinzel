@@ -681,6 +681,14 @@ func writeRuleBlock(body *hclwrite.Body, rule map[string]any, c *comments) error
 }
 
 func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string, c *comments) error {
+	// "id" is cinzel's, not GitLab's: writeBlockKey puts a job's original name
+	// there when the label had to be sanitized. A body key of that name was
+	// written straight into the block, where parse read it as the name, and the
+	// job came back under a name nobody wrote with both directions exiting 0.
+	if _, reserved := job["id"]; reserved {
+		return errJobKeyReservedID
+	}
+
 	for _, key := range sortedKeys(job) {
 		value := job[key]
 
