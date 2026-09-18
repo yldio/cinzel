@@ -16,6 +16,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/internal/hclcomment"
 	"github.com/yldio/cinzel/internal/naming"
 	"github.com/yldio/cinzel/internal/unescape"
@@ -328,7 +329,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			switch key {
 			case "name", "auto_cancel", "rules":
 			default:
-				fmt.Fprintf(os.Stderr, "warning: unsupported workflow key '%s' dropped\n", key)
+				warnf("unsupported workflow key '%s' dropped", key)
 			}
 		}
 
@@ -540,7 +541,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			continue
 		}
 
-		fmt.Fprintf(os.Stderr, "warning: unsupported top-level key '%s' passed through\n", key)
+		warnf("unsupported top-level key '%s' passed through", key)
 
 		if hiddenJobMap, ok := toStringAnyMap(doc[key]); ok && strings.HasPrefix(key, ".") {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
@@ -1339,6 +1340,19 @@ func toStringAnyMap(raw any) (map[string]any, bool) {
 	m, ok := raw.(map[string]any)
 
 	return m, ok
+}
+
+// warnf writes one warning to stderr, with the control characters in it
+// escaped.
+//
+// A warning quotes a key read out of the YAML, and a key is free to carry an
+// ANSI escape sequence. Written to a terminal as it stands, the sequence is
+// acted on rather than shown: a crafted key erases the warning that names it
+// and leaves a line of its own in its place, so a run that dropped a key reads
+// as a run that dropped nothing. The errors the tool ends on are escaped for
+// the same reason.
+func warnf(format string, args ...any) {
+	fmt.Fprintln(os.Stderr, cinzelerror.SafeForTerminal("warning: "+fmt.Sprintf(format, args...)))
 }
 
 func sortedKeys(m map[string]any) []string {
