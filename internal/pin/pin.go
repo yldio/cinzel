@@ -340,13 +340,35 @@ func versionLine(sha, comment string) string {
 // of the version line, or from if there is none. The replacement carries its
 // own comment, so leaving the old one stacked a stale tag beside the new one:
 // a line reading "# v5 # v4" names a version the SHA is not.
+//
+// A "/* */" comment is taken whole, over however many lines it runs. Leaving
+// one standing put the new "# tag" comment in front of its "/*", which
+// commented out the opening while the closing "*/" stayed on a line of its
+// own, and the file no longer parsed. The pin reported success and the
+// breakage surfaced on the next parse.
 func trailingCommentEnd(content string, from int) int {
 	i := from
 	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
 		i++
 	}
 
-	if i >= len(content) || (content[i] != '#' && !strings.HasPrefix(content[i:], "//")) {
+	if i >= len(content) {
+		return from
+	}
+
+	if strings.HasPrefix(content[i:], "/*") {
+		end := strings.Index(content[i+2:], "*/")
+
+		// Unterminated: there is no comment to take, and swallowing the rest
+		// of the file would delete every block below this one.
+		if end < 0 {
+			return from
+		}
+
+		return i + 2 + end + 2
+	}
+
+	if content[i] != '#' && !strings.HasPrefix(content[i:], "//") {
 		return from
 	}
 
