@@ -91,12 +91,13 @@ Two implementations: `Anthropic` and `OpenAI`. Shared `resolveAPIKey` helper. Er
 applies a mode when it creates the file, so a config written before this existed would have kept
 whatever mode it had while the command said `0600`.
 
-The template holds no `api_key`. A key belongs in the environment, where it is not written to disk
-and not carried into a backup of this file. `LoadConfig` still reads an `api_key` someone wrote
-there by hand, and warns when such a file is group- or world-readable; the environment wins over it
-either way. The models come from `ai.DefaultModels()` rather than from a string in the template,
-so a new config starts on what the code defaults to today rather than on what was current when the
-template was written:
+The template holds no `api_key`, and the field is not offered anywhere as a way to configure one:
+a key belongs in the environment, where it is not written to disk and not carried into a backup of
+this file. `LoadConfig` still reads the field, because a config written before `cinzel init` stopped
+asking for keys may hold one — it warns when such a file is group- or world-readable, and the
+environment wins over it regardless. That is a migration path, not an option. The models come from
+`ai.DefaultModels()` rather than from a string in the template, so a new config starts on what the
+code defaults to today rather than on what was current when the template was written:
 
 ```yaml
 # cinzel AI configuration

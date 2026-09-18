@@ -9,7 +9,7 @@ This document describes how `cinzel` release distribution is automated for Homeb
   - Published-release packaging: GitHub `release.published` (`release-published.yaml`)
 - Homebrew target: `yldio/cinzel` tap (PR-based updates)
 - Supported Homebrew targets: macOS and Linux
-- Windows distribution: release artifacts now, winget PR flow in a later phase
+- Windows distribution: release artifacts, and nothing automated
 
 ## Asset contract
 
@@ -90,13 +90,3 @@ Emergency rollback:
 1. Disable Homebrew automation path by guarding/removing release publish step in workflow source (`cinzel/*.hcl`) and regenerate workflow YAML.
 2. Revert or close the tap PR for the bad version.
 3. Ship a corrected patch release.
-
-## Windows distribution note
-
-Windows users should install from GitHub release artifacts until winget automation is enabled.
-
-Planned package-manager path:
-
-- Generate deterministic `winget` manifests from release assets/checksums
-- Open/update PRs against `microsoft/winget-pkgs`
-- Treat winget merge latency as asynchronous to GitHub release success

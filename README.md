@@ -132,9 +132,6 @@ for one.
 cinzel init
 ```
 
-A key set in the environment wins over an `api_key` added to that file by
-hand.
-
 Refine previous output (targets the latest session by default):
 
 ```sh
