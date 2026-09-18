@@ -52,6 +52,46 @@ build:
 			want: "bogus_cache",
 		},
 		{
+			name: "rule",
+			yml: `stages: [build]
+build:
+  stage: build
+  script: [make]
+  rules:
+    - if: '$CI'
+      bogus_rule: y
+`,
+			want: "bogus_rule",
+		},
+		{
+			name: "workflow rule",
+			yml: `stages: [build]
+workflow:
+  rules:
+    - if: '$CI'
+      bogus_rule: y
+build:
+  stage: build
+  script: [make]
+`,
+			want: "bogus_rule",
+		},
+		{
+			name: "need",
+			yml: `stages: [build]
+a:
+  stage: build
+  script: [make]
+build:
+  stage: build
+  script: [make]
+  needs:
+    - job: a
+      bogus_need: y
+`,
+			want: "bogus_need",
+		},
+		{
 			name: "top-level mapping read as a job",
 			yml: `stages: [build]
 build:

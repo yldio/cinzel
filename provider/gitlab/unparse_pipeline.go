@@ -635,6 +635,12 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 	for _, key := range sortedKeys(need) {
 		value := need[key]
 
+		// Refused here rather than written out for parse to refuse later, the
+		// way a job body key is.
+		if !needSchema.knows(key) {
+			return errUnknownKeyword("need", key)
+		}
+
 		if key == "job" {
 			name, ok := value.(string)
 
@@ -670,6 +676,12 @@ func writeRuleBlock(body *hclwrite.Body, rule map[string]any, c *comments) error
 	rb := body.AppendNewBlock("rule", nil)
 
 	for _, key := range sortedKeys(rule) {
+		// Refused here rather than written out for parse to refuse later, the
+		// way a job body key is.
+		if !ruleSchema.knows(key) {
+			return errUnknownKeyword("rule", key)
+		}
+
 		if err := writeCommentedAttribute(rb.Body(), key, escapeGitLabVariables(rule[key]), c.at(key)); err != nil {
 			return err
 		}
@@ -1030,6 +1042,8 @@ var (
 	serviceSchema   = schemaOf("service", hclServiceBlock{})
 	includeSchema   = schemaOf("include", hclIncludeBlock{})
 	jobSchema       = schemaOf("job", hclJobBlock{})
+	ruleSchema      = schemaOf("rule", hclRuleBlock{})
+	needSchema      = schemaOf("need", hclNeedBlock{})
 
 	// jobBodyAliases are the YAML keys a job body takes that the HCL schema
 	// spells differently: "needs" becomes "depends_on" or a "need" block, and
