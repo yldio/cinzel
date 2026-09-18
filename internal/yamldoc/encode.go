@@ -54,6 +54,18 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 		// is emitted inside the mapping, above its first key, rather than
 		// above the key it belongs to.
 		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: it.key, HeadComment: it.value.head}
+
+		// A key went out unstyled, so yaml.v3 picked the quotes for one it had
+		// to quote, and it reaches for single. The project writes double.
+		//
+		// A word a YAML 1.1 reader takes for a boolean is the exception: "on:"
+		// is the GitHub trigger key and quoting it would rewrite every golden.
+		// yaml.v3 already writes the ones that change meaning, "true" and
+		// "null", in double quotes of its own accord.
+		if _, plain := plainWords[strings.ToLower(it.key)]; !plain && needsQuoting(it.key) {
+			key.Style = yamlv3.DoubleQuotedStyle
+		}
+
 		node.Content = append(node.Content, key, value)
 	}
 
