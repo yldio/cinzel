@@ -51,17 +51,17 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 	var edits []versionEdit
 
 	for _, ref := range refs {
-		parts := strings.SplitN(ref.Action, "/", 2)
-		if len(parts) != 2 {
+		owner, repo, ok := splitAction(ref.Action)
+		if !ok {
 			results = append(results, UpgradeResult{
 				Action: ref.Action,
-				Error:  fmt.Errorf("invalid action format: %s", ref.Action),
+				Error:  errNotRemoteAction(ref.Action),
 			})
 
 			continue
 		}
 
-		latestTag, err := resolver.LatestTag(ctx, parts[0], parts[1])
+		latestTag, err := resolver.LatestTag(ctx, owner, repo)
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "warning: could not find latest version for %s: %v\n", ref.Action, err)
 
@@ -75,7 +75,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		}
 
 		// Resolve the latest tag to a SHA.
-		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], latestTag)
+		sha, err := resolver.ResolveTag(ctx, owner, repo, latestTag)
 
 		// See PinFile: a response with no "sha" decodes to "" and no error,
 		// and writing it out reports an upgrade that did not happen.

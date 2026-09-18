@@ -357,6 +357,29 @@ func trailingCommentEnd(content string, from int) int {
 	return i
 }
 
+// splitAction reads the repository an action lives in out of its reference.
+// An action may sit in a subdirectory of its repository, written
+// "github/codeql-action/init", and the tag belongs to the repository, so
+// everything past the second segment names a path inside it. Splitting into
+// two asked the API for a repository called "codeql-action/init", which no
+// name pattern lets through, and the action was reported as unpinnable.
+//
+// A reference starting with "." is a path into the repository being built.
+// GitHub takes that version from the checkout, so there is no release to
+// resolve and false is returned.
+func splitAction(action string) (owner, repo string, ok bool) {
+	if strings.HasPrefix(action, ".") {
+		return "", "", false
+	}
+
+	parts := strings.Split(action, "/")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+
+	return parts[0], parts[1], true
+}
+
 // isTag returns true if the version looks like a tag rather than a SHA.
 func isTag(version string) bool {
 	return tagPattern.MatchString(version)
@@ -418,18 +441,18 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			continue
 		}
 
-		parts := strings.SplitN(ref.Action, "/", 2)
-		if len(parts) != 2 {
+		owner, repo, ok := splitAction(ref.Action)
+		if !ok {
 			results = append(results, PinResult{
 				Action: ref.Action,
 				Tag:    ref.Version,
-				Error:  fmt.Errorf("invalid action format: %s", ref.Action),
+				Error:  errNotRemoteAction(ref.Action),
 			})
 
 			continue
 		}
 
-		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], ref.Version)
+		sha, err := resolver.ResolveTag(ctx, owner, repo, ref.Version)
 
 		// A response with no "sha" decodes to "" and no error. Writing that
 		// out gave the file a version = "" and reported the action pinned, so
