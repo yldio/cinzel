@@ -51,11 +51,17 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 	var edits []versionEdit
 
 	for _, ref := range refs {
+		// Named as it happens, for the reason given in PinFile.
 		owner, repo, ok := splitAction(ref.Action)
 		if !ok {
+			err := errNotRemoteAction(ref.Action)
+
+			_, _ = fmt.Fprintf(w, "warning: could not upgrade %s: %v\n", ref.Action, err)
+
 			results = append(results, UpgradeResult{
-				Action: ref.Action,
-				Error:  errNotRemoteAction(ref.Action),
+				Action:     ref.Action,
+				OldVersion: ref.Version,
+				Error:      err,
 			})
 
 			continue

@@ -470,11 +470,18 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			continue
 		}
 
+		// Every failure is named as it happens, the way a failed resolve is.
+		// These two were counted in the summary and printed nothing, so a run
+		// ending "2 failed" left the user to find which two lines those were.
 		if !ref.IsTag {
+			err := errNotPinnable(ref.Version)
+
+			_, _ = fmt.Fprintf(w, "warning: could not pin %s: %v\n", ref.Action, err)
+
 			results = append(results, PinResult{
 				Action: ref.Action,
 				Tag:    ref.Version,
-				Error:  errNotPinnable(ref.Version),
+				Error:  err,
 			})
 
 			continue
@@ -482,10 +489,14 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 
 		owner, repo, ok := splitAction(ref.Action)
 		if !ok {
+			err := errNotRemoteAction(ref.Action)
+
+			_, _ = fmt.Fprintf(w, "warning: could not pin %s: %v\n", ref.Action, err)
+
 			results = append(results, PinResult{
 				Action: ref.Action,
 				Tag:    ref.Version,
-				Error:  errNotRemoteAction(ref.Action),
+				Error:  err,
 			})
 
 			continue
