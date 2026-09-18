@@ -501,6 +501,58 @@ func TestUnportablePathsInConfigFail(t *testing.T) {
 	}
 }
 
+// The configuration file is committed, so a path in it is a path every reader
+// runs without having written it. One that climbs out of the checkout writes
+// generated YAML somewhere else, and parse prunes what it finds there.
+func TestEscapingPathsInConfigFail(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		yaml string
+	}{
+		{"output-directory", "github:\n  parse:\n    output-directory: ../../tmp/evil\n"},
+		{"directory", "github:\n  parse:\n    directory: ../elsewhere\n"},
+		{"file", "github:\n  parse:\n    file: ../../main.hcl\n"},
+		{"only after cleaning", "github:\n  parse:\n    output-directory: a/../../out\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withTempWorkingDir(t, func() {
+				writeFile(t, configFilename, []byte(tc.yaml))
+
+				app, _, p := newConfigTestApp(t)
+				err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+
+				if err == nil {
+					t.Fatalf("Execute() error = nil, want error")
+				}
+
+				if !strings.Contains(err.Error(), "must stay inside") {
+					t.Fatalf("error = %v, want it to name the rule", err)
+				}
+
+				if p.parseOpts.File != "" || p.parseOpts.Directory != "" || p.parseOpts.OutputDirectory != "" {
+					t.Fatalf("opts should be zero on config error, got %+v", p.parseOpts)
+				}
+			})
+		})
+	}
+}
+
+// A ".." that names nothing is an ordinary directory name, not an escape.
+func TestDotPrefixedPathsInConfigAreKept(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    output-directory: ..hidden/out\n"))
+
+		app, _, p := newConfigTestApp(t)
+		if err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p}); err != nil {
+			t.Fatalf("Execute() error = %v, want nil", err)
+		}
+
+		if want := filepath.Join("..hidden", "out"); p.parseOpts.OutputDirectory != want {
+			t.Fatalf("OutputDirectory = %q, want %q", p.parseOpts.OutputDirectory, want)
+		}
+	})
+}
+
 // One committed spelling has to work on every OS, so the forward slashes a
 // config is written with become whatever the running one separates with.
 func TestConfigPathSeparatorsAreNormalized(t *testing.T) {

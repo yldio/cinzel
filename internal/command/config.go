@@ -180,6 +180,10 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 // Both are rejected here rather than failing later as a missing file, which
 // says nothing about why.
 //
+// A path that climbs out of the checkout with ".." is refused for the same
+// reason: the reader of this file did not write it, and parse both writes
+// generated YAML into the output directory and prunes what it finds there.
+//
 // Forward slashes are turned into whatever the running OS separates with, so
 // one committed spelling works everywhere. The reverse is not done: a config
 // written on Windows with backslashes is a path a POSIX reader takes as one
@@ -197,7 +201,16 @@ func pathValue(node *yaml.Node, path, providerName, commandName, key string) (st
 		)
 	}
 
-	return filepath.FromSlash(node.Value), nil
+	local := filepath.FromSlash(node.Value)
+
+	if err := validateRelativePath(local); err != nil {
+		return "", fmt.Errorf(
+			"%s.%s.%s.%s must stay inside the working directory (got %q): %w",
+			path, providerName, commandName, key, node.Value, err,
+		)
+	}
+
+	return local, nil
 }
 
 func findMappingValue(n *yaml.Node, key string) *yaml.Node {
