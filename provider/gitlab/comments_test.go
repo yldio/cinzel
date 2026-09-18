@@ -140,3 +140,48 @@ func parsePipeline(t *testing.T, src string) string {
 
 	return string(content)
 }
+
+// The other direction of the roundtrip in unparse_comments_test.go: a comment
+// written in HCL has to come back to the HCL it started in, not only reach the
+// YAML once.
+func TestACommentSurvivesAGitLabRoundtripFromHCL(t *testing.T) {
+	const src = "stages = [\"build\"]\n\n" +
+		"# the build job\n" +
+		"job \"build\" {\n" +
+		"  stage = \"build\"\n" +
+		"  # what it runs\n" +
+		"  script = [\"make\"] # one command\n" +
+		"  # that is the whole job\n" +
+		"}\n"
+
+	got := unparsePipeline(t, parsePipeline(t, src))
+
+	for _, want := range []string{
+		"# the build job",
+		"# what it runs",
+		"# one command",
+		"# that is the whole job",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q after a roundtrip, got:\n%s", want, got)
+		}
+	}
+}
+
+// A comment is prose its author spaced as they chose, so both hops carry the
+// bytes rather than a tidied version of them.
+func TestAGitLabCommentIsVerbatim(t *testing.T) {
+	const marker = "##no space and   wide   spacing"
+
+	fromHCL := parsePipeline(t, commentJobHCL("  "+marker+"\n  script = [\"make\"]\n"))
+
+	if !strings.Contains(fromHCL, marker) {
+		t.Errorf("the comment was rewritten on the way to YAML:\n%s", fromHCL)
+	}
+
+	fromYAML := unparsePipeline(t, "stages:\n  - build\n\nbuild:\n  stage: build\n  "+marker+"\n  script:\n    - make\n")
+
+	if !strings.Contains(fromYAML, marker) {
+		t.Errorf("the comment was rewritten on the way to HCL:\n%s", fromYAML)
+	}
+}

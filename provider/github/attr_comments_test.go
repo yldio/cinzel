@@ -125,3 +125,36 @@ func attrCommentHCL(body string) string {
 		"job \"b\" {\n  runs_on {\n    runners = \"ubuntu-latest\"\n  }\n  steps = [step.hi]\n}\n\n" +
 		"workflow \"w\" {\n  filename = \"w\"\n  on \"push\" {}\n" + body + "  jobs = [job.b]\n}\n"
 }
+
+// The foot comment has a roundtrip of its own in foot_comments_test.go. This is
+// the other two positions, starting from the HCL a user writes rather than from
+// YAML, so a comment has to survive both hops back to where it began.
+func TestHeadAndTrailingCommentsSurviveARoundtripFromHCL(t *testing.T) {
+	const src = "step \"hi\" {\n  run = \"echo hi\"\n}\n\n" +
+		"# why this job is here\n" +
+		"job \"b\" {\n" +
+		"  runs_on {\n    runners = \"ubuntu-latest\"\n  }\n\n" +
+		"  # no longer than that\n" +
+		"  timeout_minutes = 5 # five\n\n" +
+		"  steps = [step.hi]\n}\n\n" +
+		"workflow \"w\" {\n  filename = \"w\"\n\n  on \"push\" {}\n\n  jobs = [job.b]\n}\n"
+
+	out := parseWorkflow(t, src)
+
+	content, err := os.ReadFile(filepath.Join(out, "w.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hcl := unparse(t, string(content))
+
+	for _, want := range []string{
+		"# why this job is here",
+		"# no longer than that",
+		"# five",
+	} {
+		if !strings.Contains(hcl, want) {
+			t.Errorf("want %q after a roundtrip, got:\n%s", want, hcl)
+		}
+	}
+}
