@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // SanitizeIdentifier replaces non-alphanumeric characters with underscores and ensures a valid identifier.
@@ -33,7 +34,11 @@ func SanitizeIdentifier(in string) string {
 		return ""
 	}
 
-	if unicode.IsDigit(rune(out[0])) {
+	// Decoded as a rune rather than indexed as a byte. out[0] on a non-ASCII
+	// digit is a UTF-8 lead byte, never a digit, so the prefix was skipped and
+	// the identifier went out starting with a digit HCL refuses: the file was
+	// written, the command exited 0, and parsing it back failed.
+	if first, _ := utf8.DecodeRuneInString(out); unicode.IsDigit(first) {
 		return "_" + out
 	}
 

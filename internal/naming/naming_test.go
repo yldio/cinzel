@@ -38,3 +38,27 @@ func TestKeyMapping(t *testing.T) {
 		t.Fatalf("expected runs-on, got %s", got)
 	}
 }
+
+// A digit outside ASCII is still a digit HCL refuses to start an identifier
+// with. The check read out[0], a byte, which on a multibyte rune is a UTF-8
+// lead byte and never a digit, so the prefix was skipped and the name went out
+// unparseable.
+func TestSanitizeIdentifierPrefixesEveryLeadingDigit(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "an ascii digit", in: "3d", want: "_3d"},
+		{name: "an arabic-indic digit", in: "٣build", want: "_٣build"},
+		{name: "a fullwidth digit", in: "３d", want: "_３d"},
+		{name: "a letter outside ascii is left alone", in: "café", want: "café"},
+		{name: "a digit anywhere else is left alone", in: "go2", want: "go2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := SanitizeIdentifier(tc.in); got != tc.want {
+				t.Errorf("SanitizeIdentifier(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
