@@ -8,14 +8,16 @@ import (
 	"testing"
 )
 
-// "id" is not a GitLab keyword: it is the attribute cinzel writes to record a
-// job's name when the block label had to be sanitized. A job body carrying one
-// was written straight into the block, where it overwrote that record, and the
-// job came back under the wrong name with both directions exiting 0.
+// "id" on a job and "name" on a variable are not GitLab keywords: they are the
+// attributes cinzel writes to record what the block was called when the label
+// had to be sanitized. A body carrying one of them either overwrote that record,
+// so the job came back under the wrong name, or was dropped where the writer
+// filled the attribute in itself. Both directions exited 0 either way.
 func TestJobKeyNamedIDIsRefused(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		yml  string
+		want string
 	}{
 		{
 			name: "job",
@@ -25,6 +27,7 @@ build:
   script: [make]
   id: shadow
 `,
+			want: "'id'",
 		},
 		{
 			name: "template",
@@ -37,6 +40,20 @@ build:
   extends: .base
   script: [make]
 `,
+			want: "'id'",
+		},
+		{
+			name: "variable",
+			yml: `stages: [build]
+variables:
+  TOKEN:
+    value: x
+    name: OTHER
+build:
+  stage: build
+  script: [make]
+`,
+			want: "'name'",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -45,7 +62,7 @@ build:
 				t.Fatal("want an error naming the reserved key")
 			}
 
-			if !strings.Contains(err.Error(), "'id'") {
+			if !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error does not name the key: %v", err)
 			}
 		})

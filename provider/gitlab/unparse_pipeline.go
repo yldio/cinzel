@@ -267,6 +267,21 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			raw := variables[name]
 
 			if vm, ok := toStringAnyMap(raw); ok {
+				// The four keys below are the whole of the block, so anything
+				// else was written nowhere and dropped without a word.
+				for _, key := range sortedKeys(vm) {
+					// "name" is cinzel's, not GitLab's: the writer fills it in
+					// from the key this mapping sits under. One written in the
+					// body was dropped where that happened, in silence.
+					if key == "name" {
+						return nil, errVariableKeyReservedName
+					}
+
+					if !variableSchema.knows(key) {
+						return nil, errUnknownKeyword("variable", key)
+					}
+				}
+
 				if val, hasVal := vm["value"]; hasVal {
 					if err := writeCommentedAttribute(vbody, "value", escapeGitLabVariables(val), nested.at("value")); err != nil {
 						return nil, err
@@ -412,6 +427,12 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 		sb := body.AppendNewBlock("spec", nil)
 
 		for _, key := range sortedKeys(specMap) {
+			// Refused here rather than written out for parse to refuse later,
+			// the way a job body key is.
+			if !specSchema.knows(key) {
+				return nil, errUnknownKeyword("spec", key)
+			}
+
 			if err := writeCommentedAttribute(sb.Body(), key, escapeGitLabVariables(specMap[key]), specComments.at(key)); err != nil {
 				return nil, err
 			}
@@ -1044,6 +1065,8 @@ var (
 	jobSchema       = schemaOf("job", hclJobBlock{})
 	ruleSchema      = schemaOf("rule", hclRuleBlock{})
 	needSchema      = schemaOf("need", hclNeedBlock{})
+	specSchema      = schemaOf("spec", hclSpecBlock{})
+	variableSchema  = schemaOf("variable", hclVariableBlock{})
 
 	// jobBodyAliases are the YAML keys a job body takes that the HCL schema
 	// spells differently: "needs" becomes "depends_on" or a "need" block, and

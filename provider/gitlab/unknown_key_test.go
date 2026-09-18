@@ -92,6 +92,33 @@ build:
 			want: "bogus_need",
 		},
 		{
+			name: "spec",
+			yml: `spec:
+  inputs:
+    env: {}
+  bogus_spec: x
+---
+stages: [build]
+build:
+  stage: build
+  script: [make]
+`,
+			want: "bogus_spec",
+		},
+		{
+			name: "variable",
+			yml: `stages: [build]
+variables:
+  TOKEN:
+    value: "x"
+    bogus_var: y
+build:
+  stage: build
+  script: [make]
+`,
+			want: "bogus_var",
+		},
+		{
 			name: "top-level mapping read as a job",
 			yml: `stages: [build]
 build:
