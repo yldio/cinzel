@@ -4,23 +4,25 @@
 
 ## Table of Contents
 
-- [cinzel](#cinzel)
-  - [Table of Contents](#table-of-contents)
-  - [About](#about)
-  - [Installation and usage](#installation-and-usage)
+- [About](#about)
+- [Installation and usage](#installation-and-usage)
+  - [Quick start](#quick-start)
+  - [Configuration file](#configuration-file)
+  - [AI-assisted generation](#ai-assisted-generation)
+  - [Version management (GitHub Actions)](#version-management-github-actions)
 - [Providers](#providers)
   - [GitHub Actions](#github-actions)
   - [GitLab CI/CD Pipelines](#gitlab-cicd-pipelines)
-  - [Changelog](#changelog)
-  - [Code of Conduct](#code-of-conduct)
-  - [Contributing](#contributing)
-  - [License](#license)
+- [Changelog](#changelog)
+- [Code of Conduct](#code-of-conduct)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## About
 
 **`cinzel`**, pronounced as "*sin-ZEL*" ([IPA](https://en.wikipedia.org/wiki/International_Phonetic_Alphabet): /sĩˈzɛl/), is the Portuguese word for **chisel**.
 
-It's a bidirectional converter between [HCL](https://github.com/hashicorp/hcl) and CI/CD pipeline [YAML](http://www.yaml.de), with provider-specific mappings (currently GitHub Actions and GitLab CI/CD).
+It's a bidirectional converter between [HCL](https://github.com/hashicorp/hcl) and CI/CD pipeline [YAML](https://yaml.org), with provider-specific mappings (currently GitHub Actions and GitLab CI/CD).
 
 Made with :heart: by [YLD Limited](https://www.yld.com/).
 
@@ -28,7 +30,7 @@ Made with :heart: by [YLD Limited](https://www.yld.com/).
 
 Install `cinzel` using one of these options:
 
-- Download a prebuilt binary from [GitHub Releases][releases] (recommended for most users).
+- Download a prebuilt binary from [GitHub Releases](https://github.com/yldio/cinzel/releases) (recommended for most users).
 - Install with Homebrew:
 
 ```sh
@@ -73,7 +75,24 @@ cinzel gitlab parse --file ./pipeline.hcl --output-directory .
 cinzel gitlab unparse --file ./.gitlab-ci.yml --output-directory ./cinzel
 ```
 
-Use `--dry-run` to print generated content to stdout.
+Read a whole directory instead of one file, and walk into its subdirectories:
+
+```sh
+cinzel github parse --directory ./cinzel --recursive
+```
+
+Flags shared by `parse` and `unparse`:
+
+| Flag | Description |
+| --- | --- |
+| `--file`, `-f` | Read one file. |
+| `--directory`, `-d` | Read every matching file in a directory. Mutually exclusive with `--file`. |
+| `--recursive`, `-r` | Walk subdirectories of `--directory`. |
+| `--output-directory` | Where generated files are written. Parse defaults to `.github/workflows` (GitHub) or the working directory (GitLab); unparse defaults to `./cinzel`. |
+| `--dry-run` | Print the generated content to stdout instead of writing files. |
+
+`parse` also takes `--yml`, which writes `.yml` files instead of `.yaml`. GitLab
+parse always writes `.gitlab-ci.yml`, so the flag only affects GitHub.
 
 ### Configuration file
 
@@ -85,7 +104,13 @@ github:
   parse:
     directory: ./cinzel
     output-directory: .github/workflows
+    yml: false
 ```
+
+It applies to `parse` and `unparse` only, per provider. `assist`, `pin`,
+`upgrade` and `init` ignore it. The keys under a command are `file`,
+`directory`, `output-directory` and, for `parse`, `yml`; anything else is
+reported as `warning: ...: unknown key` and skipped, `recursive` included.
 
 Paths in it must be relative and written with forward slashes. The file is
 meant to be committed, so it is read on every machine that checks the repo out:
@@ -144,7 +169,23 @@ Refine a specific session:
 cinzel github assist --refine "add caching" --from 20260317-150405
 ```
 
+Other `assist` flags:
+
+| Flag | Description |
+| --- | --- |
+| `--output-directory` | Where session folders are created (default `cinzel/assist`). |
+| `--dry-run` | Print to stdout instead of writing files. |
+| `--acknowledge` | Skip the cost confirmation prompt. |
+| `--ai` | `anthropic` or `openai`. |
+| `--model` | Model override. |
+| `--no-context` | Do not send existing HCL as context. |
+| `--context-dir` | Directory to read existing HCL from (default `cinzel`). |
+
+`assist` is available for both providers.
+
 ### Version management (GitHub Actions)
+
+`pin` and `upgrade` are GitHub-only; there is no GitLab equivalent.
 
 Pin action tags to commit SHAs:
 
@@ -160,6 +201,10 @@ cinzel github upgrade                 # bump to latest + pin SHAs
 cinzel github upgrade --dry-run       # preview changes
 cinzel github upgrade --parse         # bump + regenerate YAML
 ```
+
+Both take `--file`/`-f` for a single file and `--directory`/`-d` for a
+directory (default `cinzel`). `upgrade --parse` writes the regenerated YAML to
+`--output-directory` (default `.github/workflows`).
 
 No GitHub token is required for public actions. Set `GITHUB_TOKEN` for higher rate limits (5000/hr vs 60/hr).
 
@@ -183,7 +228,7 @@ Please visit the [Changelog](CHANGELOG.md) for more details.
 
 ## Code of Conduct
 
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 
 Please check our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
