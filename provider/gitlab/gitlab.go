@@ -48,12 +48,12 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
-	body, _, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
+	body, sources, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
 	if err != nil {
 		return err
 	}
 
-	pipeline, err := parseHCLToPipeline(body)
+	pipeline, comments, err := parseHCLToPipeline(body, sources)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 		return errNoDefinitions
 	}
 
-	outputBytes, err := marshalPipelineYAML(pipeline)
+	outputBytes, err := marshalPipelineYAML(pipeline, comments)
 	if err != nil {
 		return err
 	}

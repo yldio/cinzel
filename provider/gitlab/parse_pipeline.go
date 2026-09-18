@@ -18,15 +18,16 @@ import (
 
 var errUnsupportedBodyType = errors.New("unsupported body type")
 
-func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
+func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]any, *comments, error) {
 	var cfg parseConfig
 	diags := gohcl.DecodeBody(body, nil, &cfg)
 
 	if diags.HasErrors() {
-		return nil, cinzelerror.ProcessHCLDiags(diags)
+		return nil, nil, cinzelerror.ProcessHCLDiags(diags)
 	}
 
 	hv := hclparser.NewHCLVars()
+	hv.SetSources(sources)
 	pipeline := make(map[string]any)
 
 	// GitLab still reads these five at the top level, where they mean what the
@@ -42,7 +43,7 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		{"services", cfg.Services},
 	} {
 		if err := setOptionalAttr(pipeline, attr.name, attr.expr, hv); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -55,9 +56,14 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		pipeline["stages"] = stages
 	}
 
-	variables, err := parseVariableBlocks(cfg.Variables, hv)
+	// A variable block is labelled but is written out under the value of its
+	// "name" attribute, so the two have to be matched up before its comments
+	// can be filed under the right key.
+	variableNames := map[string]string{}
+
+	variables, err := parseVariableBlocks(cfg.Variables, variableNames, hv)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(variables) > 0 {
@@ -73,22 +79,22 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 
 	for _, j := range cfg.Jobs {
 		if _, exists := seenJobs[j.ID]; exists {
-			return nil, fmt.Errorf("duplicate job name '%s'", j.ID)
+			return nil, nil, fmt.Errorf("duplicate job name '%s'", j.ID)
 		}
 		seenJobs[j.ID] = struct{}{}
 
 		jobMap, err := parseJobBlock(j, hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
+			return nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
 		}
 
 		key, err := blockKey(j.ID, j.Key, hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
+			return nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
 		}
 
 		if _, taken := jobs[key]; taken {
-			return nil, fmt.Errorf("duplicate job name '%s'", key)
+			return nil, nil, fmt.Errorf("duplicate job name '%s'", key)
 		}
 
 		keys[j.ID] = key
@@ -96,37 +102,37 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	}
 
 	if len(cfg.Workflow) > 1 {
-		return nil, errors.New("at most one workflow block is allowed")
+		return nil, nil, errors.New("at most one workflow block is allowed")
 	}
 
 	if len(cfg.Workflow) == 1 {
 		workflowMap, err := parseWorkflowBlock(cfg.Workflow[0], hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in workflow: %w", err)
+			return nil, nil, fmt.Errorf("error in workflow: %w", err)
 		}
 		pipeline["workflow"] = workflowMap
 	}
 
 	if len(cfg.Default) > 1 {
-		return nil, errors.New("at most one default block is allowed")
+		return nil, nil, errors.New("at most one default block is allowed")
 	}
 
 	if len(cfg.Default) == 1 {
 		defaultMap, err := parseDefaultBlock(cfg.Default[0], hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in default: %w", err)
+			return nil, nil, fmt.Errorf("error in default: %w", err)
 		}
 		pipeline["default"] = defaultMap
 	}
 
 	if len(cfg.Spec) > 1 {
-		return nil, errors.New("at most one spec block is allowed")
+		return nil, nil, errors.New("at most one spec block is allowed")
 	}
 
 	if len(cfg.Spec) == 1 {
 		specMap, err := parseSpecBlock(cfg.Spec[0], hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in spec: %w", err)
+			return nil, nil, fmt.Errorf("error in spec: %w", err)
 		}
 		pipeline[specKey] = specMap
 	}
@@ -134,7 +140,7 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	if len(cfg.Includes) > 0 {
 		includes, err := parseIncludeBlocks(cfg.Includes, hv)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		pipeline["include"] = includes
@@ -143,16 +149,16 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	for _, t := range cfg.Templates {
 		templateMap, err := parseTemplateBlock(t, hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
+			return nil, nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
 		}
 
 		key, err := blockKey(t.ID, t.Key, hv)
 		if err != nil {
-			return nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
+			return nil, nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
 		}
 
 		if _, taken := jobs["."+key]; taken {
-			return nil, fmt.Errorf("duplicate template name '%s'", key)
+			return nil, nil, fmt.Errorf("duplicate template name '%s'", key)
 		}
 
 		keys["."+t.ID] = "." + key
@@ -162,7 +168,7 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 	remapJobRefs(jobs, keys)
 
 	if err := validatePipeline(pipeline, jobs); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for name, job := range jobs {
@@ -170,13 +176,107 @@ func parseHCLToPipeline(body hcl.Body) (map[string]any, error) {
 		// them used to overwrite it, so "stages" as a job name took the stage
 		// list out of the file and the command still exited 0.
 		if _, taken := pipeline[name]; taken {
-			return nil, fmt.Errorf("%w: '%s'", errJobNamedAfterKeyword, name)
+			return nil, nil, fmt.Errorf("%w: '%s'", errJobNamedAfterKeyword, name)
 		}
 
 		pipeline[name] = job
 	}
 
-	return pipeline, nil
+	return pipeline, pipelineComments(body, keys, variableNames, variables, hv), nil
+}
+
+// pipelineComments reads the comments of the whole configuration, keyed by the
+// YAML keys the blocks are written under rather than by their HCL labels. The
+// two differ when a block carries an "id" attribute.
+func pipelineComments(body hcl.Body, keys, variableNames map[string]string, variables map[string]any, hv *hclparser.HCLVars) *comments {
+	out := readTopLevelComments(body, hv)
+
+	if out == nil {
+		return nil
+	}
+
+	relabel(out.child("variables"), variableNames)
+	liftCollapsedVariables(out.child("variables"), variables)
+
+	// A job and a template are written at the top level under their own key
+	// rather than nested under "job" or "template", which is where the reader
+	// left them.
+	for _, blockType := range [...]string{"job", "template"} {
+		nested := out.child(blockType)
+
+		if nested == nil {
+			continue
+		}
+
+		delete(out.children, blockType)
+
+		for label, child := range nested.children {
+			// A template is written with a leading dot, which is the label
+			// the remap keyed it under.
+			if blockType == "template" {
+				label = "." + label
+			}
+
+			key, renamed := keys[label]
+
+			if !renamed {
+				key = label
+			}
+
+			out.set(key, child)
+		}
+	}
+
+	return out
+}
+
+// liftCollapsedVariables moves the comments written inside a variable block up
+// onto the key that block collapses to.
+//
+// A variable carrying nothing beyond its value is written out as a plain
+// scalar, so the "name" and "value" attributes its comments were written on
+// are not keys in the output and there is nothing left for them to sit on. One
+// carrying more keeps both as real keys, and its comments stay where they are.
+func liftCollapsedVariables(mapping *comments, variables map[string]any) {
+	if mapping == nil {
+		return
+	}
+
+	for key, child := range mapping.children {
+		if _, expanded := variables[key].(map[string]any); expanded {
+			continue
+		}
+
+		mapping.setOwn(key, nodeComment{
+			head: firstNonEmpty(child.above(), child.at("name").head),
+			line: child.at("value").line,
+		})
+
+		delete(mapping.children, key)
+	}
+}
+
+// relabel rekeys a mapping's children from the block labels the reader used to
+// the keys those blocks are written out under.
+//
+// A variable block is written under the value of its "name" attribute, and a
+// job or template under its "id" when it carries one, so the label the comments
+// arrived under is not where the emitter looks for them.
+func relabel(mapping *comments, keys map[string]string) {
+	if mapping == nil {
+		return
+	}
+
+	for label, child := range mapping.children {
+		key, renamed := keys[label]
+
+		if !renamed || key == label {
+			continue
+		}
+
+		delete(mapping.children, label)
+		mapping.children[key] = child
+	}
 }
 
 // specKey is where a parsed "spec" header is kept until the YAML is written,
@@ -203,7 +303,7 @@ func parseSpecBlock(block hclSpecBlock, hv *hclparser.HCLVars) (map[string]any, 
 	return out, nil
 }
 
-func parseVariableBlocks(blocks []hclVariableBlock, hv *hclparser.HCLVars) (map[string]any, error) {
+func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv *hclparser.HCLVars) (map[string]any, error) {
 	result := make(map[string]any)
 
 	for _, b := range blocks {
@@ -243,6 +343,8 @@ func parseVariableBlocks(blocks []hclVariableBlock, hv *hclparser.HCLVars) (map[
 				return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
 			}
 		}
+
+		names[b.ID] = name
 
 		if len(expanded) == 1 {
 			result[name] = value

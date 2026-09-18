@@ -14,7 +14,7 @@ func TestSpecOnlyPipelineEmitsOneDocument(t *testing.T) {
 	spec := map[string]any{"inputs": map[string]any{"env": map[string]any{"default": "staging"}}}
 
 	t.Run("a spec on its own", func(t *testing.T) {
-		out, err := marshalPipelineYAML(map[string]any{specKey: spec})
+		out, err := marshalPipelineYAML(map[string]any{specKey: spec}, nil)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}
@@ -34,7 +34,7 @@ func TestSpecOnlyPipelineEmitsOneDocument(t *testing.T) {
 		out, err := marshalPipelineYAML(map[string]any{
 			specKey: spec,
 			"build": map[string]any{"script": []any{"make"}},
-		})
+		}, nil)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}
@@ -52,7 +52,7 @@ func TestSpecOnlyPipelineEmitsOneDocument(t *testing.T) {
 
 	// Nothing at all still has to write a document a reader accepts.
 	t.Run("an empty pipeline keeps its root", func(t *testing.T) {
-		out, err := marshalPipelineYAML(map[string]any{})
+		out, err := marshalPipelineYAML(map[string]any{}, nil)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}

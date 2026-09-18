@@ -15,7 +15,7 @@ func encodePair(t *testing.T, key string, value any) string {
 
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
 
-	if err := appendMappingPair(node, key, value); err != nil {
+	if err := appendMappingPair(node, key, value, nil); err != nil {
 		t.Fatal(err)
 	}
 

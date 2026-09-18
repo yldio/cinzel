@@ -20,7 +20,7 @@ var pipelineKeyOrder = []string{
 	"image", "before_script", "after_script", "cache", "services",
 }
 
-func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
+func marshalPipelineYAML(pipeline map[string]any, comments *comments) ([]byte, error) {
 	var docs []*yamlv3.Node
 
 	// A "spec" header has to be a document of its own, ahead of the rest of
@@ -35,7 +35,7 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 		}
 		pipeline = rest
 
-		specNode, err := toYAMLNode(map[string]any{specKey: spec})
+		specNode, err := toYAMLNode(map[string]any{specKey: spec}, comments)
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +43,7 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 		docs = append(docs, &yamlv3.Node{Kind: yamlv3.DocumentNode, Content: []*yamlv3.Node{specNode}})
 	}
 
-	root, err := pipelineMapNode(pipeline)
+	root, err := pipelineMapNode(pipeline, comments)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func marshalPipelineYAML(pipeline map[string]any) ([]byte, error) {
 	return unescape.Unicode(buf.Bytes()), nil
 }
 
-func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
+func pipelineMapNode(pipeline map[string]any, comments *comments) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
 	seen := map[string]struct{}{}
 
@@ -84,7 +84,7 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 			continue
 		}
 
-		if err := appendMappingPair(node, key, val); err != nil {
+		if err := appendMappingPair(node, key, val, comments); err != nil {
 			return nil, err
 		}
 		seen[key] = struct{}{}
@@ -104,7 +104,7 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	sort.Strings(jobs)
 
 	for _, job := range jobs {
-		if err := appendMappingPair(node, job, pipeline[job]); err != nil {
+		if err := appendMappingPair(node, job, pipeline[job], comments); err != nil {
 			return nil, err
 		}
 		seen[job] = struct{}{}
@@ -121,20 +121,62 @@ func pipelineMapNode(pipeline map[string]any) (*yamlv3.Node, error) {
 	sort.Strings(remaining)
 
 	for _, key := range remaining {
-		if err := appendMappingPair(node, key, pipeline[key]); err != nil {
+		if err := appendMappingPair(node, key, pipeline[key], comments); err != nil {
 			return nil, err
 		}
 	}
 
+	setFoot(node, comments.below())
+
 	return node, nil
 }
 
-func appendMappingPair(node *yamlv3.Node, key string, value any) error {
-	valueNode, err := toYAMLNode(value)
+// setFoot writes the comment that closes a mapping onto its last key, which is
+// where it renders at the mapping's own indentation and where a reader hands it
+// back. On the mapping node itself it renders at column 0 after the whole
+// document, which is not where its author wrote it.
+//
+// A sequence has no keys, so its foot goes on its last item.
+func setFoot(node *yamlv3.Node, foot string) {
+	if foot == "" {
+		return
+	}
+
+	switch {
+	case node.Kind == yamlv3.MappingNode && len(node.Content) >= 2:
+		node.Content[len(node.Content)-2].FootComment = foot
+	case node.Kind == yamlv3.SequenceNode && len(node.Content) > 0:
+		node.Content[len(node.Content)-1].FootComment = foot
+	}
+}
+
+func appendMappingPair(node *yamlv3.Node, key string, value any, comments *comments) error {
+	valueNode, err := toYAMLNode(value, comments.child(key))
 	if err != nil {
 		return err
 	}
 	keyNode := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: key}
+
+	// The head sits above the key. A block carries its own on the node
+	// standing for it, since it has no attribute in the parent to sit on —
+	// unless the block became one entry in a list, where the comment was
+	// written above that entry and the entry is where it goes back.
+	child := comments.child(key)
+	comment := comments.at(key)
+	keyNode.HeadComment = comment.head
+
+	if valueNode.Kind != yamlv3.SequenceNode {
+		keyNode.HeadComment = firstNonEmpty(comment.head, child.above())
+	}
+
+	// A comment sharing a line with a scalar goes after the value. A block
+	// collection starts on the line below, so there is no room after it and
+	// the comment goes after the key instead, which is the line it was on.
+	if valueNode.Kind == yamlv3.ScalarNode {
+		valueNode.LineComment = comment.line
+	} else {
+		keyNode.LineComment = comment.line
+	}
 
 	// Keys never went through a quoting check at all, so yaml.v3 single-quoted
 	// the ones that needed quoting, against the project rule.
@@ -147,7 +189,16 @@ func appendMappingPair(node *yamlv3.Node, key string, value any) error {
 	return nil
 }
 
-func toYAMLNode(value any) (*yamlv3.Node, error) {
+// firstNonEmpty returns the first of its arguments that is not empty.
+func firstNonEmpty(first, second string) string {
+	if first != "" {
+		return first
+	}
+
+	return second
+}
+
+func toYAMLNode(value any, comments *comments) (*yamlv3.Node, error) {
 	switch v := value.(type) {
 	case nil:
 		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!null", Value: "null"}, nil
@@ -170,17 +221,25 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 	case []any:
 		node := &yamlv3.Node{Kind: yamlv3.SequenceNode}
 
-		for _, item := range v {
-			child, err := toYAMLNode(item)
+		for idx, item := range v {
+			// A list is one block written more than once, so each item carries
+			// the comments of the block at its position.
+			itemComments := comments.item(idx)
+
+			child, err := toYAMLNode(item, itemComments)
 			if err != nil {
 				return nil, err
 			}
+
+			child.HeadComment = itemComments.above()
 			node.Content = append(node.Content, child)
 		}
 
+		setFoot(node, comments.below())
+
 		return node, nil
 	case map[string]any:
-		return genericMapNode(v)
+		return genericMapNode(v, comments)
 	case map[any]any:
 		m := make(map[string]any, len(v))
 
@@ -193,13 +252,13 @@ func toYAMLNode(value any) (*yamlv3.Node, error) {
 			m[key] = rawValue
 		}
 
-		return genericMapNode(m)
+		return genericMapNode(m, comments)
 	default:
 		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: fmt.Sprintf("%v", v)}, nil
 	}
 }
 
-func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
+func genericMapNode(mapping map[string]any, comments *comments) (*yamlv3.Node, error) {
 	keys := make([]string, 0, len(mapping))
 
 	for key := range mapping {
@@ -210,10 +269,12 @@ func genericMapNode(mapping map[string]any) (*yamlv3.Node, error) {
 	node := &yamlv3.Node{Kind: yamlv3.MappingNode}
 
 	for _, key := range keys {
-		if err := appendMappingPair(node, key, mapping[key]); err != nil {
+		if err := appendMappingPair(node, key, mapping[key], comments); err != nil {
 			return nil, err
 		}
 	}
+
+	setFoot(node, comments.below())
 
 	return node, nil
 }

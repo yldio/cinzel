@@ -17,7 +17,7 @@ func TestMarshalQuotesLeadingAtWithDoubleQuotes(t *testing.T) {
 	} {
 		got, err := marshalPipelineYAML(map[string]any{
 			"build": map[string]any{"variables": map[string]any{"K": tc.in}},
-		})
+		}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
