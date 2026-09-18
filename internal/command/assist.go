@@ -55,7 +55,7 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 
 			cfg, configWarnings := ai.LoadConfig()
 			for _, warning := range configWarnings {
-				_, _ = fmt.Fprintf(cmd.Writer, "warning: %s\n", warning)
+				warnTo(cmd.Writer, warning)
 			}
 
 			aiName := cfg.ResolveProviderName(c.String("ai"))
@@ -320,7 +320,7 @@ func (cmd *Cli) unparseAndWrite(p provider.Provider, yamlContent, outputDir, con
 		merged, warnings = deduplicateWithExisting(merged, contextDir)
 
 		for _, warning := range warnings {
-			_, _ = fmt.Fprintf(cmd.Writer, "warning: %s\n", warning)
+			warnTo(cmd.Writer, warning)
 		}
 	}
 
