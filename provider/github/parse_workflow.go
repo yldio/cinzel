@@ -664,6 +664,24 @@ func parseUsesBlockFromConfig(cfg hclUsesBlock, hv *hclparser.HCLVars) (string, 
 	return val.AsString(), nil
 }
 
+// yamlKeyIn spells an HCL key the way YAML wants it, except where the key is
+// the author's own data rather than one of the provider's.
+//
+// A matrix axis is named by whoever wrote it, and referenced by that name in
+// "${{ matrix.X }}", which cinzel copies through as written. Renaming the axis
+// and not the reference left the reference resolving against an axis that no
+// longer existed: actionlint reads it as `property "go_version" is not defined
+// in object type {go-version: ...}`, and the run fails at the reference. The
+// unparse side already writes an axis name back unchanged, so the rename was
+// also the one thing a roundtrip could not undo.
+func yamlKeyIn(scope, name string) string {
+	if scope == "matrix" {
+		return name
+	}
+
+	return naming.ToYAMLKey(name)
+}
+
 func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
 
@@ -698,7 +716,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			out[naming.ToYAMLKey(name)] = annotate(val, hv, attr.SrcRange)
+			out[yamlKeyIn(scope, name)] = annotate(val, hv, attr.SrcRange)
 		}
 	}
 
@@ -817,7 +835,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			addGenericBlock(out, naming.ToYAMLKey(block.Type), block.Labels, withComments(child, comments))
+			addGenericBlock(out, yamlKeyIn(scope, block.Type), block.Labels, withComments(child, comments))
 		}
 	}
 
