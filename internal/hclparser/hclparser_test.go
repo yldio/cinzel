@@ -209,3 +209,39 @@ func TestBinaryOpExprRefusesNonNumberOperands(t *testing.T) {
 		})
 	}
 }
+
+// Returning on the first part cut every template of more than one short:
+// "prefix ${1} suffix" was written out as "prefix ", with no error.
+func TestTemplateExprKeepsEveryPart(t *testing.T) {
+	for _, tc := range []struct {
+		expr string
+		want cty.Value
+	}{
+		{`"prefix ${1} suffix"`, cty.StringVal("prefix 1 suffix")},
+		{`"${1}${2}"`, cty.StringVal("12")},
+		{`"plain"`, cty.StringVal("plain")},
+		{`""`, cty.StringVal("")},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			parsed, diags := hclsyntax.ParseExpression([]byte(tc.expr), "", hcl.Pos{})
+
+			if diags.HasErrors() {
+				t.Fatal(diags.Error())
+			}
+
+			template, ok := parsed.(*hclsyntax.TemplateExpr)
+			if !ok {
+				t.Fatalf("expected a template, got %T", parsed)
+			}
+
+			got, err := NewTemplateExpr(template).Parse()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !got.RawEquals(tc.want) {
+				t.Errorf("got %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
