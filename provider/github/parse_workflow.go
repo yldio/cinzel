@@ -713,6 +713,10 @@ func annotate(val any, hv *hclparser.HCLVars, r hcl.Range) any {
 }
 
 func parseNamedConfig(cfg hclNamedBlock, hv *hclparser.HCLVars) (string, any, error) {
+	if err := hclparser.RejectUnknown(cfg.Body); err != nil {
+		return "", nil, err
+	}
+
 	rawName, err := parseAttr(cfg.Name, hv)
 	if err != nil {
 		return "", nil, err

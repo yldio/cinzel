@@ -61,8 +61,9 @@ type StepConfig struct {
 	ContinueOnError  hcl.Expression        `hcl:"continue_on_error,attr"`
 	TimeoutMinutes   hcl.Expression        `hcl:"timeout_minutes,attr"`
 
-	// Carried only for its source range, which is where the comment written
-	// above the step block is found. The decode fills it with what the
-	// attributes above did not take, which for a step is nothing.
+	// Carries the source range the comment written above the step block is
+	// found at, and whatever the attributes above did not take. Nothing is
+	// meant to land in it: what does is an attribute nobody declared, which
+	// the parse reports rather than drops.
 	Body hcl.Body `hcl:",remain"`
 }
