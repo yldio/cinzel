@@ -1040,20 +1040,31 @@ func getOrCreateMap(target map[string]any, key string) map[string]any {
 
 // emittedStepID returns the "id" a converted step writes, and whether it writes
 // one at all. A step carrying ignore_id has none.
+//
+// A step written under a comment arrives wrapped, so the map is reached through
+// the wrapper rather than asserted straight off the value: asserting alone read
+// every commented step as having no id, and let two of them write the same one.
 func emittedStepID(stepVal any) (string, bool) {
-	m, ok := stepVal.(map[string]any)
+	m, ok := stepMapValue(stepVal)
 	if !ok {
 		return "", false
 	}
 
-	id, ok := m["id"].(string)
+	id, ok := plain(m["id"]).(string)
 
 	return id, ok && id != ""
 }
 
 // stepValueWithoutID copies a converted step with its "id" left out, for a
-// repeat occurrence of a step within one job.
+// repeat occurrence of a step within one job. A wrapped step keeps its wrapper,
+// so the comments written above it survive the copy.
 func stepValueWithoutID(stepVal any) any {
+	if wrapper, ok := stepVal.(annotated); ok {
+		wrapper.value = stepValueWithoutID(wrapper.value)
+
+		return wrapper
+	}
+
 	m, ok := stepVal.(map[string]any)
 	if !ok {
 		return stepVal
@@ -1068,6 +1079,18 @@ func stepValueWithoutID(stepVal any) any {
 	}
 
 	return out
+}
+
+// stepMapValue returns the map a converted step is, reaching through the
+// annotated wrapper a commented step carries.
+func stepMapValue(stepVal any) (map[string]any, bool) {
+	if wrapper, ok := stepVal.(annotated); ok {
+		return stepMapValue(wrapper.value)
+	}
+
+	m, ok := stepVal.(map[string]any)
+
+	return m, ok
 }
 
 // annotateStep attaches the comments read off a step block to the converted

@@ -40,6 +40,16 @@ func TestTwoStepsInOneJobCannotShareAnID(t *testing.T) {
 			hcl:  oneJobTwoStepsHCL("  ignore_id = true"),
 			want: nil,
 		},
+		{
+			// A step written under a comment arrives wrapped, and the id was
+			// read by asserting the map straight off the value. Every
+			// commented step read as having no id, so two of them could write
+			// the same one.
+			name:  "the same id under a comment",
+			hcl:   commentedStepsHCL(`  id = "same"`),
+			want:  errDuplicateStepID,
+			named: []string{"first", "second", "same"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -124,6 +134,15 @@ func stepBlock(label, extra string) string {
 	}
 
 	return block + "}\n\n"
+}
+
+// commentedStepsHCL is oneJobTwoStepsHCL with a comment above each step, which
+// wraps the converted step and used to hide its id.
+func commentedStepsHCL(extra string) string {
+	return "// the first one\n" + stepBlock("first", extra) +
+		"// the second one\n" + stepBlock("second", extra) +
+		"job \"build\" {\n  runs_on { runners = \"ubuntu-latest\" }\n  steps = [step.first, step.second]\n}\n\n" +
+		"workflow \"w\" {\n  filename = \"w\"\n  on \"push\" {}\n  jobs = [job.build]\n}\n"
 }
 
 // oneJobTwoStepsHCL returns a workflow whose single job runs two steps, each
