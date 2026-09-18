@@ -29,6 +29,12 @@ var (
 	errReportsNotAList       = cinzelerror.UserInput(errors.New("reports takes a single object"))
 )
 
+// errUnknownKeyword reports a key the HCL schema does not declare, naming the
+// block it was written in.
+func errUnknownKeyword(owner, key string) error {
+	return cinzelerror.UserInput(fmt.Errorf("unknown %s keyword '%s'", owner, key))
+}
+
 // errKeyNotAnIdentifier reports a passed-through top-level key that cannot be
 // written as an HCL attribute name.
 func errKeyNotAnIdentifier(key string) error {

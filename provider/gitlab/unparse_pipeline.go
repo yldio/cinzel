@@ -692,6 +692,15 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 	for _, key := range sortedKeys(job) {
 		value := job[key]
 
+		// A key the schema does not declare was written out as an attribute
+		// all the same, so the file went out at exit 0 and the same tool's
+		// parse direction refused it with "an argument named ... is not
+		// expected here". The refusal belongs here, where the input that
+		// caused it is still in hand.
+		if !jobSchema.knows(key) && !jobBodyAliases[key] {
+			return errUnknownKeyword("job", key)
+		}
+
 		// Written here rather than inside each case: every key below becomes
 		// either an attribute or one or more blocks, and the comment above it
 		// belongs above whichever it becomes.
@@ -938,6 +947,26 @@ type bodySchema struct {
 	// block of any name.
 	any    bool
 	blocks map[string]bodySchema
+	attrs  map[string]struct{}
+	// owner names the block this schema describes, for the error reporting a
+	// key it does not declare.
+	owner string
+}
+
+// knows reports whether the body takes key at all, as an attribute or a block.
+// A body declared with `hcl:",remain"` takes anything.
+func (s bodySchema) knows(key string) bool {
+	if s.any {
+		return true
+	}
+
+	if _, ok := s.attrs[key]; ok {
+		return true
+	}
+
+	_, ok := s.blocks[key]
+
+	return ok
 }
 
 // child returns the schema for a nested block named key, and whether the body
@@ -955,12 +984,15 @@ func (s bodySchema) child(key string) (bodySchema, bool) {
 }
 
 // schemaOf reads a bodySchema off the hcl tags of a config struct.
-func schemaOf(v any) bodySchema {
-	return schemaOfType(reflect.TypeOf(v))
+func schemaOf(owner string, v any) bodySchema {
+	schema := schemaOfType(reflect.TypeOf(v))
+	schema.owner = owner
+
+	return schema
 }
 
 func schemaOfType(t reflect.Type) bodySchema {
-	schema := bodySchema{blocks: map[string]bodySchema{}}
+	schema := bodySchema{blocks: map[string]bodySchema{}, attrs: map[string]struct{}{}}
 
 	for i := range t.NumField() {
 		field := t.Field(i)
@@ -975,6 +1007,8 @@ func schemaOfType(t reflect.Type) bodySchema {
 		switch kind {
 		case "remain":
 			schema.any = true
+		case "optional", "attr":
+			schema.attrs[name] = struct{}{}
 		case "block":
 			elem := field.Type
 
@@ -990,11 +1024,20 @@ func schemaOfType(t reflect.Type) bodySchema {
 }
 
 var (
-	defaultSchema   = schemaOf(hclDefaultBlock{})
-	cacheSchema     = schemaOf(hclCacheBlock{})
-	artifactsSchema = schemaOf(hclArtifactsBlock{})
-	serviceSchema   = schemaOf(hclServiceBlock{})
-	includeSchema   = schemaOf(hclIncludeBlock{})
+	defaultSchema   = schemaOf("default", hclDefaultBlock{})
+	cacheSchema     = schemaOf("cache", hclCacheBlock{})
+	artifactsSchema = schemaOf("artifacts", hclArtifactsBlock{})
+	serviceSchema   = schemaOf("service", hclServiceBlock{})
+	includeSchema   = schemaOf("include", hclIncludeBlock{})
+	jobSchema       = schemaOf("job", hclJobBlock{})
+
+	// jobBodyAliases are the YAML keys a job body takes that the HCL schema
+	// spells differently: "needs" becomes "depends_on" or a "need" block, and
+	// each of the rest becomes a block of its own name.
+	jobBodyAliases = map[string]bool{
+		"needs": true, "rules": true, "cache": true,
+		"artifacts": true, "services": true,
+	}
 	// passthroughSchema is used for a top-level key outside the schema, where
 	// there is nothing to check against.
 	passthroughSchema = bodySchema{any: true}
@@ -1026,6 +1069,13 @@ func allStringAnyMaps(entries []any) bool {
 func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySchema, c *comments) error {
 	for _, key := range sortedKeys(mapping) {
 		value := mapping[key]
+
+		// Refused here for the same reason as in a job body: an undeclared key
+		// was written as an attribute, and the file only failed later, on the
+		// way back in.
+		if !schema.knows(key) {
+			return errUnknownKeyword(schema.owner, key)
+		}
 
 		// Written here rather than in each branch: the key becomes either an
 		// attribute or one or more blocks, and the comment above it belongs
