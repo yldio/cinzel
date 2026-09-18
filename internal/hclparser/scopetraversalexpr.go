@@ -47,6 +47,14 @@ func (ste *ScopeTraversalExpr) Parse() (cty.Value, error) {
 		case hcl.TraverseRoot:
 			// root segment (e.g. "var") is not used for variable lookup
 		case hcl.TraverseAttr:
+			// One attribute only. Each segment used to overwrite the one
+			// before it, so var.config.timeout looked up "timeout": a
+			// variable nobody wrote, or worse an unrelated one of that name,
+			// whose value went into the output with the command exiting 0.
+			if variableRef.Attr != "" {
+				return cty.NilVal, fmt.Errorf("%w: %s.%s", errNestedAttribute, variableRef.Attr, expressionType.Name)
+			}
+
 			variableRef.Attr = expressionType.Name
 		case hcl.TraverseIndex:
 			// The key is whatever the user wrote between the brackets, and

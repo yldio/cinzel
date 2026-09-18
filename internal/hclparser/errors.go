@@ -12,3 +12,7 @@ var errNonNumericIndex = errors.New("a variable can only be indexed with a numbe
 // errIndexUnsupportedType is returned when a traversal indexes a variable
 // whose type cannot be indexed by position.
 var errIndexUnsupportedType = errors.New("only a list or tuple variable can be indexed by position")
+
+// errNestedAttribute is returned when a traversal reaches past the variable
+// itself into an attribute of its value, which the lookup cannot follow.
+var errNestedAttribute = errors.New("a variable reference cannot reach into an attribute of its value")

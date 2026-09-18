@@ -291,3 +291,39 @@ func TestScopeTraversalRejectsANonNumericIndex(t *testing.T) {
 		})
 	}
 }
+
+// Every TraverseAttr overwrote the one before it, so a nested traversal
+// collapsed to its last segment: var.config.timeout looked up "timeout". That
+// reports a variable nobody wrote, and where a variable of that name does
+// exist it is worse — the wrong value goes into the output and the command
+// exits 0.
+func TestScopeTraversalRejectsANestedAttribute(t *testing.T) {
+	file, diags := hclsyntax.ParseConfig([]byte("value = var.config.timeout\n"), "test.hcl", hcl.Pos{Line: 1, Column: 1})
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+
+	body, ok := file.Body.(*hclsyntax.Body)
+	if !ok {
+		t.Fatalf("body is %T", file.Body)
+	}
+
+	traversal, ok := body.Attributes["value"].Expr.(*hclsyntax.ScopeTraversalExpr)
+	if !ok {
+		t.Fatalf("expression is %T, want a scope traversal", body.Attributes["value"].Expr)
+	}
+
+	hv := NewHCLVars()
+	hv.Add("config", cty.ObjectVal(map[string]cty.Value{"timeout": cty.NumberIntVal(30)}))
+	hv.Add("timeout", cty.NumberIntVal(999))
+
+	got, err := NewScopeTraversalExpr(traversal, hv).Parse()
+
+	if err == nil {
+		t.Fatalf("Parse() = %#v, want an error rather than the unrelated variable", got)
+	}
+
+	if !errors.Is(err, errNestedAttribute) {
+		t.Errorf("error = %v, want errNestedAttribute", err)
+	}
+}
