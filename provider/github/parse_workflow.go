@@ -301,6 +301,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := claimSingletonBlock(out, "uses", "uses"); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		out["uses"] = usesValue
 	}
 
@@ -387,6 +391,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 
 		comments := blockComments(block.Body, hv)
 
+		if err := claimSingletonBlock(out, "runs_on", "runs-on"); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		if runners, ok := runsOnValue["runners"]; ok && len(runsOnValue) == 1 {
 			out["runs-on"] = withComments(runners, comments)
 		} else {
@@ -397,6 +405,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 	for _, block := range cfg.StrategyBlocks {
 		strategyValue, err := parseBodyMap(block.Body, hv, "strategy")
 		if err != nil {
+			return ghjob.Parsed{}, err
+		}
+
+		if err := claimSingletonBlock(out, "strategy", "strategy"); err != nil {
 			return ghjob.Parsed{}, err
 		}
 
@@ -425,12 +437,20 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := claimSingletonBlock(out, "permissions", "permissions"); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		out["permissions"] = withComments(child, blockComments(block.Body, hv))
 	}
 
 	for _, block := range cfg.Defaults {
 		child, err := parseBodyMap(block.Body, hv, "defaults")
 		if err != nil {
+			return ghjob.Parsed{}, err
+		}
+
+		if err := claimSingletonBlock(out, "defaults", "defaults"); err != nil {
 			return ghjob.Parsed{}, err
 		}
 
@@ -443,6 +463,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := claimSingletonBlock(out, "concurrency", "concurrency"); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		out["concurrency"] = withComments(child, blockComments(block.Body, hv))
 	}
 
@@ -452,12 +476,20 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := claimSingletonBlock(out, "container", "container"); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		out["container"] = withComments(child, blockComments(block.Body, hv))
 	}
 
 	for _, block := range cfg.Environment {
 		child, err := parseBodyMap(block.Body, hv, "environment")
 		if err != nil {
+			return ghjob.Parsed{}, err
+		}
+
+		if err := claimSingletonBlock(out, "environment", "environment"); err != nil {
 			return ghjob.Parsed{}, err
 		}
 
@@ -549,6 +581,10 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
+		if err := claimSingletonBlock(out, "permissions", "permissions"); err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
 		out["permissions"] = withComments(child, blockComments(block.Body, hv))
 	}
 
@@ -562,12 +598,20 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
+		if err := claimSingletonBlock(out, "defaults", "defaults"); err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
 		out["defaults"] = withComments(child, blockComments(block.Body, hv))
 	}
 
 	for _, block := range cfg.ConcBlocks {
 		child, err := parseBodyMap(block.Body, hv, "concurrency")
 		if err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
+		if err := claimSingletonBlock(out, "concurrency", "concurrency"); err != nil {
 			return ghworkflow.Parsed{}, err
 		}
 
@@ -799,6 +843,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
+			if err := claimSingletonBlock(out, "uses", "uses"); err != nil {
+				return nil, err
+			}
+
 			out["uses"] = withComments(usesValue, comments)
 		case block.Type == "with":
 			key, value, err := parseNamedBlock(block.Body, hv)
@@ -875,6 +923,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
+			if err := claimSingletonBlock(out, "runs_on", "runs-on"); err != nil {
+				return nil, err
+			}
+
 			if runners, ok := runsOnValue["runners"]; ok && len(runsOnValue) == 1 {
 				out["runs-on"] = withComments(runners, comments)
 			} else {
@@ -888,6 +940,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 
 			normalized, err := ghjob.NormalizeStrategyMatrix(matrixValue)
 			if err != nil {
+				return nil, err
+			}
+
+			if err := claimSingletonBlock(out, "matrix", "matrix"); err != nil {
 				return nil, err
 			}
 
@@ -1112,6 +1168,21 @@ func isNilOrEmptyCollectionExpr(expr hcl.Expression) bool {
 	}
 
 	return false
+}
+
+// claimSingletonBlock refuses a second block of a type that writes one whole
+// key, and a block written alongside the attribute spelling of the same key.
+//
+// Unlike a named block, one of these carries no key of its own: it simply
+// assigns out[key], so a second one replaced the first and the run still
+// exited 0. The permissions a workflow shipped with were then whichever of the
+// two the decoder happened to hand back last.
+func claimSingletonBlock(target map[string]any, blockType, key string) error {
+	if _, taken := target[key]; taken {
+		return fmt.Errorf("%w: '%s' is written more than once", errDuplicateBlock, blockType)
+	}
+
+	return nil
 }
 
 // claimBlockKey refuses a second block writing a key an earlier one already

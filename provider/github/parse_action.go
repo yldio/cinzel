@@ -132,6 +132,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 			return nil, "", err
 		}
 
+		if err := claimSingletonBlock(out, "runs", "runs"); err != nil {
+			return nil, "", err
+		}
+
 		out["runs"] = runsMap
 	}
 
@@ -143,6 +147,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		}
 
 		if err := setOptionalYAMLAttr(brandingMap, "color", branding.Color, hv); err != nil {
+			return nil, "", err
+		}
+
+		if err := claimSingletonBlock(out, "branding", "branding"); err != nil {
 			return nil, "", err
 		}
 

@@ -31,4 +31,5 @@ var (
 	errDuplicateActionStepID  = cinzelerror.UserInput(errors.New("two steps in one action write the same step id"))
 	errDuplicateStepLabel     = cinzelerror.UserInput(errors.New("two step blocks share a label"))
 	errDuplicateBlockKey      = cinzelerror.UserInput(errors.New("two blocks write the same key"))
+	errDuplicateBlock         = cinzelerror.UserInput(errors.New("a block that may only be written once is written twice"))
 )
