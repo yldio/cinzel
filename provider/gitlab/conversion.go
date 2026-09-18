@@ -4,6 +4,7 @@
 package gitlab
 
 import (
+	"math"
 	"math/big"
 	"reflect"
 
@@ -104,9 +105,9 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 	case uint64:
 		return cty.NumberUIntVal(v), true
 	case float32:
-		return cty.NumberFloatVal(float64(v)), true
+		return ctyFloat(float64(v))
 	case float64:
-		return cty.NumberFloatVal(v), true
+		return ctyFloat(v)
 	case []any:
 		vals := make([]cty.Value, 0, len(v))
 
@@ -208,6 +209,18 @@ func ctyToAnyViaYAML(val cty.Value) (any, error) {
 	}
 
 	return out, nil
+}
+
+// ctyFloat converts a float, declining a NaN. cty.NumberFloatVal panics on one
+// rather than returning an error, and ".nan" is a float any YAML document may
+// carry, so declining here sends it down the YAML path instead, which reports
+// it as the unsupported value it is.
+func ctyFloat(v float64) (cty.Value, bool) {
+	if math.IsNaN(v) {
+		return cty.NilVal, false
+	}
+
+	return cty.NumberFloatVal(v), true
 }
 
 func anyToCtyViaYAML(value any) (cty.Value, error) {
