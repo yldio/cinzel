@@ -499,12 +499,18 @@ func splitHCLBlocksAST(src []byte, filename string) []string {
 	return blocks
 }
 
+// splitYAMLDocuments cuts a stream into its YAML documents.
+//
+// A separator has to start at column 0. Accepting an indented one cut a
+// workflow in half whenever a "run: |" block held a line that read "---",
+// which a heredoc or an embedded manifest does, and both halves then failed
+// to convert.
 func splitYAMLDocuments(s string) []string {
 	var docs []string
 	var current strings.Builder
 
 	for _, line := range strings.Split(s, "\n") {
-		if strings.TrimSpace(line) == "---" && current.Len() > 0 {
+		if strings.TrimRight(line, " \t\r") == "---" && current.Len() > 0 {
 			docs = append(docs, current.String())
 			current.Reset()
 

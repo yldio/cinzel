@@ -50,9 +50,21 @@ func TestSplitYAMLDocuments(t *testing.T) {
 			want:  0,
 		},
 		{
-			name:  "separator with whitespace",
-			input: "name: a\n  ---  \nname: b",
+			name:  "separator with trailing whitespace",
+			input: "name: a\n---  \nname: b",
 			want:  2,
+		},
+		{
+			// A separator is only one at column 0. An indented "---" is the
+			// content of whatever block scalar it sits in.
+			name:  "indented separator is not one",
+			input: "name: a\n  ---\nname: b",
+			want:  1,
+		},
+		{
+			name:  "--- inside a run block scalar",
+			input: "name: test\njobs:\n  build:\n    steps:\n      - run: |\n          cat <<EOF\n          ---\n          key: value\n          EOF\n",
+			want:  1,
 		},
 	}
 
