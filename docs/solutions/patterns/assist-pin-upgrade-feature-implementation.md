@@ -31,6 +31,11 @@ The LLM generates standard CI/CD YAML (which it knows from training data), then 
 prompt → LLM → YAML → strip fences → split docs → temp files → Unparse → merge/dedup HCL → single output
 ```
 
+The first two steps both scan for a structural marker — a fence, then `---` —
+and a workflow can write either inside a `run: |` block. Both only count at
+column 0; see pattern 5 in
+[`critical-patterns.md`](./critical-patterns.md).
+
 ### Key design decisions
 
 1. **Temp file approach** — no `Provider` interface changes. Write LLM YAML to temp files, call existing `Unparse(ProviderOps{Directory: tmpDir})`. ~5 lines of code vs adding `UnparseBytes` to every provider.
@@ -115,7 +120,12 @@ ai:
 
 Resolution order (highest wins): CLI flags (`--ai`, `--model`) > env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) > config file > hardcoded defaults.
 
-`LoadConfig()` in `internal/ai/config.go` reads the file silently — missing file returns empty config, no error.
+`LoadConfig()` in `internal/ai/config.go` returns an empty config and no error when there is no file
+to read. That silence is only right for `os.IsNotExist`. It used to cover every failure, so a config
+the process could not open, or one with a typo in it, came out looking exactly like having no config
+at all: every setting quietly fell back to its default and the only visible symptom was `assist`
+calling the wrong provider or model. Both now return a warning naming the path and the reason, which
+`assist` prints before anything else it does.
 
 ## Review findings addressed
 

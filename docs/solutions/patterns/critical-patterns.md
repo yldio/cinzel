@@ -9,12 +9,14 @@ symptoms:
   - "Non-deterministic test output"
   - "Golden test failures after unrelated changes"
   - "Double-escaped expressions in output"
+  - "A workflow cut in half, or reduced to one line, by a marker inside its own run block"
 tags:
   - "patterns"
   - "determinism"
   - "expressions"
   - "yaml"
   - "hcl"
+  - "regexp"
 created_date: "2026-03-08"
 updated_date: "2026-09-18"
 ---
@@ -69,6 +71,30 @@ Always unmarshal YAML once via `parseYAMLDocument()`, then classify with `classi
 
 Use `DoubleQuotedStyle` exclusively. The Zed editor converts single quotes to double quotes on save, which breaks golden tests if `SingleQuotedStyle` is used. The decision of what to quote lives in `needsQuoting` (`internal/yamldoc/encode.go:158`), with GitLab keeping its own `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:329`) because the shared rules would quote a large share of real pipelines.
 
-### 5. Return value consistency
+### 5. A structural marker is only one at column 0
+
+A markdown fence and a YAML document separator are both structure, and both are
+ordinary text the moment they are indented. A workflow writes them: a `run: |`
+block holds a heredoc with `---` in it, or a README fragment wrapped in
+backticks. Matching either anywhere on the line read the workflow's own content
+as the end of the workflow.
+
+```go
+// WRONG — an indented "```" inside a run block ends the fence
+regexp.MustCompile("(?s)```(?:ya?ml)?\\s*\n(.*?)```")
+
+// RIGHT — (?m) makes ^ and $ line anchors, so only column 0 counts
+regexp.MustCompile("(?ms)^```(?:ya?ml)?[ \\t]*\n(.*?)^```[ \\t]*$")
+```
+
+`splitYAMLDocuments` (`internal/command/assist.go`) applies the same rule to
+`---`, and `StripFences` (`internal/ai/provider.go`) to fences. Both failures
+look the same from outside: `cinzel assist` reports a conversion error, or
+writes half a workflow, against an LLM response that was entirely valid.
+
+Use `(?m)` for line anchors and `\A` / `\z` when the anchor really is the whole
+text — `^` and `$` stop meaning that as soon as `(?m)` is on.
+
+### 6. Return value consistency
 
 `parseHCLToWorkflows` returns 4 values. Every error path must return all 4: `return nil, nil, nil, err`. Missing a nil causes compile errors that are tedious to chase across 8+ return sites.
