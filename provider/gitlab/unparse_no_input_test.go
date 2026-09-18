@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/yldio/cinzel/provider"
@@ -102,5 +103,22 @@ func TestUnparseStillConvertsAPipeline(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(out, ".gitlab-ci.hcl")); err != nil {
 			t.Errorf("want the output written, got %v", err)
 		}
+	}
+}
+
+// A YAML file that will not parse reports the parser's complaint on its own,
+// naming a line and column in a file it does not name. A directory run reads
+// every ".yaml" in the tree, most of which are not pipelines at all, so the
+// one line the reader has to go on is which file it was.
+func TestUnparseNamesTheFileThatWillNotParse(t *testing.T) {
+	in, out := writeYAML(t, "broken.yaml", "key: [unclosed\n")
+
+	err := New().Unparse(provider.ProviderOps{Directory: in, OutputDirectory: out})
+	if err == nil {
+		t.Fatal("want an error")
+	}
+
+	if !strings.Contains(err.Error(), "broken.yaml") {
+		t.Errorf("error does not name the file: %v", err)
 	}
 }
