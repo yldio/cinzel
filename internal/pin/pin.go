@@ -19,6 +19,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -476,7 +477,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		if !ref.IsTag {
 			err := errNotPinnable(ref.Version)
 
-			_, _ = fmt.Fprintf(w, "warning: could not pin %s: %v\n", ref.Action, err)
+			reportf(w, "warning: could not pin %s: %v\n", ref.Action, err)
 
 			results = append(results, PinResult{
 				Action: ref.Action,
@@ -491,7 +492,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		if !ok {
 			err := errNotRemoteAction(ref.Action)
 
-			_, _ = fmt.Fprintf(w, "warning: could not pin %s: %v\n", ref.Action, err)
+			reportf(w, "warning: could not pin %s: %v\n", ref.Action, err)
 
 			results = append(results, PinResult{
 				Action: ref.Action,
@@ -512,7 +513,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		}
 
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: could not pin %s@%s: %v\n", ref.Action, ref.Version, err)
+			reportf(w, "warning: could not pin %s@%s: %v\n", ref.Action, ref.Version, err)
 
 			results = append(results, PinResult{
 				Action: ref.Action,
@@ -535,7 +536,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			text:  versionLine(sha, ref.Version),
 		})
 
-		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
+		reportf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
 
 		results = append(results, PinResult{
 			Action: ref.Action,
@@ -576,7 +577,7 @@ func PinDirectory(ctx context.Context, dir string, resolver Resolver, w io.Write
 
 		results, err := PinFile(ctx, path, resolver, w, dryRun)
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: %s: %v\n", entry.Name(), err)
+			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 
 			continue
 		}
@@ -689,6 +690,19 @@ func literalString(expr hclsyntax.Expression) (string, bool) {
 	}
 
 	return value.AsString(), true
+}
+
+// reportf writes one progress or warning line, with the control characters in
+// it escaped.
+//
+// Every line names something read out of the file — an action, a version, a
+// filename — and any of them is free to carry an ANSI escape sequence.
+// Written to a terminal as it stands, the sequence is acted on rather than
+// shown: a crafted action name can erase the warning naming it and print a
+// summary of its own in its place. The errors the tool ends on are escaped for
+// the same reason.
+func reportf(w io.Writer, format string, args ...any) {
+	_, _ = io.WriteString(w, cinzelerror.SafeForTerminal(fmt.Sprintf(format, args...)))
 }
 
 // drainAndClose reads the remaining body to enable HTTP connection reuse,
