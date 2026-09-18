@@ -28,5 +28,6 @@ var (
 	errDuplicateJobLabel      = cinzelerror.UserInput(errors.New("two job blocks share a label"))
 	errDuplicateJobKey        = cinzelerror.UserInput(errors.New("two jobs write to the same YAML key"))
 	errDuplicateStepID        = cinzelerror.UserInput(errors.New("two steps in one job write the same step id"))
+	errDuplicateActionStepID  = cinzelerror.UserInput(errors.New("two steps in one action write the same step id"))
 	errDuplicateStepLabel     = cinzelerror.UserInput(errors.New("two step blocks share a label"))
 )

@@ -193,6 +193,13 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 		return nil, err
 	} else if len(refs) > 0 {
 		steps := make([]any, 0, len(refs))
+		emitted := make(map[string]struct{}, len(refs))
+
+		// GitHub applies the same step id uniqueness rule inside a composite
+		// action as it does inside a job, so the guard the workflow path keeps
+		// is kept here too. Without it an action went out as a written file and
+		// exit 0, and only actionlint or GitHub itself said otherwise.
+		takenIDs := make(map[string]string, len(refs))
 
 		for _, ref := range refs {
 			stepVal, exists := stepMap[ref]
@@ -200,6 +207,21 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 			if !exists {
 				return nil, fmt.Errorf("cannot find step '%s'", ref)
 			}
+
+			// An action may run the same step more than once. Only the first
+			// occurrence carries the id.
+			if _, repeat := emitted[ref]; repeat {
+				stepVal = stepValueWithoutID(stepVal)
+			} else if id, ok := emittedStepID(stepVal); ok {
+				if other, taken := takenIDs[id]; taken {
+					return nil, fmt.Errorf("%w: '%s' and '%s' both write '%s'",
+						errDuplicateActionStepID, other, ref, id)
+				}
+
+				takenIDs[id] = ref
+			}
+
+			emitted[ref] = struct{}{}
 
 			steps = append(steps, stepVal)
 		}
