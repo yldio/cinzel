@@ -49,7 +49,7 @@ Style policy was clarified and then enforced across the codebase.
    - replaced prescriptive helper naming with deterministic-order helper guidance in:
      - `docs/solutions/patterns/critical-patterns.md`
      - `docs/solutions/logic-errors/nondeterministic-map-iteration.md`
-     - `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md`
+     - `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md` (deleted, in `5a115de^`)
 
 4. Landed style-focused commits:
    - `10809ba` `style: trim blank lines at block starts`

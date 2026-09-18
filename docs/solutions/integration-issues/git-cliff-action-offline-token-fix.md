@@ -76,4 +76,4 @@ Observed result:
 
 - `docs/solutions/integration-issues/workflow-release-integration-fix.md`
 - `docs/solutions/integration-issues/release-automation-deprecation-trigger-contract-cleanup.md`
-- `docs/plans/2026-03-11-ci-git-cliff-manual-release-automation-plan.md`
+- `docs/plans/2026-03-11-ci-git-cliff-manual-release-automation-plan.md` (deleted, in `5a115de^`)

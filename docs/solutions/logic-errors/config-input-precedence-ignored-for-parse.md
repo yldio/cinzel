@@ -77,5 +77,5 @@ Added tests in `internal/command/config_test.go` for:
 
 - `internal/command/config.go`
 - `internal/command/config_test.go`
-- `docs/plans/2026-03-09-feat-cinzelrc-provider-config-precedence-plan.md`
+- `docs/plans/2026-03-09-feat-cinzelrc-provider-config-precedence-plan.md` (deleted, in `5a115de^`)
 - `docs/solutions/patterns/critical-patterns.md`

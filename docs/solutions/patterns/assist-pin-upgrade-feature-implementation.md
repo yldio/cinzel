@@ -7,7 +7,7 @@ components:
   - internal/ai
   - internal/command
   - internal/pin
-origin: docs/plans/2026-03-16-feat-cinzel-assist-ai-workflow-generation-plan.md
+origin: docs/plans/2026-03-16-feat-cinzel-assist-ai-workflow-generation-plan.md (deleted, in 64f8348^)
 ---
 
 # cinzel assist, pin, and upgrade

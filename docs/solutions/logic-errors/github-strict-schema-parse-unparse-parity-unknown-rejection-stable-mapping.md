@@ -82,7 +82,7 @@ Implementation note: this document originally referenced `provider/github/schema
 
 ## Related References
 
-- `docs/brainstorms/2026-03-09-github-strict-block-schema-brainstorm.md`
-- `docs/plans/2026-03-09-feat-github-strict-block-schema-enforcement-plan.md`
-- `docs/plans/2026-03-09-feat-rename-github-needs-to-depends-on-plan.md`
+- `docs/brainstorms/2026-03-09-github-strict-block-schema-brainstorm.md` (deleted, in `1a755dd^`)
+- `docs/plans/2026-03-09-feat-github-strict-block-schema-enforcement-plan.md` (deleted, in `5a115de^`)
+- `docs/plans/2026-03-09-feat-rename-github-needs-to-depends-on-plan.md` (deleted, in `5a115de^`)
 - `docs/solutions/logic-errors/github-job-parser-strict-unknown-attributes-depends-on-mapping.md`

@@ -65,7 +65,7 @@ Refactored release integration to a single coherent path:
 
 6. Synced plan progress:
    - advanced relevant acceptance/reliability checkboxes in
-     `docs/plans/2026-03-09-feat-release-package-distribution-plan.md`
+     `docs/plans/2026-03-09-feat-release-package-distribution-plan.md` (deleted, in `5a115de^`)
 
 ## Verification
 
@@ -92,8 +92,8 @@ All checks passed.
 
 ## Related
 
-- `docs/plans/2026-03-09-feat-release-package-distribution-plan.md`
-- `docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md`
+- `docs/plans/2026-03-09-feat-release-package-distribution-plan.md` (deleted, in `5a115de^`)
+- `docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md` (deleted, in `1a755dd^`)
 - `docs/solutions/logic-errors/license-and-provider-docs-consistency.md`
 - `docs/solutions/logic-errors/style-guidance-rule-interpretation-fix.md`
 

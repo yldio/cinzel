@@ -35,7 +35,7 @@ The goal was to align providers on one principle: strictness should come from HC
 ## Solution Implemented
 
 - GitLab plan/status cleaned and updated to reflect completed phases and implemented features:
-  - `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md`
+  - `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md` (deleted, in `5a115de^`)
 - GitHub parse schema moved to typed decode via `provider/github/config.go` + typed parser code, removing parse-side schema maps entirely.
 - GitHub no longer keeps a dedicated schema-validation file for parse contracts; parse strictness comes from typed decode during config parsing.
 - GitHub unparse schema checks migrated from manual `allowed*Keys` tables to strict typed YAML decode (`goccy/go-yaml` strict mode) in `provider/github/validate.go`.
@@ -60,7 +60,7 @@ All tests passed after the change:
 
 ## Related References
 
-- `docs/brainstorms/2026-03-09-gitlab-hcl-tag-strict-schema.md`
-- `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md`
+- `docs/brainstorms/2026-03-09-gitlab-hcl-tag-strict-schema.md` (deleted, in `1a755dd^`)
+- `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md` (deleted, in `5a115de^`)
 - `docs/solutions/best-practices/gitlab-typed-parse-schema-default-services.md`
 - `docs/solutions/logic-errors/github-strict-schema-parse-unparse-parity-unknown-rejection-stable-mapping.md`

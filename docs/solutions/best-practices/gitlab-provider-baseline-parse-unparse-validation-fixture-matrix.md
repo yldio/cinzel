@@ -86,7 +86,7 @@ Test commands passing:
 
 ## Related References
 
-- `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md`
-- `docs/brainstorms/2026-03-09-gitlab-provider.md`
-- `docs/plans/2026-03-09-feat-github-strict-block-schema-enforcement-plan.md`
+- `docs/plans/2026-03-09-feat-gitlab-pipelines-provider-plan.md` (deleted, in `5a115de^`)
+- `docs/brainstorms/2026-03-09-gitlab-provider.md` (deleted, in `1a755dd^`)
+- `docs/plans/2026-03-09-feat-github-strict-block-schema-enforcement-plan.md` (deleted, in `5a115de^`)
 - `docs/solutions/logic-errors/github-strict-schema-parse-unparse-parity-unknown-rejection-stable-mapping.md`

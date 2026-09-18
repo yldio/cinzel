@@ -97,7 +97,7 @@ Subsequent changes introduced a dedicated manual release workflow (`workflow_dis
 
 - `docs/solutions/integration-issues/workflow-release-integration-fix.md`
 - `docs/release/homebrew.md`
-- `docs/plans/2026-03-09-feat-release-package-distribution-plan.md`
-- `docs/plans/2026-03-11-chore-goreleaser-homebrew-cask-migration-plan.md`
-- `docs/plans/2026-03-11-feat-release-distribution-follow-up-plan.md`
-- `docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md`
+- `docs/plans/2026-03-09-feat-release-package-distribution-plan.md` (deleted, in `5a115de^`)
+- `docs/plans/2026-03-11-chore-goreleaser-homebrew-cask-migration-plan.md` (deleted, in `5a115de^`)
+- `docs/plans/2026-03-11-feat-release-distribution-follow-up-plan.md` (deleted, in `1a755dd^`)
+- `docs/brainstorms/2026-03-09-release-package-distribution-brainstorm.md` (deleted, in `1a755dd^`)
