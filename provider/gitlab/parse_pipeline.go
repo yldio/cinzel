@@ -362,8 +362,8 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 			return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
 		}
 
-		if nameRaw == nil || value == nil {
-			return nil, fmt.Errorf("variable '%s' must include 'name' and 'value'", b.ID)
+		if nameRaw == nil {
+			return nil, fmt.Errorf("variable '%s' must include 'name'", b.ID)
 		}
 
 		name, ok := nameRaw.(string)
@@ -374,7 +374,16 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 
 		// A variable carrying anything beyond its value is written back as
 		// an object; a bare one stays a plain scalar.
-		expanded := map[string]any{"value": value}
+		//
+		// GitLab takes a variable with a description and no value: the name is
+		// listed on the manual-pipeline form with the value field left blank.
+		// The unparse direction wrote exactly that and this refused it, so the
+		// tool would not read back a file it had just written.
+		expanded := map[string]any{}
+
+		if value != nil {
+			expanded["value"] = value
+		}
 
 		for _, attr := range [...]struct {
 			name string
@@ -399,7 +408,14 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 
 		names[b.ID] = name
 
-		if len(expanded) == 1 {
+		// Nothing was written at all: no value, and nothing describing one
+		// either. That names no variable GitLab would list, so it is still
+		// refused.
+		if len(expanded) == 0 {
+			return nil, fmt.Errorf("variable '%s' must include 'value' or a description of one", b.ID)
+		}
+
+		if value != nil && len(expanded) == 1 {
 			result[name] = value
 
 			continue
