@@ -6,6 +6,7 @@ symptoms:
   - HCL inline comments on attributes silently dropped in generated YAML
   - Feature initially scoped only to permissions blocks, leaving other attributes without comment propagation
   - Type assertion error after wrapping values: `permissions scope "actions" must have a string value`
+  - A guard reading a wrapped value as absent and silently passing: two commented steps sharing a step id
 tags:
   - hcl
   - yaml
@@ -183,6 +184,20 @@ error in workflow 'ci': workflow.ci.permissions: permissions scope "actions" mus
 ### Pitfalls
 
 - **`map[string]any` type assertions are silent**: Any code doing `v.(string)` on pipeline values breaks when a new wrapper type is introduced. The compiler gives no warning; it only surfaces at runtime with specific inputs.
+
+  This happened. `emittedStepID` (`provider/github/parse_workflow.go`) read a
+  step id with `stepVal.(map[string]any)` and then `m["id"].(string)`. A step
+  written under a comment arrives wrapped, so both assertions failed and the
+  function reported "no id". Nothing errored: the caller is the duplicate-step-id
+  guard, and "no id" means "nothing to collide", so two commented steps writing
+  the same id passed the check, went out as a written workflow and exited 0.
+  Only actionlint or GitHub itself said otherwise. The fix reaches through the
+  wrapper (`stepMapValue`, then `plain`) rather than asserting.
+
+  The shape to watch for is a type assertion whose failure is read as an absence
+  rather than as an error — `v, ok := ...; if !ok { return "", false }`. A
+  wrapper makes every value look absent, and a guard that skips on absence then
+  silently stops guarding.
 - **Blast radius is invisible**: You cannot grep to find all consumers of pipeline map values statically — every function that touches the map may need updating.
 - **Validator/serializer ordering**: Unwrapping must happen before validation. This ordering is load-bearing but usually implicit.
 

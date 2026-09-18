@@ -38,6 +38,22 @@ for _, name := range sortedKeys(sb.Attributes) {
 }
 ```
 
+Do not insert into a map inside a `range` over that same map either. Whether the
+new key is visited by the same range is undefined, so a rename chain is applied
+once on some runs and twice on others. Collect the changes, end the range, then
+apply them — `relabel` (`provider/gitlab/parse_pipeline.go`) is the worked
+example.
+
+```go
+// WRONG — the inserted key may or may not be visited again
+for label, child := range mapping.children {
+    delete(mapping.children, label)
+    mapping.children[keys[label]] = child
+}
+```
+
+Deleting from the map being ranged over is defined and safe; inserting is not.
+
 ### 2. Expression escaping
 
 HCL uses `$${{ }}` to represent GitHub Actions `${{ }}` expressions. The conversion is handled automatically by the parser/unparser. Never manually escape or double-escape.
