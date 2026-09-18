@@ -3,7 +3,11 @@
 
 package gitlab
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 	stagesSet := make(map[string]struct{})
@@ -145,37 +149,87 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		}
 	}
 
-	visited := map[string]int{}
+	return checkNeedsCycles(graph)
+}
+
+// checkNeedsCycles walks the needs graph and reports the first cycle in it,
+// naming every job the cycle runs through.
+//
+// A cycle is reported so its author can break it, and breaking it means
+// knowing where it runs: the message used to say only that one existed. The
+// walk starts from the job names in order, because a map range made which of
+// two cycles was reported change from one run to the next.
+func checkNeedsCycles(graph map[string][]string) error {
+	const (
+		onPath = 1
+		done   = 2
+	)
+
+	visited := make(map[string]int, len(graph))
+	path := make([]string, 0, len(graph))
+
 	var dfs func(string) error
+
 	dfs = func(node string) error {
-		state := visited[node]
-
-		if state == 1 {
-			return fmt.Errorf("depends_on cycle detected")
-		}
-
-		if state == 2 {
+		switch visited[node] {
+		case onPath:
+			return fmt.Errorf("depends_on cycle detected: %s", traceCycle(path, node))
+		case done:
 			return nil
 		}
-		visited[node] = 1
+
+		visited[node] = onPath
+		path = append(path, node)
 
 		for _, next := range graph[node] {
 			if err := dfs(next); err != nil {
 				return err
 			}
 		}
-		visited[node] = 2
+
+		path = path[:len(path)-1]
+		visited[node] = done
 
 		return nil
 	}
 
+	names := make([]string, 0, len(graph))
+
 	for name := range graph {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	for _, name := range names {
 		if err := dfs(name); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// traceCycle renders the cycle closing on node as the run of jobs it passes
+// through, starting and ending at node.
+func traceCycle(path []string, node string) string {
+	start := 0
+
+	for i, name := range path {
+		if name == node {
+			start = i
+
+			break
+		}
+	}
+
+	loop := append(append([]string{}, path[start:]...), node)
+
+	for i, name := range loop {
+		loop[i] = "'" + name + "'"
+	}
+
+	return strings.Join(loop, " -> ")
 }
 
 func validateServices(raw any, owner string) error {
