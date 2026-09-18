@@ -1071,6 +1071,14 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 }
 
 func writeServicesBlocks(body *hclwrite.Body, raw any, c *comments) error {
+	// An explicit null clears an inherited "services", which is not the same as
+	// leaving the keyword out, so it is written back as one. "cache" already
+	// does this a few cases above; "services" refused it and broke the
+	// roundtrip.
+	if raw == nil {
+		return writeAttributeAny(body, "services", nil)
+	}
+
 	services, ok := raw.([]any)
 
 	if !ok {

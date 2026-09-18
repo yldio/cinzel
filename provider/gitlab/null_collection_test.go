@@ -34,6 +34,19 @@ func TestNullCollectionsSurvive(t *testing.T) {
 			want: "cache: null",
 		},
 		{
+			// "services" was the one null collection validation refused, so
+			// it could be written and not read back while cache and rules
+			// both round-tripped.
+			name: "job services",
+			yaml: "job1:\n  script:\n    - make\n  services:\n",
+			want: "services: null",
+		},
+		{
+			name: "default services",
+			yaml: "default:\n  services:\njob1:\n  script:\n    - make\n",
+			want: "services: null",
+		},
+		{
 			name: "job only",
 			yaml: "job1:\n  script:\n    - make\n  only:\n",
 			want: "only: null",
@@ -87,7 +100,7 @@ func TestNullIsNotInvented(t *testing.T) {
 		{
 			name:    "absent keywords stay absent",
 			yaml:    "job1:\n  script:\n    - make\n",
-			notWant: []string{"rules:", "artifacts:", "only:", "except:", "cache:", "extends:"},
+			notWant: []string{"rules:", "artifacts:", "only:", "except:", "cache:", "services:", "extends:"},
 		},
 		{
 			name:    "populated rules keep their entries",
@@ -103,6 +116,11 @@ func TestNullIsNotInvented(t *testing.T) {
 			name:    "populated extends keeps its entries",
 			yaml:    ".tpl:\n  script:\n    - make\njob1:\n  extends: .tpl\n  script:\n    - make\n",
 			notWant: []string{"extends: []"},
+		},
+		{
+			name:    "populated services keep their entries",
+			yaml:    "job1:\n  script:\n    - make\n  services:\n    - postgres:16\n",
+			notWant: []string{"services: null"},
 		},
 		{
 			name:    "a null image is not written back",

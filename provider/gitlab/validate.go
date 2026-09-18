@@ -179,6 +179,14 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 }
 
 func validateServices(raw any, owner string) error {
+	// An explicit null is how GitLab spells "override whatever this would
+	// inherit", which the parse side keeps for exactly that reason. Rejecting
+	// it here made "services = null" the one null collection that could be
+	// written and not read back, while cache and rules round-tripped.
+	if raw == nil {
+		return nil
+	}
+
 	services, ok := raw.([]any)
 
 	if !ok {
