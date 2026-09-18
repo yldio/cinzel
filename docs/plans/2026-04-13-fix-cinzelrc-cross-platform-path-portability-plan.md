@@ -1,7 +1,7 @@
 ---
 title: "fix: cinzelrc path portability across OS"
 type: fix
-status: active
+status: completed
 date: 2026-04-13
 ---
 
@@ -41,10 +41,10 @@ config.file = filepath.FromSlash(valueNode.Value)
 
 ## Acceptance Criteria
 
-- [ ] Absolute path in any path field → clear error naming the field, before any provider code runs
-- [ ] Forward-slash relative paths (`./cinzel/main.hcl`) work on Windows after normalization
-- [ ] `~` in paths → error with message directing user to use a relative path
-- [ ] Existing tests in `internal/command/config_test.go` pass; new cases added for:
+- [x] Absolute path in any path field → clear error naming the field, before any provider code runs
+- [x] Forward-slash relative paths (`./cinzel/main.hcl`) work on Windows after normalization
+- [x] `~` in paths → error with message directing user to use a relative path
+- [x] Existing tests in `internal/command/config_test.go` pass; new cases added for:
   - Absolute path rejection (each path field: `file`, `directory`, `output-directory`)
   - `~` path rejection
   - Separator normalization (forward slash input → OS native)

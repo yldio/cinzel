@@ -463,3 +463,68 @@ func TestDroppedKeysWarn(t *testing.T) {
 		}
 	})
 }
+
+// The configuration file is committed and read on every machine that checks
+// the repo out, so a path in it that names one machine's disk is a path that
+// breaks for everyone else.
+func TestUnportablePathsInConfigFail(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		yaml string
+	}{
+		{"absolute file", "github:\n  parse:\n    file: " + absoluteTestPath() + "\n"},
+		{"absolute directory", "github:\n  parse:\n    directory: " + absoluteTestPath() + "\n"},
+		{"absolute output-directory", "github:\n  parse:\n    output-directory: " + absoluteTestPath() + "\n"},
+		{"home-relative file", "github:\n  parse:\n    file: ~/cinzel/main.hcl\n"},
+		{"home-relative output-directory", "github:\n  parse:\n    output-directory: ~/out\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withTempWorkingDir(t, func() {
+				writeFile(t, configFilename, []byte(tc.yaml))
+
+				app, _, p := newConfigTestApp(t)
+				err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+
+				if err == nil {
+					t.Fatalf("Execute() error = nil, want error")
+				}
+
+				if !strings.Contains(err.Error(), "must be a relative path") {
+					t.Fatalf("error = %v, want it to name the rule", err)
+				}
+
+				if p.parseOpts.File != "" || p.parseOpts.Directory != "" || p.parseOpts.OutputDirectory != "" {
+					t.Fatalf("opts should be zero on config error, got %+v", p.parseOpts)
+				}
+			})
+		})
+	}
+}
+
+// One committed spelling has to work on every OS, so the forward slashes a
+// config is written with become whatever the running one separates with.
+func TestConfigPathSeparatorsAreNormalized(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    file: ./cinzel/main.hcl\n"))
+
+		app, _, p := newConfigTestApp(t)
+
+		if err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p}); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		if want := filepath.FromSlash("./cinzel/main.hcl"); p.parseOpts.File != want {
+			t.Fatalf("parse file = %q, want %q", p.parseOpts.File, want)
+		}
+	})
+}
+
+// absoluteTestPath returns a path the running OS reads as absolute, which is
+// spelled differently on Windows.
+func absoluteTestPath() string {
+	if filepath.IsAbs("/tmp/cinzel") {
+		return "/tmp/cinzel"
+	}
+
+	return `C:\cinzel`
+}

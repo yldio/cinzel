@@ -6,7 +6,9 @@ package command
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/provider"
@@ -129,22 +131,25 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 
 		switch keyNode.Value {
 		case "file":
-			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.file must be string", path, providerName, commandName)
+			value, err := pathValue(valueNode, path, providerName, commandName, keyNode.Value)
+			if err != nil {
+				return providerCommandConfig{}, nil, err
 			}
-			config.file = valueNode.Value
+			config.file = value
 			config.hasFile = true
 		case "directory":
-			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.directory must be string", path, providerName, commandName)
+			value, err := pathValue(valueNode, path, providerName, commandName, keyNode.Value)
+			if err != nil {
+				return providerCommandConfig{}, nil, err
 			}
-			config.directory = valueNode.Value
+			config.directory = value
 			config.hasDirectory = true
 		case "output-directory":
-			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!str" {
-				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.output-directory must be string", path, providerName, commandName)
+			value, err := pathValue(valueNode, path, providerName, commandName, keyNode.Value)
+			if err != nil {
+				return providerCommandConfig{}, nil, err
 			}
-			config.outputDirectory = valueNode.Value
+			config.outputDirectory = value
 			config.hasOutputDir = true
 		case "yml":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
@@ -164,6 +169,35 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	sort.Strings(warnings)
 
 	return config, warnings, nil
+}
+
+// pathValue reads one path out of the configuration, refusing anything that
+// will not travel.
+//
+// The file is committed to git and read on every machine that checks the repo
+// out, so a path in it has to mean the same thing on all of them. An absolute
+// path names one machine's disk, and a leading "~" names one machine's user.
+// Both are rejected here rather than failing later as a missing file, which
+// says nothing about why.
+//
+// Forward slashes are turned into whatever the running OS separates with, so
+// one committed spelling works everywhere. The reverse is not done: a config
+// written on Windows with backslashes is a path a POSIX reader takes as one
+// filename with backslashes in it, and quietly rewriting it would guess at
+// which the author meant.
+func pathValue(node *yaml.Node, path, providerName, commandName, key string) (string, error) {
+	if node.Kind != yaml.ScalarNode || node.Tag != "!!str" {
+		return "", fmt.Errorf("%s.%s.%s.%s must be string", path, providerName, commandName, key)
+	}
+
+	if filepath.IsAbs(node.Value) || strings.HasPrefix(node.Value, "~") {
+		return "", fmt.Errorf(
+			"%s.%s.%s.%s must be a relative path (got %q): the file is shared, so a path in it has to work on every machine",
+			path, providerName, commandName, key, node.Value,
+		)
+	}
+
+	return filepath.FromSlash(node.Value), nil
 }
 
 func findMappingValue(n *yaml.Node, key string) *yaml.Node {

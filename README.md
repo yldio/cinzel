@@ -75,6 +75,25 @@ cinzel gitlab unparse --file ./.gitlab-ci.yml --output-directory ./cinzel
 
 Use `--dry-run` to print generated content to stdout.
 
+### Configuration file
+
+A `.cinzelrc.yaml` in the working directory supplies defaults, which any flag
+on the command line overrides:
+
+```yaml
+github:
+  parse:
+    directory: ./cinzel
+    output-directory: .github/workflows
+```
+
+Paths in it must be relative and written with forward slashes. The file is
+meant to be committed, so it is read on every machine that checks the repo out:
+an absolute path names one machine's disk and a leading `~` names one user, and
+both are refused with an error naming the key. Forward slashes are converted to
+the separator the running system uses, so one spelling works on Linux, macOS
+and Windows alike.
+
 ### AI-assisted generation
 
 Generate HCL workflow definitions from a natural language prompt:
