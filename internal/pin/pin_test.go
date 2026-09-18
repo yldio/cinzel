@@ -80,6 +80,8 @@ func TestIsTag(t *testing.T) {
 		{"v1.2.3", true},
 		{"v5.0", true},
 		{"1.2.3", true},
+		{"v1.2.3-beta.1", true},
+		{"1.0.0-rc1", true},
 		{"de0fac2e4500dabe0009e67214ff5f5447ce83dd", false},
 		{"abc123", false},
 		{"latest", false},
@@ -417,5 +419,47 @@ func TestCacheKey(t *testing.T) {
 
 	if key1 != key3 {
 		t.Error("same inputs should produce same key")
+	}
+}
+
+// "Not a tag" used to mean "already a SHA", so a branch name and an
+// abbreviated SHA were both counted as pinned and silently left alone.
+func TestPinFileRefusesWhatItCannotPin(t *testing.T) {
+	for _, version := range []string{"main", "de0fac2"} {
+		t.Run(version, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "steps.hcl")
+
+			content := `step "checkout" {
+  uses {
+    action  = "actions/checkout"
+    version = "` + version + `"
+  }
+}
+`
+
+			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			var buf bytes.Buffer
+
+			results, err := PinFile(context.Background(), path, &mockResolver{shas: map[string]string{}}, &buf, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(results) != 1 {
+				t.Fatalf("expected 1 result, got %d", len(results))
+			}
+
+			if results[0].WasAlready {
+				t.Errorf("%q is not pinned, but was reported as already pinned", version)
+			}
+
+			if results[0].Error == nil {
+				t.Errorf("expected an error for %q", version)
+			}
+		})
 	}
 }

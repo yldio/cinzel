@@ -21,6 +21,14 @@ func errShortSHA(sha string) error {
 	return fmt.Errorf("GitHub API returned %q, which is not a commit SHA", sha)
 }
 
+// errNotPinnable reports a version that is neither a release tag nor a full
+// commit SHA, such as a branch name or an abbreviated SHA. There is nothing to
+// resolve and nothing already pinned, so it is reported rather than counted as
+// one or the other.
+func errNotPinnable(version string) error {
+	return cinzelerror.UserInput(fmt.Errorf("%q is neither a release tag nor a 40-character commit SHA, so there is nothing to pin", version))
+}
+
 // validateGitHubNames checks that owner, repo, and tag contain only safe
 // characters to prevent URL injection.
 func validateGitHubNames(owner, repo, tag string) error {

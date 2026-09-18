@@ -29,9 +29,11 @@ const (
 	tokenEnvVar   = "GITHUB_TOKEN"
 )
 
-// tagPattern matches version strings that look like tags (v1, v1.2, v1.2.3)
-// as opposed to SHAs (40+ hex chars).
-var tagPattern = regexp.MustCompile(`^v?\d+(\.\d+)*$`)
+// tagPattern matches version strings that look like release tags: v1, v1.2,
+// v1.2.3, and the prerelease forms v1.2.3-beta.1 and 1.0.0-rc1. A build suffix
+// is left out because "+" is not a character validateGitHubNames lets into a
+// request URL.
+var tagPattern = regexp.MustCompile(`^v?\d+(\.\d+)*(-[0-9A-Za-z.-]+)?$`)
 
 // safeNamePattern validates GitHub owner, repo, and tag names to prevent
 // URL injection. Allows alphanumeric, hyphens, dots, underscores.
@@ -268,7 +270,7 @@ func (r *CachedResolver) writeCache(path, sha string) {
 type ActionRef struct {
 	Action  string // e.g., "actions/checkout"
 	Version string // e.g., "v4" or "abc123..."
-	IsTag   bool   // true if Version looks like a tag, not a SHA
+	IsTag   bool   // true if Version looks like a release tag
 
 	// Where the version assignment sits in the file, the trailing comment
 	// included. Rewrites go here rather than to the first text that looks
@@ -366,7 +368,7 @@ type PinResult struct {
 	Tag        string
 	SHA        string
 	Error      error
-	WasAlready bool // true if version was already a SHA
+	WasAlready bool // true if version was already a full commit SHA
 }
 
 // PinFile reads an HCL file, resolves all tag-based action versions to SHAs,
@@ -392,11 +394,25 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 	var edits []versionEdit
 
 	for _, ref := range refs {
-		if !ref.IsTag {
+		// Only a full commit SHA is already pinned. "Not a tag" used to be
+		// treated as one, so a branch, a short SHA and any tag the pattern
+		// did not recognise were all counted in the "already pinned" total
+		// and left exactly as they were.
+		if isCommitSHA(ref.Version) {
 			results = append(results, PinResult{
 				Action:     ref.Action,
 				SHA:        ref.Version,
 				WasAlready: true,
+			})
+
+			continue
+		}
+
+		if !ref.IsTag {
+			results = append(results, PinResult{
+				Action: ref.Action,
+				Tag:    ref.Version,
+				Error:  errNotPinnable(ref.Version),
 			})
 
 			continue
