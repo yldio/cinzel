@@ -626,6 +626,13 @@ func jobRefID(name string, jobIDMap map[string]string) (string, error) {
 		return refID, nil
 	}
 
+	// A hidden key is a template, which GitLab never runs, so nothing can wait
+	// on one. The name went out as a job reference to a job that is not in the
+	// file, and parse refused the result with "needs unknown job".
+	if strings.HasPrefix(name, ".") {
+		return "", fmt.Errorf("%w: '%s'", errNeedsHiddenJob, name)
+	}
+
 	refID := naming.SanitizeIdentifier(name)
 
 	if refID == "" {

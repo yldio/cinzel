@@ -27,6 +27,8 @@ var (
 	errArtifactsNotAList       = cinzelerror.UserInput(errors.New("artifacts takes a single object"))
 	errJobKeyReservedID        = cinzelerror.UserInput(errors.New("'id' is reserved: it records a job's name when the block label is sanitized"))
 	errVariableKeyReservedName = cinzelerror.UserInput(errors.New("'name' is reserved: it records the variable's own name"))
+	errJobIDHidden             = cinzelerror.UserInput(errors.New("a job 'id' cannot start with '.', which marks a hidden key GitLab never runs"))
+	errNeedsHiddenJob          = cinzelerror.UserInput(errors.New("a hidden job never runs, so nothing can wait on one"))
 	errReportsNotAList         = cinzelerror.UserInput(errors.New("reports takes a single object"))
 )
 

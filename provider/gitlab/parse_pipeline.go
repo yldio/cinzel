@@ -6,6 +6,7 @@ package gitlab
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -95,6 +96,14 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 
 		if _, taken := jobs[key]; taken {
 			return nil, nil, fmt.Errorf("duplicate job name '%s'", key)
+		}
+
+		// A leading dot marks a hidden key, which GitLab never runs and the
+		// unparse direction reads back as a template. A job claiming one was
+		// written as a hidden key all the same, so it came back a template and
+		// every reference to it broke on the way in.
+		if strings.HasPrefix(key, ".") {
+			return nil, nil, fmt.Errorf("error in job '%s': %w: '%s'", j.ID, errJobIDHidden, key)
 		}
 
 		keys[j.ID] = key
