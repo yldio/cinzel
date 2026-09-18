@@ -751,8 +751,15 @@ func parseNeedBlocks(blocks []hclNeedBlock, hv *hclparser.HCLVars) ([]any, error
 	for _, block := range blocks {
 		need := make(map[string]any)
 
+		// A need block is one entry of the YAML "needs" list, and an entry
+		// names a single job. A longer list used to be dropped without a
+		// word: with "pipeline" or "project" also set the entry still looked
+		// valid downstream, so the file was written and the command exited 0
+		// with the jobs it was supposed to wait for gone.
 		if refs, err := parseReferenceList(block.Job, "job"); err != nil {
 			return nil, fmt.Errorf("need: job: %w", err)
+		} else if len(refs) > 1 {
+			return nil, fmt.Errorf("need: job: %w, got %d", errNeedJobNotSingle, len(refs))
 		} else if len(refs) == 1 {
 			need["job"] = refs[0]
 		}

@@ -23,6 +23,7 @@ var (
 	errInvalidUTF8           = cinzelerror.UserInput(errors.New("input is not valid UTF-8"))
 	errNeedsJobEmpty         = cinzelerror.UserInput(errors.New("needs entries must name a job"))
 	errJobNamedAfterKeyword  = cinzelerror.UserInput(errors.New("a job is named after a pipeline keyword"))
+	errNeedJobNotSingle      = cinzelerror.UserInput(errors.New("a need block names one job"))
 	errArtifactsNotAList     = cinzelerror.UserInput(errors.New("artifacts takes a single object"))
 )
 
