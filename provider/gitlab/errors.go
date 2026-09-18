@@ -30,6 +30,7 @@ var (
 	errJobIDHidden             = cinzelerror.UserInput(errors.New("a job 'id' cannot start with '.', which marks a hidden key GitLab never runs"))
 	errNeedsHiddenJob          = cinzelerror.UserInput(errors.New("a hidden job never runs, so nothing can wait on one"))
 	errReportsNotAList         = cinzelerror.UserInput(errors.New("reports takes a single object"))
+	errExtendsNameEmpty        = cinzelerror.UserInput(errors.New("extends entries must name a job or template"))
 )
 
 // errUnknownKeyword reports a key the HCL schema does not declare, naming the

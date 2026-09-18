@@ -940,10 +940,16 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 					templateID := templateIDMap[extendsName]
 
 					if templateID == "" {
+						// A name that sanitizes to nothing was replaced with
+						// the bare word "template", so "." went out as
+						// template.template and bound to whichever template
+						// happened to carry that label, or to none at all,
+						// with both directions exiting 0. "needs" refuses the
+						// same input.
 						templateID = naming.SanitizeIdentifier(rest)
 
 						if templateID == "" {
-							templateID = "template"
+							return fmt.Errorf("%w: '%s'", errExtendsNameEmpty, extendsName)
 						}
 					}
 					refs = append(refs, templateID)
@@ -957,7 +963,7 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 					refID = naming.SanitizeIdentifier(extendsName)
 
 					if refID == "" {
-						refID = "job"
+						return fmt.Errorf("%w: '%s'", errExtendsNameEmpty, extendsName)
 					}
 				}
 				refs = append(refs, refID)
