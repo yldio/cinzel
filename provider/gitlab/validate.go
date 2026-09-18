@@ -87,6 +87,10 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 				return err
 			}
 		}
+
+		if err := validateRuleNeeds(jobMap, jobs, jobName); err != nil {
+			return err
+		}
 	}
 
 	// config.go accepts a top-level "services" alongside the one under
@@ -153,6 +157,72 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 	}
 
 	return checkNeedsCycles(graph)
+}
+
+// validateRuleNeeds checks the "needs" a rule carries the way the job-level one
+// is checked. It names a job of this pipeline too, and GitLab refuses a
+// pipeline whose rule waits on a job that is not in it, so a name nothing
+// declares went out at exit 0 and was rejected on push.
+//
+// It is not added to the cycle graph: a rule's needs applies only when that
+// rule matches, so a pair of rules naming each other is not a cycle the way a
+// job-level pair is.
+func validateRuleNeeds(jobMap map[string]any, jobs map[string]any, jobName string) error {
+	rules, ok := jobMap["rules"].([]any)
+
+	if !ok {
+		return nil
+	}
+
+	for _, raw := range rules {
+		rule, ok := raw.(map[string]any)
+
+		if !ok {
+			continue
+		}
+
+		rawNeeds, ok := rule["needs"]
+
+		if !ok {
+			continue
+		}
+
+		// GitLab also takes an object here carrying "job" alongside
+		// "parallel", which holds the list under its own key.
+		if object, isObject := rawNeeds.(map[string]any); isObject {
+			rawNeeds, ok = object["job"]
+
+			if !ok {
+				continue
+			}
+		}
+
+		needs, ok := rawNeeds.([]any)
+
+		if !ok {
+			return fmt.Errorf("job '%s' rule needs must be a list", jobName)
+		}
+
+		for _, n := range needs {
+			name, ok := needName(n)
+
+			if !ok {
+				return fmt.Errorf("job '%s' rule needs must contain non-empty strings or objects naming a job", jobName)
+			}
+
+			// A cross-project entry names no job in this pipeline, so there
+			// is nothing to check it against.
+			if name == "" {
+				continue
+			}
+
+			if _, exists := jobs[name]; !exists {
+				return fmt.Errorf("job '%s' rule needs unknown job '%s'", jobName, name)
+			}
+		}
+	}
+
+	return nil
 }
 
 // checkNeedsCycles walks the needs graph and reports the first cycle in it,
