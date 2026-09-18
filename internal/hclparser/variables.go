@@ -58,7 +58,15 @@ func (av *HCLVars) GetValueByIndex(key string, idx int64) (cty.Value, error) {
 
 	t := value.Type()
 
-	if !t.IsListType() && !t.IsTupleType() && !t.IsSetType() {
+	// A map or an object is indexable, but by key rather than by position:
+	// returning the value whole wrote the entire collection where a single
+	// element was asked for. A set has no positions at all, and
+	// cty.Value.Index panics on one rather than returning an error.
+	if t.IsMapType() || t.IsObjectType() || t.IsSetType() {
+		return cty.NilVal, fmt.Errorf("%w: %q is %s", errIndexUnsupportedType, key, t.FriendlyName())
+	}
+
+	if !t.IsListType() && !t.IsTupleType() {
 		return value, nil
 	}
 
