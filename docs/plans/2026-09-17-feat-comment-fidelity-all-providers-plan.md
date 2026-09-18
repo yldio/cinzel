@@ -119,7 +119,8 @@ Verified by running the CLI, not by reading.
 7. **GitLab has none of it.** `parseGenericBodyMap`
    (`provider/gitlab/parse_pipeline.go:988`) discards `SrcRange`, and
    `pipeline_yaml.go` is a separate hand-rolled node builder that never touches
-   comments.
+   comments. The emit path is the same again: `pipelineToHCL` writes every
+   attribute through one helper that takes no comment at all.
 
 ## Step dedup
 
@@ -162,10 +163,29 @@ Each is independently reviewable and leaves the tree green.
 7. **Foot comments.** Deferred out of commit 1, which read the head form only.
    A foot comment belongs to a body rather than to a value, so `annotated`
    has nowhere to hang one and it needs a carrier of its own.
-8. **GitLab.** The same rule in its own parse and emit paths.
+8. **GitLab, HCL to YAML.** The same rule in its own parse path. A tree beside
+   the pipeline map rather than a wrapper around its values, since the map is
+   read by three things that would each end up behind the wrapper.
+9. **GitLab, YAML to HCL.** The emit path, reading a YAML mapping into the same
+   tree the parse direction builds.
 
 Order matters: 4 is the largest and depends on 1-3 existing. 5 cannot be judged
-until 4 lands. 8 comes last so it implements a rule that is finished.
+until 4 lands. 8 and 9 come last so they implement a rule that is finished; the
+two split because GitLab parses through fifteen typed block writers and emits
+through a hand-rolled node builder, which is two commits of work rather than
+one.
+
+## Landed
+
+1. `77659b9`, `091d411`. 2. `692504d`. 3. `6332435`. 4 and 5. `69a2963`.
+6. `08a2792`. 7. `62c2319`. 8. `317067c`. 9. `55da191`.
+
+Two gaps are known and left for their own commit. A GitLab pipeline's own
+end carries no comment: a block's foot is the run above its closing brace, and
+the top level of a pipeline is a file rather than a block, with a directory
+holding several of them. On the GitHub side, `on`, `env` and `runs-on` bodies
+carry neither head nor foot comments from YAML back to HCL, because
+`writeOnEventBody` and `writeNameValueBlocks` never receive a `*yamlComments`.
 
 ## Comment text is never rewritten
 
