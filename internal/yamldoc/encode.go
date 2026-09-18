@@ -66,6 +66,10 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 // whole document, which is not where its author wrote it.
 //
 // A scalar has nothing inside it, so its own foot is the last node there is.
+// An empty collection has nothing inside it either: the comment goes on the
+// collection, which is emitted as "{}" or "[]" with the comment on the line
+// below. Without that case the switch matched nothing and the comment was
+// dropped, which an empty "permissions" block is the live way to reach.
 func setFoot(node *yamlv3.Node, foot string) {
 	if foot == "" {
 		return
@@ -76,7 +80,7 @@ func setFoot(node *yamlv3.Node, foot string) {
 		node.Content[len(node.Content)-2].FootComment = foot
 	case node.Kind == yamlv3.SequenceNode && len(node.Content) > 0:
 		node.Content[len(node.Content)-1].FootComment = foot
-	case node.Kind == yamlv3.ScalarNode:
+	default:
 		node.FootComment = foot
 	}
 }

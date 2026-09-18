@@ -3,7 +3,10 @@
 
 package yamldoc
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestEncode(t *testing.T) {
 	inner := New()
@@ -83,5 +86,33 @@ func TestEncodeKeepsAuthoredEscape(t *testing.T) {
 
 	if string(got) != want {
 		t.Errorf("Encode() = %q, want %q", got, want)
+	}
+}
+
+// An empty collection has no child to carry the comment that closes it. It
+// used to match no case in setFoot at all, so the comment was dropped: an
+// empty "permissions" block is the live way to reach that, since it is the one
+// empty map the GitHub provider keeps rather than collapsing to null.
+func TestFootCommentSurvivesAnEmptyCollection(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value Value
+	}{
+		{"empty map", Map(New(), WithFootComment("# locked down on purpose"))},
+		{"empty sequence", Seq(nil, WithFootComment("# locked down on purpose"))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := New()
+			d.Set("permissions", tc.value)
+
+			out, err := Encode(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !strings.Contains(string(out), "# locked down on purpose") {
+				t.Errorf("foot comment was dropped:\n%s", out)
+			}
+		})
 	}
 }
