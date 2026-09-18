@@ -236,7 +236,7 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 		}
 
 		envMap := getOrCreateMap(out, "env")
-		envMap[key] = value
+		envMap[key] = withComments(value, blockComments(env.Body, hv))
 	}
 
 	return out, nil
