@@ -216,10 +216,6 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 			return withPath("job."+id, err)
 		}
 
-		if err := validateRunsOn(plain(job.Body["runs-on"])); err != nil {
-			return withPath("job."+id+".runs_on", err)
-		}
-
 		// Validate job-level permissions.
 
 		if perms, ok := job.Body["permissions"]; ok {
@@ -338,10 +334,6 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 
 		if err := ghjob.ValidateModel(model, "runs-on"); err != nil {
 			return withPath("jobs."+jobID, err)
-		}
-
-		if err := validateRunsOn(jobMap["runs-on"]); err != nil {
-			return withPath("jobs."+jobID+".runs-on", err)
 		}
 
 		// Validate job-level permissions.
@@ -472,79 +464,6 @@ func validateWorkflowNeeds(workflowID string, body map[string]any) error {
 					fmt.Errorf("%w: '%s'", errNeedsOutsideWorkflow, name))
 			}
 		}
-	}
-
-	return nil
-}
-
-// validateRunsOn checks that a job's runs-on names a runner to run on.
-//
-// The check above it only asks whether the key is there, so every shape that
-// carries the key and names nothing went through: "", [], [""], an empty
-// group, an empty labels list. GitHub has nothing to schedule the job on and
-// refuses the workflow rather than starting it, which actionlint reports as
-// `"runs-on" section should not be empty`. A value that is neither a string,
-// a list nor a mapping is left to the shape check that already refuses it.
-func validateRunsOn(raw any) error {
-	switch v := raw.(type) {
-	case nil:
-		return nil
-	case string:
-		return validateRunnerName(v)
-	case []any:
-		return validateRunnerList(v)
-	case map[string]any:
-		if len(v) == 0 {
-			return errEmptyRunner
-		}
-
-		if group, ok := v["group"]; ok {
-			name, isString := group.(string)
-
-			if isString {
-				if err := validateRunnerName(name); err != nil {
-					return err
-				}
-			}
-		}
-
-		labels, ok := v["labels"].([]any)
-
-		if !ok {
-			return nil
-		}
-
-		return validateRunnerList(labels)
-	}
-
-	return nil
-}
-
-// validateRunnerList checks a list of runner labels. An entry that is not a
-// string is left alone, the same as a scalar runs-on that is not one.
-func validateRunnerList(items []any) error {
-	if len(items) == 0 {
-		return errEmptyRunner
-	}
-
-	for _, item := range items {
-		name, ok := item.(string)
-
-		if !ok {
-			continue
-		}
-
-		if err := validateRunnerName(name); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateRunnerName(name string) error {
-	if name == "" {
-		return errEmptyRunner
 	}
 
 	return nil
