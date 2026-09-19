@@ -32,6 +32,7 @@ var (
 	errReportsNotAList         = cinzelerror.UserInput(errors.New("reports takes a single object"))
 	errExtendsNameEmpty        = cinzelerror.UserInput(errors.New("extends entries must name a job or template"))
 	errTemplateIDDotted        = cinzelerror.UserInput(errors.New("a template 'id' is its key without the leading '.', which the reader puts back"))
+	errInfiniteNumber          = cinzelerror.UserInput(errors.New("an infinite number cannot be written to HCL"))
 )
 
 // errUnknownKeyword reports a key the HCL schema does not declare, naming the
