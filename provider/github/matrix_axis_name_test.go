@@ -107,3 +107,53 @@ workflow "ci" {
 		}
 	}
 }
+
+// matrixAxisHCL wraps a matrix body in the smallest workflow that carries it.
+func matrixAxisHCL(matrixBody string) string {
+	return workflowWithExtra("", "  strategy {\n    matrix {\n"+matrixBody+"    }\n  }\n")
+}
+
+// Every name inside a matrix is the author's, however deep it sits. A
+// "variable" block listing its axes directly left the matrix scope on the way
+// down and was renamed with it: "go_version" came out "go-version", which no
+// "${{ matrix.go_version }}" reference names, while the same axis written as a
+// matrix attribute kept its name.
+func TestNamesInsideAMatrixAreKept(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		hcl  string
+		want []string
+	}{
+		{
+			name: "a variable block listing axes directly",
+			hcl:  matrixAxisHCL("      variable {\n        go_version = [\"1.21\"]\n      }\n"),
+			want: []string{"go_version:"},
+		},
+		{
+			name: "a variable block naming its axis",
+			hcl: matrixAxisHCL("      variable {\n        name  = \"go_version\"\n" +
+				"        value = [\"1.21\"]\n      }\n"),
+			want: []string{"go_version:"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err, yaml := parseEmptyBlockHCL(t, tc.hcl)
+
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+
+			for _, name := range tc.want {
+				if !strings.Contains(yaml, name) {
+					t.Errorf("%q is missing, so no ${{ matrix.* }} reference names it\ngot:\n%s", name, yaml)
+				}
+			}
+
+			for _, renamed := range []string{"go-version:", "extra-flag:"} {
+				if strings.Contains(yaml, renamed) {
+					t.Errorf("a name was renamed to %q, which no reference names\ngot:\n%s", renamed, yaml)
+				}
+			}
+		})
+	}
+}

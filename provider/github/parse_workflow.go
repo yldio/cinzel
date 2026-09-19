@@ -812,6 +812,23 @@ func yamlKeyIn(scope, name string) string {
 	return naming.ToYAMLKey(name)
 }
 
+// childScope names the scope a nested block's body is read in.
+//
+// Everything written inside a matrix is named by whoever wrote the workflow,
+// however deep it sits: a "variable" block may list its axes directly rather
+// than through "name" and "value". The scope was replaced by the block's own
+// type on the way down, so those names left the matrix scope and were renamed
+// with it — "go_version" came out "go-version", which no
+// "${{ matrix.go_version }}" reference names, while the same axis written as a
+// matrix attribute kept its name. The matrix scope carries down instead.
+func childScope(scope, blockType string) string {
+	if scope == "matrix" {
+		return "matrix"
+	}
+
+	return blockType
+}
+
 func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[string]any, error) {
 	sb, ok := body.(*hclsyntax.Body)
 
@@ -1013,7 +1030,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 
 			out["matrix"] = withComments(normalized, comments)
 		default:
-			child, err := parseBodyMap(block.Body, hv, block.Type)
+			child, err := parseBodyMap(block.Body, hv, childScope(scope, block.Type))
 			if err != nil {
 				return nil, err
 			}
