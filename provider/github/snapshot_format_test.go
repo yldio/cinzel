@@ -128,7 +128,7 @@ func TestParseFormattingSnapshots(t *testing.T) {
 		},
 		{
 			// Inline comments, a non-ASCII scalar, an empty map that collapses
-			// (defaults) and one that stays explicit (permissions).
+			// (the "push" event) and one that stays explicit (permissions).
 			name:       "attribute comments empty maps and non-ascii",
 			inputFile:  filepath.Join("testdata", "fixtures", "formatting", "workflow_parse_fidelity.hcl"),
 			outputFile: "workflow-parse-fidelity.yaml",

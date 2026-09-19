@@ -24,7 +24,5 @@ workflow "ci" {
 
   on "push" {}
 
-  defaults {}
-
   jobs = [job.build]
 }

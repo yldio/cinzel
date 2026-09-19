@@ -378,6 +378,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := checkBlockNotEmpty("service", serviceVal); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		servicesMap := getOrCreateMap(out, "services")
 
 		if err := claimBlockKey(servicesMap, "service", block.ID); err != nil {
@@ -395,6 +399,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 
 		comments := blockComments(block.Body, hv)
 
+		if err := checkBlockNotEmpty("runs_on", runsOnValue); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		if err := claimSingletonBlock(out, "runs_on", "runs-on"); err != nil {
 			return ghjob.Parsed{}, err
 		}
@@ -409,6 +417,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 	for _, block := range cfg.StrategyBlocks {
 		strategyValue, err := parseBodyMap(block.Body, hv, "strategy")
 		if err != nil {
+			return ghjob.Parsed{}, err
+		}
+
+		if err := checkBlockNotEmpty("strategy", strategyValue); err != nil {
 			return ghjob.Parsed{}, err
 		}
 
@@ -441,6 +453,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := checkBlockNotEmpty("permissions", child); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		if err := claimSingletonBlock(out, "permissions", "permissions"); err != nil {
 			return ghjob.Parsed{}, err
 		}
@@ -451,6 +467,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 	for _, block := range cfg.Defaults {
 		child, err := parseBodyMap(block.Body, hv, "defaults")
 		if err != nil {
+			return ghjob.Parsed{}, err
+		}
+
+		if err := checkBlockNotEmpty("defaults", child); err != nil {
 			return ghjob.Parsed{}, err
 		}
 
@@ -467,6 +487,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := checkBlockNotEmpty("concurrency", child); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		if err := claimSingletonBlock(out, "concurrency", "concurrency"); err != nil {
 			return ghjob.Parsed{}, err
 		}
@@ -480,6 +504,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
+		if err := checkBlockNotEmpty("container", child); err != nil {
+			return ghjob.Parsed{}, err
+		}
+
 		if err := claimSingletonBlock(out, "container", "container"); err != nil {
 			return ghjob.Parsed{}, err
 		}
@@ -490,6 +518,10 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 	for _, block := range cfg.Environment {
 		child, err := parseBodyMap(block.Body, hv, "environment")
 		if err != nil {
+			return ghjob.Parsed{}, err
+		}
+
+		if err := checkBlockNotEmpty("environment", child); err != nil {
 			return ghjob.Parsed{}, err
 		}
 
@@ -585,6 +617,10 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
+		if err := checkBlockNotEmpty("permissions", child); err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
 		if err := claimSingletonBlock(out, "permissions", "permissions"); err != nil {
 			return ghworkflow.Parsed{}, err
 		}
@@ -602,6 +638,10 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
+		if err := checkBlockNotEmpty("defaults", child); err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
 		if err := claimSingletonBlock(out, "defaults", "defaults"); err != nil {
 			return ghworkflow.Parsed{}, err
 		}
@@ -612,6 +652,10 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 	for _, block := range cfg.ConcBlocks {
 		child, err := parseBodyMap(block.Body, hv, "concurrency")
 		if err != nil {
+			return ghworkflow.Parsed{}, err
+		}
+
+		if err := checkBlockNotEmpty("concurrency", child); err != nil {
 			return ghworkflow.Parsed{}, err
 		}
 
@@ -918,6 +962,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
+			if err := checkBlockNotEmpty("service", serviceVal); err != nil {
+				return nil, err
+			}
+
 			servicesMap := getOrCreateMap(out, "services")
 
 			if err := claimBlockKey(servicesMap, "service", block.Labels[0]); err != nil {
@@ -928,6 +976,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		case block.Type == "runs_on" && scope == "job":
 			runsOnValue, err := parseBodyMap(block.Body, hv, "runs_on")
 			if err != nil {
+				return nil, err
+			}
+
+			if err := checkBlockNotEmpty("runs_on", runsOnValue); err != nil {
 				return nil, err
 			}
 
@@ -951,6 +1003,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
+			if err := checkBlockNotEmpty("matrix", normalized); err != nil {
+				return nil, err
+			}
+
 			if err := claimSingletonBlock(out, "matrix", "matrix"); err != nil {
 				return nil, err
 			}
@@ -959,6 +1015,10 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 		default:
 			child, err := parseBodyMap(block.Body, hv, block.Type)
 			if err != nil {
+				return nil, err
+			}
+
+			if err := checkBlockNotEmpty(block.Type, child); err != nil {
 				return nil, err
 			}
 
@@ -1268,6 +1328,28 @@ func stepValueWithoutID(stepVal any) any {
 	}
 
 	return out
+}
+
+// checkBlockNotEmpty refuses a block that converted to nothing at all.
+//
+// A block with an empty body becomes an empty map, which goes out as a bare
+// "key:" with a null under it. GitHub rejects every one of these — actionlint
+// reads "runs-on:" as `string should not be empty` and "defaults:" as
+// `"defaults" section should have "run" section` — and cinzel's own unparse
+// refuses the runs-on form, so a parse exited 0 on a file nothing downstream
+// could read. "permissions" is the exception: an empty one is written
+// explicitly as "{}", because an absent permissions field makes GitHub inherit
+// the default token permissions rather than granting none.
+func checkBlockNotEmpty(blockType string, value map[string]any) error {
+	if blockType == "permissions" {
+		return nil
+	}
+
+	if len(value) == 0 {
+		return fmt.Errorf("%w: '%s' sets nothing", errEmptyBlock, blockType)
+	}
+
+	return nil
 }
 
 // checkStepNotEmpty refuses a step that converted to nothing at all.
