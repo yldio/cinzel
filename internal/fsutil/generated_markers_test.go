@@ -155,3 +155,68 @@ func TestPruneToleratesAMissingDirectory(t *testing.T) {
 		t.Errorf("want no error for a missing directory, got %v", err)
 	}
 }
+
+// TestPruneKeepsAnOutputSpelledDifferently covers a rename that changes only
+// the case of a filename.
+//
+// os.WriteFile keeps the name the directory already holds, so on macOS and
+// Windows the file stays "Build.yaml" while the run records "build.yaml" as
+// what it wrote. Comparing the spellings, the walk found a marked file in no
+// current output and removed the one the run had just written: the directory
+// came out empty and parse exited 0.
+//
+// The case-insensitive half is skipped where the filesystem keeps the two
+// names apart, since there the premise does not hold.
+func TestPruneKeepsAnOutputSpelledDifferently(t *testing.T) {
+	dir := t.TempDir()
+	generated := "# generated-by: cinzel\n# cinzel-provider: github\nname: ci\n"
+
+	written := filepath.Join(dir, "Build.yaml")
+
+	if err := os.WriteFile(written, []byte(generated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	recorded := filepath.Join(dir, "build.yaml")
+
+	if _, err := os.Stat(recorded); err != nil {
+		t.Skip("filesystem is case-sensitive, so the two names are two files")
+	}
+
+	if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{recorded: {}}, "github"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(written); err != nil {
+		t.Fatalf("the prune removed the file the run had just written: %v", err)
+	}
+}
+
+// TestPruneStillRemovesAStaleFileBesideACurrentOne pins that comparing by file
+// identity did not turn the prune into a no-op: a marked file this run did not
+// write is still removed, next to one it did.
+func TestPruneStillRemovesAStaleFileBesideACurrentOne(t *testing.T) {
+	dir := t.TempDir()
+	generated := "# generated-by: cinzel\n# cinzel-provider: github\nname: ci\n"
+
+	current := filepath.Join(dir, "current.yaml")
+	stale := filepath.Join(dir, "stale.yaml")
+
+	for _, path := range []string{current, stale} {
+		if err := os.WriteFile(path, []byte(generated), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{current: {}}, "github"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("expected the stale file to be removed, got %v", err)
+	}
+
+	if _, err := os.Stat(current); err != nil {
+		t.Fatalf("expected the current file to survive: %v", err)
+	}
+}
