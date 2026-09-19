@@ -85,16 +85,8 @@ func validateCronField(field string, spec cronFieldSpec) error {
 	}
 
 	// Handle step on wildcard: */n
-
 	if strings.HasPrefix(field, "*/") {
-		step := field[2:]
-
-		// A step is a count, not a point in the field, so no name belongs here.
-		if _, err := strconv.Atoi(step); err != nil {
-			return fmt.Errorf("invalid step %q in %q", step, field)
-		}
-
-		return validateCronNumber(step, spec)
+		return validateCronStep(field[2:], field)
 	}
 
 	// Handle list: a,b,c
@@ -125,8 +117,8 @@ func validateCronRange(field string, spec cronFieldSpec) error {
 		rangePart = field[:idx]
 		step := field[idx+1:]
 
-		if _, err := strconv.Atoi(step); err != nil {
-			return fmt.Errorf("invalid step %q in %q", step, field)
+		if err := validateCronStep(step, field); err != nil {
+			return err
 		}
 	}
 
@@ -156,6 +148,28 @@ func validateCronRange(field string, spec cronFieldSpec) error {
 
 	if low > high {
 		return fmt.Errorf("range start %d is greater than end %d", low, high)
+	}
+
+	return nil
+}
+
+// validateCronStep checks the "/n" of a stepped field.
+//
+// A step is how far to jump, not a point in the field, so it is a positive
+// count and nothing else: no name belongs in it, and its own range is not the
+// field's. Checking it against the field's range let "*/0" through, which never
+// advances and which GitHub rejects, while turning away "*/90", which only ever
+// fires on the first value and which GitHub takes. A range step was checked for
+// being an integer alone, so "0-23/0" and "0-23/-5" both went out.
+func validateCronStep(step, field string) error {
+	n, err := strconv.Atoi(step)
+
+	if err != nil {
+		return fmt.Errorf("invalid step %q in %q", step, field)
+	}
+
+	if n < 1 {
+		return fmt.Errorf("step %q in %q must be a positive number", step, field)
 	}
 
 	return nil
