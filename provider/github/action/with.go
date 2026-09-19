@@ -5,6 +5,7 @@ package action
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/cinzel/internal/hclparser"
@@ -56,6 +57,10 @@ func (config *WithListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 
 		if name == cty.NilVal {
 			return cty.NilVal, errors.New("name must be set")
+		}
+
+		if name.Type() != cty.String {
+			return cty.NilVal, fmt.Errorf("name must be a string, found %s", name.Type().FriendlyName())
 		}
 
 		value, err := w.parseValue(hv)
