@@ -35,4 +35,5 @@ var (
 	errEmptyStep              = cinzelerror.UserInput(errors.New("a step a job or an action runs must set something"))
 	errEmptyBlock             = cinzelerror.UserInput(errors.New("a block that becomes a YAML key must set something"))
 	errEmptyKey               = cinzelerror.UserInput(errors.New("a key a workflow reads by name must not be empty"))
+	errEmptyRunner            = cinzelerror.UserInput(errors.New("a job must name the runner it runs on"))
 )
