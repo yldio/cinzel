@@ -39,6 +39,4 @@ var (
 	errEmptyValue             = cinzelerror.UserInput(errors.New("a setting a workflow acts on must not be empty"))
 	errInfiniteNumber         = cinzelerror.UserInput(errors.New("an infinite number cannot be written to HCL"))
 	errNeedsOutsideWorkflow   = cinzelerror.UserInput(errors.New("a job can only wait on a job the same workflow writes"))
-	errMatrixAxisShape        = cinzelerror.UserInput(errors.New("a matrix axis must list the values it spreads over"))
-	errMatrixEntryShape       = cinzelerror.UserInput(errors.New("an 'include' or 'exclude' must list whole combinations"))
 )
