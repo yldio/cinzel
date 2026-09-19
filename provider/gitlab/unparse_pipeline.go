@@ -98,15 +98,12 @@ func checkYAMLSoundness(content []byte) error {
 		}
 
 		if err != nil {
-			// Anything else wrong with the document is goccy's to report, so
-			// its own decode below says it, with the messages and positions
-			// the rest of this package is written against.
 			if strings.Contains(err.Error(), "excessive aliasing") ||
 				strings.Contains(err.Error(), "exceeded max depth") {
 				return fmt.Errorf("%w: %s", errYAMLExhausting, err)
 			}
 
-			return nil
+			return unreadableByThisPass(content, err)
 		}
 
 		if err := rejectNonStringKeys(&node); err != nil {
@@ -127,9 +124,36 @@ func checkYAMLSoundness(content []byte) error {
 				return fmt.Errorf("%w: %s", errYAMLExhausting, err)
 			}
 
-			return nil
+			return unreadableByThisPass(content, err)
 		}
 	}
+}
+
+// unreadableByThisPass decides what to do when yaml.v3 will not read a
+// document the checks above are written against.
+//
+// Every refusal used to be handed on, on the reading that goccy decodes next
+// and reports the same fault with the positions the rest of this package
+// prints. That holds only while the two readers agree on what a document is.
+// Four inputs they disagree on — an unknown directive, an undefined tag
+// handle, a "%YAML" version this reader does not implement, and a byte that
+// is not UTF-8 — are refused here and taken there, and the file then went
+// through with the alias cap, the non-string-key rule and the tag rule all
+// skipped: "%FOO bar" on the first line was enough to put "!reference" and a
+// "~" key back through, and to take a 295-byte alias chain to 1.1MB of HCL.
+//
+// So the document is offered to goccy here. If it will not read it either,
+// its own refusal is the one the caller wants and this returns nil to let it
+// through. If it will, the two readers are looking at different documents and
+// only one of them has been checked, which is the case that has to stop.
+func unreadableByThisPass(content []byte, err error) error {
+	var discard any
+
+	if yaml.Unmarshal(content, &discard) != nil {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s", errYAMLOnlyOneReaderTakes, err)
 }
 
 // rejectUnreadableTags refuses a node carrying a tag whose meaning is lost on

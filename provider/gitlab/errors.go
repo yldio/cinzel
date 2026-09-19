@@ -34,6 +34,7 @@ var (
 	errTemplateIDDotted        = cinzelerror.UserInput(errors.New("a template 'id' is its key without the leading '.', which the reader puts back"))
 	errInfiniteNumber          = cinzelerror.UserInput(errors.New("an infinite number cannot be written to HCL"))
 	errUnreadableYAMLTag       = cinzelerror.UserInput(errors.New("a YAML tag cinzel cannot carry into HCL"))
+	errYAMLOnlyOneReaderTakes  = cinzelerror.UserInput(errors.New("only one of the two YAML readers accepts this document, so cinzel cannot check what it holds"))
 )
 
 // errUnknownKeyword reports a key the HCL schema does not declare, naming the
