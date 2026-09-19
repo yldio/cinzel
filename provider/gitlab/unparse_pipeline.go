@@ -596,8 +596,6 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			continue
 		}
 
-		warnf("unsupported top-level key '%s' passed through", key)
-
 		if hiddenJobMap, ok := toStringAnyMap(doc[key]); ok && strings.HasPrefix(key, ".") {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
 				body.AppendNewline()
@@ -623,8 +621,17 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			if err := writeJobBlock(tb.Body(), hiddenJobMap, jobIDMap, templateIDMap, c.child(key)); err != nil {
 				return nil, fmt.Errorf("error in template '%s': %w", key, err)
 			}
+
 			continue
 		}
+
+		// The warning says the key went out untouched, so it belongs to the
+		// two branches below and not to the one above: a hidden key is written
+		// as a "template" block the schema declares, which "extends" then
+		// refers to as template.<id>. Warning on it told the author their
+		// template was unsupported and had been passed through, which was the
+		// opposite of what had happened, on every pipeline that uses one.
+		warnf("unsupported top-level key '%s' passed through", key)
 
 		if genericMap, ok := toStringAnyMap(doc[key]); ok {
 			if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
