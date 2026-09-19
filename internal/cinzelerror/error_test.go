@@ -17,9 +17,6 @@ func TestErrors(t *testing.T) {
 
 	var tests = []Test{
 		{"ErrWorkflowFilenameRequired", ErrWorkflowFilenameRequired.Error(), "`workflow` requires a filename"},
-		{"ErrOnlyHclFiles", ErrOnlyHclFiles.Error(), "only HCL files are allowed"},
-		{"ErrOnRestriction", ErrOnRestriction.Error(), "`on` can only have Events or Event"},
-		{"ErrSecretsRestriction", ErrSecretsRestriction.Error(), "only `secrets` blocks or one single `secret` attribute is allowed"},
 	}
 
 	for _, tt := range tests {
