@@ -16,60 +16,35 @@ func validateExpressions(workflow map[string]any) error {
 	})
 }
 
-// validateExpressionSyntax checks that ${{ }} delimiters in a string are
-// balanced and non-empty.
+// validateExpressionSyntax checks that every ${{ in a string is closed and
+// encloses something.
 //
-// A "}}" outside an expression is not always a mistake: a shell script holding
-// JSON ends nested objects that way. The old check compared the first "}}" in
-// the string against the first "${{" and refused anything where the closer came
-// first, so a script with JSON and a later expression did not parse. Count the
-// plain braces instead, and report a closer only when there is none for it to
-// close.
+// Only an opener starts an expression. A "}}" that no "${{" opened is plain
+// text to GitHub, which scans left to right the same way: "${A}}" in a shell
+// script, the braces format() escapes for itself, a closer written twice by
+// mistake. actionlint 1.7.12 accepts all of them, and the check that called
+// them orphaned refused, in both directions, workflows GitHub runs.
 func validateExpressionSyntax(path, s string) error {
-	braces := 0
-
 	for i := 0; i < len(s); {
 		rest := s[i:]
 
-		switch {
-		case strings.HasPrefix(rest, "${{"):
-			end := strings.Index(rest[3:], "}}")
-
-			if end < 0 {
-				return fmt.Errorf("%s: unclosed expression '${{' (missing '}}') in %q", path, s)
-			}
-
-			if strings.TrimSpace(rest[3:3+end]) == "" {
-				return fmt.Errorf("%s: empty expression '${{ }}' in %q", path, s)
-			}
-
-			i += 3 + end + 2
-
-		case strings.HasPrefix(rest, "}}"):
-			// A string with no expression at all is left alone, the way it was
-			// before: "}}" in a script that never interpolates is just text.
-			if braces < 2 && strings.Contains(s, "${{") {
-				return fmt.Errorf("%s: orphaned '}}' without matching '${{' in %q", path, s)
-			}
-
-			if braces >= 2 {
-				braces -= 2
-			}
-
-			i += 2
-
-		default:
-			switch rest[0] {
-			case '{':
-				braces++
-			case '}':
-				if braces > 0 {
-					braces--
-				}
-			}
-
+		if !strings.HasPrefix(rest, "${{") {
 			i++
+
+			continue
 		}
+
+		end := strings.Index(rest[3:], "}}")
+
+		if end < 0 {
+			return fmt.Errorf("%s: unclosed expression '${{' (missing '}}') in %q", path, s)
+		}
+
+		if strings.TrimSpace(rest[3:3+end]) == "" {
+			return fmt.Errorf("%s: empty expression '${{ }}' in %q", path, s)
+		}
+
+		i += 3 + end + 2
 	}
 
 	return nil

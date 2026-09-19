@@ -27,9 +27,16 @@ func TestValidateExpressionSyntax(t *testing.T) {
 		{name: "json then an expression", input: `echo '{"a": {"b": 1}}' && echo ${{ github.sha }}`},
 		{name: "an expression then json", input: `echo ${{ github.sha }} && echo '{"a": {"b": 1}}'`},
 		{name: "json with no expression", input: `echo '{"a": {"b": 1}}'`},
-		{name: "a closer with nothing to close", input: "echo }} && echo ${{ github.sha }}", wantErr: "orphaned"},
-		{name: "a closer after the expression closed", input: "${{ github.sha }} }}", wantErr: "orphaned"},
+		// GitHub reads a "}}" that no "${{" opened as plain text, and actionlint
+		// 1.7.12 accepts every one of these. The check that called them
+		// orphaned refused workflows GitHub runs, on the way in and on the way
+		// back out.
+		{name: "a closer with nothing to close", input: "echo }} && echo ${{ github.sha }}"},
+		{name: "a closer after the expression closed", input: "${{ github.sha }} }}"},
 		{name: "a lone closer in a plain string", input: "echo }}"},
+		{name: "a shell brace beside an expression", input: `echo "${A}}" && echo ${{ github.sha }}`},
+		{name: "format escaping its own braces", input: "${{ format('{{ {0} }}', github.sha) }}"},
+		{name: "a closer doubled after an expression", input: "${{ github.sha }}}}"},
 	}
 
 	for _, tt := range tests {
