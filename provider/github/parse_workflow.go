@@ -99,6 +99,10 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 					takenIDs[id] = stepID
 				}
 
+				if err := checkStepNotEmpty(stepVal, stepID); err != nil {
+					return nil, nil, nil, fmt.Errorf("error in job '%s': %w", j.ID, err)
+				}
+
 				emitted[stepID] = struct{}{}
 
 				steps = append(steps, stepVal)
@@ -1264,6 +1268,24 @@ func stepValueWithoutID(stepVal any) any {
 	}
 
 	return out
+}
+
+// checkStepNotEmpty refuses a step that converted to nothing at all.
+//
+// A step block whose every attribute is absent, or that carries only
+// "ignore_id", leaves an empty map, which goes out as a bare "-" under
+// "steps". GitHub rejects that file, and so does cinzel's own unparse, which
+// reads the null node back and reports a step that must be an object. The
+// check sits where the step is used rather than where it is declared: a step
+// block nothing references is never emitted and is nobody's problem.
+func checkStepNotEmpty(stepVal any, stepID string) error {
+	m, ok := stepMapValue(stepVal)
+
+	if ok && len(m) == 0 {
+		return fmt.Errorf("%w: '%s' sets nothing", errEmptyStep, stepID)
+	}
+
+	return nil
 }
 
 // stepMapValue returns the map a converted step is, reaching through the

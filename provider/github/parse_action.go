@@ -239,6 +239,10 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 				takenIDs[id] = ref
 			}
 
+			if err := checkStepNotEmpty(stepVal, ref); err != nil {
+				return nil, err
+			}
+
 			emitted[ref] = struct{}{}
 
 			steps = append(steps, stepVal)

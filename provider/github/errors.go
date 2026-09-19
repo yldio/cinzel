@@ -32,4 +32,5 @@ var (
 	errDuplicateStepLabel     = cinzelerror.UserInput(errors.New("two step blocks share a label"))
 	errDuplicateBlockKey      = cinzelerror.UserInput(errors.New("two blocks write the same key"))
 	errDuplicateBlock         = cinzelerror.UserInput(errors.New("a block that may only be written once is written twice"))
+	errEmptyStep              = cinzelerror.UserInput(errors.New("a step a job or an action runs must set something"))
 )
