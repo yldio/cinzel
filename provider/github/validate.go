@@ -224,6 +224,14 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 			}
 		}
 
+		// Validate step uses references, the same way the YAML side does. A
+		// reference checked only on the way back let a parse write one GitHub
+		// cannot resolve and cinzel's own unparse then refused to read.
+
+		if err := validateJobStepUses(id, plainMap(job.Body)); err != nil {
+			return err
+		}
+
 		models[id] = model
 	}
 
