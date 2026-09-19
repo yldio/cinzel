@@ -167,14 +167,6 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 		return err
 	}
 
-	if err := validateWorkflowSettings(plainMap(workflow.Body)); err != nil {
-		return err
-	}
-
-	if err := validateTriggerFilters(plainMap(workflow.Body)["on"], "workflow."+workflow.ID+".on"); err != nil {
-		return err
-	}
-
 	if err := validateWorkflowNeeds(workflow.ID, plainMap(workflow.Body)); err != nil {
 		return err
 	}
@@ -258,10 +250,6 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 			return err
 		}
 
-		if err := validateJobSettings(id, plainBody); err != nil {
-			return err
-		}
-
 		models[id] = model
 	}
 
@@ -328,14 +316,6 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		return err
 	}
 
-	if err := validateWorkflowSettings(doc.Raw); err != nil {
-		return err
-	}
-
-	if err := validateTriggerFilters(doc.Raw["on"], "workflow_yaml.on"); err != nil {
-		return err
-	}
-
 	jobModels := make(map[string]ghjob.ValidationModel, len(jobsRaw))
 
 	for jobID, jobAny := range jobsRaw {
@@ -379,10 +359,6 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		}
 
 		if err := validateJobTimeouts(jobID, jobMap); err != nil {
-			return err
-		}
-
-		if err := validateJobSettings(jobID, jobMap); err != nil {
 			return err
 		}
 
@@ -454,115 +430,6 @@ func validateJobTimeouts(jobID string, jobMap map[string]any) error {
 	return nil
 }
 
-// Settings whose value GitHub acts on, so an empty one leaves it nothing to
-// act on. A name, an env value, a with value and an output are not here: they
-// are the author's own text, and GitHub takes an empty one.
-var (
-	workflowSettingKeys = []string{"concurrency", "run-name"}
-	jobSettingKeys      = []string{"concurrency", "container", "environment", "if"}
-	stepSettingKeys     = []string{"if", "run", "shell", "working-directory"}
-	defaultsRunKeys     = []string{"shell", "working-directory"}
-)
-
-// Lists GitHub filters on, so an empty one filters nothing in and an empty
-// entry matches nothing. A "types" list is here too: an empty activity type is
-// not one of the event's.
-var triggerFilterKeys = []string{"branches", "branches-ignore", "paths", "paths-ignore", "tags", "tags-ignore", "types"}
-
-// validateTriggerFilters checks the filter lists under each event in "on".
-//
-// GitHub refuses the workflow rather than running it, which actionlint reports
-// as `"tags" section should not be empty` for the empty list and `string
-// should not be empty` for the empty entry. Both directions wrote one out and
-// read it back without a word.
-func validateTriggerFilters(on any, path string) error {
-	events, ok := toStringAnyMap(on)
-
-	if !ok {
-		return nil
-	}
-
-	for _, event := range sortedKeys(events) {
-		body, ok := toStringAnyMap(events[event])
-
-		if !ok {
-			continue
-		}
-
-		for _, key := range triggerFilterKeys {
-			raw, set := body[key]
-
-			if !set {
-				continue
-			}
-
-			if err := validateNonEmptyStrings(raw); err != nil {
-				return withPath(path+"."+event+"."+key, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-// validateMatrixValues checks the axes a job's matrix spreads over.
-//
-// An axis with nothing in it spreads the job over no combination at all, and
-// GitHub refuses the workflow rather than running it: actionlint reports
-// `"matrix values" section should not be empty`. "include" and "exclude" are
-// lists of whole combinations rather than axes, and GitHub takes an empty one
-// as nothing to add or drop.
-func validateMatrixValues(jobMap map[string]any, path string) error {
-	strategy, ok := toStringAnyMap(jobMap["strategy"])
-
-	if !ok {
-		return nil
-	}
-
-	matrix, ok := toStringAnyMap(strategy["matrix"])
-
-	if !ok {
-		return nil
-	}
-
-	for _, axis := range sortedKeys(matrix) {
-		if axis == "include" || axis == "exclude" {
-			continue
-		}
-
-		if err := validateNonEmptyStrings(matrix[axis]); err != nil {
-			return withPath(path+".strategy.matrix."+axis, err)
-		}
-	}
-
-	return nil
-}
-
-// validateNonEmptyStrings refuses a list that holds nothing and a string entry
-// in it that says nothing. A value that is not a list is left alone: it
-// carries a ${{ }} expression GitHub resolves at run time.
-func validateNonEmptyStrings(raw any) error {
-	list, ok := raw.([]any)
-
-	if !ok {
-		return nil
-	}
-
-	if len(list) == 0 {
-		return errEmptyValue
-	}
-
-	for _, item := range list {
-		value, ok := item.(string)
-
-		if ok && value == "" {
-			return errEmptyValue
-		}
-	}
-
-	return nil
-}
-
 // validateWorkflowNeeds checks that each job waits only on a job the same
 // workflow writes.
 //
@@ -604,97 +471,6 @@ func validateWorkflowNeeds(workflowID string, body map[string]any) error {
 				return withPath("workflow."+workflowID+".jobs."+key+".needs",
 					fmt.Errorf("%w: '%s'", errNeedsOutsideWorkflow, name))
 			}
-		}
-	}
-
-	return nil
-}
-
-// validateWorkflowSettings checks the settings written beside the jobs.
-func validateWorkflowSettings(body map[string]any) error {
-	if err := validateEmptySettings(body, workflowSettingKeys, "workflow"); err != nil {
-		return err
-	}
-
-	return validateDefaultsSettings(body["defaults"], "workflow.defaults")
-}
-
-// validateJobSettings checks the settings on one job and on each of its steps.
-//
-// GitHub has nothing to run, nothing to run it in, and nothing to decide on
-// when one of these is empty, and it refuses the workflow rather than starting
-// it, which actionlint reports as `string should not be empty`. Both
-// directions wrote one out and read it back without a word.
-func validateJobSettings(jobID string, jobMap map[string]any) error {
-	if err := validateEmptySettings(jobMap, jobSettingKeys, "jobs."+jobID); err != nil {
-		return err
-	}
-
-	if err := validateDefaultsSettings(jobMap["defaults"], "jobs."+jobID+".defaults"); err != nil {
-		return err
-	}
-
-	if err := validateMatrixValues(jobMap, "jobs."+jobID); err != nil {
-		return err
-	}
-
-	// A needs list holding nothing waits for nothing. The entries themselves
-	// are checked where the references are resolved.
-	if raw, set := jobMap["needs"]; set {
-		if list, isList := raw.([]any); isList && len(list) == 0 {
-			return withPath("jobs."+jobID+".needs", errEmptyValue)
-		}
-	}
-
-	steps, ok := jobMap["steps"].([]any)
-
-	if !ok {
-		return nil
-	}
-
-	for i, stepRaw := range steps {
-		stepMap, ok := toStringAnyMap(stepRaw)
-
-		if !ok {
-			continue
-		}
-
-		path := fmt.Sprintf("jobs.%s.steps[%d]", jobID, i)
-
-		if err := validateEmptySettings(stepMap, stepSettingKeys, path); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// validateDefaultsSettings checks the run defaults, which a step that sets
-// neither of them inherits.
-func validateDefaultsSettings(raw any, path string) error {
-	defaults, ok := toStringAnyMap(raw)
-
-	if !ok {
-		return nil
-	}
-
-	run, ok := toStringAnyMap(defaults["run"])
-
-	if !ok {
-		return nil
-	}
-
-	return validateEmptySettings(run, defaultsRunKeys, path+".run")
-}
-
-// validateEmptySettings refuses an empty string under any of the keys named.
-// A value that is not a string is left to the shape check that reads it.
-func validateEmptySettings(mapping map[string]any, keys []string, path string) error {
-	for _, key := range keys {
-		value, ok := mapping[key].(string)
-
-		if ok && value == "" {
-			return withPath(path+"."+key, errEmptyValue)
 		}
 	}
 
