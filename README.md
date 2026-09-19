@@ -197,6 +197,19 @@ Both take `--dry-run`, `--file`/`-f` and `--directory`/`-d` (default `cinzel`).
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.
 
+## Using it from an agent
+
+There is a skill for Claude Code, Codex, opencode and pi, so an agent knows
+what the HCL looks like and which command goes which way:
+
+```
+/plugin marketplace add yldio/cinzel
+/plugin install cinzel@cinzel-plugin
+```
+
+See [`plugins/cinzel/README.md`](plugins/cinzel/README.md) for the other
+agents, which read the same `SKILL.md` from their own skills directory.
+
 ## More
 
 - [Changelog](CHANGELOG.md)
