@@ -33,6 +33,7 @@ var (
 	errExtendsNameEmpty        = cinzelerror.UserInput(errors.New("extends entries must name a job or template"))
 	errTemplateIDDotted        = cinzelerror.UserInput(errors.New("a template 'id' is its key without the leading '.', which the reader puts back"))
 	errInfiniteNumber          = cinzelerror.UserInput(errors.New("an infinite number cannot be written to HCL"))
+	errUnreadableYAMLTag       = cinzelerror.UserInput(errors.New("a YAML tag cinzel cannot carry into HCL"))
 )
 
 // errUnknownKeyword reports a key the HCL schema does not declare, naming the

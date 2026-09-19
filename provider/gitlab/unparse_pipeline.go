@@ -113,6 +113,10 @@ func checkYAMLSoundness(content []byte) error {
 			return err
 		}
 
+		if err := rejectUnreadableTags(&node); err != nil {
+			return err
+		}
+
 		// Decoding into a Node parses the document without resolving a
 		// single alias, so the cap has not been tested yet. Decoding that
 		// node into a plain value is what expands them, and what trips it.
@@ -126,6 +130,33 @@ func checkYAMLSoundness(content []byte) error {
 			return nil
 		}
 	}
+}
+
+// rejectUnreadableTags refuses a node carrying a tag whose meaning is lost on
+// the way through.
+//
+// "!reference [.setup, script]" is how a pipeline pulls a keyword out of
+// another job, and GitLab resolves it when it reads the file. Neither decoder
+// here knows the tag: both drop it and hand back the plain sequence under it,
+// so "after_script: !reference [.setup, after_script]" arrived as the two-item
+// list [".setup", "after_script"] and was written to HCL as two shell commands.
+// The run exited 0 and the pipeline that came back ran ".setup" as a program.
+//
+// Nothing in the HCL schema spells the tag, so it cannot be carried across and
+// this is where it has to stop. The standard tags are left alone: they name the
+// type of what is already there, which survives.
+func rejectUnreadableTags(node *yamlv3.Node) error {
+	if tag := node.Tag; tag != "" && !strings.HasPrefix(tag, "!!") {
+		return fmt.Errorf("%w: %s", errUnreadableYAMLTag, tag)
+	}
+
+	for _, child := range node.Content {
+		if err := rejectUnreadableTags(child); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // rejectNonStringKeys refuses a mapping key that is not a string. A merge
