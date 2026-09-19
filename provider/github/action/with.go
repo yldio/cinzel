@@ -63,13 +63,23 @@ func (config *WithListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 			return cty.NilVal, fmt.Errorf("name must be a string, found %s", name.Type().FriendlyName())
 		}
 
+		key := name.AsString()
+
+		if key == "" {
+			return cty.NilVal, errors.New("name must not be empty")
+		}
+
+		if _, taken := mapping[key]; taken {
+			return cty.NilVal, fmt.Errorf("two blocks both write '%s'", key)
+		}
+
 		value, err := w.parseValue(hv)
 		if err != nil {
 			return cty.NilVal, err
 		}
 
 		if value != cty.NilVal {
-			mapping[name.AsString()] = value
+			mapping[key] = value
 		} else {
 			return cty.NilVal, errors.New("value must be set")
 		}
