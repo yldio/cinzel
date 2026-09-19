@@ -526,12 +526,68 @@ func validateMatrixValues(jobMap map[string]any, path string) error {
 	}
 
 	for _, axis := range sortedKeys(matrix) {
+		axisPath := path + ".strategy.matrix." + axis
+
 		if axis == "include" || axis == "exclude" {
+			if err := validateMatrixEntries(matrix[axis]); err != nil {
+				return withPath(axisPath, err)
+			}
+
 			continue
 		}
 
+		if err := validateMatrixAxis(matrix[axis]); err != nil {
+			return withPath(axisPath, err)
+		}
+
 		if err := validateNonEmptyStrings(matrix[axis]); err != nil {
-			return withPath(path+".strategy.matrix."+axis, err)
+			return withPath(axisPath, err)
+		}
+	}
+
+	return nil
+}
+
+// validateMatrixAxis refuses an axis whose value is a mapping.
+//
+// GitHub spreads a job over the values an axis lists, so the axis is a list or
+// the one ${{ }} expression that produces one. A mapping is neither, and GitHub
+// refuses the workflow rather than running it: actionlint reports `"matrix
+// values" section must be sequence node but got mapping node`. HCL writes a
+// mapping as a block, so a "go_version { ... }" inside a matrix read as one and
+// went through.
+func validateMatrixAxis(raw any) error {
+	if _, isMap := toStringAnyMap(raw); isMap {
+		return errMatrixAxisShape
+	}
+
+	return nil
+}
+
+// validateMatrixEntries refuses an "include" or "exclude" that is not a list of
+// mappings.
+//
+// Each entry names a whole combination, so the section is a list and each entry
+// in it a mapping. HCL writes a mapping as a block, so one "include { ... }"
+// read as a mapping where a list belongs, and GitHub refuses the workflow:
+// actionlint reports `"include" section must be sequence node but got mapping
+// node`. An entry that is not a mapping draws `element in "include" section is
+// sequence node but mapping node is expected`. A value that is not a list at
+// all is left alone, as it carries a ${{ }} expression resolved at run time.
+func validateMatrixEntries(raw any) error {
+	if _, isMap := toStringAnyMap(raw); isMap {
+		return errMatrixEntryShape
+	}
+
+	list, isList := raw.([]any)
+
+	if !isList {
+		return nil
+	}
+
+	for _, entry := range list {
+		if _, isMap := toStringAnyMap(entry); !isMap {
+			return errMatrixEntryShape
 		}
 	}
 
