@@ -175,6 +175,10 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 		return err
 	}
 
+	if err := validateWorkflowNeeds(workflow.ID, plainMap(workflow.Body)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -553,6 +557,53 @@ func validateNonEmptyStrings(raw any) error {
 
 		if ok && value == "" {
 			return errEmptyValue
+		}
+	}
+
+	return nil
+}
+
+// validateWorkflowNeeds checks that each job waits only on a job the same
+// workflow writes.
+//
+// GitHub reads "needs" within one file, and the jobs a workflow writes are the
+// ones it lists. A depends_on reaching a job block another workflow lists wrote
+// a name nothing in the file answers to, and GitHub refuses the workflow rather
+// than running it: actionlint reports `job "beta" needs job "alpha" which does
+// not exist in this workflow`. The check that already catches this on the YAML
+// side ran over every job block in the HCL at once on this side, so a reference
+// across two workflows went through.
+func validateWorkflowNeeds(workflowID string, body map[string]any) error {
+	jobs, ok := toStringAnyMap(body["jobs"])
+
+	if !ok {
+		return nil
+	}
+
+	for _, key := range sortedKeys(jobs) {
+		job, ok := toStringAnyMap(jobs[key])
+
+		if !ok {
+			continue
+		}
+
+		needs, ok := job["needs"].([]any)
+
+		if !ok {
+			continue
+		}
+
+		for _, raw := range needs {
+			name, ok := raw.(string)
+
+			if !ok {
+				continue
+			}
+
+			if _, found := jobs[name]; !found {
+				return withPath("workflow."+workflowID+".jobs."+key+".needs",
+					fmt.Errorf("%w: '%s'", errNeedsOutsideWorkflow, name))
+			}
 		}
 	}
 
