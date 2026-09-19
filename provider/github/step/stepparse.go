@@ -12,6 +12,16 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// stepAttrErr names the step and the attribute a value was refused for.
+//
+// A type check reports the type it wanted and the one it found and nothing
+// else, so "unsupported type, expected string, found number" left an author
+// with four string attributes on a dozen steps nowhere to look. The
+// expression errors beside them already name the step.
+func stepAttrErr(id, attr string, err error) error {
+	return fmt.Errorf("error in step '%s': %s: %w", id, attr, err)
+}
+
 // Parse resolves the HCL step configuration into a Step using the provided variables.
 func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 	if config == nil {
@@ -40,7 +50,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedIgnoreId != cty.NilVal {
 		if err := parsedStep.parseIgnoreId(parsedIgnoreId); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "ignore_id", err)
 		}
 	}
 
@@ -52,7 +62,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 	if parsedIgnoreId != cty.True {
 		if parsedId != cty.NilVal {
 			if err := parsedStep.parseId(parsedId); err != nil {
-				return Step{}, err
+				return Step{}, stepAttrErr(parsedStep.Identifier, "id", err)
 			}
 
 			parsedStep.Comments.setExpr(hv, "id", config.Id, parsedId)
@@ -72,7 +82,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedIf != cty.NilVal {
 		if err := parsedStep.parseIf(parsedIf); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "if", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "if", config.If, parsedIf)
@@ -85,7 +95,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedName != cty.NilVal {
 		if err := parsedStep.parseName(parsedName); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "name", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "name", config.Name, parsedName)
@@ -98,7 +108,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedUses != cty.NilVal {
 		if err := parsedStep.parseUses(parsedUses); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "uses", err)
 		}
 
 		// The uses block's comment is written on its "version" attribute,
@@ -120,7 +130,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedRun != cty.NilVal {
 		if err := parsedStep.parseRun(parsedRun); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "run", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "run", config.Run, parsedRun)
@@ -133,7 +143,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedWorkingDirectory != cty.NilVal {
 		if err := parsedStep.parseWorkingDirectory(parsedWorkingDirectory); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "working_directory", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "working-directory", config.WorkingDirectory, parsedWorkingDirectory)
@@ -146,7 +156,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedShell != cty.NilVal {
 		if err := parsedStep.parseShell(parsedShell); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "shell", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "shell", config.Shell, parsedShell)
@@ -159,7 +169,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedWith != cty.NilVal {
 		if err := parsedStep.parseWith(parsedWith); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "with", err)
 		}
 
 		parsedStep.Comments.setNested(hv, "with", config.With.ValueRanges(hv))
@@ -172,7 +182,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedEnv != cty.NilVal {
 		if err := parsedStep.parseEnv(parsedEnv); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "env", err)
 		}
 
 		parsedStep.Comments.setNested(hv, "env", config.Env.ValueRanges(hv))
@@ -185,7 +195,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedContinueOnError != cty.NilVal {
 		if err := parsedStep.parseContinueOnError(parsedContinueOnError); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "continue_on_error", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "continue-on-error", config.ContinueOnError, parsedContinueOnError)
@@ -198,7 +208,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	if parsedTimeoutMinutes != cty.NilVal {
 		if err := parsedStep.parseTimeoutMinutes(parsedTimeoutMinutes); err != nil {
-			return Step{}, err
+			return Step{}, stepAttrErr(parsedStep.Identifier, "timeout_minutes", err)
 		}
 
 		parsedStep.Comments.setExpr(hv, "timeout-minutes", config.TimeoutMinutes, parsedTimeoutMinutes)
