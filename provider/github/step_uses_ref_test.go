@@ -79,6 +79,11 @@ func TestAStepUsesReferenceIsChecked(t *testing.T) {
 			body: "    action = \"actions/checkout\"",
 			want: "version reference",
 		},
+		{
+			name: "a path pointing outside the checkout",
+			body: "    action = \"../setup\"",
+			want: "must stay inside the repository",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := parseUsesHCL(t, usesStepWorkflow(tc.body))
@@ -103,7 +108,7 @@ func TestAStepUsesReferenceThatIsFineIsKept(t *testing.T) {
 	}{
 		{name: "a remote action", body: "    action  = \"actions/checkout\"\n    version = \"v4\""},
 		{name: "a local action", body: "    action = \"./.github/actions/setup\""},
-		{name: "a parent-relative action", body: "    action = \"../setup\""},
+		{name: "a local action reaching up inside the checkout", body: "    action = \"./.github/../setup\""},
 		{name: "a docker action", body: "    action = \"docker://alpine:3.19\""},
 		{name: "an action in a subdirectory", body: "    action  = \"actions/aws/ec2\"\n    version = \"main\""},
 	} {

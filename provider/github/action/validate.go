@@ -18,9 +18,20 @@ func ValidateUsesRef(uses string) error {
 		return fmt.Errorf("uses must not be empty")
 	}
 
-	// Local action
+	// Local action. The path is resolved against the workspace, which is the
+	// repository root, so it starts there: GitHub documents "./path/to/dir"
+	// and nothing else. One starting "../" points outside the checkout, where
+	// the runner has nothing to find, and GitHub refuses the workflow rather
+	// than running it. actionlint reads it as a remote reference and reports
+	// `specifying action "../shared/action" in invalid format because ref is
+	// missing`. A "../" further along the path is the author's own to resolve
+	// and stays inside, so only the prefix is refused.
 
-	if strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../") {
+	if strings.HasPrefix(uses, "../") {
+		return fmt.Errorf("uses %q must stay inside the repository: a local action starts with './'", uses)
+	}
+
+	if strings.HasPrefix(uses, "./") {
 		return nil
 	}
 

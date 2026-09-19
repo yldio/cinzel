@@ -17,7 +17,7 @@ func TestValidateUsesRef(t *testing.T) {
 		{name: "SHA pinned", uses: "actions/checkout@a81bbbf8298c0fa03ea29cdc473d45769f953675"},
 		{name: "with path", uses: "actions/aws/ec2@main"},
 		{name: "local action", uses: "./actions/my-action"},
-		{name: "parent local", uses: "../shared/action"},
+		{name: "local action reaching up inside the checkout", uses: "./actions/../shared/action"},
 		{name: "docker action", uses: "docker://alpine:3.18"},
 		{name: "docker hub", uses: "docker://ghcr.io/owner/image:latest"},
 		{name: "branch ref", uses: "owner/repo@feature/branch"},
@@ -43,6 +43,11 @@ func TestValidateUsesRef(t *testing.T) {
 		{name: "empty owner", uses: "/repo@v4", wantErr: "empty owner or repo"},
 		{name: "empty repo", uses: "owner/@v4", wantErr: "empty owner or repo"},
 		{name: "docker no image", uses: "docker://", wantErr: "must specify an image"},
+		// A path starting "../" points outside the checkout, where the runner
+		// has nothing to find: GitHub resolves a local action against the
+		// workspace and documents "./path/to/dir" alone, and actionlint reads
+		// this one as a remote reference missing its ref.
+		{name: "parent local", uses: "../shared/action", wantErr: "must stay inside the repository"},
 	}
 
 	for _, tt := range invalid {
