@@ -207,7 +207,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 	body := f.Body()
 
 	if rawStages, ok := doc["stages"]; ok {
-		if err := writeCommentedAttribute(body, "stages", escapeGitLabVariables(rawStages), c.at("stages")); err != nil {
+		if err := writeCommentedAttribute(body, "stages", rawStages, c.at("stages")); err != nil {
 			return nil, err
 		}
 	}
@@ -219,7 +219,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			continue
 		}
 
-		if err := writeCommentedAttribute(body, key, escapeGitLabVariables(value), c.at(key)); err != nil {
+		if err := writeCommentedAttribute(body, key, value, c.at(key)); err != nil {
 			return nil, err
 		}
 	}
@@ -284,7 +284,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 				}
 
 				if val, hasVal := vm["value"]; hasVal {
-					if err := writeCommentedAttribute(vbody, "value", escapeGitLabVariables(val), nested.at("value")); err != nil {
+					if err := writeCommentedAttribute(vbody, "value", val, nested.at("value")); err != nil {
 						return nil, err
 					}
 				}
@@ -296,12 +296,12 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 						continue
 					}
 
-					if err := writeCommentedAttribute(vbody, key, escapeGitLabVariables(value), nested.at(key)); err != nil {
+					if err := writeCommentedAttribute(vbody, key, value, nested.at(key)); err != nil {
 						return nil, err
 					}
 				}
 			} else {
-				if err := writeCommentedAttribute(vbody, "value", escapeGitLabVariables(raw), comment.withoutHead()); err != nil {
+				if err := writeCommentedAttribute(vbody, "value", raw, comment.withoutHead()); err != nil {
 					return nil, err
 				}
 			}
@@ -340,13 +340,13 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 		wbody := wb.Body()
 
 		if name, hasName := workflowMap["name"]; hasName {
-			if err := writeCommentedAttribute(wbody, "name", escapeGitLabVariables(name), workflowComments.at("name")); err != nil {
+			if err := writeCommentedAttribute(wbody, "name", name, workflowComments.at("name")); err != nil {
 				return nil, err
 			}
 		}
 
 		if autoCancel, hasAutoCancel := workflowMap["auto_cancel"]; hasAutoCancel {
-			if err := writeCommentedAttribute(wbody, "auto_cancel", escapeGitLabVariables(autoCancel), workflowComments.at("auto_cancel")); err != nil {
+			if err := writeCommentedAttribute(wbody, "auto_cancel", autoCancel, workflowComments.at("auto_cancel")); err != nil {
 				return nil, err
 			}
 		}
@@ -434,7 +434,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 				return nil, errUnknownKeyword("spec", key)
 			}
 
-			if err := writeCommentedAttribute(sb.Body(), key, escapeGitLabVariables(specMap[key]), specComments.at(key)); err != nil {
+			if err := writeCommentedAttribute(sb.Body(), key, specMap[key], specComments.at(key)); err != nil {
 				return nil, err
 			}
 		}
@@ -591,7 +591,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 				return nil, errKeyNotAnIdentifier(key)
 			}
 
-			if err := writeCommentedAttribute(body, key, escapeGitLabVariables(doc[key]), c.at(key)); err != nil {
+			if err := writeCommentedAttribute(body, key, doc[key], c.at(key)); err != nil {
 				return nil, err
 			}
 		}
@@ -705,7 +705,7 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 			continue
 		}
 
-		if err := writeCommentedAttribute(nb.Body(), key, escapeGitLabVariables(value), c.at(key)); err != nil {
+		if err := writeCommentedAttribute(nb.Body(), key, value, c.at(key)); err != nil {
 			return err
 		}
 	}
@@ -729,7 +729,7 @@ func writeRuleBlock(body *hclwrite.Body, rule map[string]any, c *comments) error
 			return errUnknownKeyword("rule", key)
 		}
 
-		if err := writeCommentedAttribute(rb.Body(), key, escapeGitLabVariables(rule[key]), c.at(key)); err != nil {
+		if err := writeCommentedAttribute(rb.Body(), key, rule[key], c.at(key)); err != nil {
 			return err
 		}
 	}
@@ -992,7 +992,7 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				return err
 			}
 		default:
-			if err := writeCommentedAttribute(body, key, escapeGitLabVariables(value), comment.withoutHead()); err != nil {
+			if err := writeCommentedAttribute(body, key, value, comment.withoutHead()); err != nil {
 				return err
 			}
 		}
@@ -1212,7 +1212,7 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 			}
 		}
 
-		if err := writeCommentedAttribute(body, key, escapeGitLabVariables(value), comment.withoutHead()); err != nil {
+		if err := writeCommentedAttribute(body, key, value, comment.withoutHead()); err != nil {
 			return err
 		}
 	}
@@ -1249,7 +1249,7 @@ func writeServicesBlocks(body *hclwrite.Body, raw any, c *comments) error {
 
 		switch service := item.(type) {
 		case string:
-			if err := writeAttributeAny(sb.Body(), "name", escapeGitLabVariables(service)); err != nil {
+			if err := writeAttributeAny(sb.Body(), "name", service); err != nil {
 				return err
 			}
 		case map[string]any:
@@ -1271,7 +1271,7 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any, c *comments) error {
 	case string:
 		ib := body.AppendNewBlock("include", nil)
 
-		if err := writeAttributeAny(ib.Body(), "local", escapeGitLabVariables(include)); err != nil {
+		if err := writeAttributeAny(ib.Body(), "local", include); err != nil {
 			return err
 		}
 
@@ -1289,7 +1289,7 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any, c *comments) error {
 			case string:
 				ib := body.AppendNewBlock("include", nil)
 
-				if err := writeAttributeAny(ib.Body(), "local", escapeGitLabVariables(v)); err != nil {
+				if err := writeAttributeAny(ib.Body(), "local", v); err != nil {
 					return err
 				}
 			case map[string]any:
@@ -1308,31 +1308,6 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any, c *comments) error {
 		return nil
 	default:
 		return fmt.Errorf("include must be a string, object, or list")
-	}
-}
-
-func escapeGitLabVariables(value any) any {
-	switch v := value.(type) {
-	case string:
-		return v
-	case []any:
-		out := make([]any, 0, len(v))
-
-		for _, item := range v {
-			out = append(out, escapeGitLabVariables(item))
-		}
-
-		return out
-	case map[string]any:
-		out := make(map[string]any, len(v))
-
-		for key, item := range v {
-			out[key] = escapeGitLabVariables(item)
-		}
-
-		return out
-	default:
-		return value
 	}
 }
 
