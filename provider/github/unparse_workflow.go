@@ -322,6 +322,10 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 					return err
 				}
 			default:
+				if err := checkHCLKeyRoundtrips("service", key); err != nil {
+					return err
+				}
+
 				if err := writeAttributeAny(serviceBody, toHCLKey(key), value); err != nil {
 					return err
 				}
@@ -365,6 +369,10 @@ func writeRunsOn(body *hclwrite.Body, raw any, comments *yamlComments) error {
 	}
 
 	for _, key := range sortedKeys(mapping) {
+		if err := checkHCLKeyRoundtrips("runs-on", key); err != nil {
+			return err
+		}
+
 		if err := writeCommentedAttribute(blockBody, toHCLKey(key), mapping[key], comments.at(key)); err != nil {
 			return err
 		}
@@ -438,7 +446,18 @@ func checkHCLKeyRoundtrips(blockType string, key string) error {
 		return fmt.Errorf("%s key '%s' cannot be written to HCL: an underscore would be read back as a dash", blockType, key)
 	}
 
-	if !hclsyntax.ValidIdentifier(toHCLKey(key)) {
+	return checkHCLIdentifier(blockType, key, toHCLKey(key))
+}
+
+// checkHCLIdentifier rejects a key that does not become the valid HCL
+// identifier written.
+//
+// A matrix axis is the one key written as the author spelled it, because parse
+// leaves a matrix key alone so the "${{ matrix.X }}" references beside it keep
+// resolving. So it survives an underscore, which every other key here does not,
+// and it fails on the same characters they do.
+func checkHCLIdentifier(blockType, key, written string) error {
+	if !hclsyntax.ValidIdentifier(written) {
 		return fmt.Errorf("%s key '%s' cannot be written to HCL: it is not a valid identifier", blockType, key)
 	}
 
