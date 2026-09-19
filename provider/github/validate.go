@@ -163,6 +163,10 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 		return err
 	}
 
+	if err := validateMapKeys(plainMap(workflow.Body), ""); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -359,6 +363,13 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		return withPath("jobs.needs", err)
 	}
 
+	// Last, so a mapping with its own check — an unnamed job above — reports
+	// the reason it knows rather than this one.
+
+	if err := validateMapKeys(doc.Raw, ""); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -401,6 +412,43 @@ func validateJobTimeouts(jobID string, jobMap map[string]any) error {
 
 		if err := validateTimeoutValue(stepMap["timeout-minutes"]); err != nil {
 			return withPath(fmt.Sprintf("jobs.%s.steps[%d].timeout-minutes", jobID, i), err)
+		}
+	}
+
+	return nil
+}
+
+// validateMapKeys checks that no mapping in the document is keyed by an empty
+// string.
+//
+// Every one of these is a name something reads back: an env variable, a job
+// output, a matrix axis, a dispatch input. GitHub refuses the workflow rather
+// than running it, which actionlint reports as `string should not be empty`,
+// and the HCL it unparsed to wrote `name = ""`, which cinzel's own parse then
+// refused. So an unparse exited 0 on a file neither side could use.
+func validateMapKeys(v any, path string) error {
+	switch val := v.(type) {
+	case map[string]any:
+		for _, key := range sortedKeys(val) {
+			if key == "" {
+				return withPath(path, errEmptyKey)
+			}
+
+			childPath := key
+
+			if path != "" {
+				childPath = path + "." + key
+			}
+
+			if err := validateMapKeys(val[key], childPath); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for i, child := range val {
+			if err := validateMapKeys(child, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+				return err
+			}
 		}
 	}
 
