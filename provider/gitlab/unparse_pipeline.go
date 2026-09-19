@@ -410,7 +410,7 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			rules, ok := rawRules.([]any)
 
 			if rawRules == nil {
-				if err := writeAttributeAny(wbody, "rules", nil); err != nil {
+				if err := writeNullAttribute(wbody, "rules"); err != nil {
 					return nil, err
 				}
 
@@ -877,7 +877,7 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			}
 		case "rules":
 			if value == nil {
-				if err := writeAttributeAny(body, "rules", nil); err != nil {
+				if err := writeNullAttribute(body, "rules"); err != nil {
 					return err
 				}
 
@@ -924,7 +924,7 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			// its own block, which is how the schema already spells
 			// repeated caches.
 			if value == nil {
-				if err := writeAttributeAny(body, key, nil); err != nil {
+				if err := writeNullAttribute(body, key); err != nil {
 					return err
 				}
 
@@ -984,6 +984,20 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 			}
 		case "services":
 			if err := writeServicesBlocks(body, value, c.child("services")); err != nil {
+				return err
+			}
+		case "only", "except":
+			// Both may be written as null to clear what a job would otherwise
+			// inherit, which the default branch below would drop.
+			if value == nil {
+				if err := writeNullAttribute(body, key); err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			if err := writeCommentedAttribute(body, key, value, comment.withoutHead()); err != nil {
 				return err
 			}
 		case "extends":
@@ -1290,7 +1304,7 @@ func writeServicesBlocks(body *hclwrite.Body, raw any, c *comments) error {
 	// does this a few cases above; "services" refused it and broke the
 	// roundtrip.
 	if raw == nil {
-		return writeAttributeAny(body, "services", nil)
+		return writeNullAttribute(body, "services")
 	}
 
 	services, ok := raw.([]any)
