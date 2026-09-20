@@ -14,6 +14,7 @@ import (
 	"github.com/yldio/cinzel/provider/github/step"
 	ctyyaml "github.com/zclconf/go-cty-yaml"
 	"github.com/zclconf/go-cty/cty"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 func resolveInputPath(opts provider.ProviderOps) (string, error) {
@@ -74,7 +75,33 @@ func workflowExt(opts provider.ProviderOps) string {
 	return ".yaml"
 }
 
+// keepWholeNumbersExactInYAML runs the retagging pass over the bytes rather
+// than over a node the caller already holds.
+//
+// parseYAMLDocument reads the file with yaml.v3 and retags a run of digits too
+// long for an integer, so the digits survive as text. The step-only path below
+// reads the same file again through a second reader, which has no such pass:
+// cty resolves the run to a number it cannot hold every digit of, so a 180
+// digit ID came back with its tail replaced by zeros, at exit 0. Running the
+// pass over the bytes first puts the two readers back on the same document.
+func keepWholeNumbersExactInYAML(content []byte) ([]byte, error) {
+	var node yamlv3.Node
+
+	if err := yamlv3.Unmarshal(content, &node); err != nil {
+		return nil, err
+	}
+
+	keepWholeNumbersExact(&node)
+
+	return yamlv3.Marshal(&node)
+}
+
 func parseStepsFromYAML(content []byte) ([]step.Step, error) {
+	content, err := keepWholeNumbersExactInYAML(content)
+	if err != nil {
+		return nil, err
+	}
+
 	// The document is read as a whole rather than as a map of a single element
 	// type: a map forces every step to unify to one type, so two steps that do
 	// not carry exactly the same keys would be rejected outright.
