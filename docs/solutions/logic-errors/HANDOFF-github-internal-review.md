@@ -183,11 +183,17 @@ session can pick.
 - `internal/pin` (2631) — network-facing, the GitHub API resolver, upgrade
   logic. Largest untouched surface.
 - `internal/ai` (1678) — assist, prompt construction, HCL stripping.
-- `internal/hclparser` (1925) — note `internal/hclparser/errors.go` has zero
+- ~~`internal/hclparser` (1925) — note `internal/hclparser/errors.go` has zero
   `UserInput` markings, where every other errors.go marks most of them. Some of
   those errors are certainly the author's fault and are sending people to the
   issue tracker over their own typo, which is exactly what `20f8a92` fixed in
-  `internal/command`. Cheap win, probably.
+  `internal/command`. Cheap win, probably.~~ Done, and not cheap: the marking
+  was only half of it, because `provider/github/step/stepparse.go` wrote the
+  open-an-issue line in by hand at twelve sites and put back what the mark took
+  off. Probing it also turned up a template holding one interpolation being
+  refused where the same reference written bare resolves. See
+  `hclparser-typos-sent-to-the-issue-tracker.md`. The rest of the package was
+  not read.
 - `internal/fsutil` (753), `internal/yamldoc` (617), `internal/yamlwriter`
   (358), `internal/hclcomment` (195), `internal/naming` (199),
   `internal/cinzelerror` (513), `internal/unescape` (93), `internal/maputil`
