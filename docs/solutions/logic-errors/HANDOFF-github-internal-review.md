@@ -14,12 +14,20 @@ tags:
   - "roundtrip"
   - "handoff"
   - "review"
-status: "open — finding recorded, not fixed"
+status: "part done — the null finding is fixed, the rest is still open"
 created_date: "2026-09-20"
 updated_date: "2026-09-20"
 ---
 
 # Handoff: internal/ and provider/github
+
+> The null finding below is fixed, in the commit that adds
+> `docs/solutions/logic-errors/github-unparse-writes-a-null-parse-cannot-read.md`.
+> Read that note rather than this section: the scope turned out wider than the
+> table here (`continue-on-error` too, and the step `env`/`with` case, which
+> goes the other way), and dropping the nulls exposed a second fault the table
+> could not show. Everything under "Probed and clean" and "Not looked at" still
+> stands.
 
 This is a work-in-progress note, not a solution. It records what a probe of
 `provider/github` found and what has not been looked at, so the next session
