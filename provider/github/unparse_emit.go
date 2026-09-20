@@ -63,12 +63,9 @@ func buildWorkflowJobIndex(jobs map[string]any, order []string, usedRefs map[str
 	return entries, jobRefs, jobIDMap, nil
 }
 
-func writeWorkflowMetadata(body *hclwrite.Body, doc ghworkflow.YAMLDocument, comments *yamlComments) error {
-	appendSection := func() {
-		if len(body.Attributes()) > 0 || len(body.Blocks()) > 0 {
-			body.AppendNewline()
-		}
-	}
+func writeWorkflowMetadata(sections *bodySections, doc ghworkflow.YAMLDocument, comments *yamlComments) error {
+	body := sections.body
+	appendSection := sections.next
 
 	for _, key := range sortedKeys(doc.Raw) {
 		if key == "jobs" {

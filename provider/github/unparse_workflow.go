@@ -228,13 +228,13 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 		return nil, err
 	}
 
-	if err := writeWorkflowMetadata(workflowBody, doc, comments); err != nil {
+	sections := newBodySections(workflowBody)
+
+	if err := writeWorkflowMetadata(sections, doc, comments); err != nil {
 		return nil, err
 	}
 
-	if len(workflowBody.Attributes()) > 0 || len(workflowBody.Blocks()) > 0 {
-		workflowBody.AppendNewline()
-	}
+	sections.next()
 
 	if err := writeReferenceListAttribute(workflowBody, "jobs", "job", jobRefs); err != nil {
 		return nil, err
@@ -251,8 +251,39 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
+// bodySections writes the blank line between one section of a block and the
+// next.
+//
+// A keyword whose value is a null writes nothing, and a separator appended
+// ahead of it would be left behind as a blank line the next pass does not
+// produce. Counting what the body holds says whether the last separator was
+// ever followed by anything.
+type bodySections struct {
+	body      *hclwrite.Body
+	separated int
+}
+
+func newBodySections(body *hclwrite.Body) *bodySections {
+	return &bodySections{body: body, separated: -1}
+}
+
+// next opens the section about to be written, if anything closed the one
+// before it.
+func (s *bodySections) next() {
+	written := len(s.body.Attributes()) + len(s.body.Blocks())
+
+	if written == 0 || written == s.separated {
+		return
+	}
+
+	s.body.AppendNewline()
+
+	s.separated = written
+}
+
 func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	stepRefs := []string{}
+	sections := newBodySections(jobBody)
 
 	for _, key := range sortedKeys(job) {
 		if key == "steps" {
@@ -265,9 +296,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 			continue
 		}
 
-		if len(jobBody.Attributes()) > 0 || len(jobBody.Blocks()) > 0 {
-			jobBody.AppendNewline()
-		}
+		sections.next()
 
 		hclcomment.WriteLeading(jobBody, comments.at(key).head)
 
@@ -277,9 +306,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 	}
 
 	if len(stepRefs) > 0 {
-		if len(jobBody.Attributes()) > 0 || len(jobBody.Blocks()) > 0 {
-			jobBody.AppendNewline()
-		}
+		sections.next()
 
 		if err := writeReferenceListAttribute(jobBody, "steps", "step", stepRefs); err != nil {
 			return err
