@@ -76,3 +76,14 @@ func addValueRange(out map[string]hcl.Range, hv *hclparser.HCLVars, name, value 
 
 	out[resolved.AsString()] = value.Range()
 }
+
+// ValueWritten reports whether the value attribute was written at all.
+//
+// gohcl fills an absent hcl.Expression field with a synthetic null whose range
+// is empty, so "value = null" and no value at all both resolve to cty.NilVal
+// and only the range tells them apart. A YAML "V:" under env or with is a name
+// GitHub defines as empty rather than one it leaves out, so the null it
+// becomes has to survive the trip back.
+func ValueWritten(expr hcl.Expression) bool {
+	return expr != nil && !expr.Range().Empty()
+}

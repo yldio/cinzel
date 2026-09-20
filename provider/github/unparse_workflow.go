@@ -20,6 +20,7 @@ import (
 	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/yldio/cinzel/provider/github/step"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
+	"github.com/zclconf/go-cty/cty"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
@@ -513,6 +514,15 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 			return err
 		}
 
+		// An env or input value written with no value under it is a name
+		// GitHub defines as empty, not a name it leaves undefined, so the
+		// null is the value and is written rather than dropped.
+		if mapping[key] == nil {
+			writeNullAttribute(blockBody, "value")
+
+			continue
+		}
+
 		if err := writeCommentedAttribute(blockBody, "value", mapping[key], comment.withoutHead()); err != nil {
 			return err
 		}
@@ -527,10 +537,29 @@ func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 	return writeCommentedAttribute(body, attr, raw, nodeComment{})
 }
 
+// writeNullAttribute writes the attribute as an explicit null, for the few
+// places GitHub reads one as a value rather than as an absent key.
+//
+// writeCommentedAttribute drops a null instead of writing one, so the callers
+// that mean it say so here.
+func writeNullAttribute(body *hclwrite.Body, attr string) {
+	body.SetAttributeValue(attr, cty.NullVal(cty.DynamicPseudoType))
+}
+
 // writeCommentedAttribute writes the attribute with whatever comments its YAML
 // key carried: the head run on its own lines above, the inline one after the
 // value. An empty comment writes nothing and leaves the attribute as it was.
 func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment nodeComment) error {
+	// A GitHub job or workflow keyword written with no value under it means
+	// the same as one left out, and parse drops a null written for one. Two of
+	// them are worse: "defaults" and "strategy" are blocks in the schema, so
+	// "defaults = null" is HCL cinzel's own parse refuses to open. The callers
+	// that do mean a null, where GitHub reads one as a value, use
+	// writeNullAttribute.
+	if raw == nil {
+		return nil
+	}
+
 	ctyValue, err := anyToCty(raw)
 	if err != nil {
 		return err

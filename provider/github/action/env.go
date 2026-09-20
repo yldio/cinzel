@@ -78,9 +78,12 @@ func (config *EnvListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 			return cty.NilVal, err
 		}
 
-		if value != cty.NilVal {
+		switch {
+		case value != cty.NilVal:
 			mapping[key] = value
-		} else {
+		case ValueWritten(w.Value):
+			mapping[key] = cty.NullVal(cty.DynamicPseudoType)
+		default:
 			return cty.NilVal, errors.New("value must be set")
 		}
 	}
