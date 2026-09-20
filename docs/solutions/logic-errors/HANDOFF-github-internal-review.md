@@ -14,7 +14,7 @@ tags:
   - "roundtrip"
   - "handoff"
   - "review"
-status: "part done — the null finding is fixed, the rest is still open"
+status: "part done — the null finding and the reader question are closed, internal/ is still open"
 created_date: "2026-09-20"
 updated_date: "2026-09-20"
 ---
@@ -158,10 +158,15 @@ wanted; it is not part of this finding.
 - An unknown custom tag (`!custom [a, b]`) is refused, not corrupted. This is
   the shape that was broken in gitlab (`d1ff759`); github already handles it.
 - An unknown `%FOO` directive is refused before any conversion, so the
-  two-reader hole fixed in `b8d3260` does not appear here. **Worth a deeper
+  two-reader hole fixed in `b8d3260` does not appear here. ~~**Worth a deeper
   look**: gitlab's hole was that one reader accepted a document the other
   refused, and only the refusal path was checked. Whether github's single
-  goccy-plus-yamlv3 split has the same asymmetry was not established.
+  goccy-plus-yamlv3 split has the same asymmetry was not established.~~ Looked
+  at. It does not have that asymmetry — `parseYAMLDocument` returns its error
+  and the caller stops, and all three of `b8d3260`'s shapes are refused at exit
+  1. The split is elsewhere: the step-only path reads the raw bytes a second
+  time and loses digits doing it. See
+  `github-step-only-path-loses-digits.md`.
 - No warning in `provider/github` or `internal/` makes a claim about the input
   the way the gitlab template warning did (`98ceea5`). The ones in
   `internal/pin` and `internal/command` report a failure that did happen.
