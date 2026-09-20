@@ -46,7 +46,7 @@ func (av *HCLVars) GetValueByKey(key string) (cty.Value, error) {
 		return value, nil
 	}
 
-	return cty.NilVal, fmt.Errorf("variable `%s` does not exist", key)
+	return cty.NilVal, fmt.Errorf("%w: `%s`", errVariableNotFound, key)
 }
 
 // GetValueByIndex returns an element from a list variable by key and index.
@@ -71,13 +71,13 @@ func (av *HCLVars) GetValueByIndex(key string, idx int64) (cty.Value, error) {
 	}
 
 	if !value.IsKnown() || value.IsNull() {
-		return cty.NilVal, fmt.Errorf("variable %q is null or unknown", key)
+		return cty.NilVal, fmt.Errorf("%w: %q", errVariableNullOrUnknown, key)
 	}
 
 	length := int64(value.LengthInt())
 
 	if idx < 0 || idx >= length {
-		return cty.NilVal, fmt.Errorf("index %d out of range for variable %q (length %d)", idx, key, length)
+		return cty.NilVal, fmt.Errorf("%w: %d for variable %q (length %d)", errIndexOutOfRange, idx, key, length)
 	}
 
 	return value.Index(cty.NumberIntVal(idx)), nil

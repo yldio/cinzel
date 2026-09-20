@@ -64,7 +64,7 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 		return cty.NumberIntVal(lVal * rVal), nil
 	case hclsyntax.OpDivide:
 		if rhs.AsBigFloat().Sign() == 0 {
-			return cty.NilVal, fmt.Errorf("division by zero")
+			return cty.NilVal, errDivisionByZero
 		}
 
 		lVal, _ := lhs.AsBigFloat().Float64()
@@ -84,7 +84,7 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 	case hclsyntax.OpLessThanOrEqual:
 		return cty.BoolVal(lhs.AsBigFloat().Cmp(rhs.AsBigFloat()) <= 0), nil
 	default:
-		return cty.NilVal, fmt.Errorf("unsupported binary operator")
+		return cty.NilVal, errUnsupportedBinaryOperator
 	}
 }
 
@@ -101,7 +101,7 @@ func requireNumbers(lhs, rhs cty.Value) error {
 		v := side.value
 
 		if v == cty.NilVal || v.IsNull() || !v.IsKnown() || v.Type() != cty.Number {
-			return fmt.Errorf("the %s side of an arithmetic or comparison operator must be a number", side.name)
+			return fmt.Errorf("%w: the %s side is not", errOperandNotNumber, side.name)
 		}
 	}
 
@@ -135,6 +135,6 @@ func parseExpression(expr hclsyntax.Expression, hv *HCLVars) (cty.Value, error) 
 	case *hclsyntax.BinaryOpExpr:
 		return NewBinaryOpExpr(e, hv).Parse()
 	default:
-		return cty.NilVal, fmt.Errorf("unsupported expression type: %T", expr)
+		return cty.NilVal, fmt.Errorf("%w: %T", errUnsupportedExpressionType, expr)
 	}
 }

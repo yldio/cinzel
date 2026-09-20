@@ -22,6 +22,17 @@ func stepAttrErr(id, attr string, err error) error {
 	return fmt.Errorf("error in step '%s': %s: %w", id, attr, err)
 }
 
+// stepExprErr names the step an expression was refused in.
+//
+// The open-an-issue line used to be written in at each of these by hand, which
+// put it on an error the author caused: "variable.list_os[\"prod\"]" is their
+// own index to fix, and cinzelerror.New leaves the line off a marked error for
+// exactly that reason. Letting the error through unwrapped lets the mark it
+// already carries decide, the same way the job path does.
+func stepExprErr(id string, err error) error {
+	return fmt.Errorf("error in step '%s': %w", id, err)
+}
+
 // Parse resolves the HCL step configuration into a Step using the provided variables.
 func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 	if config == nil {
@@ -45,7 +56,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedIgnoreId, err := config.parseIgnoreId(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedIgnoreId != cty.NilVal {
@@ -56,7 +67,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedId, err := config.parseId(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedIgnoreId != cty.True {
@@ -77,7 +88,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedIf, err := config.parseIf(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedIf != cty.NilVal {
@@ -90,7 +101,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedName, err := config.parseName(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedName != cty.NilVal {
@@ -103,7 +114,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedUses, usesComment, err := config.parseUses(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedUses != cty.NilVal {
@@ -125,7 +136,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedRun, err := config.parseRun(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedRun != cty.NilVal {
@@ -138,7 +149,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedWorkingDirectory, err := config.parseWorkingDirectory(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedWorkingDirectory != cty.NilVal {
@@ -151,7 +162,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedShell, err := config.parseShell(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedShell != cty.NilVal {
@@ -164,7 +175,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedWith, err := config.parseWith(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedWith != cty.NilVal {
@@ -177,7 +188,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedEnv, err := config.parseEnv(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedEnv != cty.NilVal {
@@ -190,7 +201,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedContinueOnError, err := config.parseContinueOnError(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedContinueOnError != cty.NilVal {
@@ -203,7 +214,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 
 	parsedTimeoutMinutes, err := config.parseTimeoutMinutes(hv)
 	if err != nil {
-		return Step{}, fmt.Errorf("error in step '%s': %w, %w", parsedStep.Identifier, err, cinzelerror.ErrOpenIssue)
+		return Step{}, stepExprErr(parsedStep.Identifier, err)
 	}
 
 	if parsedTimeoutMinutes != cty.NilVal {
