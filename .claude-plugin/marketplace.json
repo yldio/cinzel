@@ -9,13 +9,13 @@
   "owner": {
     "name": "YLD Limited",
     "url": "https://github.com/yldio",
-    "email": "hello@yld.io"
+    "email": "cinzel@yld.com"
   },
   "plugins": [
     {
       "name": "cinzel",
       "description": "Bidirectional HCL ↔ CI/CD YAML converter",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "author": {
         "name": "YLD Limited",
         "url": "https://github.com/yldio"
