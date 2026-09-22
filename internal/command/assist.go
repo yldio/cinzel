@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/ai"
+	"github.com/yldio/cinzel/internal/naming"
 	"github.com/yldio/cinzel/internal/pin"
 	"github.com/yldio/cinzel/provider"
 )
@@ -480,6 +481,15 @@ func deduplicateWithExisting(merged, contextDir string) (string, []string) {
 
 	var result []string
 
+	// Filled as blocks are renamed, applied to the whole merged text at the
+	// end: a reference can sit in a block written before the rename happens.
+	renames := make(map[string]string)
+
+	// Every label in play, both sides, before any rename. Collecting only what
+	// has been kept so far let a rename land on the label of a generated block
+	// further down the file, which is the clash again with the names swapped.
+	taken := takenLabels(existing, generatedBlocks)
+
 	for _, block := range generatedBlocks {
 		block = strings.TrimSpace(block)
 		if block == "" {
@@ -502,11 +512,136 @@ func deduplicateWithExisting(merged, contextDir string) (string, []string) {
 			continue
 		}
 
-		// Same signature but different content — keep with note.
-		result = append(result, fmt.Sprintf("// note: %s also exists in %s (different content)\n%s", sig, eb.filename, block))
+		// Same signature, different content. Both are wanted: the context's
+		// because other files reference it, this one because the job just
+		// generated beside it does. They cannot both hold the label, so this
+		// one takes a free one and its references follow it.
+		renamed, label := renameBlock(block, taken)
+
+		result = append(result, fmt.Sprintf("// note: %s also exists in %s (different content), so this one is %q", sig, eb.filename, label))
+		result = append(result, renamed)
+
+		taken[label] = struct{}{}
+		renames[blockLabel(sig)] = label
 	}
 
-	return strings.Join(result, "\n\n") + "\n", warnings
+	return retargetReferences(strings.Join(result, "\n\n")+"\n", renames), warnings
+}
+
+// blockLabel returns the label out of a block signature, so `step "checkout"`
+// gives `checkout`. A signature with no quoted label gives "".
+func blockLabel(sig string) string {
+	first := strings.Index(sig, `"`)
+	if first < 0 {
+		return ""
+	}
+
+	rest := sig[first+1:]
+
+	last := strings.Index(rest, `"`)
+	if last < 0 {
+		return ""
+	}
+
+	return rest[:last]
+}
+
+// takenLabels collects every label already spoken for, in the context and in
+// this run's own generated blocks, so a rename lands on neither.
+func takenLabels(existing map[string]existingBlock, generated []string) map[string]struct{} {
+	taken := make(map[string]struct{})
+
+	for sig := range existing {
+		if label := blockLabel(sig); label != "" {
+			taken[label] = struct{}{}
+		}
+	}
+
+	for _, block := range generated {
+		if label := blockLabel(blockSignature(block)); label != "" {
+			taken[label] = struct{}{}
+		}
+	}
+
+	return taken
+}
+
+// renameBlock gives a block a label nothing else holds, returning the rewritten
+// block and the label it took. A block that does not parse is returned as it
+// came, since a rename that guesses at the text is worse than the clash.
+func renameBlock(block string, taken map[string]struct{}) (string, string) {
+	label := blockLabel(blockSignature(block))
+	if label == "" {
+		return block, ""
+	}
+
+	unique := naming.UniqueIdentifierInSet(label, taken)
+	if unique == label {
+		return block, label
+	}
+
+	file, diags := hclwrite.ParseConfig([]byte(block), "assist.hcl", hcl.Pos{Line: 1, Column: 1})
+	if diags.HasErrors() {
+		return block, label
+	}
+
+	blocks := file.Body().Blocks()
+	if len(blocks) == 0 {
+		return block, label
+	}
+
+	labels := blocks[0].Labels()
+	if len(labels) == 0 {
+		return block, label
+	}
+
+	labels[0] = unique
+	blocks[0].SetLabels(labels)
+
+	return strings.TrimSpace(string(file.Bytes())), unique
+}
+
+// retargetReferences points every reference at the label its block now has.
+//
+// A reference is a traversal, `step.checkout`, so the rename has to reach the
+// blocks that name it as well as the block itself. Left behind, the reference
+// resolves to the context's block and the generated one is never used, which
+// converts cleanly and is the wrong workflow.
+func retargetReferences(merged string, renames map[string]string) string {
+	if len(renames) == 0 {
+		return merged
+	}
+
+	file, diags := hclwrite.ParseConfig([]byte(merged), "assist.hcl", hcl.Pos{Line: 1, Column: 1})
+	if diags.HasErrors() {
+		return merged
+	}
+
+	// Every attribute in every block, to any depth: a reference sits in a
+	// "steps" list on a job, and a job list on a workflow, so walking only the
+	// top level reaches none of them.
+	retargetBody(file.Body(), renames)
+
+	return string(file.Bytes())
+}
+
+// retargetBody applies renames to every attribute in a body and, recursively,
+// in the bodies nested inside it.
+func retargetBody(body *hclwrite.Body, renames map[string]string) {
+	for _, attr := range body.Attributes() {
+		for _, blockType := range referringBlockTypes {
+			for from, to := range renames {
+				attr.Expr().RenameVariablePrefix(
+					[]string{blockType, from},
+					[]string{blockType, to},
+				)
+			}
+		}
+	}
+
+	for _, block := range body.Blocks() {
+		retargetBody(block.Body(), renames)
+	}
 }
 
 // splitHCLBlocksAST uses the HCL write parser to split content into
@@ -658,3 +793,8 @@ func validateRelativePath(p string) error {
 
 	return nil
 }
+
+// referringBlockTypes are the block types a renamed block can be referenced
+// under. A rename has to reach every one of them, so this list is the schema's
+// reference surface, not a convenience.
+var referringBlockTypes = []string{"step", "job", "workflow"}
