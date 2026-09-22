@@ -3,7 +3,11 @@
 
 package gitlab
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 	stagesSet := make(map[string]struct{})
@@ -25,10 +29,13 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		}
 	}
 
-	for jobName, rawJob := range jobs {
+	// By name rather than by map range. Two jobs failing the same check gave
+	// whichever one the range reached first, so the same file reported a
+	// different job on a rerun and there was no first error to fix.
+	for _, jobName := range sortedKeys(jobs) {
 		isTemplate := len(jobName) > 0 && jobName[0] == '.'
 
-		jobMap, ok := rawJob.(map[string]any)
+		jobMap, ok := jobs[jobName].(map[string]any)
 
 		if !ok {
 			return fmt.Errorf("job '%s' must be an object", jobName)
@@ -80,6 +87,10 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 				return err
 			}
 		}
+
+		if err := validateRuleNeeds(jobMap, jobs, jobName); err != nil {
+			return err
+		}
 	}
 
 	// config.go accepts a top-level "services" alongside the one under
@@ -107,8 +118,8 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 
 	graph := make(map[string][]string, len(jobs))
 
-	for jobName, rawJob := range jobs {
-		jobMap := rawJob.(map[string]any)
+	for _, jobName := range sortedKeys(jobs) {
+		jobMap := jobs[jobName].(map[string]any)
 		graph[jobName] = []string{}
 
 		if rawNeeds, ok := jobMap["needs"]; ok {
@@ -145,37 +156,153 @@ func validatePipeline(pipeline map[string]any, jobs map[string]any) error {
 		}
 	}
 
-	visited := map[string]int{}
-	var dfs func(string) error
-	dfs = func(node string) error {
-		state := visited[node]
+	return checkNeedsCycles(graph)
+}
 
-		if state == 1 {
-			return fmt.Errorf("depends_on cycle detected")
+// validateRuleNeeds checks the "needs" a rule carries the way the job-level one
+// is checked. It names a job of this pipeline too, and GitLab refuses a
+// pipeline whose rule waits on a job that is not in it, so a name nothing
+// declares went out at exit 0 and was rejected on push.
+//
+// It is not added to the cycle graph: a rule's needs applies only when that
+// rule matches, so a pair of rules naming each other is not a cycle the way a
+// job-level pair is.
+func validateRuleNeeds(jobMap map[string]any, jobs map[string]any, jobName string) error {
+	rules, ok := jobMap["rules"].([]any)
+
+	if !ok {
+		return nil
+	}
+
+	for _, raw := range rules {
+		rule, ok := raw.(map[string]any)
+
+		if !ok {
+			continue
 		}
 
-		if state == 2 {
+		rawNeeds, ok := rule["needs"]
+
+		if !ok {
+			continue
+		}
+
+		// GitLab also takes an object here carrying "job" alongside
+		// "parallel", which holds the list under its own key.
+		if object, isObject := rawNeeds.(map[string]any); isObject {
+			rawNeeds, ok = object["job"]
+
+			if !ok {
+				continue
+			}
+		}
+
+		needs, ok := rawNeeds.([]any)
+
+		if !ok {
+			return fmt.Errorf("job '%s' rule needs must be a list", jobName)
+		}
+
+		for _, n := range needs {
+			name, ok := needName(n)
+
+			if !ok {
+				return fmt.Errorf("job '%s' rule needs must contain non-empty strings or objects naming a job", jobName)
+			}
+
+			// A cross-project entry names no job in this pipeline, so there
+			// is nothing to check it against.
+			if name == "" {
+				continue
+			}
+
+			if _, exists := jobs[name]; !exists {
+				return fmt.Errorf("job '%s' rule needs unknown job '%s'", jobName, name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkNeedsCycles walks the needs graph and reports the first cycle in it,
+// naming every job the cycle runs through.
+//
+// A cycle is reported so its author can break it, and breaking it means
+// knowing where it runs: the message used to say only that one existed. The
+// walk starts from the job names in order, because a map range made which of
+// two cycles was reported change from one run to the next.
+func checkNeedsCycles(graph map[string][]string) error {
+	const (
+		onPath = 1
+		done   = 2
+	)
+
+	visited := make(map[string]int, len(graph))
+	path := make([]string, 0, len(graph))
+
+	var dfs func(string) error
+
+	dfs = func(node string) error {
+		switch visited[node] {
+		case onPath:
+			return fmt.Errorf("depends_on cycle detected: %s", traceCycle(path, node))
+		case done:
 			return nil
 		}
-		visited[node] = 1
+
+		visited[node] = onPath
+		path = append(path, node)
 
 		for _, next := range graph[node] {
 			if err := dfs(next); err != nil {
 				return err
 			}
 		}
-		visited[node] = 2
+
+		path = path[:len(path)-1]
+		visited[node] = done
 
 		return nil
 	}
 
+	names := make([]string, 0, len(graph))
+
 	for name := range graph {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	for _, name := range names {
 		if err := dfs(name); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// traceCycle renders the cycle closing on node as the run of jobs it passes
+// through, starting and ending at node.
+func traceCycle(path []string, node string) string {
+	start := 0
+
+	for i, name := range path {
+		if name == node {
+			start = i
+
+			break
+		}
+	}
+
+	loop := append(append([]string{}, path[start:]...), node)
+
+	for i, name := range loop {
+		loop[i] = "'" + name + "'"
+	}
+
+	return strings.Join(loop, " -> ")
 }
 
 func validateServices(raw any, owner string) error {

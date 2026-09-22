@@ -29,6 +29,13 @@ func errNotPinnable(version string) error {
 	return cinzelerror.UserInput(fmt.Errorf("%q is neither a release tag nor a 40-character commit SHA, so there is nothing to pin", version))
 }
 
+// errNotRemoteAction reports a reference that names no GitHub repository, such
+// as a path into the repository being built or a bare name with no owner.
+// There is no release to look up.
+func errNotRemoteAction(action string) error {
+	return cinzelerror.UserInput(fmt.Errorf("%q does not name a GitHub repository, so there is nothing to resolve", action))
+}
+
 // validateGitHubNames checks that owner, repo, and tag contain only safe
 // characters to prevent URL injection.
 func validateGitHubNames(owner, repo, tag string) error {

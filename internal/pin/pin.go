@@ -19,6 +19,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -204,17 +205,34 @@ type CachedResolver struct {
 }
 
 // NewCachedResolver creates a resolver that caches results for 24 hours.
+//
+// A machine with nowhere to put a cache — a container with no home directory,
+// say — leaves cacheDir empty and the resolver goes to the API every time.
+// The subdirectory used to be joined onto the empty path regardless, which
+// made it the relative "cinzel/pins": the cache was written into whatever
+// directory the command ran from, which for this tool is the one holding the
+// HCL it manages.
 func NewCachedResolver(inner Resolver) *CachedResolver {
-	cacheDir, _ := os.UserCacheDir()
+	base, err := os.UserCacheDir()
+
+	cacheDir := ""
+
+	if err == nil {
+		cacheDir = filepath.Join(base, cacheSubdir)
+	}
 
 	return &CachedResolver{
 		inner:    inner,
-		cacheDir: filepath.Join(cacheDir, cacheSubdir),
+		cacheDir: cacheDir,
 	}
 }
 
 // ResolveTag checks the cache first, then falls back to the inner resolver.
 func (r *CachedResolver) ResolveTag(ctx context.Context, owner, repo, tag string) (string, error) {
+	if r.cacheDir == "" {
+		return r.inner.ResolveTag(ctx, owner, repo, tag)
+	}
+
 	key := cacheKey(owner, repo, tag)
 	cachePath := filepath.Join(r.cacheDir, key)
 
@@ -340,13 +358,35 @@ func versionLine(sha, comment string) string {
 // of the version line, or from if there is none. The replacement carries its
 // own comment, so leaving the old one stacked a stale tag beside the new one:
 // a line reading "# v5 # v4" names a version the SHA is not.
+//
+// A "/* */" comment is taken whole, over however many lines it runs. Leaving
+// one standing put the new "# tag" comment in front of its "/*", which
+// commented out the opening while the closing "*/" stayed on a line of its
+// own, and the file no longer parsed. The pin reported success and the
+// breakage surfaced on the next parse.
 func trailingCommentEnd(content string, from int) int {
 	i := from
 	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
 		i++
 	}
 
-	if i >= len(content) || (content[i] != '#' && !strings.HasPrefix(content[i:], "//")) {
+	if i >= len(content) {
+		return from
+	}
+
+	if strings.HasPrefix(content[i:], "/*") {
+		end := strings.Index(content[i+2:], "*/")
+
+		// Unterminated: there is no comment to take, and swallowing the rest
+		// of the file would delete every block below this one.
+		if end < 0 {
+			return from
+		}
+
+		return i + 2 + end + 2
+	}
+
+	if content[i] != '#' && !strings.HasPrefix(content[i:], "//") {
 		return from
 	}
 
@@ -355,6 +395,29 @@ func trailingCommentEnd(content string, from int) int {
 	}
 
 	return i
+}
+
+// splitAction reads the repository an action lives in out of its reference.
+// An action may sit in a subdirectory of its repository, written
+// "github/codeql-action/init", and the tag belongs to the repository, so
+// everything past the second segment names a path inside it. Splitting into
+// two asked the API for a repository called "codeql-action/init", which no
+// name pattern lets through, and the action was reported as unpinnable.
+//
+// A reference starting with "." is a path into the repository being built.
+// GitHub takes that version from the checkout, so there is no release to
+// resolve and false is returned.
+func splitAction(action string) (owner, repo string, ok bool) {
+	if strings.HasPrefix(action, ".") {
+		return "", "", false
+	}
+
+	parts := strings.Split(action, "/")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+
+	return parts[0], parts[1], true
 }
 
 // isTag returns true if the version looks like a tag rather than a SHA.
@@ -408,28 +471,39 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			continue
 		}
 
+		// Every failure is named as it happens, the way a failed resolve is.
+		// These two were counted in the summary and printed nothing, so a run
+		// ending "2 failed" left the user to find which two lines those were.
 		if !ref.IsTag {
+			err := errNotPinnable(ref.Version)
+
+			reportf(w, "warning: could not pin %s: %v\n", ref.Action, err)
+
 			results = append(results, PinResult{
 				Action: ref.Action,
 				Tag:    ref.Version,
-				Error:  errNotPinnable(ref.Version),
+				Error:  err,
 			})
 
 			continue
 		}
 
-		parts := strings.SplitN(ref.Action, "/", 2)
-		if len(parts) != 2 {
+		owner, repo, ok := splitAction(ref.Action)
+		if !ok {
+			err := errNotRemoteAction(ref.Action)
+
+			reportf(w, "warning: could not pin %s: %v\n", ref.Action, err)
+
 			results = append(results, PinResult{
 				Action: ref.Action,
 				Tag:    ref.Version,
-				Error:  fmt.Errorf("invalid action format: %s", ref.Action),
+				Error:  err,
 			})
 
 			continue
 		}
 
-		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], ref.Version)
+		sha, err := resolver.ResolveTag(ctx, owner, repo, ref.Version)
 
 		// A response with no "sha" decodes to "" and no error. Writing that
 		// out gave the file a version = "" and reported the action pinned, so
@@ -439,7 +513,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		}
 
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: could not pin %s@%s: %v\n", ref.Action, ref.Version, err)
+			reportf(w, "warning: could not pin %s@%s: %v\n", ref.Action, ref.Version, err)
 
 			results = append(results, PinResult{
 				Action: ref.Action,
@@ -462,7 +536,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			text:  versionLine(sha, ref.Version),
 		})
 
-		_, _ = fmt.Fprintf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
+		reportf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
 
 		results = append(results, PinResult{
 			Action: ref.Action,
@@ -503,7 +577,7 @@ func PinDirectory(ctx context.Context, dir string, resolver Resolver, w io.Write
 
 		results, err := PinFile(ctx, path, resolver, w, dryRun)
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: %s: %v\n", entry.Name(), err)
+			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 
 			continue
 		}
@@ -616,6 +690,19 @@ func literalString(expr hclsyntax.Expression) (string, bool) {
 	}
 
 	return value.AsString(), true
+}
+
+// reportf writes one progress or warning line, with the control characters in
+// it escaped.
+//
+// Every line names something read out of the file — an action, a version, a
+// filename — and any of them is free to carry an ANSI escape sequence.
+// Written to a terminal as it stands, the sequence is acted on rather than
+// shown: a crafted action name can erase the warning naming it and print a
+// summary of its own in its place. The errors the tool ends on are escaped for
+// the same reason.
+func reportf(w io.Writer, format string, args ...any) {
+	_, _ = io.WriteString(w, cinzelerror.SafeForTerminal(fmt.Sprintf(format, args...)))
 }
 
 // drainAndClose reads the remaining body to enable HTTP connection reuse,

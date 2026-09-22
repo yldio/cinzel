@@ -107,6 +107,22 @@ func (hp *HCLParser) Parse() error {
 		hp.result = value
 
 		return nil
+	case *hclsyntax.TemplateWrapExpr:
+		// hclsyntax builds one of these, not a TemplateExpr, when a template
+		// holds a single interpolation and nothing else. So "${variable.x[0]}"
+		// arrived here with no case to take it and came back "missing hcl type
+		// found" followed by a raw pointer dump, where the same reference
+		// written bare worked. What it wraps is the whole value, so that is
+		// what to parse.
+		wrapped := New(expType.Wrapped, hp.variables)
+
+		if err := wrapped.Parse(); err != nil {
+			return err
+		}
+
+		hp.result = wrapped.result
+
+		return nil
 	case *hclsyntax.TupleConsExpr:
 		value, diags := expType.Value(nil)
 

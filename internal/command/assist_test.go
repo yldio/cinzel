@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestSplitYAMLDocuments(t *testing.T) {
@@ -411,7 +412,7 @@ step "deploy" {
 }
 `
 
-	result := deduplicateWithExisting(generated, contextDir)
+	result, _ := deduplicateWithExisting(generated, contextDir)
 
 	// Identical checkout should be replaced with reference.
 	if !strings.Contains(result, `// reuses: step "checkout" from steps.hcl`) {
@@ -459,7 +460,7 @@ step "checkout" {
 		t.Fatal(err)
 	}
 
-	result := deduplicateWithExisting(block, contextDir)
+	result, _ := deduplicateWithExisting(block, contextDir)
 
 	if !strings.Contains(result, `// reuses: step "checkout" from steps.hcl`) {
 		t.Errorf("expected a reuse comment naming the block\ngot:\n%s", result)
@@ -475,7 +476,7 @@ func TestDeduplicateWithExistingNoContextDir(t *testing.T) {
   name = "Checkout"
 }
 `
-	result := deduplicateWithExisting(input, "/nonexistent/path")
+	result, _ := deduplicateWithExisting(input, "/nonexistent/path")
 
 	if result != input {
 		t.Errorf("should return input unchanged for nonexistent dir\ngot: %q", result)
@@ -533,5 +534,131 @@ func TestLatestAssistDirTakesOnlyATimestamp(t *testing.T) {
 				t.Errorf("latestAssistDir() = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+// The preview of a failed conversion is cut to a byte budget. A cut that lands
+// inside a multibyte rune leaves a partial encoding behind, and that reaches
+// the terminal as U+FFFD rather than as the character the model wrote.
+func TestErrorPreviewIsNotCutMidRune(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source string
+	}{
+		{"two-byte rune on the boundary", strings.Repeat("a", maxRawYAMLErrorLen-1) + "é" + "tail"},
+		{"four-byte rune on the boundary", strings.Repeat("a", maxRawYAMLErrorLen-2) + "🙂" + "tail"},
+		{"rune straddling by one byte", strings.Repeat("a", maxRawYAMLErrorLen-3) + "🙂" + "tail"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := truncatePreview(tc.source, maxRawYAMLErrorLen)
+
+			if !utf8.ValidString(got) {
+				t.Errorf("preview is not valid UTF-8: %q", got)
+			}
+
+			if strings.ContainsRune(got, utf8.RuneError) {
+				t.Errorf("preview holds U+FFFD: %q", got)
+			}
+
+			content := strings.TrimSuffix(got, truncatedSuffix)
+			if content == got {
+				t.Fatalf("preview was not marked as truncated: %q", got)
+			}
+
+			if len(content) > maxRawYAMLErrorLen {
+				t.Errorf("preview content is %d bytes, over the %d budget", len(content), maxRawYAMLErrorLen)
+			}
+		})
+	}
+}
+
+// A preview inside the budget is returned whole.
+func TestShortErrorPreviewIsUntouched(t *testing.T) {
+	const s = "name: Déploiement 🙂\n"
+
+	if got := truncatePreview(s, maxRawYAMLErrorLen); got != s {
+		t.Errorf("truncatePreview(%q) = %q, want it unchanged", s, got)
+	}
+}
+
+// A context directory nobody created is the normal case and says nothing. One
+// that exists and cannot be read is different: deduplication silently does not
+// happen, so assist repeats blocks the user already has, with no sign why.
+func TestUnreadableContextDirIsReported(t *testing.T) {
+	// Windows has no Unix permission bits: os.Mkdir's mode only toggles the
+	// read-only flag there, which does not stop a directory being listed.
+	if runtime.GOOS == "windows" {
+		t.Skip("a 0000 directory is still readable on Windows")
+	}
+
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0000 directory regardless of its mode")
+	}
+
+	dir := filepath.Join(t.TempDir(), "cinzel")
+	if err := os.Mkdir(dir, 0000); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = os.Chmod(dir, 0700) })
+
+	_, warnings := deduplicateWithExisting("step \"x\" {\n  run = \"echo\"\n}\n", dir)
+
+	if len(warnings) == 0 {
+		t.Fatal("no warning for a context directory that could not be read")
+	}
+
+	if !strings.Contains(warnings[0], dir) {
+		t.Errorf("warning does not name the directory: %q", warnings[0])
+	}
+}
+
+// A context directory that is simply absent is silent.
+func TestMissingContextDirIsSilent(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "nope")
+
+	merged := "step \"x\" {\n  run = \"echo\"\n}\n"
+
+	got, warnings := deduplicateWithExisting(merged, missing)
+
+	if len(warnings) != 0 {
+		t.Errorf("warnings = %q, want none", warnings)
+	}
+
+	if got != merged {
+		t.Errorf("merged content changed: %q", got)
+	}
+}
+
+// A file inside the context directory that cannot be read is a block that will
+// not be deduplicated against, which is worth the same warning.
+func TestUnreadableContextFileIsReported(t *testing.T) {
+	// Windows has no Unix permission bits: a 0000 file reads back as 0666 and
+	// opens normally. See TestInitTightensPermissionsOnAnExistingFile.
+	if runtime.GOOS == "windows" {
+		t.Skip("a 0000 file is still readable on Windows")
+	}
+
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0000 file regardless of its mode")
+	}
+
+	dir := t.TempDir()
+
+	blocked := filepath.Join(dir, "blocked.hcl")
+	if err := os.WriteFile(blocked, []byte("step \"x\" {\n  run = \"echo\"\n}\n"), 0000); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0600) })
+
+	_, warnings := deduplicateWithExisting("step \"y\" {\n  run = \"echo\"\n}\n", dir)
+
+	if len(warnings) == 0 {
+		t.Fatal("no warning for a context file that could not be read")
+	}
+
+	if !strings.Contains(warnings[0], "blocked.hcl") {
+		t.Errorf("warning does not name the file: %q", warnings[0])
 	}
 }

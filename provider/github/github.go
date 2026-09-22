@@ -101,6 +101,12 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 	// read as stale and removed.
 	currentOutputs := make(map[string]struct{}, len(workflows)+len(actions))
 
+	// Checked before anything is written, so a collision leaves the directory
+	// as it was rather than partway through the run.
+	if err := checkOutputPaths(workflows, actions, outputDir, workflowExt(opts)); err != nil {
+		return err
+	}
+
 	for _, workflowFile := range workflows {
 		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder, workflowFile.FootComment)
 		if err != nil {
@@ -188,6 +194,14 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	// Job block labels share the same address space for the same reason.
 	usedJobIDs := map[string]struct{}{}
 
+	// Files were read but none of them held anything this tool has a
+	// definition for, so nothing was written. Returning nil there said the
+	// input was converted when it was not: pointing at the wrong directory, or
+	// at one holding only issue templates and a dependabot config, both land
+	// exactly here. A dry run counts: it found the document and only skipped
+	// the write it was told to skip.
+	found := false
+
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
@@ -205,6 +219,8 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			continue
 		}
 
+		found = true
+
 		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, name)+".hcl")
 
 		if opts.DryRun {
@@ -216,6 +232,10 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 		if err := fsutil.WriteFile(outputPath, hclBytes); err != nil {
 			return err
 		}
+	}
+
+	if !found {
+		return errNoDefinitions
 	}
 
 	return nil

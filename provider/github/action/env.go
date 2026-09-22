@@ -5,6 +5,7 @@ package action
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/cinzel/internal/hclparser"
@@ -15,6 +16,12 @@ import (
 type EnvConfig struct {
 	Name  hcl.Expression `hcl:"name,attr"`
 	Value hcl.Expression `hcl:"value,attr"`
+
+	// Carries the source range the comments written above the block and
+	// closing it are found at, the way hclNamedBlock does for the job path.
+	// Nothing is meant to land in it besides: what does is an attribute
+	// nobody declared, which Parse reports rather than drops.
+	Body hcl.Body `hcl:",remain"`
 }
 
 // EnvListConfig is a slice of EnvConfig decoded from HCL env blocks.
@@ -58,14 +65,31 @@ func (config *EnvListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, error) {
 			return cty.NilVal, errors.New("name must be set")
 		}
 
+		if name.Type() != cty.String {
+			return cty.NilVal, fmt.Errorf("name must be a string, found %s", name.Type().FriendlyName())
+		}
+
+		key := name.AsString()
+
+		if key == "" {
+			return cty.NilVal, errors.New("name must not be empty")
+		}
+
+		if _, taken := mapping[key]; taken {
+			return cty.NilVal, fmt.Errorf("two blocks both write '%s'", key)
+		}
+
 		value, err := w.parseValue(hv)
 		if err != nil {
 			return cty.NilVal, err
 		}
 
-		if value != cty.NilVal {
-			mapping[name.AsString()] = value
-		} else {
+		switch {
+		case value != cty.NilVal:
+			mapping[key] = value
+		case ValueWritten(w.Value):
+			mapping[key] = cty.NullVal(cty.DynamicPseudoType)
+		default:
 			return cty.NilVal, errors.New("value must be set")
 		}
 	}

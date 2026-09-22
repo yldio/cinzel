@@ -51,19 +51,25 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 	var edits []versionEdit
 
 	for _, ref := range refs {
-		parts := strings.SplitN(ref.Action, "/", 2)
-		if len(parts) != 2 {
+		// Named as it happens, for the reason given in PinFile.
+		owner, repo, ok := splitAction(ref.Action)
+		if !ok {
+			err := errNotRemoteAction(ref.Action)
+
+			reportf(w, "warning: could not upgrade %s: %v\n", ref.Action, err)
+
 			results = append(results, UpgradeResult{
-				Action: ref.Action,
-				Error:  fmt.Errorf("invalid action format: %s", ref.Action),
+				Action:     ref.Action,
+				OldVersion: ref.Version,
+				Error:      err,
 			})
 
 			continue
 		}
 
-		latestTag, err := resolver.LatestTag(ctx, parts[0], parts[1])
+		latestTag, err := resolver.LatestTag(ctx, owner, repo)
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: could not find latest version for %s: %v\n", ref.Action, err)
+			reportf(w, "warning: could not find latest version for %s: %v\n", ref.Action, err)
 
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
@@ -75,7 +81,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		}
 
 		// Resolve the latest tag to a SHA.
-		sha, err := resolver.ResolveTag(ctx, parts[0], parts[1], latestTag)
+		sha, err := resolver.ResolveTag(ctx, owner, repo, latestTag)
 
 		// See PinFile: a response with no "sha" decodes to "" and no error,
 		// and writing it out reports an upgrade that did not happen.
@@ -84,7 +90,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		}
 
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: could not pin %s@%s: %v\n", ref.Action, latestTag, err)
+			reportf(w, "warning: could not pin %s@%s: %v\n", ref.Action, latestTag, err)
 
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
@@ -117,7 +123,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			text:  versionLine(sha, latestTag),
 		})
 
-		_, _ = fmt.Fprintf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, shortSHA(sha))
+		reportf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, shortSHA(sha))
 
 		results = append(results, UpgradeResult{
 			Action:     ref.Action,
@@ -159,7 +165,7 @@ func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.W
 
 		results, err := UpgradeFile(ctx, path, resolver, w, dryRun)
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "warning: %s: %v\n", entry.Name(), err)
+			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 
 			continue
 		}

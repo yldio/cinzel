@@ -54,6 +54,18 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 		// is emitted inside the mapping, above its first key, rather than
 		// above the key it belongs to.
 		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: it.key, HeadComment: it.value.head}
+
+		// A key went out unstyled, so yaml.v3 picked the quotes for one it had
+		// to quote, and it reaches for single. The project writes double.
+		//
+		// A word a YAML 1.1 reader takes for a boolean is the exception: "on:"
+		// is the GitHub trigger key and quoting it would rewrite every golden.
+		// yaml.v3 already writes the ones that change meaning, "true" and
+		// "null", in double quotes of its own accord.
+		if _, plain := plainWords[strings.ToLower(it.key)]; !plain && needsQuoting(it.key) {
+			key.Style = yamlv3.DoubleQuotedStyle
+		}
+
 		node.Content = append(node.Content, key, value)
 	}
 
@@ -66,6 +78,10 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 // whole document, which is not where its author wrote it.
 //
 // A scalar has nothing inside it, so its own foot is the last node there is.
+// An empty collection has nothing inside it either: the comment goes on the
+// collection, which is emitted as "{}" or "[]" with the comment on the line
+// below. Without that case the switch matched nothing and the comment was
+// dropped, which an empty "permissions" block is the live way to reach.
 func setFoot(node *yamlv3.Node, foot string) {
 	if foot == "" {
 		return
@@ -76,7 +92,7 @@ func setFoot(node *yamlv3.Node, foot string) {
 		node.Content[len(node.Content)-2].FootComment = foot
 	case node.Kind == yamlv3.SequenceNode && len(node.Content) > 0:
 		node.Content[len(node.Content)-1].FootComment = foot
-	case node.Kind == yamlv3.ScalarNode:
+	default:
 		node.FootComment = foot
 	}
 }
@@ -198,6 +214,12 @@ func needsQuoting(v string) bool {
 		case ':', '#', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '`':
 			return true
 		}
+	}
+
+	// A leading "..." is the document-end marker. yaml.v3 quotes it without
+	// being asked, in single quotes, and the project writes double.
+	if strings.HasPrefix(v, "...") {
+		return true
 	}
 
 	// Strings starting with YAML indicators.

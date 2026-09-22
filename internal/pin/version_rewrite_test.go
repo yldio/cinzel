@@ -254,3 +254,51 @@ step "b" {
 		t.Errorf("actions/setup-go got %s", v)
 	}
 }
+
+// A block comment on the version line is replaced along with the rest of it.
+// The replacement carries its own "# tag" comment, and leaving a "/*" standing
+// after it commented out the opening of the block comment while its "*/" stayed
+// on a line of its own, so the file no longer parsed. The pin itself reported
+// success, and the breakage surfaced on the next parse.
+func TestBlockCommentOnTheVersionLineIsReplaced(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		comment string
+	}{
+		{name: "on one line", comment: `/* pinned by hand */`},
+		{name: "over two lines", comment: "/* pinned\n    by hand */"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := writeHCL(t, `step "a" {
+  uses {
+    action  = "actions/checkout"
+    version = "v4" `+tc.comment+`
+  }
+}
+`)
+
+			resolver := &mockResolver{shas: map[string]string{
+				"actions/checkout@v4": "ffffffffffffffffffffffffffffffffffffffff",
+			}}
+
+			var buf bytes.Buffer
+
+			if _, err := PinFile(context.Background(), path, resolver, &buf, false); err != nil {
+				t.Fatal(err)
+			}
+
+			out, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := findActionRefs(string(out)); err != nil {
+				t.Fatalf("the pinned file no longer parses: %v\n%s", err, out)
+			}
+
+			if strings.Contains(string(out), "by hand") {
+				t.Errorf("the old comment was left beside the new one:\n%s", out)
+			}
+		})
+	}
+}

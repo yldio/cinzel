@@ -56,6 +56,13 @@ func (av *HCLVars) tokens(filename string) []hclsyntax.Token {
 	return parsed
 }
 
+// lineComment is one whole-line comment, held with the line it starts on so a
+// run can be walked past a comment that spans several.
+type lineComment struct {
+	text  string
+	start int
+}
+
 // commentRunAbove returns the unbroken run of whole-line comments ending on the
 // line above line.
 func commentRunAbove(tokens []hclsyntax.Token, line int) string {
@@ -63,7 +70,7 @@ func commentRunAbove(tokens []hclsyntax.Token, line int) string {
 		return ""
 	}
 
-	lines := map[int]string{}
+	lines := map[int]lineComment{}
 
 	for i, tok := range tokens {
 		if tok.Type != hclsyntax.TokenComment {
@@ -77,19 +84,31 @@ func commentRunAbove(tokens []hclsyntax.Token, line int) string {
 			continue
 		}
 
-		lines[tok.Range.Start.Line] = asYAMLComment(strings.TrimRight(string(tok.Bytes), "\n"))
+		text := asYAMLComment(strings.TrimRight(string(tok.Bytes), "\n"))
+		start := tok.Range.Start.Line
+
+		// Keyed by the line the text ends on, because the run above is walked
+		// upwards a line at a time. Range.End is no help: a "#" comment
+		// swallows its own newline and so ends on the line below its text,
+		// while a block comment ends exactly where it looks like it does.
+		lines[start+strings.Count(text, "\n")] = lineComment{text: text, start: start}
 	}
 
 	var run []string
 
-	for above := line - 1; ; above-- {
-		text, found := lines[above]
+	for above := line - 1; ; {
+		comment, found := lines[above]
 
 		if !found {
 			break
 		}
 
-		run = append([]string{text}, run...)
+		run = append([]string{comment.text}, run...)
+
+		// A block comment covers every line between its own start and end, and
+		// none of them is a key. Stepping one line at a time would find
+		// nothing there and end a run that carries on above it.
+		above = comment.start - 1
 	}
 
 	if len(run) == 0 {

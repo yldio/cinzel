@@ -65,7 +65,10 @@ test:
       project: group/proj
       ref: main
 `,
-			wantHCL:  []string{"job.other", `project = "group/proj"`},
+			// The name is the other project's, not a label here, so it is
+			// written as it stands rather than as a reference to a job this
+			// file declares.
+			wantHCL:  []string{`job     = "other"`, `project = "group/proj"`},
 			wantYAML: []string{"job: other", "project: group/proj"},
 		},
 		{

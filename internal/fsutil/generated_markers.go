@@ -96,6 +96,30 @@ func HasGeneratedMarker(path, provider string) (bool, error) {
 	return false, nil
 }
 
+// sameAsCurrentOutput reports whether path is one of the files this run wrote,
+// comparing what the filesystem calls the same file rather than how the name is
+// spelled. Every current output was written moments ago, so one that cannot be
+// stat'd is not the file being looked at.
+func sameAsCurrentOutput(path string, currentOutputs map[string]struct{}) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	for candidate := range currentOutputs {
+		other, err := os.Stat(candidate)
+		if err != nil {
+			continue
+		}
+
+		if os.SameFile(info, other) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // PruneStaleGeneratedYAML removes stale YAML files owned by provider.
 //
 // The whole tree under outputDir is walked, not only its top level. An output
@@ -148,6 +172,17 @@ func PruneStaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{
 		}
 
 		if !strings.HasPrefix(absPath, cleanOutputDir+string(os.PathSeparator)) {
+			return nil
+		}
+
+		// Asked here, where the answer decides a delete, rather than on the
+		// name above. A path differing only in case is one file on macOS and
+		// Windows, and os.WriteFile keeps the name the directory already
+		// holds: renaming a workflow from "Build" to "build" left the walk
+		// reading "Build.yaml" while currentOutputs held "build.yaml", so the
+		// file the run had just written was read as stale and removed. parse
+		// exited 0 having produced nothing at all.
+		if sameAsCurrentOutput(absPath, currentOutputs) {
 			return nil
 		}
 

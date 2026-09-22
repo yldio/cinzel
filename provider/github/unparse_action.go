@@ -71,6 +71,8 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 
 	actionBody.SetAttributeValue("filename", cty.StringVal(filename))
 
+	actionSections := newBodySections(actionBody)
+
 	// Write top-level attributes in a stable order.
 
 	for _, key := range sortedKeys(doc) {
@@ -78,9 +80,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 		case "runs", "inputs", "outputs", "branding":
 			continue // handled as blocks below
 		default:
-			if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
-				actionBody.AppendNewline()
-			}
+			actionSections.next()
 
 			if err := writeAttributeAny(actionBody, toHCLKey(key), doc[key]); err != nil {
 				return nil, err
@@ -98,9 +98,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 		}
 
 		for _, name := range sortedKeys(inputs) {
-			if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
-				actionBody.AppendNewline()
-			}
+			actionSections.next()
 
 			inputMap, ok := toStringAnyMap(inputs[name])
 
@@ -129,9 +127,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 		}
 
 		for _, name := range sortedKeys(outputs) {
-			if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
-				actionBody.AppendNewline()
-			}
+			actionSections.next()
 
 			outputMap, ok := toStringAnyMap(outputs[name])
 
@@ -159,12 +155,11 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 			return nil, errors.New("action 'runs' must be an object")
 		}
 
-		if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
-			actionBody.AppendNewline()
-		}
+		actionSections.next()
 
 		runsBlock := actionBody.AppendNewBlock("runs", nil)
 		runsBody := runsBlock.Body()
+		runsSections := newBodySections(runsBody)
 
 		for _, key := range sortedKeys(runsMap) {
 			if key == "steps" {
@@ -179,9 +174,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 				continue
 			}
 
-			if len(runsBody.Attributes()) > 0 || len(runsBody.Blocks()) > 0 {
-				runsBody.AppendNewline()
-			}
+			runsSections.next()
 
 			if err := writeAttributeAny(runsBody, toHCLKey(key), runsMap[key]); err != nil {
 				return nil, err
@@ -189,9 +182,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 		}
 
 		if len(stepRefs) > 0 {
-			if len(runsBody.Attributes()) > 0 || len(runsBody.Blocks()) > 0 {
-				runsBody.AppendNewline()
-			}
+			runsSections.next()
 
 			if err := writeReferenceListAttribute(runsBody, "steps", "step", stepRefs); err != nil {
 				return nil, err
@@ -208,9 +199,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 			return nil, errors.New("action 'branding' must be an object")
 		}
 
-		if len(actionBody.Attributes()) > 0 || len(actionBody.Blocks()) > 0 {
-			actionBody.AppendNewline()
-		}
+		actionSections.next()
 
 		brandingBlock := actionBody.AppendNewBlock("branding", nil)
 		brandingBody := brandingBlock.Body()

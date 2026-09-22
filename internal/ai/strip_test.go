@@ -63,20 +63,20 @@ func TestStripHCLFile(t *testing.T) {
 		{
 			name: "comments stripped",
 			input: `// This is a secret comment about internal infrastructure
-// team@yld.io maintains this
+// team@yld.com maintains this
 step "test" {
   name = "Test"
 }`,
 			contains: []string{`step "test"`},
-			excludes: []string{"secret comment", "team@yld.io", "infrastructure"},
+			excludes: []string{"secret comment", "team@yld.com", "infrastructure"},
 		},
 		{
 			name: "heredoc content stripped",
 			input: `step "deploy" {
   run = <<EOF
 set -euo pipefail
-echo "deploying to production.internal.yld.io"
-curl -H "Authorization: Bearer $TOKEN" https://api.internal.yld.io/deploy
+echo "deploying to production.internal.yld.com"
+curl -H "Authorization: Bearer $TOKEN" https://api.internal.yld.com/deploy
 EOF
 }`,
 			contains: []string{`run = "..."`},

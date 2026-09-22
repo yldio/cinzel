@@ -9,7 +9,7 @@ argument-hint: [provider] [flags]
 
 Parse HCL definitions for the `$0` provider.
 
-1. Run `go run ./... $0 parse --file ./cinzel --output-directory .github/workflows $ARGUMENTS`
+1. Run `cinzel $0 parse --directory ./cinzel --output-directory .github/workflows $ARGUMENTS`
 2. Show the git diff of generated YAML files
 3. If there are changes, summarize what changed
 4. If there are no changes, confirm output is up to date

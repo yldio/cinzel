@@ -175,3 +175,44 @@ func TestSlashTrailingCommentsBecomeHashComments(t *testing.T) {
 		})
 	}
 }
+
+// A comment run is walked upwards by line, so every comment has to be keyed
+// where it ends. A block comment is the only one that ends on a line other
+// than the one it starts on, and keying it by its start left a gap at the line
+// above the code: the walk stopped there and dropped the block comment along
+// with everything written above it.
+func TestHeadCommentKeepsAMultiLineBlockComment(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "a block comment over two lines",
+			src:  "/* about it\n   and more */\na = 1\n",
+			want: "/* about it\n   and more */",
+		},
+		{
+			name: "a hash comment above a block comment",
+			src:  "# first\n/* second\n   still second */\na = 1\n",
+			want: "# first\n/* second\n   still second */",
+		},
+		{
+			name: "a block comment above a hash comment",
+			src:  "/* first\n   still first */\n# second\na = 1\n",
+			want: "/* first\n   still first */\n# second",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hv := NewHCLVars()
+			hv.SetSources(map[string][]byte{"in.hcl": []byte(tc.src)})
+
+			line := strings.Count(tc.src, "\n")
+			r := hcl.Range{Filename: "in.hcl", Start: hcl.Pos{Line: line}}
+
+			if got := hv.HeadComment(r); got != tc.want {
+				t.Errorf("want %q, got %q", tc.want, got)
+			}
+		})
+	}
+}

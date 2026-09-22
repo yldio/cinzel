@@ -3,7 +3,11 @@
 
 package naming
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+)
 
 func TestSanitizeIdentifier(t *testing.T) {
 	if got := SanitizeIdentifier("build-test"); got != "build_test" {
@@ -60,5 +64,36 @@ func TestSanitizeIdentifierPrefixesEveryLeadingDigit(t *testing.T) {
 				t.Errorf("SanitizeIdentifier(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestSanitizeIdentifierOutputIsAnHCLIdentifier walks every rune, because the
+// disagreement it guards is a table difference and a handful of samples would
+// not find the next one.
+//
+// unicode.IsLetter accepts runes HCL's own scanner refuses, so a name carrying
+// one came back unchanged and was written into a reference such as
+// "job.ࡠalpha". HCL reads that as a character it has no use for, and cinzel's
+// own parse could not read back the file its unparse had just written with
+// exit 0.
+func TestSanitizeIdentifierOutputIsAnHCLIdentifier(t *testing.T) {
+	for r := rune(1); r <= 0x10FFFF; r++ {
+		if r >= 0xD800 && r <= 0xDFFF {
+			continue // a surrogate half is not a character
+		}
+
+		got := SanitizeIdentifier("a" + string(r))
+
+		if !hclsyntax.ValidIdentifier(got) {
+			t.Fatalf("SanitizeIdentifier(%q) returned %q, which HCL refuses as an identifier", "a"+string(r), got)
+		}
+	}
+}
+
+// TestSanitizeIdentifierKeepsASCIIWords pins the common case against the rune
+// walk above, which would still pass if every letter were replaced.
+func TestSanitizeIdentifierKeepsASCIIWords(t *testing.T) {
+	if got := SanitizeIdentifier("Deploy_to_prod2"); got != "Deploy_to_prod2" {
+		t.Fatalf("expected the name unchanged, got %q", got)
 	}
 }

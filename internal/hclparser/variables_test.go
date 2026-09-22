@@ -4,6 +4,7 @@
 package hclparser
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
@@ -111,4 +112,28 @@ func TestHCLVarsGetValueByIndex(t *testing.T) {
 			t.Fatal("expected error for missing key")
 		}
 	})
+}
+
+// A map, an object and a set are all indexable in some sense, but not by
+// position. Returning the value whole wrote the entire collection where one
+// element was asked for, and cty.Value.Index panics on a set.
+func TestHCLVarsGetValueByIndexRejectsNonPositionalTypes(t *testing.T) {
+	hv := NewHCLVars()
+	hv.Add("obj", cty.ObjectVal(map[string]cty.Value{"a": cty.StringVal("1")}))
+	hv.Add("mapped", cty.MapVal(map[string]cty.Value{"a": cty.StringVal("1")}))
+	hv.Add("set", cty.SetVal([]cty.Value{cty.StringVal("a")}))
+
+	for _, key := range []string{"obj", "mapped", "set"} {
+		t.Run(key, func(t *testing.T) {
+			got, err := hv.GetValueByIndex(key, 0)
+
+			if err == nil {
+				t.Fatalf("GetValueByIndex(%q, 0) = %#v, want an error", key, got)
+			}
+
+			if !errors.Is(err, errIndexUnsupportedType) {
+				t.Errorf("error = %v, want errIndexUnsupportedType", err)
+			}
+		})
+	}
 }

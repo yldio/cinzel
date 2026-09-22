@@ -98,6 +98,11 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		}
 
 		inputs := getOrCreateMap(out, "inputs")
+
+		if err := claimBlockKey(inputs, "input", input.ID); err != nil {
+			return nil, "", err
+		}
+
 		inputs[input.ID] = inputMap
 	}
 
@@ -113,12 +118,21 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		}
 
 		outputs := getOrCreateMap(out, "outputs")
+
+		if err := claimBlockKey(outputs, "output", output.ID); err != nil {
+			return nil, "", err
+		}
+
 		outputs[output.ID] = outputMap
 	}
 
 	for _, runs := range cfg.Runs {
 		runsMap, err := parseActionRunsConfig(runs, hv, stepMap)
 		if err != nil {
+			return nil, "", err
+		}
+
+		if err := claimSingletonBlock(out, "runs", "runs"); err != nil {
 			return nil, "", err
 		}
 
@@ -133,6 +147,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		}
 
 		if err := setOptionalYAMLAttr(brandingMap, "color", branding.Color, hv); err != nil {
+			return nil, "", err
+		}
+
+		if err := claimSingletonBlock(out, "branding", "branding"); err != nil {
 			return nil, "", err
 		}
 
@@ -221,6 +239,10 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 				takenIDs[id] = ref
 			}
 
+			if err := checkStepNotEmpty(stepVal, ref); err != nil {
+				return nil, err
+			}
+
 			emitted[ref] = struct{}{}
 
 			steps = append(steps, stepVal)
@@ -236,7 +258,12 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 		}
 
 		envMap := getOrCreateMap(out, "env")
-		envMap[key] = withComments(value, blockComments(env.Body, hv))
+
+		if err := claimBlockKey(envMap, "env", key); err != nil {
+			return nil, err
+		}
+
+		envMap[key] = withComments(value, namedBlockComments(env, hv))
 	}
 
 	return out, nil

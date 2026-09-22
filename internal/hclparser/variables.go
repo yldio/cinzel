@@ -46,7 +46,7 @@ func (av *HCLVars) GetValueByKey(key string) (cty.Value, error) {
 		return value, nil
 	}
 
-	return cty.NilVal, fmt.Errorf("variable `%s` does not exist", key)
+	return cty.NilVal, fmt.Errorf("%w: `%s`", errVariableNotFound, key)
 }
 
 // GetValueByIndex returns an element from a list variable by key and index.
@@ -58,18 +58,26 @@ func (av *HCLVars) GetValueByIndex(key string, idx int64) (cty.Value, error) {
 
 	t := value.Type()
 
-	if !t.IsListType() && !t.IsTupleType() && !t.IsSetType() {
+	// A map or an object is indexable, but by key rather than by position:
+	// returning the value whole wrote the entire collection where a single
+	// element was asked for. A set has no positions at all, and
+	// cty.Value.Index panics on one rather than returning an error.
+	if t.IsMapType() || t.IsObjectType() || t.IsSetType() {
+		return cty.NilVal, fmt.Errorf("%w: %q is %s", errIndexUnsupportedType, key, t.FriendlyName())
+	}
+
+	if !t.IsListType() && !t.IsTupleType() {
 		return value, nil
 	}
 
 	if !value.IsKnown() || value.IsNull() {
-		return cty.NilVal, fmt.Errorf("variable %q is null or unknown", key)
+		return cty.NilVal, fmt.Errorf("%w: %q", errVariableNullOrUnknown, key)
 	}
 
 	length := int64(value.LengthInt())
 
 	if idx < 0 || idx >= length {
-		return cty.NilVal, fmt.Errorf("index %d out of range for variable %q (length %d)", idx, key, length)
+		return cty.NilVal, fmt.Errorf("%w: %d for variable %q (length %d)", errIndexOutOfRange, idx, key, length)
 	}
 
 	return value.Index(cty.NumberIntVal(idx)), nil

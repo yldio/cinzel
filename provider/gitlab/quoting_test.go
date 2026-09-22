@@ -40,7 +40,12 @@ func TestValueQuotingGaps(t *testing.T) {
 		{name: "single letter y", value: "y", want: `k: "y"`},
 		{name: "single letter N", value: "N", want: `k: "N"`},
 		{name: "leading and trailing space", value: " padded ", want: `k: " padded "`},
+		// A leading "..." is the document-end marker, so yaml.v3 quotes it
+		// on its own and reaches for single quotes to do it.
+		{name: "a document-end marker", value: "...", want: `k: "..."`},
+		{name: "a document-end marker with text after it", value: "...x", want: `k: "...x"`},
 		{name: "an ordinary word is left alone", value: "yesterday", want: "k: yesterday"},
+		{name: "two dots are left alone", value: "..", want: "k: .."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := encodePair(t, "k", tc.value)
@@ -74,6 +79,7 @@ func TestKeyQuoting(t *testing.T) {
 		// A colon only ends a key when a space follows it.
 		{name: "a job name with a colon", key: "test:unit", want: "test:unit: v"},
 		{name: "a template name", key: ".go-base", want: ".go-base: v"},
+		{name: "a document-end marker", key: "...", want: `"...": v`},
 		{name: "an ordinary name", key: "build-app", want: "build-app: v"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

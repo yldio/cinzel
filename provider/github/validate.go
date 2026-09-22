@@ -163,6 +163,14 @@ func validateParsedWorkflow(workflow ghworkflow.Parsed) error {
 		return err
 	}
 
+	if err := validateMapKeys(plainMap(workflow.Body), ""); err != nil {
+		return err
+	}
+
+	if err := validateWorkflowNeeds(workflow.ID, plainMap(workflow.Body)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -222,6 +230,20 @@ func validateParsedJobs(jobs map[string]ghjob.Parsed) error {
 			if err := action.ValidateUsesRef(model.Uses); err != nil {
 				return withPath("job."+id+".uses", err)
 			}
+		}
+
+		// Validate step uses references, the same way the YAML side does. A
+		// reference checked only on the way back let a parse write one GitHub
+		// cannot resolve and cinzel's own unparse then refused to read.
+
+		plainBody := plainMap(job.Body)
+
+		if err := validateJobStepUses(id, plainBody); err != nil {
+			return err
+		}
+
+		if err := validateJobTimeouts(id, plainBody); err != nil {
+			return err
 		}
 
 		models[id] = model
@@ -328,6 +350,10 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 			return err
 		}
 
+		if err := validateJobTimeouts(jobID, jobMap); err != nil {
+			return err
+		}
+
 		jobModels[jobID] = model
 	}
 
@@ -341,6 +367,13 @@ func validateWorkflowYAMLDoc(doc ghworkflow.YAMLDocument) error {
 		return withPath("jobs.needs", err)
 	}
 
+	// Last, so a mapping with its own check — an unnamed job above — reports
+	// the reason it knows rather than this one.
+
+	if err := validateMapKeys(doc.Raw, ""); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -352,6 +385,147 @@ func strictValidateYAMLShape(raw map[string]any, target any) error {
 
 	if err := yaml.UnmarshalWithOptions(content, target, yaml.Strict()); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateJobTimeouts checks the timeout on a job and on each of its steps.
+//
+// GitHub gives nothing at all time to run when the timeout is zero or less and
+// refuses the workflow rather than starting it, which actionlint reports as
+// `value at "timeout-minutes" must be greater than zero`. A string is left
+// alone: it carries a ${{ }} expression GitHub resolves at run time.
+func validateJobTimeouts(jobID string, jobMap map[string]any) error {
+	if err := validateTimeoutValue(jobMap["timeout-minutes"]); err != nil {
+		return withPath("jobs."+jobID+".timeout-minutes", err)
+	}
+
+	steps, ok := jobMap["steps"].([]any)
+
+	if !ok {
+		return nil
+	}
+
+	for i, stepRaw := range steps {
+		stepMap, ok := toStringAnyMap(stepRaw)
+
+		if !ok {
+			continue
+		}
+
+		if err := validateTimeoutValue(stepMap["timeout-minutes"]); err != nil {
+			return withPath(fmt.Sprintf("jobs.%s.steps[%d].timeout-minutes", jobID, i), err)
+		}
+	}
+
+	return nil
+}
+
+// validateWorkflowNeeds checks that each job waits only on a job the same
+// workflow writes.
+//
+// GitHub reads "needs" within one file, and the jobs a workflow writes are the
+// ones it lists. A depends_on reaching a job block another workflow lists wrote
+// a name nothing in the file answers to, and GitHub refuses the workflow rather
+// than running it: actionlint reports `job "beta" needs job "alpha" which does
+// not exist in this workflow`. The check that already catches this on the YAML
+// side ran over every job block in the HCL at once on this side, so a reference
+// across two workflows went through.
+func validateWorkflowNeeds(workflowID string, body map[string]any) error {
+	jobs, ok := toStringAnyMap(body["jobs"])
+
+	if !ok {
+		return nil
+	}
+
+	for _, key := range sortedKeys(jobs) {
+		job, ok := toStringAnyMap(jobs[key])
+
+		if !ok {
+			continue
+		}
+
+		needs, ok := job["needs"].([]any)
+
+		if !ok {
+			continue
+		}
+
+		for _, raw := range needs {
+			name, ok := raw.(string)
+
+			if !ok {
+				continue
+			}
+
+			if _, found := jobs[name]; !found {
+				return withPath("workflow."+workflowID+".jobs."+key+".needs",
+					fmt.Errorf("%w: '%s'", errNeedsOutsideWorkflow, name))
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateMapKeys checks that no mapping in the document is keyed by an empty
+// string.
+//
+// Every one of these is a name something reads back: an env variable, a job
+// output, a matrix axis, a dispatch input. GitHub refuses the workflow rather
+// than running it, which actionlint reports as `string should not be empty`,
+// and the HCL it unparsed to wrote `name = ""`, which cinzel's own parse then
+// refused. So an unparse exited 0 on a file neither side could use.
+func validateMapKeys(v any, path string) error {
+	switch val := v.(type) {
+	case map[string]any:
+		for _, key := range sortedKeys(val) {
+			if key == "" {
+				return withPath(path, errEmptyKey)
+			}
+
+			childPath := key
+
+			if path != "" {
+				childPath = path + "." + key
+			}
+
+			if err := validateMapKeys(val[key], childPath); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for i, child := range val {
+			if err := validateMapKeys(child, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateTimeoutValue(raw any) error {
+	var minutes float64
+
+	switch v := raw.(type) {
+	case nil, string:
+		return nil
+	case int:
+		minutes = float64(v)
+	case int64:
+		minutes = float64(v)
+	case uint64:
+		minutes = float64(v)
+	case float64:
+		minutes = v
+	default:
+		return nil
+	}
+
+	if minutes <= 0 {
+		return fmt.Errorf("must be greater than zero, found %v", raw)
 	}
 
 	return nil

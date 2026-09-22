@@ -1,56 +1,101 @@
-# GitLab CI/CD Pipelines
+# GitLab CI/CD
 
-## Usage
-
-```sh
-cinzel gitlab -h
-```
-
-### Parse HCL to YAML
-
-Convert GitLab-oriented HCL blocks into a single `.gitlab-ci.yml` file.
+Converts between HCL and `.gitlab-ci.yml`.
 
 ```sh
-cinzel gitlab parse --file ./cinzel/pipeline.hcl --output-directory .
+cinzel gitlab unparse --file .gitlab-ci.yml --output-directory ./cinzel   # YAML -> HCL
+cinzel gitlab parse   --file ./cinzel/.gitlab-ci.hcl --output-directory . # HCL -> YAML
 ```
 
-### Unparse YAML to HCL
+Add `--dry-run` to print instead of writing. `cinzel gitlab -h` lists every flag.
 
-Convert `.gitlab-ci.yml` (or other GitLab CI YAML) into HCL.
+## What it looks like
 
-```sh
-cinzel gitlab unparse --file ./.gitlab-ci.yml --output-directory ./cinzel
+This pipeline:
+
+```yaml
+stages: [build, test]
+
+build-app:
+  stage: build
+  image: golang:1.26
+  script:
+    - go build -o app ./...
+  artifacts:
+    paths: [app]
+
+test:
+  stage: test
+  needs: [build-app]
+  script:
+    - go test ./...
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
-Use `--dry-run` to print generated files to stdout.
-
-## HCL shape
+becomes this HCL:
 
 ```hcl
-stages = ["build", "test", "deploy"]
+stages = ["build", "test"]
 
+job "build_app" {
+  id = "build-app"
+
+  artifacts {
+    paths = ["app"]
+  }
+
+  image  = "golang:1.26"
+  script = ["go build -o app ./..."]
+  stage  = "build"
+}
+
+job "test" {
+  depends_on = [
+    job.build_app,
+  ]
+
+  rule {
+    if = "$CI_PIPELINE_SOURCE == \"merge_request_event\""
+  }
+
+  script = ["go test ./..."]
+  stage  = "test"
+}
+```
+
+Four things in there are worth knowing about up front, and they cover most of
+the surprises:
+
+**A job's name becomes a block label, and labels cannot hold a `-`.** So
+`build-app` is written as `job "build_app"` with `id = "build-app"` beside it.
+The `id` is what goes back into the YAML, and anything pointing at the job —
+`needs`, `extends` — follows the rename. Leave the `id` alone and the name
+survives the round trip.
+
+**`needs:` is spelled `depends_on`, and it holds references, not strings.**
+`job.build_app` is a real reference: rename the block and this moves with it. A
+`needs:` entry that carries options rather than a bare name becomes a `need {}`
+block instead.
+
+**Repeatable things are blocks; everything else is an attribute.** `rule {}`,
+`cache {}`, `service {}` and `include {}` can appear more than once, so they are
+blocks. `cache.key` and `service.variables` are attributes, because the shape
+follows [`config.go`](config.go), not the value. If you are unsure which a
+keyword is, unparse a pipeline that uses it and read what comes out.
+
+**`$` doubles up.** `${CI_COMMIT_BRANCH}` in YAML becomes `$${CI_COMMIT_BRANCH}`
+in HCL, so HCL does not try to interpolate it itself. Parse puts it back. A bare
+`$CI_PIPELINE_SOURCE` with no braces, as in the example above, needs no
+escaping.
+
+## The rest of the shape
+
+```hcl
 variable "deploy_env" {
   name        = "DEPLOY_ENV"
   value       = "production"
   description = "Target environment"
-}
-
-job "build" {
-  stage  = "build"
-  image  = "golang:1.26"
-  script = ["go build -o app ./..."]
-}
-
-job "test" {
-  extends    = [template.go_base]
-  stage      = "test"
-  depends_on = [job.build]
-  script     = ["go test ./..."]
-
-  rule {
-    if   = "$${CI_PIPELINE_SOURCE} == \"merge_request_event\""
-    when = "on_success"
-  }
 }
 
 workflow {
@@ -58,10 +103,6 @@ workflow {
     if   = "$${CI_COMMIT_BRANCH} == \"main\""
     when = "always"
   }
-}
-
-include {
-  local = ".gitlab/base.yml"
 }
 
 default {
@@ -76,33 +117,68 @@ default {
 template "go_base" {
   image = "golang:1.26"
 }
+
+job "test" {
+  extends = [template.go_base]
+  stage   = "test"
+  script  = ["go test ./..."]
+}
+
+include {
+  local = ".gitlab/base.yml"
+}
 ```
 
-## Notes
+A `template` block is a hidden job: `template "go_base"` is `.go_base:` in YAML,
+and `extends` refers to it as `template.go_base`.
 
-- HCL uses `depends_on`; YAML uses `needs:`.
-- A `needs:` entry that is an object rather than a plain job name becomes a `need {}` block, whose `job` is a `job.<id>` reference so it tracks a sanitized name like `depends_on` does.
-- A job needs no `script` of its own: a `trigger` job has none by definition, and a job that `extends` a template inherits one. Both are written as `job` blocks.
-- `$${VAR}` in HCL becomes `${VAR}` in YAML.
-- `${VAR}` in YAML becomes `$${VAR}` in HCL output.
-- Parse output is one file: `.gitlab-ci.yml` in the selected output directory.
-- A pipeline of nothing but `include:` entries is unparsed like any other; a YAML file that is not a pipeline at all is still skipped.
-- `only:` and `except:`, the older way to spell `rules:`, are carried through in both their list and object forms.
-- A `script`, `before_script` or `after_script` may be a single command as a bare string, which is what GitLab's own schema takes, as well as a list.
-- An explicitly empty `needs:`, `cache:`, `services:` or `rules:` survives the roundtrip. GitLab reads one as "override whatever this would inherit", which is not the same as leaving the keyword out, so each is written as an empty attribute where the schema otherwise uses blocks (`cache = []`, `depends_on = []`).
-- A `rules:`, `artifacts:`, `cache:`, `only:` or `except:` written as null, and an empty `extends: []`, survive the roundtrip the same way. GitLab reads either spelling as clearing an inherited value. A null on any other keyword is dropped rather than written back, since GitLab's own schema does not accept one there.
-- A `spec:` header becomes a `spec` block, and is written back as its own YAML document ahead of the rest of the configuration, which is the only place GitLab reads one. Every document of a multi-document pipeline is read, not just the first.
-- A job written in the steps syntax carries its commands under `run` instead of `script`, and needs no `script` of its own. It still needs a stage.
-- `image:`, `before_script:`, `after_script:`, `cache:` and `services:` are also accepted at the top level, where GitLab reads each as the `default` of the same name. Each stays where it was written rather than being folded into a `default` block, since GitLab does not document which wins when a pipeline has both.
-- A `variable` block takes `expand` and `options` alongside `value` and `description`; a variable that carries nothing else stays a plain scalar.
-- Parse output includes cinzel provider markers in YAML headers (`generated-by` and `cinzel-provider`).
-- `template.<id>` and `job.<id>` references in `extends` map to YAML `extends` entries.
-- A job or template name that is not a valid HCL identifier is sanitized to make the block referenceable (`build-app` becomes the label `build_app`) and the original name is kept in an `id` attribute, so the name and any `needs` or `extends` pointing at it survive the roundtrip.
-- Repeated `include {}` blocks map to YAML `include:` entries.
-- The HCL schema in `provider/gitlab/config.go` covers the documented GitLab keywords, including `dependencies`, `identity`, `manual_confirmation`, `inherit`, `secrets`, `id_tokens`, `hooks`, `pages`, `run` and `dast_configuration` on a job, `start_in` and `interruptible` on a rule, `expose_as`/`public`/`access` on `artifacts`, `unprotect` on `cache`, `docker` and `kubernetes` on a service, `rules` and `integrity` on an include, and `options` on a variable. It is checked against GitLab's own editor schema, `app/assets/javascripts/editor/schema/ci.json`.
-- A `rule` block takes `variables`, `needs`, `start_in`, `interruptible` and `auto_cancel` alongside `if`, `when`, `allow_failure`, `changes` and `exists`, for both workflow and job rules.
-- Whether a nested map becomes an HCL block or an object attribute follows the schema in `provider/gitlab/config.go`, not the value's shape: `artifacts.reports` is a block, while `cache.key`, `service.variables`, `default.retry` and `include.inputs` are attributes.
-- Repeated `service {}` blocks map to YAML `services:` entries under `default` or a `job`.
-- Repeated `cache {}` blocks map to a YAML `cache:` list under `default` or a `job`; a single block stays a `cache:` object.
-- Parse schema is defined by typed HCL structs in `provider/gitlab/config.go`; `hcl:",remain"` is used only for intentional pass-through islands.
-- Unparse schema validation favors strict typed YAML decode over manual key allowlist tables.
+A `spec:` header becomes a `spec` block and is written back as its own YAML
+document ahead of the pipeline, which is where GitLab reads it.
+
+A job does not always need a `script`. A `trigger` job has none by definition,
+one that `extends` a template inherits one, and a job in the steps syntax
+carries its commands under `run`.
+
+## Things that behave in a particular way
+
+**An empty or null keyword is kept, not dropped.** GitLab reads `cache: []` and
+`rules: null` as "clear whatever this would inherit", which is different from
+leaving the keyword out. Both survive the round trip — an empty collection is
+written as `cache = []` or `depends_on = []` where the schema otherwise uses
+blocks. A null on a keyword GitLab does not allow one on is dropped, since
+writing it back would produce YAML GitLab's own schema rejects.
+
+**`only:` and `except:`** are carried through in both their list and object
+forms, though `rules:` is the modern spelling.
+
+**A single command can be a bare string.** `script: make` works as well as
+`script: [make]`, in both directions, matching GitLab's own schema.
+
+**Top-level `image:`, `before_script:`, `after_script:`, `cache:` and
+`services:`** are accepted where GitLab reads them as the `default` of the same
+name. They stay where they were written rather than being folded into a
+`default` block, because GitLab does not document which one wins when a pipeline
+has both.
+
+**Every document of a multi-document pipeline is read**, not just the first. A
+pipeline that is nothing but `include:` entries converts like any other; a YAML
+file that is not a pipeline at all is skipped.
+
+**Parse writes one file**, `.gitlab-ci.yml`, into the output directory, with
+`generated-by: cinzel` and `cinzel-provider: gitlab` at the top. Those markers
+are what lets a later run recognise its own output.
+
+## Coverage
+
+The schema in [`config.go`](config.go) covers the documented GitLab keywords and
+is checked against GitLab's own editor schema
+(`app/assets/javascripts/editor/schema/ci.json`). That includes `dependencies`,
+`identity`, `manual_confirmation`, `inherit`, `secrets`, `id_tokens`, `hooks`,
+`pages`, `run` and `dast_configuration` on a job; `start_in`, `interruptible`,
+`variables`, `needs` and `auto_cancel` on a rule; `expose_as`, `public` and
+`access` on `artifacts`; `unprotect` on `cache`; `docker` and `kubernetes` on a
+service; `rules` and `integrity` on an include; and `options` and `expand` on a
+variable.
+
+Converting a keyword the schema does not declare stops with an error naming it,
+rather than writing a file that cannot be read back.

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
 // SanitizeIdentifier replaces non-alphanumeric characters with underscores and ensures a valid identifier.
@@ -20,7 +22,7 @@ func SanitizeIdentifier(in string) string {
 	b.Grow(len(in))
 
 	for _, r := range in {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
+		if isIdentifierRune(r) {
 			b.WriteRune(r)
 			continue
 		}
@@ -43,6 +45,22 @@ func SanitizeIdentifier(in string) string {
 	}
 
 	return out
+}
+
+// isIdentifierRune reports whether r may appear in an HCL identifier.
+//
+// HCL's scanner carries a Unicode version of its own, and Go's tables have
+// moved ahead of it: unicode.IsLetter accepts runes hclsyntax then refuses with
+// "this character is not used within the language". Keeping one wrote a
+// reference like "job.\u0860 alpha", which is not HCL at all — the file went out
+// with exit 0 and cinzel's own parse could not read it back. ASCII is settled
+// in both, so only the rest is put to hclsyntax.
+func isIdentifierRune(r rune) bool {
+	if r < utf8.RuneSelf {
+		return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	}
+
+	return hclsyntax.ValidIdentifier("a" + string(r))
 }
 
 // UniqueIdentifierInSet returns base or a suffixed variant not present in the existing set.

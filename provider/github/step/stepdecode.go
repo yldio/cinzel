@@ -241,6 +241,11 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 
 			value := hclwrite.TokensForValue(withMap[key])
 			withBody.SetAttributeRaw("value", hclcomment.Trailing(value, comment.Line))
+
+			// Last, so it closes the block: the comment ending the YAML
+			// mapping this entry came from belongs to the block it ends up
+			// in, which is where parse reads it back from.
+			hclcomment.WriteLeading(withBody, comment.Foot)
 		}
 	}
 
@@ -273,6 +278,11 @@ func (s *Step) Decode(body *hclwrite.Body, attr string) error {
 
 			value := hclwrite.TokensForValue(envMap[name])
 			envBody.SetAttributeRaw("value", hclcomment.Trailing(value, comment.Line))
+
+			// Last, so it closes the block: the comment ending the YAML
+			// mapping this entry came from belongs to the block it ends up
+			// in, which is where parse reads it back from.
+			hclcomment.WriteLeading(envBody, comment.Foot)
 		}
 	}
 

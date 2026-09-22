@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/provider"
 	githubprovider "github.com/yldio/cinzel/provider/github"
 )
@@ -46,8 +47,8 @@ func TestConfigSetsParseOutputDirectory(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.parseOpts.OutputDirectory != ".github/workflows" {
-			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, ".github/workflows")
+		if want := filepath.FromSlash(".github/workflows"); p.parseOpts.OutputDirectory != want {
+			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, want)
 		}
 	})
 }
@@ -62,8 +63,8 @@ func TestConfigSetsParseDirectory(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.parseOpts.Directory != "./cinzel" {
-			t.Fatalf("parse directory = %q, want %q", p.parseOpts.Directory, "./cinzel")
+		if want := filepath.FromSlash("./cinzel"); p.parseOpts.Directory != want {
+			t.Fatalf("parse directory = %q, want %q", p.parseOpts.Directory, want)
 		}
 
 		if p.parseOpts.File != "" {
@@ -82,8 +83,8 @@ func TestConfigSetsUnparseOutputDirectory(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.unparseOpts.OutputDirectory != "./cinzel" {
-			t.Fatalf("unparse output-directory = %q, want %q", p.unparseOpts.OutputDirectory, "./cinzel")
+		if want := filepath.FromSlash("./cinzel"); p.unparseOpts.OutputDirectory != want {
+			t.Fatalf("unparse output-directory = %q, want %q", p.unparseOpts.OutputDirectory, want)
 		}
 	})
 }
@@ -198,8 +199,8 @@ func TestInvalidInactiveProviderFieldTypeDoesNotFail(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.parseOpts.OutputDirectory != ".github/workflows" {
-			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, ".github/workflows")
+		if want := filepath.FromSlash(".github/workflows"); p.parseOpts.OutputDirectory != want {
+			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, want)
 		}
 	})
 }
@@ -501,6 +502,58 @@ func TestUnportablePathsInConfigFail(t *testing.T) {
 	}
 }
 
+// The configuration file is committed, so a path in it is a path every reader
+// runs without having written it. One that climbs out of the checkout writes
+// generated YAML somewhere else, and parse prunes what it finds there.
+func TestEscapingPathsInConfigFail(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		yaml string
+	}{
+		{"output-directory", "github:\n  parse:\n    output-directory: ../../tmp/evil\n"},
+		{"directory", "github:\n  parse:\n    directory: ../elsewhere\n"},
+		{"file", "github:\n  parse:\n    file: ../../main.hcl\n"},
+		{"only after cleaning", "github:\n  parse:\n    output-directory: a/../../out\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withTempWorkingDir(t, func() {
+				writeFile(t, configFilename, []byte(tc.yaml))
+
+				app, _, p := newConfigTestApp(t)
+				err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+
+				if err == nil {
+					t.Fatalf("Execute() error = nil, want error")
+				}
+
+				if !strings.Contains(err.Error(), "must stay inside") {
+					t.Fatalf("error = %v, want it to name the rule", err)
+				}
+
+				if p.parseOpts.File != "" || p.parseOpts.Directory != "" || p.parseOpts.OutputDirectory != "" {
+					t.Fatalf("opts should be zero on config error, got %+v", p.parseOpts)
+				}
+			})
+		})
+	}
+}
+
+// A ".." that names nothing is an ordinary directory name, not an escape.
+func TestDotPrefixedPathsInConfigAreKept(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    output-directory: ..hidden/out\n"))
+
+		app, _, p := newConfigTestApp(t)
+		if err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p}); err != nil {
+			t.Fatalf("Execute() error = %v, want nil", err)
+		}
+
+		if want := filepath.Join("..hidden", "out"); p.parseOpts.OutputDirectory != want {
+			t.Fatalf("OutputDirectory = %q, want %q", p.parseOpts.OutputDirectory, want)
+		}
+	})
+}
+
 // One committed spelling has to work on every OS, so the forward slashes a
 // config is written with become whatever the running one separates with.
 func TestConfigPathSeparatorsAreNormalized(t *testing.T) {
@@ -527,4 +580,42 @@ func absoluteTestPath() string {
 	}
 
 	return `C:\cinzel`
+}
+
+// TestConfigErrorsAreTheAuthorsToFix walks every refusal the configuration file
+// can raise about its own contents. Each names a key or a value someone wrote in
+// a file they keep, so the open-an-issue line New adds by default sent them to
+// the issue tracker over their own typo.
+func TestConfigErrorsAreTheAuthorsToFix(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		yaml string
+	}{
+		{"not YAML at all", "github:\n  parse:\n   - x\n  : y\n"},
+		{"root is not a mapping", "- a\n"},
+		{"provider is not a mapping", "github: nope\n"},
+		{"command is not a mapping", "github:\n  parse: nope\n"},
+		{"path is not a string", "github:\n  parse:\n    file: 3\n"},
+		{"yml is not a boolean", "github:\n  parse:\n    yml: \"yes\"\n"},
+		{"file and directory together", "github:\n  parse:\n    file: a.hcl\n    directory: d\n"},
+		{"path names one machine", "github:\n  parse:\n    output-directory: " + absoluteTestPath() + "\n"},
+		{"path climbs out", "github:\n  parse:\n    output-directory: ../elsewhere\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withTempWorkingDir(t, func() {
+				writeFile(t, configFilename, []byte(tc.yaml))
+
+				app, _, p := newConfigTestApp(t)
+				err := app.Execute([]string{"cinzel", "github", "parse"}, []provider.Provider{p})
+
+				if err == nil {
+					t.Fatalf("Execute() error = nil, want error")
+				}
+
+				if !cinzelerror.IsUserInput(err) {
+					t.Fatalf("error = %v, which asks the author to open an issue about their own file", err)
+				}
+			})
+		})
+	}
 }

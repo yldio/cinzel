@@ -49,6 +49,18 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 	return nil
 }
 
+// warnTo writes one warning, with the control characters in it escaped.
+//
+// A warning quotes a key read out of the configuration file, and a key is free
+// to carry an ANSI escape sequence. Written to a terminal as it stands, the
+// sequence is acted on rather than shown: a crafted key erases the warning
+// that names it and leaves a line of its own in its place, so a configuration
+// with an unknown key reads as one without. The errors this tool ends on are
+// escaped for the same reason.
+func warnTo(w io.Writer, warning string) {
+	_, _ = fmt.Fprintln(w, cinzelerror.SafeForTerminal("warning: "+warning))
+}
+
 // New creates a Cli configured with the given writer and version string.
 // Errors and warnings go to os.Stderr; use NewWithErrWriter to send them
 // somewhere else.
@@ -108,7 +120,7 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 					}
 
 					for _, warning := range warnings {
-						_, _ = fmt.Fprintf(cmd.Root().ErrWriter, "warning: %s\n", warning)
+						warnTo(cmd.Root().ErrWriter, warning)
 					}
 
 					if err := p.Parse(opts); err != nil {
@@ -163,7 +175,7 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 					}
 
 					for _, warning := range warnings {
-						_, _ = fmt.Fprintf(cmd.Root().ErrWriter, "warning: %s\n", warning)
+						warnTo(cmd.Root().ErrWriter, warning)
 					}
 
 					if err := p.Unparse(opts); err != nil {

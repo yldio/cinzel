@@ -45,7 +45,7 @@ func (te *TemplateExpr) Parse() (cty.Value, error) {
 		case cty.String, cty.Number, cty.Bool:
 			return value, nil
 		default:
-			return cty.NilVal, fmt.Errorf("unknown type found %s", value.Type().FriendlyName())
+			return cty.NilVal, fmt.Errorf("%w: %s", errUnknownTemplateType, value.Type().FriendlyName())
 		}
 	}
 

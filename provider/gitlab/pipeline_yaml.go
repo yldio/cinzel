@@ -304,6 +304,12 @@ func keyNeedsQuoting(key string) bool {
 		return true
 	}
 
+	// A leading "..." is the document-end marker. yaml.v3 quotes it without
+	// being asked, in single quotes, and the project writes double.
+	if strings.HasPrefix(key, "...") {
+		return true
+	}
+
 	for _, c := range key {
 		switch c {
 		case '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '`':
@@ -341,6 +347,12 @@ func stringNeedsQuoting(v string) bool {
 	// yaml.v3 quotes a value whose ends are whitespace, but reaches for single
 	// quotes to do it, and the project rule is double.
 	if strings.TrimSpace(v) != v {
+		return true
+	}
+
+	// A leading "..." is the document-end marker. yaml.v3 quotes it without
+	// being asked, in single quotes, and the project writes double.
+	if strings.HasPrefix(v, "...") {
 		return true
 	}
 

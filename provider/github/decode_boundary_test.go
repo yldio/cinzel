@@ -190,3 +190,54 @@ func unparseErr(t *testing.T, yaml string) error {
 
 	return New().Unparse(provider.ProviderOps{File: path, OutputDirectory: filepath.Join(dir, "out")})
 }
+
+// The step-only path reads the file a second time, through a reader with no
+// retagging pass of its own, so the boundary above has to be crossed twice.
+// cty resolves a long run of digits to a number it cannot hold every digit of:
+// a 180 digit value came back with its tail replaced by zeros, at exit 0.
+func TestScalarsSurviveTheStepOnlyDecodeBoundary(t *testing.T) {
+	const big = "123456789012345678901234567890123456789012345678901234567890" +
+		"123456789012345678901234567890123456789012345678901234567890" +
+		"123456789012345678901234567890123456789012345678901234567890"
+
+	for _, tc := range []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{
+			name:  "whole number too large for an integer",
+			value: "99999999999999999999",
+			want:  `value = "99999999999999999999"`,
+		},
+		{
+			name:  "whole number far too large for a float to hold exactly",
+			value: big,
+			want:  `value = "` + big + `"`,
+		},
+		{
+			name:  "largest integer that still fits",
+			value: "9223372036854775807",
+			want:  "value = 9223372036854775807",
+		},
+		{
+			// A float is meant to stay a float, so the retagging must not
+			// reach it here either.
+			name:  "float keeps its type",
+			value: "1.5",
+			want:  "value = 1.5",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := unparse(t, "checkout:\n"+
+				"  name: Checkout\n"+
+				"  run: echo hi\n"+
+				"  env:\n"+
+				"    V: "+tc.value+"\n")
+
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("want %s in the output, got:\n%s", tc.want, got)
+			}
+		})
+	}
+}

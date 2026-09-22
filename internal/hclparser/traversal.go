@@ -24,7 +24,7 @@ func (ctyVal *ctyVal) Parse(allowedTypes []string) (any, error) {
 	allowedTypes = append(allowedTypes, "dynamic")
 
 	if len(allowedTypes) > 1 && !slices.Contains(allowedTypes, valueType) {
-		return nil, fmt.Errorf("%s only allows types %s", value, strings.Join(allowedTypes, ","))
+		return nil, fmt.Errorf("%w: %s only allows %s", errTypeNotAllowed, value, strings.Join(allowedTypes, ","))
 	}
 
 	switch valueType {

@@ -20,6 +20,7 @@ import (
 	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/yldio/cinzel/provider/github/step"
 	ghworkflow "github.com/yldio/cinzel/provider/github/workflow"
+	"github.com/zclconf/go-cty/cty"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
@@ -228,13 +229,13 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 		return nil, err
 	}
 
-	if err := writeWorkflowMetadata(workflowBody, doc, comments); err != nil {
+	sections := newBodySections(workflowBody)
+
+	if err := writeWorkflowMetadata(sections, doc, comments); err != nil {
 		return nil, err
 	}
 
-	if len(workflowBody.Attributes()) > 0 || len(workflowBody.Blocks()) > 0 {
-		workflowBody.AppendNewline()
-	}
+	sections.next()
 
 	if err := writeReferenceListAttribute(workflowBody, "jobs", "job", jobRefs); err != nil {
 		return nil, err
@@ -251,8 +252,39 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
+// bodySections writes the blank line between one section of a block and the
+// next.
+//
+// A keyword whose value is a null writes nothing, and a separator appended
+// ahead of it would be left behind as a blank line the next pass does not
+// produce. Counting what the body holds says whether the last separator was
+// ever followed by anything.
+type bodySections struct {
+	body      *hclwrite.Body
+	separated int
+}
+
+func newBodySections(body *hclwrite.Body) *bodySections {
+	return &bodySections{body: body, separated: -1}
+}
+
+// next opens the section about to be written, if anything closed the one
+// before it.
+func (s *bodySections) next() {
+	written := len(s.body.Attributes()) + len(s.body.Blocks())
+
+	if written == 0 || written == s.separated {
+		return
+	}
+
+	s.body.AppendNewline()
+
+	s.separated = written
+}
+
 func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	stepRefs := []string{}
+	sections := newBodySections(jobBody)
 
 	for _, key := range sortedKeys(job) {
 		if key == "steps" {
@@ -265,9 +297,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 			continue
 		}
 
-		if len(jobBody.Attributes()) > 0 || len(jobBody.Blocks()) > 0 {
-			jobBody.AppendNewline()
-		}
+		sections.next()
 
 		hclcomment.WriteLeading(jobBody, comments.at(key).head)
 
@@ -277,9 +307,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 	}
 
 	if len(stepRefs) > 0 {
-		if len(jobBody.Attributes()) > 0 || len(jobBody.Blocks()) > 0 {
-			jobBody.AppendNewline()
-		}
+		sections.next()
 
 		if err := writeReferenceListAttribute(jobBody, "steps", "step", stepRefs); err != nil {
 			return err
@@ -322,6 +350,10 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 					return err
 				}
 			default:
+				if err := checkHCLKeyRoundtrips("service", key); err != nil {
+					return err
+				}
+
 				if err := writeAttributeAny(serviceBody, toHCLKey(key), value); err != nil {
 					return err
 				}
@@ -365,6 +397,10 @@ func writeRunsOn(body *hclwrite.Body, raw any, comments *yamlComments) error {
 	}
 
 	for _, key := range sortedKeys(mapping) {
+		if err := checkHCLKeyRoundtrips("runs-on", key); err != nil {
+			return err
+		}
+
 		if err := writeCommentedAttribute(blockBody, toHCLKey(key), mapping[key], comments.at(key)); err != nil {
 			return err
 		}
@@ -438,7 +474,18 @@ func checkHCLKeyRoundtrips(blockType string, key string) error {
 		return fmt.Errorf("%s key '%s' cannot be written to HCL: an underscore would be read back as a dash", blockType, key)
 	}
 
-	if !hclsyntax.ValidIdentifier(toHCLKey(key)) {
+	return checkHCLIdentifier(blockType, key, toHCLKey(key))
+}
+
+// checkHCLIdentifier rejects a key that does not become the valid HCL
+// identifier written.
+//
+// A matrix axis is the one key written as the author spelled it, because parse
+// leaves a matrix key alone so the "${{ matrix.X }}" references beside it keep
+// resolving. So it survives an underscore, which every other key here does not,
+// and it fails on the same characters they do.
+func checkHCLIdentifier(blockType, key, written string) error {
+	if !hclsyntax.ValidIdentifier(written) {
 		return fmt.Errorf("%s key '%s' cannot be written to HCL: it is not a valid identifier", blockType, key)
 	}
 
@@ -456,15 +503,27 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 		return fmt.Errorf("%s must be an object", blockType)
 	}
 
+	var last *hclwrite.Body
+
 	for _, key := range sortedKeys(mapping) {
 		comment := comments.at(key)
 		hclcomment.WriteLeading(body, comment.head)
 
 		block := body.AppendNewBlock(blockType, nil)
 		blockBody := block.Body()
+		last = blockBody
 
 		if err := writeAttributeAny(blockBody, "name", key); err != nil {
 			return err
+		}
+
+		// An env or input value written with no value under it is a name
+		// GitHub defines as empty, not a name it leaves undefined, so the
+		// null is the value and is written rather than dropped.
+		if mapping[key] == nil {
+			writeNullAttribute(blockBody, "value")
+
+			continue
 		}
 
 		if err := writeCommentedAttribute(blockBody, "value", mapping[key], comment.withoutHead()); err != nil {
@@ -472,7 +531,16 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 		}
 	}
 
-	hclcomment.WriteLeading(body, comments.below())
+	// Inside the last block rather than after them all, which is where parse
+	// reads a block's closing comment from. Written after the blocks it
+	// landed in the surrounding body with a blank line under it, where the
+	// next read found nothing: the comment closing an "env:" mapping survived
+	// one conversion and was gone by the second.
+	if last == nil {
+		last = body
+	}
+
+	hclcomment.WriteLeading(last, comments.below())
 
 	return nil
 }
@@ -481,10 +549,29 @@ func writeAttributeAny(body *hclwrite.Body, attr string, raw any) error {
 	return writeCommentedAttribute(body, attr, raw, nodeComment{})
 }
 
+// writeNullAttribute writes the attribute as an explicit null, for the few
+// places GitHub reads one as a value rather than as an absent key.
+//
+// writeCommentedAttribute drops a null instead of writing one, so the callers
+// that mean it say so here.
+func writeNullAttribute(body *hclwrite.Body, attr string) {
+	body.SetAttributeValue(attr, cty.NullVal(cty.DynamicPseudoType))
+}
+
 // writeCommentedAttribute writes the attribute with whatever comments its YAML
 // key carried: the head run on its own lines above, the inline one after the
 // value. An empty comment writes nothing and leaves the attribute as it was.
 func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment nodeComment) error {
+	// A GitHub job or workflow keyword written with no value under it means
+	// the same as one left out, and parse drops a null written for one. Two of
+	// them are worse: "defaults" and "strategy" are blocks in the schema, so
+	// "defaults = null" is HCL cinzel's own parse refuses to open. The callers
+	// that do mean a null, where GitHub reads one as a value, use
+	// writeNullAttribute.
+	if raw == nil {
+		return nil
+	}
+
 	ctyValue, err := anyToCty(raw)
 	if err != nil {
 		return err
@@ -549,7 +636,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 		return step.Step{}, err
 	}
 
-	s.Comments = stepComments(comments)
+	s.Comments = stepComments(value, comments)
 
 	return s, nil
 }
@@ -561,7 +648,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 // mapping, and a step is one particular shape. Converting here keeps the step
 // package free of the collector, which it would otherwise have to import from
 // the provider that imports it.
-func stepComments(comments *yamlComments) step.Comments {
+func stepComments(value map[string]any, comments *yamlComments) step.Comments {
 	out := step.Comments{Head: comments.above(), Foot: comments.below()}
 
 	if comments == nil {
@@ -585,6 +672,16 @@ func stepComments(comments *yamlComments) step.Comments {
 			entries[name] = step.Comment{Head: comment.head, Line: comment.line}
 		}
 
+		// The mapping's closing comment goes on the entry written last, which
+		// is the block it ends up inside and so where the next parse reads it
+		// from. Dropped here, a comment closing a step's "env:" survived one
+		// conversion and was gone by the second.
+		if name, ok := lastEntry(value[key], nested); ok {
+			entry := entries[name]
+			entry.Foot = nested.foot
+			entries[name] = entry
+		}
+
 		if len(entries) == 0 {
 			continue
 		}
@@ -597,6 +694,34 @@ func stepComments(comments *yamlComments) step.Comments {
 	}
 
 	return out
+}
+
+// lastEntry names the key a nested mapping's closing comment belongs on: the
+// one written last, which is the block the comment ends up inside.
+//
+// Read off the mapping itself rather than off the comments beside it, because
+// the comment tree holds only the keys that carried one: a mapping whose last
+// entry has no comment of its own still ends somewhere, and that is the block
+// the closing comment goes in. The blocks are written in sorted order by
+// writeNameValueBlocks, so the last one is the greatest key.
+func lastEntry(raw any, nested *yamlComments) (string, bool) {
+	if nested == nil || nested.foot == "" {
+		return "", false
+	}
+
+	mapping, ok := toStringAnyMap(raw)
+
+	if !ok {
+		return "", false
+	}
+
+	keys := sortedKeys(mapping)
+
+	if len(keys) == 0 {
+		return "", false
+	}
+
+	return keys[len(keys)-1], true
 }
 
 func stepIdentifier(idx int, stepMap map[string]any, used map[string]struct{}) string {
@@ -686,7 +811,7 @@ func stepFingerprint(stepMap map[string]any, comments *yamlComments) string {
 	// what is written on them are two steps, and collapsing them into one
 	// block drops whichever comment came second. The comments live beside the
 	// map rather than in it, so they are marshalled alongside.
-	c, _ := json.Marshal(stepComments(comments))
+	c, _ := json.Marshal(stepComments(stepMap, comments))
 
 	return string(b) + string(c)
 }

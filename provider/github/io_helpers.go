@@ -14,6 +14,7 @@ import (
 	"github.com/yldio/cinzel/provider/github/step"
 	ctyyaml "github.com/zclconf/go-cty-yaml"
 	"github.com/zclconf/go-cty/cty"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 func resolveInputPath(opts provider.ProviderOps) (string, error) {
@@ -74,7 +75,33 @@ func workflowExt(opts provider.ProviderOps) string {
 	return ".yaml"
 }
 
+// keepWholeNumbersExactInYAML runs the retagging pass over the bytes rather
+// than over a node the caller already holds.
+//
+// parseYAMLDocument reads the file with yaml.v3 and retags a run of digits too
+// long for an integer, so the digits survive as text. The step-only path below
+// reads the same file again through a second reader, which has no such pass:
+// cty resolves the run to a number it cannot hold every digit of, so a 180
+// digit ID came back with its tail replaced by zeros, at exit 0. Running the
+// pass over the bytes first puts the two readers back on the same document.
+func keepWholeNumbersExactInYAML(content []byte) ([]byte, error) {
+	var node yamlv3.Node
+
+	if err := yamlv3.Unmarshal(content, &node); err != nil {
+		return nil, err
+	}
+
+	keepWholeNumbersExact(&node)
+
+	return yamlv3.Marshal(&node)
+}
+
 func parseStepsFromYAML(content []byte) ([]step.Step, error) {
+	content, err := keepWholeNumbersExactInYAML(content)
+	if err != nil {
+		return nil, err
+	}
+
 	// The document is read as a whole rather than as a map of a single element
 	// type: a map forces every step to unify to one type, so two steps that do
 	// not carry exactly the same keys would be rejected outright.
@@ -92,6 +119,19 @@ func parseStepsFromYAML(content []byte) ([]step.Step, error) {
 	}
 
 	rawMap := val.AsValueMap()
+
+	// The step-only path is the end of the detection chain, so every document
+	// that is neither a workflow nor an action arrives here — a dependabot
+	// config and an issue template among them. A step is a mapping, so a
+	// document holding anything else at the top is not a set of steps. Handing
+	// one to the decoder anyway came back "not a valid type", which aborted the
+	// whole directory it sat in before the workflows beside it were reached.
+	for _, v := range rawMap {
+		if v.IsNull() || !v.IsKnown() || !v.Type().IsObjectType() {
+			return nil, nil
+		}
+	}
+
 	ids := make([]string, 0, len(rawMap))
 
 	for id := range rawMap {
@@ -142,6 +182,46 @@ func checkFilenameStaysInside(filename string) error {
 
 	if clean := path.Clean(slashed); clean == ".." || strings.HasPrefix(clean, "../") {
 		return fmt.Errorf("%w: %s", errFilenameEscapes, filename)
+	}
+
+	return nil
+}
+
+// checkOutputPaths refuses two definitions that write one file. It is the
+// filename guards' counterpart at the point the extension is known: an action
+// is written to "<filename>/action.yml" and a workflow to "<filename>.yml", so
+// a workflow called "build/action" lands exactly where the action called
+// "build" does. Each kind compared its own filenames against its own kind, and
+// compared the filenames rather than the paths they become, so neither saw the
+// other and the second write landed on the first.
+//
+// Run before anything is written, so a collision leaves the output directory as
+// it was. The comparison folds case, for the reason claimFilename gives.
+func checkOutputPaths(workflows []WorkflowYAMLFile, actions []ActionYAMLFile, outputDir, ext string) error {
+	taken := make(map[string]string, len(workflows)+len(actions))
+
+	claim := func(path, filename string) error {
+		key := strings.ToLower(filepath.Clean(path))
+
+		if other, ok := taken[key]; ok {
+			return fmt.Errorf("%w: '%s' and '%s' both write to '%s'", errDuplicateFilename, other, filename, path)
+		}
+
+		taken[key] = filename
+
+		return nil
+	}
+
+	for _, w := range workflows {
+		if err := claim(filepath.Join(outputDir, w.Filename+ext), w.Filename); err != nil {
+			return err
+		}
+	}
+
+	for _, a := range actions {
+		if err := claim(filepath.Join(outputDir, a.Filename, "action.yml"), a.Filename); err != nil {
+			return err
+		}
 	}
 
 	return nil

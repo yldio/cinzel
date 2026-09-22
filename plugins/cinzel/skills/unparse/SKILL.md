@@ -9,7 +9,7 @@ argument-hint: [provider] [flags]
 
 Convert YAML back to HCL definitions for the `$0` provider.
 
-1. Run `go run ./... $0 unparse --file .github/workflows --output-directory ./cinzel $ARGUMENTS`
+1. Run `cinzel $0 unparse --directory .github/workflows --output-directory ./cinzel $ARGUMENTS`
 2. Show the git diff of generated HCL files
 3. If there are changes, summarize what changed
 4. If there are no changes, confirm output is up to date

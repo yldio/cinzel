@@ -35,6 +35,9 @@ jobs:
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
         with:
           app-id: "${{ secrets.RELEASE_APP_ID }}"
+          # Everything this token does is contents-level: tag, commit the changelog,
+          # create the release, upload its assets and push the homebrew cask. Without
+          # an explicit scope the token carries every permission the app was granted.
           permission-contents: write
           private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
           repositories: "cinzel,homebrew-cinzel"

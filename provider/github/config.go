@@ -13,9 +13,10 @@ type hclNamedBlock struct {
 	Name  hcl.Expression `hcl:"name"`
 	Value hcl.Expression `hcl:"value"`
 
-	// Carried only for its source range, which is where the comment written
-	// above the block is found. The decode fills it with what the two
-	// attributes above did not take, which for these blocks is nothing.
+	// Carries the source range the comment written above the block is found
+	// at, and whatever the two attributes above did not take. Nothing is meant
+	// to land in it: what does is an attribute nobody declared, which the parse
+	// reports rather than drops.
 	Body hcl.Body `hcl:",remain"`
 }
 

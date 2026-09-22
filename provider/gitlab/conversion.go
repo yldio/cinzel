@@ -4,6 +4,7 @@
 package gitlab
 
 import (
+	"math"
 	"math/big"
 	"reflect"
 
@@ -62,6 +63,10 @@ func anyToCty(value any) (cty.Value, error) {
 		return cty.NullVal(cty.DynamicPseudoType), nil
 	}
 
+	if err := rejectInfinity(value); err != nil {
+		return cty.NilVal, err
+	}
+
 	if v, ok := value.(cty.Value); ok {
 		if !v.IsKnown() {
 			return cty.NullVal(cty.DynamicPseudoType), nil
@@ -104,9 +109,9 @@ func anyToCtyDirect(value any) (cty.Value, bool) {
 	case uint64:
 		return cty.NumberUIntVal(v), true
 	case float32:
-		return cty.NumberFloatVal(float64(v)), true
+		return ctyFloat(float64(v))
 	case float64:
-		return cty.NumberFloatVal(v), true
+		return ctyFloat(v)
 	case []any:
 		vals := make([]cty.Value, 0, len(v))
 
@@ -208,6 +213,57 @@ func ctyToAnyViaYAML(val cty.Value) (any, error) {
 	}
 
 	return out, nil
+}
+
+// rejectInfinity refuses ".inf", at the top level or anywhere inside a list or
+// a mapping.
+//
+// hclwrite has no token for an infinity and writes one as "+ Inf", which is not
+// an HCL expression at all: the file went out with exit 0 and cinzel's own
+// parse then could not read it back. actionlint refuses ".inf" outright,
+// reporting `invalid float value`. A NaN is declined further down instead,
+// where cty would panic on it before anything could report it.
+func rejectInfinity(value any) error {
+	switch v := value.(type) {
+	case float32:
+		return infinityError(float64(v))
+	case float64:
+		return infinityError(v)
+	case []any:
+		for _, item := range v {
+			if err := rejectInfinity(item); err != nil {
+				return err
+			}
+		}
+	case map[string]any:
+		for _, item := range v {
+			if err := rejectInfinity(item); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func infinityError(v float64) error {
+	if math.IsInf(v, 0) {
+		return errInfiniteNumber
+	}
+
+	return nil
+}
+
+// ctyFloat converts a float, declining a NaN. cty.NumberFloatVal panics on one
+// rather than returning an error, and ".nan" is a float any YAML document may
+// carry, so declining here sends it down the YAML path instead, which reports
+// it as the unsupported value it is.
+func ctyFloat(v float64) (cty.Value, bool) {
+	if math.IsNaN(v) {
+		return cty.NilVal, false
+	}
+
+	return cty.NumberFloatVal(v), true
 }
 
 func anyToCtyViaYAML(value any) (cty.Value, error) {

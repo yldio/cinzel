@@ -1,44 +1,53 @@
 # GitHub Actions
 
-## Usage
+Converts between HCL and GitHub Actions YAML: workflows, composite actions, and
+files that hold nothing but steps.
 
 ```sh
-cinzel github -h
+cinzel github unparse --file .github/workflows/ci.yaml --output-directory ./cinzel  # YAML -> HCL
+cinzel github parse   --file ./cinzel/ci.hcl --output-directory .github/workflows   # HCL -> YAML
 ```
 
-### Parse HCL to YAML
+Add `--dry-run` to print instead of writing. `cinzel github -h` lists every flag.
 
-Convert HCL files containing `workflow`, `job`, `step`, and `action` blocks into GitHub Actions YAML files.
+## What it looks like
 
-```sh
-cinzel github parse --file ./cinzel/steps.hcl --output-directory .github/workflows
+This workflow:
+
+```yaml
+name: CI
+on:
+  push:
+    branches: [main]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: go test ./...
 ```
 
-### Unparse YAML to HCL
-
-Convert GitHub Actions workflow YAML, composite action YAML, or step-only YAML back to HCL.
-
-```sh
-cinzel github unparse --file ./.github/workflows/steps.yaml --output-directory ./cinzel
-```
-
-Use `--dry-run` to print generated files to stdout.
-
-## HCL shape: workflows
+becomes this HCL:
 
 ```hcl
-step "checkout" {
-  uses {
-    action  = "actions/checkout"
-    version = "v4"
+workflow "ci" {
+  filename = "ci"
+
+  name = "CI"
+
+  on "push" {
+    branches = ["main"]
   }
+
+  jobs = [
+    job.build_and_test,
+  ]
 }
 
-step "test" {
-  run = "go test ./..."
-}
+job "build_and_test" {
+  id = "build-and-test"
 
-job "build" {
   runs_on {
     runners = "ubuntu-latest"
   }
@@ -49,23 +58,61 @@ job "build" {
   ]
 }
 
-workflow "ci" {
-  filename = "ci"
+step "checkout" {
+  ignore_id = true
 
-  on "push" {
-    branches = ["main"]
+  uses {
+    action  = "actions/checkout"
+    version = "v4"
   }
+}
 
-  jobs = [
-    job.build,
-  ]
+step "test" {
+  ignore_id = true
+
+  name = "Test"
+
+  run = "go test ./..."
 }
 ```
 
-## HCL shape: composite actions
+Five things in there are worth knowing about up front, and they cover most of
+the surprises:
+
+**Steps are top-level blocks, referred to by name.** A workflow lists jobs and a
+job lists steps, both as references — `job.build_and_test`, `step.checkout` —
+rather than nesting them. Rename a block and every reference to it follows.
+Write a step once and several jobs can use it.
+
+**Names become block labels, and labels cannot hold a `-`.** So
+`build-and-test` is written as `job "build_and_test"` with `id =
+"build-and-test"` beside it. The `id` is what goes back into the YAML, and a
+`needs` pointing at the job follows the rename. Leave the `id` alone and the
+name survives the round trip.
+
+**`ignore_id = true` means "this step had no `id:`".** Parse gives a step the
+block label as its `id` by default, which is convenient when you are writing
+HCL by hand. A step converted from YAML that never had one carries `ignore_id`
+so it does not gain an `id` it did not ask for. Delete the line if you want the
+default back.
+
+**`needs:` is spelled `depends_on`.** It holds `job.<label>` references, same as
+`jobs` and `steps` do.
+
+**`${{ }}` doubles its `$`.** `${{ github.sha }}` in YAML becomes `$${{
+github.sha }}` in HCL, so HCL does not try to interpolate it. Parse puts it
+back. Never write the escape by hand — the converter owns it in both
+directions.
+
+## Composite actions
+
+An action is the other document type. It uses `input`, `output` and `runs`
+blocks, and shares the same `step` blocks a workflow uses:
 
 ```hcl
-step "setup" {
+step "setup_node" {
+  ignore_id = true
+
   name = "Setup Node"
 
   uses {
@@ -80,118 +127,128 @@ step "setup" {
 }
 
 step "build" {
+  ignore_id = true
+
   name = "Build"
-  run  = "npm run build"
+
+  run = "npm run build"
 }
 
-action "my_action" {
-  filename    = "my-action"
-  name        = "My Composite Action"
+action "act" {
+  filename = "act"
+
   description = "Runs setup and build"
 
+  name = "My Composite Action"
+
   input "node_version" {
+    default     = "20"
     description = "Node.js version"
     required    = true
-    default     = "20"
-  }
-
-  output "result" {
-    description = "Build result"
-    value       = "$${{ steps.build.outputs.result }}"
   }
 
   runs {
     using = "composite"
-    steps = [step.setup, step.build]
+
+    steps = [
+      step.setup_node,
+      step.build,
+    ]
   }
 }
 ```
 
-Actions are written to `<output-directory>/<filename>/action.yml` during parse.
+Parse writes this to `<output-directory>/act/action.yml`, since that is where
+GitHub looks for one. `runs.using` may be `composite`, `node20` or `docker`.
 
-## Notes
+Unparse works out which document it is looking at on its own: `on` and `jobs`
+make it a workflow, `name` and `runs` without those make it an action, and
+anything else is read as a file of steps.
 
-- `workflow.jobs`, `job.steps`, and `action.runs.steps` are explicit references (`job.<id>` and `step.<id>`).
-- YAML unparse generates stable HCL identifiers (sanitized when YAML keys contain `-`).
-- Document type is auto-detected during unparse: workflow (has `on`/`jobs`), action (has `name`/`runs`, no `on`/`jobs`), or step-only.
-- Parse schema is defined by typed HCL structs in `provider/github/config.go`; avoid schema key allowlist tables.
-- Unparse schema validation uses strict typed YAML decode (`goccy/go-yaml` strict mode), not manual key allowlists.
+## Pinning and upgrading
 
-### Terminology distinction
+These two are GitHub-only, and operate on HCL in place:
 
-- HCL attribute: `depends_on`
-- GitHub YAML key: `needs`
-- Mapping rule: `depends_on` <-> `needs:`
-- HCL `needs` is not supported.
+```sh
+cinzel github pin       # rewrite every action tag as the commit SHA it points at
+cinzel github upgrade   # bump to the latest version, then pin
+```
 
-## Validation rules
+Both take `--dry-run`, `--file` and `--directory` (default `cinzel`).
+`upgrade --parse` regenerates the YAML afterwards. No token is needed for
+public actions; `GITHUB_TOKEN` raises the rate limit from 60 to 5000 an hour.
 
-The same rules are enforced in both directions (HCL → YAML and YAML → HCL):
+## What gets checked
 
-- A `workflow` must define at least one `on` trigger and at least one job reference.
-- A normal `job` (without `uses`) must define `runs_on` and at least one referenced step.
-- A reusable `job` (with `uses`) cannot define `runs_on` or `steps`.
-- `with` and `secrets` are only valid for reusable jobs (`uses` set).
-- `permissions` scopes and levels are validated against the known GitHub Actions set.
-- `on.schedule` cron expressions are validated (5-field format, value ranges).
-- `${{ }}` expression syntax is checked for balanced delimiters and non-empty bodies.
-- Step `uses` references are validated for correct format (`owner/repo@ref`, `./path`, or `docker://image`).
-- An `action` must define `name` and `runs.using`.
+The same rules apply in both directions, so HCL that converts is HCL that
+converts back:
 
-## Testing
+- A `workflow` needs at least one `on` trigger and at least one job.
+- A normal `job` needs `runs_on` and at least one step. A reusable one (with
+  `uses`) must have neither, and is the only kind that takes `with` or
+  `secrets`.
+- An `action` needs `name` and `runs.using`.
+- `permissions` scopes and levels are checked against the known set.
+- `on.schedule` crons are checked for the 5-field form and sane ranges.
+- `${{ }}` is checked for balanced delimiters and a non-empty body.
+- A step's `uses` must read as `owner/repo@ref`, `./path` or `docker://image`.
 
-Test coverage includes golden fixtures, a fixture-driven compatibility matrix under `provider/github/testdata/fixtures/matrix`, strict validation checks, semantic roundtrip tests, and benchmarks under `provider/github/*_test.go`.
-
-## Fixture matrix workflow
-
-- Add new parse scenarios in `provider/github/testdata/fixtures/matrix/parse`.
-- Add new unparse scenarios in `provider/github/testdata/fixtures/matrix/unparse`.
-- For valid parse scenarios, add `<name>.hcl` and `<name>.golden.yaml`.
-- For invalid parse scenarios, add `<name>.hcl` and `<name>.error.txt`.
-- For valid unparse scenarios, add `<name>.yaml` and `<name>.roundtrip.golden.yaml`.
-- For invalid unparse scenarios, add `<name>.yaml` and `<name>.error.txt`.
-- Keep `.error.txt` messages focused on stable substrings, not full error text.
+A file that fails one of these stops with an error naming the problem, rather
+than writing YAML that GitHub would reject.
 
 ## Coverage
 
-- HCL `workflow`, `job`, `step`, and `action` reference graph with explicit references (`workflow.jobs`, `job.steps`, `job.depends_on`, `action.runs.steps`).
-- Action support for all `runs.using` types: `composite`, `node20`, and `docker`, in both parse and unparse directions.
-- `action` blocks support `input`, `output`, `runs`, and `branding` sub-blocks, written to `<filename>/action.yml`.
-- Common workflow triggers and event maps, including empty event blocks for trigger-only events.
-- YAML workflow `on` shorthand forms (`on: push` and `on: [push, pull_request]`) are normalized during unparse.
-- YAML `on.schedule` list form is normalized to HCL `cron` list in `on "schedule"` blocks.
-- Standard jobs (`runs-on`, `steps`) and reusable jobs (`uses`, `with`, `secrets`) with strict validation.
-- Job-level common keys parse/unparse: `if`, `timeout-minutes`, `continue-on-error`, `permissions`, `defaults`, `concurrency`, `container`, `services`, `environment`, and `strategy` (`matrix`, `include`, `exclude`, `fail-fast`, `max-parallel`).
-- Step `run` and structured `uses { action, version }` parsing and unparsing.
-- GitHub expression strings (`${{ ... }}`) are preserved across workflow, job, and step fields in parse/unparse flows.
-- Expression syntax validation (balanced `${{ }}` delimiters, non-empty bodies).
-- Permissions validation (known scopes and levels).
-- Cron expression validation (5-field format, value ranges).
-- Uses reference validation (`owner/repo@ref`, `./path`, `docker://image`).
-- Strategy matrix normalization for supported shapes (`matrix.variable` in HCL and matrix axes in YAML).
-- Auto-detection of document type during unparse (workflow, action, or step-only).
-- Semantic roundtrip stability for covered fixtures (HCL → YAML → HCL → YAML).
+Workflows cover the common triggers and event maps, including the `on: push`
+and `on: [push, pull_request]` shorthands and the `on.schedule` list form.
+
+Jobs cover `if`, `timeout-minutes`, `continue-on-error`, `permissions`,
+`defaults`, `concurrency`, `container`, `services`, `environment` and
+`strategy` (with `matrix`, `include`, `exclude`, `fail-fast` and
+`max-parallel`).
+
+Steps cover `run` and the structured `uses { action, version }` form.
+
+Actions cover `input`, `output`, `runs` and `branding` for all three
+`runs.using` values.
+
+Not every schema corner is covered. If you hit one, the converter stops and
+says so rather than guessing.
 
 ## Known limitations
 
-- Keys inside `container`, `defaults`, `concurrency` and `environment` become HCL identifiers, and parse reads `_` back as `-`. A key holding an underscore or a character outside an identifier (a dot, say) is rejected on unparse rather than written out corrupted. No key in the GitHub schema for these blocks is affected.
+**Round trips are semantically stable, not byte-stable.** Key order and
+formatting normalise even where the meaning is untouched.
 
-- Not every GitHub Actions schema edge case or uncommon field combination is covered. The most common workflow, job, step, and action fields are supported.
-- Roundtrip output is semantically stable but not byte-stable: key ordering and formatting may normalize even when the meaning is preserved.
+**Keys inside `container`, `defaults`, `concurrency` and `environment` become
+HCL identifiers**, and parse reads `_` back as `-`. A key holding an underscore
+or a dot is refused on unparse rather than written out corrupted. No key in
+GitHub's own schema for these blocks is affected.
 
-## Output guarantees
+## Generated output
 
-- Parse output uses unquoted `on` (never `"on"`).
-- Parse output uses 2-space YAML indentation.
-- Parse output top-level key order is deliberate (`name`, `on`, `jobs`, then remaining keys).
-- Parse output includes cinzel provider markers in generated YAML headers (`generated-by` and `cinzel-provider`).
-- Parse cleanup prunes stale workflow YAML only when marker ownership matches the current provider.
-- Unparse output formats HCL with clear section separators and trailing commas in reference lists.
-- Identifier normalization is stable: YAML names are sanitized to valid HCL identifiers when needed.
-- A job whose YAML key is sanitized to make the block referenceable (`build-and-test` becomes the label `build_and_test`) keeps the original key in an `id` attribute, so the key and any `needs` referring to it survive the roundtrip.
-- Expression escaping is stable in HCL output (`${{ ... }}` in YAML becomes `$${{ ... }}` in HCL string literals).
+Parse writes `generated-by: cinzel` and `cinzel-provider: github` at the top of
+every file. That is how a later run recognises its own output: stale YAML is
+pruned only when both markers match. If a file you expected to disappear is
+still there, check its markers first, then the output directory's permissions.
 
-## Troubleshooting stale files
+Beyond that: `on` is written unquoted, indentation is two spaces, and the
+top-level key order is `name`, `on`, `jobs`, then the rest.
 
-- If a stale YAML file is not removed, confirm it still has cinzel markers and matches the current provider (`generated-by: cinzel` and `cinzel-provider: github`).
-- If marker checks pass but deletion still fails, confirm output directory write/delete permissions for the current user/CI runner.
+## Contributing
+
+Tests live in `provider/github/*_test.go`, with fixtures under
+`testdata/fixtures/matrix`. To add a case, drop the files in and it is picked
+up:
+
+| Scenario | Files |
+| --- | --- |
+| Valid parse | `parse/<name>.hcl` + `<name>.golden.yaml` |
+| Invalid parse | `parse/<name>.hcl` + `<name>.error.txt` |
+| Valid unparse | `unparse/<name>.yaml` + `<name>.roundtrip.golden.yaml` |
+| Invalid unparse | `unparse/<name>.yaml` + `<name>.error.txt` |
+
+Keep `.error.txt` to a stable substring rather than the full message.
+
+The HCL schema is the typed structs in [`config.go`](config.go), not an
+allowlist table; unparse validates by strict typed YAML decode. Adding a field
+means the struct, then the conversion, then a fixture.

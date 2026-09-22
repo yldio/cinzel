@@ -28,6 +28,11 @@ func TestValidateCron(t *testing.T) {
 		{name: "lower case name", expr: "0 9 * * mon"},
 		{name: "day-of-week 7 is sunday", expr: "0 9 * * 7"},
 		{name: "name in a list", expr: "0 9 * * MON,FRI"},
+		// A step above the field's own size fires once and no more, which is
+		// odd but not wrong, and GitHub takes it. Checking the step against the
+		// field's range used to turn these away.
+		{name: "step larger than the field", expr: "*/90 * * * *"},
+		{name: "range step larger than the range", expr: "0 0-23/30 * * *"},
 	}
 
 	for _, tt := range valid {
@@ -57,6 +62,16 @@ func TestValidateCron(t *testing.T) {
 		{name: "not a name at all", expr: "0 9 * * FOO", wantErr: "invalid value"},
 		{name: "invalid character", expr: "abc * * * *", wantErr: "invalid value"},
 		{name: "inverted range", expr: "0 17-9 * * *", wantErr: "greater than end"},
+		// A step is how far to jump, so zero never advances and a negative one
+		// goes backwards. Both used to pass: the wildcard form was checked
+		// against the field's value range, where 0 is a valid minute, and the
+		// range form was only checked for being an integer at all.
+		{name: "a zero step on a wildcard", expr: "*/0 * * * *", wantErr: "must be a positive number"},
+		{name: "a zero step on a range", expr: "0-59/0 * * * *", wantErr: "must be a positive number"},
+		{name: "a negative step on a wildcard", expr: "*/-5 * * * *", wantErr: "must be a positive number"},
+		{name: "a negative step on a range", expr: "0-59/-5 * * * *", wantErr: "must be a positive number"},
+		{name: "a zero step on a name range", expr: "0 0 1 JAN-JUN/0 *", wantErr: "must be a positive number"},
+		{name: "a name as a range step", expr: "0 0 1 JAN-JUN/MON *", wantErr: "invalid step"},
 	}
 
 	for _, tt := range invalid {

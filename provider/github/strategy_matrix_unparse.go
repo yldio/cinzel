@@ -33,6 +33,10 @@ func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[str
 			continue
 		}
 
+		if err := checkHCLKeyRoundtrips("strategy", key); err != nil {
+			return err
+		}
+
 		if err := writeAttributeAny(strategyBody, toHCLKey(key), value); err != nil {
 			return err
 		}
@@ -80,6 +84,10 @@ func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[strin
 			vBody.SetAttributeValue("name", cty.StringVal(axis.Name))
 			vBody.SetAttributeRaw("value", traversalTokens("variable", varName))
 			continue
+		}
+
+		if err := checkHCLIdentifier("matrix", axis.Name, axis.Name); err != nil {
+			return err
 		}
 
 		if err := writeAttributeAny(matrixBody, axis.Name, axis.Value); err != nil {

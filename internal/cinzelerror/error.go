@@ -14,34 +14,10 @@ import (
 // Sentinel errors for workflow and HCL validation.
 var (
 	ErrWorkflowFilenameRequired = errWorkflowFilenameRequired()
-	ErrOnlyHclFiles             = errOnlyHclFiles()
-	ErrOnRestriction            = errOnRestriction()
-	ErrSecretsRestriction       = errSecretsRestriction()
-	ErrWorkflowEmptyOn          = errWorkflowEmptyOn()
 	ErrOpenIssue                = errOpenIssue()
 )
 
 func errWorkflowFilenameRequired() error { return errors.New("`workflow` requires a filename") }
-func errOnlyHclFiles() error             { return errors.New("only HCL files are allowed") }
-func errOnRestriction() error            { return errors.New("`on` can only have Events or Event") }
-
-func errSecretsRestriction() error {
-	return errors.New("only `secrets` blocks or one single `secret` attribute is allowed")
-}
-
-// ErrWorkflowEmptyJobs returns an error indicating the workflow has no jobs.
-func ErrWorkflowEmptyJobs(workflowId string) error {
-	return fmt.Errorf("workflow `%s` requires at least one job", workflowId)
-}
-
-func errWorkflowEmptyOn() error {
-	return errors.New("has to have at least one `on` event")
-}
-
-// ErrJobEmptySteps returns an error indicating the job has no steps.
-func ErrJobEmptySteps(jobId string) error {
-	return fmt.Errorf("job `%s` requires at least one `step`", jobId)
-}
 
 // ProcessHCLDiags converts HCL diagnostics into a single joined error.
 //

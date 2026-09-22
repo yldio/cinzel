@@ -6,6 +6,7 @@ package gitlab
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -97,6 +98,14 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 			return nil, nil, fmt.Errorf("duplicate job name '%s'", key)
 		}
 
+		// A leading dot marks a hidden key, which GitLab never runs and the
+		// unparse direction reads back as a template. A job claiming one was
+		// written as a hidden key all the same, so it came back a template and
+		// every reference to it broke on the way in.
+		if strings.HasPrefix(key, ".") {
+			return nil, nil, fmt.Errorf("error in job '%s': %w: '%s'", j.ID, errJobIDHidden, key)
+		}
+
 		keys[j.ID] = key
 		jobs[key] = jobMap
 	}
@@ -157,6 +166,14 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 			return nil, nil, fmt.Errorf("error in template '%s': %w", t.ID, err)
 		}
 
+		// The dot is added below, so an "id" carrying one of its own was
+		// doubled rather than refused: ".base" went out as the key "..base",
+		// a name nobody wrote, at exit 0. A job's "id" already refuses its
+		// own dotted case.
+		if strings.HasPrefix(key, ".") {
+			return nil, nil, fmt.Errorf("error in template '%s': %w: '%s'", t.ID, errTemplateIDDotted, key)
+		}
+
 		if _, taken := jobs["."+key]; taken {
 			return nil, nil, fmt.Errorf("duplicate template name '%s'", key)
 		}
@@ -171,7 +188,10 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 		return nil, nil, err
 	}
 
-	for name, job := range jobs {
+	// By name rather than by map range: two jobs both named after a keyword
+	// reported whichever one the range reached first, so the same file named a
+	// different job on a rerun.
+	for _, name := range sortedKeys(jobs) {
 		// The reserved keys are already in the map. A job named after one of
 		// them used to overwrite it, so "stages" as a job name took the stage
 		// list out of the file and the command still exited 0.
@@ -184,7 +204,7 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 			return nil, nil, fmt.Errorf("%w: '%s'", errJobNamedAfterKeyword, name)
 		}
 
-		pipeline[name] = job
+		pipeline[name] = jobs[name]
 	}
 
 	return pipeline, pipelineComments(body, keys, variableNames, variables, hv), nil
@@ -342,8 +362,8 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 			return nil, fmt.Errorf("error in variable '%s': %w", b.ID, err)
 		}
 
-		if nameRaw == nil || value == nil {
-			return nil, fmt.Errorf("variable '%s' must include 'name' and 'value'", b.ID)
+		if nameRaw == nil {
+			return nil, fmt.Errorf("variable '%s' must include 'name'", b.ID)
 		}
 
 		name, ok := nameRaw.(string)
@@ -354,7 +374,16 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 
 		// A variable carrying anything beyond its value is written back as
 		// an object; a bare one stays a plain scalar.
-		expanded := map[string]any{"value": value}
+		//
+		// GitLab takes a variable with a description and no value: the name is
+		// listed on the manual-pipeline form with the value field left blank.
+		// The unparse direction wrote exactly that and this refused it, so the
+		// tool would not read back a file it had just written.
+		expanded := map[string]any{}
+
+		if value != nil {
+			expanded["value"] = value
+		}
 
 		for _, attr := range [...]struct {
 			name string
@@ -369,9 +398,24 @@ func parseVariableBlocks(blocks []hclVariableBlock, names map[string]string, hv 
 			}
 		}
 
+		// A job and a template already refuse a duplicate name. Two variable
+		// blocks naming the same environment variable wrote the last one and
+		// dropped the rest without a word, so a pipeline shipped with a value
+		// nobody in the file meant to set.
+		if _, taken := result[name]; taken {
+			return nil, fmt.Errorf("duplicate variable name '%s'", name)
+		}
+
 		names[b.ID] = name
 
-		if len(expanded) == 1 {
+		// Nothing was written at all: no value, and nothing describing one
+		// either. That names no variable GitLab would list, so it is still
+		// refused.
+		if len(expanded) == 0 {
+			return nil, fmt.Errorf("variable '%s' must include 'value' or a description of one", b.ID)
+		}
+
+		if value != nil && len(expanded) == 1 {
 			result[name] = value
 
 			continue
@@ -751,12 +795,36 @@ func parseNeedBlocks(blocks []hclNeedBlock, hv *hclparser.HCLVars) ([]any, error
 	for _, block := range blocks {
 		need := make(map[string]any)
 
-		// A need block is one entry of the YAML "needs" list, and an entry
-		// names a single job. A longer list used to be dropped without a
-		// word: with "pipeline" or "project" also set the entry still looked
-		// valid downstream, so the file was written and the command exited 0
-		// with the jobs it was supposed to wait for gone.
-		if refs, err := parseReferenceList(block.Job, "job"); err != nil {
+		// A need waiting on another pipeline names a job this file does not
+		// declare, so its "job" is that pipeline's own name written as a
+		// string rather than a reference to a job here. Written as a
+		// reference it was sanitized like a local label, so "my job" came
+		// back "my_job", and a name a local job also carried followed that
+		// job's renames.
+		if isJobNameString(block.Job) {
+			name, err := parseAttr(block.Job, hv)
+			if err != nil {
+				return nil, fmt.Errorf("need: job: %w", err)
+			}
+
+			// No "job" at all leaves the key unset, the way it was before:
+			// a need naming neither a job nor an upstream pipeline is
+			// reported by the pipeline check, which names the job it is in.
+			if name != nil {
+				text, ok := name.(string)
+
+				if !ok || text == "" {
+					return nil, fmt.Errorf("need: job: %w", errNeedsJobEmpty)
+				}
+
+				need["job"] = text
+			}
+		} else if refs, err := parseReferenceList(block.Job, "job"); err != nil {
+			// A need block is one entry of the YAML "needs" list, and an entry
+			// names a single job. A longer list used to be dropped without a
+			// word: with "pipeline" or "project" also set the entry still
+			// looked valid downstream, so the file was written and the command
+			// exited 0 with the jobs it was supposed to wait for gone.
 			return nil, fmt.Errorf("need: job: %w", err)
 		} else if len(refs) > 1 {
 			return nil, fmt.Errorf("need: job: %w, got %d", errNeedJobNotSingle, len(refs))
@@ -1165,6 +1233,23 @@ func parseAttr(expr hcl.Expression, hv *hclparser.HCLVars) (any, error) {
 	}
 
 	return ctyToAny(hp.Result())
+}
+
+// isJobNameString reports whether a need block's "job" is written as a plain
+// name rather than as a reference to a job declared here. Both shapes are
+// read: a file written before remote names were kept verbatim still holds a
+// reference.
+func isJobNameString(expr hcl.Expression) bool {
+	if expr == nil {
+		return false
+	}
+
+	switch expr.(type) {
+	case *hclsyntax.ScopeTraversalExpr, *hclsyntax.TupleConsExpr:
+		return false
+	default:
+		return true
+	}
 }
 
 func parseReferenceList(expr hcl.Expression, expectedRoot string) ([]string, error) {

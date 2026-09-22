@@ -122,9 +122,13 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 			return err
 		}
 
+		// Named, the way the conversion error below is. A directory run reads
+		// every ".yaml" in the tree, and the parser's complaint carries a line
+		// and column but no file: on its own it says a pipeline somewhere
+		// failed to parse without saying which.
 		doc, err := parseYAMLDocument(yamlBytes)
 		if err != nil {
-			return err
+			return fmt.Errorf("error in file '%s': %w", file, err)
 		}
 
 		if !classifyPipelineDocument(doc) {

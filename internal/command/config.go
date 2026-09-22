@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v3"
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/provider"
 	"gopkg.in/yaml.v3"
 )
@@ -79,7 +80,7 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	var doc yaml.Node
 
 	if err := yaml.Unmarshal(configBytes, &doc); err != nil {
-		return providerCommandConfig{}, nil, fmt.Errorf("invalid %s: %w", path, err)
+		return providerCommandConfig{}, nil, configError("invalid %s: %w", path, err)
 	}
 
 	if len(doc.Content) == 0 {
@@ -89,7 +90,7 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	root := doc.Content[0]
 
 	if root.Kind != yaml.MappingNode {
-		return providerCommandConfig{}, nil, fmt.Errorf("%s must contain a YAML mapping", path)
+		return providerCommandConfig{}, nil, configError("%s must contain a YAML mapping", path)
 	}
 
 	warnings := make([]string, 0)
@@ -100,7 +101,7 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	}
 
 	if providerNode.Kind != yaml.MappingNode {
-		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s must be a mapping", path, providerName)
+		return providerCommandConfig{}, nil, configError("%s.%s must be a mapping", path, providerName)
 	}
 
 	for i := 0; i < len(providerNode.Content); i += 2 {
@@ -120,7 +121,7 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	}
 
 	if commandNode.Kind != yaml.MappingNode {
-		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s must be a mapping", path, providerName, commandName)
+		return providerCommandConfig{}, nil, configError("%s.%s.%s must be a mapping", path, providerName, commandName)
 	}
 
 	config := providerCommandConfig{}
@@ -153,7 +154,7 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 			config.hasOutputDir = true
 		case "yml":
 			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
-				return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s.yml must be a boolean", path, providerName, commandName)
+				return providerCommandConfig{}, nil, configError("%s.%s.%s.yml must be a boolean", path, providerName, commandName)
 			}
 			config.yml = valueNode.Value == "true"
 			config.hasYML = true
@@ -163,7 +164,7 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 	}
 
 	if config.hasFile && config.hasDirectory {
-		return providerCommandConfig{}, nil, fmt.Errorf("%s.%s.%s cannot set both file and directory", path, providerName, commandName)
+		return providerCommandConfig{}, nil, configError("%s.%s.%s cannot set both file and directory", path, providerName, commandName)
 	}
 
 	sort.Strings(warnings)
@@ -180,6 +181,10 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 // Both are rejected here rather than failing later as a missing file, which
 // says nothing about why.
 //
+// A path that climbs out of the checkout with ".." is refused for the same
+// reason: the reader of this file did not write it, and parse both writes
+// generated YAML into the output directory and prunes what it finds there.
+//
 // Forward slashes are turned into whatever the running OS separates with, so
 // one committed spelling works everywhere. The reverse is not done: a config
 // written on Windows with backslashes is a path a POSIX reader takes as one
@@ -187,17 +192,37 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 // which the author meant.
 func pathValue(node *yaml.Node, path, providerName, commandName, key string) (string, error) {
 	if node.Kind != yaml.ScalarNode || node.Tag != "!!str" {
-		return "", fmt.Errorf("%s.%s.%s.%s must be string", path, providerName, commandName, key)
+		return "", configError("%s.%s.%s.%s must be string", path, providerName, commandName, key)
 	}
 
 	if filepath.IsAbs(node.Value) || strings.HasPrefix(node.Value, "~") {
-		return "", fmt.Errorf(
+		return "", configError(
 			"%s.%s.%s.%s must be a relative path (got %q): the file is shared, so a path in it has to work on every machine",
 			path, providerName, commandName, key, node.Value,
 		)
 	}
 
-	return filepath.FromSlash(node.Value), nil
+	local := filepath.FromSlash(node.Value)
+
+	if err := validateRelativePath(local); err != nil {
+		return "", configError(
+			"%s.%s.%s.%s must stay inside the working directory (got %q): %w",
+			path, providerName, commandName, key, node.Value, err,
+		)
+	}
+
+	return local, nil
+}
+
+// configError marks an error describing the configuration file's own contents.
+//
+// Every one of these names a key or a value the author wrote in a file they
+// keep, so it is theirs to fix: a misspelled key or a quoted boolean is not a
+// defect in cinzel, and the open-an-issue line New adds by default sent them to
+// the issue tracker over their own typo. The two path rules reach the same mark
+// through their sentinels; this is the rest of the file catching up.
+func configError(format string, args ...any) error {
+	return cinzelerror.UserInput(fmt.Errorf(format, args...))
 }
 
 func findMappingValue(n *yaml.Node, key string) *yaml.Node {
