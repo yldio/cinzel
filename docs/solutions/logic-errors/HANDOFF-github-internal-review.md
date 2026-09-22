@@ -180,8 +180,19 @@ session can pick.
 
 - `internal/command` (3164) — flag and config handling. `.cinzelrc.yaml`
   parsing was reviewed in `20f8a92`; the rest was not.
-- `internal/pin` (2631) — network-facing, the GitHub API resolver, upgrade
-  logic. Largest untouched surface.
+- ~~`internal/pin` (2631) — network-facing, the GitHub API resolver, upgrade
+  logic. Largest untouched surface.~~ The rewrite path was probed over 21 shapes
+  through `PinFile` and `UpgradeFile`: comment forms, attribute order, nesting
+  depth, subdirectory and local actions, branch and short-SHA versions,
+  interpolated actions, and a missing `version`. Two findings, both in
+  `trailingCommentEnd` — see
+  `pin-trailing-comment-stops-at-the-first-one.md`. A third followed from them
+  and was raised rather than decided alone: the rewrite replaced the whole
+  trailing comment, so an author's own note on the version line was lost. It is
+  now carried over behind the tag, which is also what makes the rewrite
+  idempotent. The resolver, the cache and the API error
+  paths were read but not probed: they need a server stub this session did not
+  build.
 - `internal/ai` (1678) — assist, prompt construction, HCL stripping.
 - ~~`internal/hclparser` (1925) — note `internal/hclparser/errors.go` has zero
   `UserInput` markings, where every other errors.go marks most of them. Some of

@@ -295,6 +295,9 @@ type ActionRef struct {
 	// the same, which is not always this action's line.
 	start int
 	end   int
+
+	// What the author wrote in that comment, which the rewrite carries over.
+	note string
 }
 
 // versionEdit is one rewritten version assignment, held back until every
@@ -349,9 +352,102 @@ func shortSHA(sha string) string {
 	return sha[:abbrev]
 }
 
-// versionLine renders the assignment written in place of the old one.
-func versionLine(sha, comment string) string {
-	return fmt.Sprintf(`version = %q # %s`, sha, comment)
+// versionLine renders the assignment written in place of the old one, naming
+// the tag the SHA came from and carrying whatever of the old comment the author
+// wrote.
+//
+// The tag goes first, which is what lets the next pass tell the two apart
+// again: authorNote drops a leading word that is a tag, so a line this function
+// wrote reads back as the same note with a new tag in front of it, however many
+// times it is pinned.
+func versionLine(sha, tag, note string) string {
+	if note == "" {
+		return fmt.Sprintf(`version = %q # %s`, sha, tag)
+	}
+
+	return fmt.Sprintf(`version = %q # %s %s`, sha, tag, note)
+}
+
+// authorNote returns whatever of a version line's old trailing comment the
+// author wrote, with what a previous pin wrote taken out.
+//
+// The whole comment used to be replaced, which is right for the "# v4" a pin
+// leaves behind and wrong for anything else: a line reading
+//
+//	version = "v4" # do not move: v5 drops node16
+//
+// came back as "# v4" and the instruction was gone, with the pin reporting
+// success. The note is the author's, and a rewrite of the version is not a
+// reason to delete it.
+//
+// version is what the line holds now, which is what says whether a comment
+// opens with a tag this tool wrote. A full SHA is a line a pin has already been
+// over, so a leading tag there is the one it left and is dropped: kept, it is
+// the superseded "# v5 # v4" naming a version the SHA is not. A line still on a
+// tag has not been pinned, so the only word dropped is one naming that same
+// tag, and an author's note opening on some other version keeps it.
+//
+// The test runs per comment, not once over the run, because the tag a pin left
+// is not always the first thing on the line: "/* pinned */ # v4" holds the
+// author's note first and the superseded tag behind it.
+//
+// Every comment on the line collapses into one run of text, because the note is
+// written back as a single "#" comment and a newline carried into one would end
+// it early.
+func authorNote(comment, version string) string {
+	var notes []string
+
+	rest := comment
+
+	for {
+		rest = strings.TrimLeft(rest, " \t")
+
+		if strings.HasPrefix(rest, "/*") {
+			closed := strings.Index(rest[2:], "*/")
+
+			if closed < 0 {
+				break
+			}
+
+			notes = appendNote(notes, rest[2:2+closed], version)
+			rest = rest[2+closed+2:]
+
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(rest, "//"):
+			notes = appendNote(notes, rest[2:], version)
+		case strings.HasPrefix(rest, "#"):
+			notes = appendNote(notes, rest[1:], version)
+		}
+
+		break
+	}
+
+	return strings.Join(notes, " ")
+}
+
+// appendNote adds one comment's words to notes, dropping a leading tag that
+// names the version the line already holds.
+func appendNote(notes []string, body, version string) []string {
+	words := strings.Fields(body)
+
+	if len(words) > 0 && namesThisVersion(words[0], version) {
+		words = words[1:]
+	}
+
+	return append(notes, words...)
+}
+
+// namesThisVersion reports whether word is the tag comment a pin writes beside
+// the version it resolved, rather than something the author wrote.
+func namesThisVersion(word, version string) bool {
+	if word == version {
+		return true
+	}
+
+	return isCommitSHA(version) && tagPattern.MatchString(word)
 }
 
 // trailingCommentEnd returns the offset just past a comment sitting at the end
@@ -364,37 +460,62 @@ func versionLine(sha, comment string) string {
 // commented out the opening while the closing "*/" stayed on a line of its
 // own, and the file no longer parsed. The pin reported success and the
 // breakage surfaced on the next parse.
+//
+// Scanning continues past it, because a "/* */" ends where it closes rather
+// than at the newline and whatever follows it on that line is still part of
+// the same trailing comment. Stopping there left a second comment behind, and
+// on a line already carrying the tag cinzel wrote that is the stale "# v5 # v4"
+// this function exists to prevent.
 func trailingCommentEnd(content string, from int) int {
-	i := from
-	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
-		i++
-	}
+	end := from
 
-	if i >= len(content) {
-		return from
-	}
-
-	if strings.HasPrefix(content[i:], "/*") {
-		end := strings.Index(content[i+2:], "*/")
-
-		// Unterminated: there is no comment to take, and swallowing the rest
-		// of the file would delete every block below this one.
-		if end < 0 {
-			return from
+	for {
+		i := end
+		for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
+			i++
 		}
 
-		return i + 2 + end + 2
+		if i >= len(content) {
+			break
+		}
+
+		if strings.HasPrefix(content[i:], "/*") {
+			closed := strings.Index(content[i+2:], "*/")
+
+			// Unterminated: there is no comment to take, and swallowing the rest
+			// of the file would delete every block below this one. Anything
+			// already taken stands.
+			if closed < 0 {
+				break
+			}
+
+			end = i + 2 + closed + 2
+
+			continue
+		}
+
+		if content[i] != '#' && !strings.HasPrefix(content[i:], "//") {
+			break
+		}
+
+		for i < len(content) && content[i] != '\n' {
+			i++
+		}
+
+		end = i
+
+		break
 	}
 
-	if content[i] != '#' && !strings.HasPrefix(content[i:], "//") {
-		return from
+	// A "\r" belongs to the line ending, not to the comment. Taking it with
+	// the rest rewrote one line of a CRLF file as LF, so a pin on a Windows
+	// checkout left the file with mixed endings and a diff on a line nobody
+	// edited.
+	if end > from && content[end-1] == '\r' {
+		end--
 	}
 
-	for i < len(content) && content[i] != '\n' {
-		i++
-	}
-
-	return i
+	return end
 }
 
 // splitAction reads the repository an action lives in out of its reference.
@@ -533,7 +654,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 		edits = append(edits, versionEdit{
 			start: ref.start,
 			end:   ref.end,
-			text:  versionLine(sha, ref.Version),
+			text:  versionLine(sha, ref.Version, ref.note),
 		})
 
 		reportf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
@@ -666,13 +787,15 @@ func usesRef(body *hclsyntax.Body, content string) (ActionRef, bool) {
 	}
 
 	rng := versionAttr.SrcRange
+	end := trailingCommentEnd(content, rng.End.Byte)
 
 	return ActionRef{
 		Action:  action,
 		Version: version,
 		IsTag:   isTag(version),
 		start:   rng.Start.Byte,
-		end:     trailingCommentEnd(content, rng.End.Byte),
+		end:     end,
+		note:    authorNote(content[rng.End.Byte:end], version),
 	}, true
 }
 
