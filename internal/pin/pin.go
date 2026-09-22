@@ -364,37 +364,62 @@ func versionLine(sha, comment string) string {
 // commented out the opening while the closing "*/" stayed on a line of its
 // own, and the file no longer parsed. The pin reported success and the
 // breakage surfaced on the next parse.
+//
+// Scanning continues past it, because a "/* */" ends where it closes rather
+// than at the newline and whatever follows it on that line is still part of
+// the same trailing comment. Stopping there left a second comment behind, and
+// on a line already carrying the tag cinzel wrote that is the stale "# v5 # v4"
+// this function exists to prevent.
 func trailingCommentEnd(content string, from int) int {
-	i := from
-	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
-		i++
-	}
+	end := from
 
-	if i >= len(content) {
-		return from
-	}
-
-	if strings.HasPrefix(content[i:], "/*") {
-		end := strings.Index(content[i+2:], "*/")
-
-		// Unterminated: there is no comment to take, and swallowing the rest
-		// of the file would delete every block below this one.
-		if end < 0 {
-			return from
+	for {
+		i := end
+		for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
+			i++
 		}
 
-		return i + 2 + end + 2
+		if i >= len(content) {
+			break
+		}
+
+		if strings.HasPrefix(content[i:], "/*") {
+			closed := strings.Index(content[i+2:], "*/")
+
+			// Unterminated: there is no comment to take, and swallowing the rest
+			// of the file would delete every block below this one. Anything
+			// already taken stands.
+			if closed < 0 {
+				break
+			}
+
+			end = i + 2 + closed + 2
+
+			continue
+		}
+
+		if content[i] != '#' && !strings.HasPrefix(content[i:], "//") {
+			break
+		}
+
+		for i < len(content) && content[i] != '\n' {
+			i++
+		}
+
+		end = i
+
+		break
 	}
 
-	if content[i] != '#' && !strings.HasPrefix(content[i:], "//") {
-		return from
+	// A "\r" belongs to the line ending, not to the comment. Taking it with
+	// the rest rewrote one line of a CRLF file as LF, so a pin on a Windows
+	// checkout left the file with mixed endings and a diff on a line nobody
+	// edited.
+	if end > from && content[end-1] == '\r' {
+		end--
 	}
 
-	for i < len(content) && content[i] != '\n' {
-		i++
-	}
-
-	return i
+	return end
 }
 
 // splitAction reads the repository an action lives in out of its reference.
