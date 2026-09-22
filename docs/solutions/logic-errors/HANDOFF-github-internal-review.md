@@ -223,8 +223,16 @@ session can pick.
   refused where the same reference written bare resolves. See
   `hclparser-typos-sent-to-the-issue-tracker.md`. The rest of the package was
   not read.
-- `internal/fsutil` (753), `internal/yamldoc` (617), `internal/yamlwriter`
-  (358), `internal/hclcomment` (195), `internal/naming` (199),
+- ~~`internal/fsutil` (753)~~ `generated_markers.go` probed, one finding.
+  `PruneStaleGeneratedYAML` deletes files, so `HasGeneratedMarker` is the
+  boundary, and twelve ownership shapes were put through it: every miss errs
+  toward keeping the file except a read failure, which ended the run instead.
+  A hand-written file in the output directory with a line over 64KB, or one the
+  process cannot open, failed a `parse` that had already written its YAML. See
+  `prune-aborts-over-a-file-it-does-not-own.md`. The rest of the package — the
+  path helpers, the walk itself — was not read.
+- `internal/yamldoc` (617), `internal/yamlwriter` (358),
+  `internal/hclcomment` (195), `internal/naming` (199),
   `internal/cinzelerror` (513), `internal/unescape` (93), `internal/maputil`
   (92), `internal/test` (90).
 
