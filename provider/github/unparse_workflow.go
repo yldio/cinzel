@@ -503,12 +503,15 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 		return fmt.Errorf("%s must be an object", blockType)
 	}
 
+	var last *hclwrite.Body
+
 	for _, key := range sortedKeys(mapping) {
 		comment := comments.at(key)
 		hclcomment.WriteLeading(body, comment.head)
 
 		block := body.AppendNewBlock(blockType, nil)
 		blockBody := block.Body()
+		last = blockBody
 
 		if err := writeAttributeAny(blockBody, "name", key); err != nil {
 			return err
@@ -528,7 +531,16 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 		}
 	}
 
-	hclcomment.WriteLeading(body, comments.below())
+	// Inside the last block rather than after them all, which is where parse
+	// reads a block's closing comment from. Written after the blocks it
+	// landed in the surrounding body with a blank line under it, where the
+	// next read found nothing: the comment closing an "env:" mapping survived
+	// one conversion and was gone by the second.
+	if last == nil {
+		last = body
+	}
+
+	hclcomment.WriteLeading(last, comments.below())
 
 	return nil
 }
@@ -624,7 +636,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 		return step.Step{}, err
 	}
 
-	s.Comments = stepComments(comments)
+	s.Comments = stepComments(value, comments)
 
 	return s, nil
 }
@@ -636,7 +648,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 // mapping, and a step is one particular shape. Converting here keeps the step
 // package free of the collector, which it would otherwise have to import from
 // the provider that imports it.
-func stepComments(comments *yamlComments) step.Comments {
+func stepComments(value map[string]any, comments *yamlComments) step.Comments {
 	out := step.Comments{Head: comments.above(), Foot: comments.below()}
 
 	if comments == nil {
@@ -660,6 +672,16 @@ func stepComments(comments *yamlComments) step.Comments {
 			entries[name] = step.Comment{Head: comment.head, Line: comment.line}
 		}
 
+		// The mapping's closing comment goes on the entry written last, which
+		// is the block it ends up inside and so where the next parse reads it
+		// from. Dropped here, a comment closing a step's "env:" survived one
+		// conversion and was gone by the second.
+		if name, ok := lastEntry(value[key], nested); ok {
+			entry := entries[name]
+			entry.Foot = nested.foot
+			entries[name] = entry
+		}
+
 		if len(entries) == 0 {
 			continue
 		}
@@ -672,6 +694,34 @@ func stepComments(comments *yamlComments) step.Comments {
 	}
 
 	return out
+}
+
+// lastEntry names the key a nested mapping's closing comment belongs on: the
+// one written last, which is the block the comment ends up inside.
+//
+// Read off the mapping itself rather than off the comments beside it, because
+// the comment tree holds only the keys that carried one: a mapping whose last
+// entry has no comment of its own still ends somewhere, and that is the block
+// the closing comment goes in. The blocks are written in sorted order by
+// writeNameValueBlocks, so the last one is the greatest key.
+func lastEntry(raw any, nested *yamlComments) (string, bool) {
+	if nested == nil || nested.foot == "" {
+		return "", false
+	}
+
+	mapping, ok := toStringAnyMap(raw)
+
+	if !ok {
+		return "", false
+	}
+
+	keys := sortedKeys(mapping)
+
+	if len(keys) == 0 {
+		return "", false
+	}
+
+	return keys[len(keys)-1], true
 }
 
 func stepIdentifier(idx int, stepMap map[string]any, used map[string]struct{}) string {
@@ -761,7 +811,7 @@ func stepFingerprint(stepMap map[string]any, comments *yamlComments) string {
 	// what is written on them are two steps, and collapsing them into one
 	// block drops whichever comment came second. The comments live beside the
 	// map rather than in it, so they are marshalled alongside.
-	c, _ := json.Marshal(stepComments(comments))
+	c, _ := json.Marshal(stepComments(stepMap, comments))
 
 	return string(b) + string(c)
 }

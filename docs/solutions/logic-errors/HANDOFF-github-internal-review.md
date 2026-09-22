@@ -14,7 +14,7 @@ tags:
   - "roundtrip"
   - "handoff"
   - "review"
-status: "part done — the null finding and the reader question are closed, internal/ is still open"
+status: "part done — the null finding, the reader question and provider/github are closed, internal/ is still open"
 created_date: "2026-09-20"
 updated_date: "2026-09-20"
 ---
@@ -202,8 +202,16 @@ session can pick.
 `provider/github`, 5510 lines plus four subpackages (`action/`, `job/`,
 `step/`, `workflow/`):
 
-- `parse_workflow.go` (1490) is the largest single file and was not read.
-- `unparse_workflow.go` (765) was read only around the emit funnel.
+- ~~`parse_workflow.go` (1490) is the largest single file and was not read.~~
+  Done. Probed clean on every non-comment shape tried — duplicate env keys and
+  duplicate permissions blocks are both refused, `depends_on`, matrix with
+  `variable` blocks, include/exclude, container, defaults, services, outputs,
+  reusable workflows, concurrency and empty collections all roundtrip stable.
+  One finding, in the comment path: the step and job readers each read half of
+  an env or with block's comments. See
+  `github-env-block-comments-read-by-halves.md`.
+- `unparse_workflow.go` (765) was read only around the emit funnel, and now the
+  foot writer — see the note above.
 - `validate.go` (572) — remember the criterion above before touching it.
 
 ## Method that worked

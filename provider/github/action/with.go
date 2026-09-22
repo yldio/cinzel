@@ -16,6 +16,12 @@ import (
 type WithConfig struct {
 	Name  hcl.Expression `hcl:"name,attr"`
 	Value hcl.Expression `hcl:"value,attr"`
+
+	// Carries the source range the comments written above the block and
+	// closing it are found at, the way hclNamedBlock does for the job path.
+	// Nothing is meant to land in it besides: what does is an attribute
+	// nobody declared, which Parse reports rather than drops.
+	Body hcl.Body `hcl:",remain"`
 }
 
 // WithListConfig is a slice of WithConfig decoded from HCL with blocks.

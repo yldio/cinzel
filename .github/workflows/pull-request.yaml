@@ -15,6 +15,8 @@ jobs:
         name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          # Nothing in this job needs a token in .git/config. The one step that
+          # pushes carries its credentials in its own environment instead.
           persist-credentials: "false"
       - id: mise_setup
         name: Setup mise
@@ -34,6 +36,11 @@ jobs:
         name: Generated workflows match their HCL
         run: mise run drift
       - env:
+          # The action pushes refs/notes/gocoverage with a bare "git push origin"
+          # and takes no token for it. git reads configuration from GIT_CONFIG_COUNT
+          # and its numbered pairs, so the credentials live in this step's
+          # environment rather than in .git/config, where every other step in the
+          # job would be able to read them.
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ github.token }}@github.com/.insteadOf"
           GIT_CONFIG_VALUE_0: "https://github.com/"

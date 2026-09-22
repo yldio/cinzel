@@ -183,7 +183,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 			return Step{}, stepAttrErr(parsedStep.Identifier, "with", err)
 		}
 
-		parsedStep.Comments.setNested(hv, "with", config.With.ValueRanges(hv))
+		parsedStep.Comments.setNested(hv, "with", config.With.ValueRanges(hv), config.With.BlockComments(hv))
 	}
 
 	parsedEnv, err := config.parseEnv(hv)
@@ -196,7 +196,7 @@ func (config *StepConfig) Parse(hv *hclparser.HCLVars) (Step, error) {
 			return Step{}, stepAttrErr(parsedStep.Identifier, "env", err)
 		}
 
-		parsedStep.Comments.setNested(hv, "env", config.Env.ValueRanges(hv))
+		parsedStep.Comments.setNested(hv, "env", config.Env.ValueRanges(hv), config.Env.BlockComments(hv))
 	}
 
 	parsedContinueOnError, err := config.parseContinueOnError(hv)

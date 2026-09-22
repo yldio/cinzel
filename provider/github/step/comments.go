@@ -7,19 +7,25 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/yldio/cinzel/internal/hclparser"
+	"github.com/yldio/cinzel/provider/github/action"
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Comment holds the two comments one step attribute can carry: the run written
-// on its own lines above it, and the one sharing its line.
+// Comment holds the comments one step attribute can carry: the run written on
+// its own lines above it, the one sharing its line, and, for an entry that
+// came from a block of its own, the run closing that block.
 type Comment struct {
 	Head string
 	Line string
+	// Foot is the comment closing the block an entry was written as. Only an
+	// env or with entry has one: every other attribute is a single line with
+	// no body to close.
+	Foot string
 }
 
 // Empty reports whether the attribute carried no comment at all.
 func (c Comment) Empty() bool {
-	return c.Head == "" && c.Line == ""
+	return c.Head == "" && c.Line == "" && c.Foot == ""
 }
 
 // Comments holds the comments written on a step, keyed by the YAML key each
@@ -49,13 +55,25 @@ func (c Comments) Nest(key string) map[string]Comment {
 	return c.Nested[key]
 }
 
-// setNested records the comments found at each range under key, keyed by the
-// entry name the range was found for.
-func (c *Comments) setNested(hv *hclparser.HCLVars, key string, ranges map[string]hcl.Range) {
+// setNested records the comments found on each env or with entry under key,
+// keyed by the entry name they were found for.
+//
+// An entry is written as a block, so it has two places a run of comments can
+// sit above it: above the block, and above the value inside it. Only the
+// second used to be read, so a note written above an "env {" was dropped while
+// the same note on a job's env block was kept. Both are the author's, and both
+// belong above the one key the block becomes, so they are joined in the order
+// they were written.
+func (c *Comments) setNested(hv *hclparser.HCLVars, key string, ranges map[string]hcl.Range, blocks map[string]action.BlockComment) {
 	entries := map[string]Comment{}
 
 	for name, r := range ranges {
-		comment := Comment{Head: hv.HeadComment(r), Line: hv.TrailingComment(r)}
+		block := blocks[name]
+		comment := Comment{
+			Head: joinComments(block.Head, hv.HeadComment(r)),
+			Line: hv.TrailingComment(r),
+			Foot: block.Foot,
+		}
 
 		if comment.Empty() {
 			continue
@@ -73,6 +91,19 @@ func (c *Comments) setNested(hv *hclparser.HCLVars, key string, ranges map[strin
 	}
 
 	c.Nested[key] = entries
+}
+
+// joinComments runs two comment runs together, dropping an empty one. Each is
+// already a run of whole lines, so one newline between them reads as one run.
+func joinComments(above, below string) string {
+	switch {
+	case above == "":
+		return below
+	case below == "":
+		return above
+	default:
+		return above + "\n" + below
+	}
 }
 
 // set records the comments found at r under the YAML key, keeping nothing when

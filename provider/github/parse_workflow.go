@@ -324,7 +324,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		withMap[key] = withComments(value, blockComments(block.Body, hv))
+		withMap[key] = withComments(value, namedBlockComments(block, hv))
 	}
 
 	for _, block := range cfg.EnvBlocks {
@@ -339,7 +339,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		envMap[key] = withComments(value, blockComments(block.Body, hv))
+		envMap[key] = withComments(value, namedBlockComments(block, hv))
 	}
 
 	for _, block := range cfg.OutputBlocks {
@@ -354,7 +354,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		outputsMap[key] = withComments(value, blockComments(block.Body, hv))
+		outputsMap[key] = withComments(value, namedBlockComments(block, hv))
 	}
 
 	for _, block := range cfg.SecretBlocks {
@@ -369,7 +369,7 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 			return ghjob.Parsed{}, err
 		}
 
-		secretsMap[key] = withComments(value, blockComments(block.Body, hv))
+		secretsMap[key] = withComments(value, namedBlockComments(block, hv))
 	}
 
 	for _, block := range cfg.ServiceBlocks {
@@ -608,7 +608,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 			return ghworkflow.Parsed{}, err
 		}
 
-		envMap[key] = withComments(value, blockComments(block.Body, hv))
+		envMap[key] = withComments(value, namedBlockComments(block, hv))
 	}
 
 	for _, block := range cfg.PermBlocks {
@@ -723,6 +723,10 @@ func blockFootComment(body hcl.Body, hv *hclparser.HCLVars) string {
 type blockComment struct {
 	head string
 	foot string
+	// trailing is the comment sharing a line with the value the block
+	// resolves to. A block has no line of its own to carry one, so this is
+	// only set where the value inside it was read.
+	trailing string
 }
 
 // blockComments reads both of a block body's comments.
@@ -733,16 +737,53 @@ func blockComments(body hcl.Body, hv *hclparser.HCLVars) blockComment {
 	}
 }
 
+// namedBlockComments reads every comment a name/value block carries.
+//
+// There are two places a run of comments sits above one of these: above the
+// block, and above the value inside it. The block becomes a single YAML key,
+// so both belong above that key, joined in the order they were written. Only
+// the first used to be read, so a note written above the "value =" of a job's
+// env block was dropped while the step path kept the same note. The trailing
+// comment on the value is the block's too, for the same reason.
+func namedBlockComments(cfg hclNamedBlock, hv *hclparser.HCLVars) blockComment {
+	c := blockComments(cfg.Body, hv)
+
+	if cfg.Value == nil {
+		return c
+	}
+
+	r := cfg.Value.Range()
+
+	return blockComment{
+		head:     joinComments(c.head, hv.HeadComment(r)),
+		trailing: hv.TrailingComment(r),
+		foot:     c.foot,
+	}
+}
+
+// joinComments runs two comment runs together, dropping an empty one. Each is
+// already a run of whole lines, so one newline between them reads as one run.
+func joinComments(above, below string) string {
+	switch {
+	case above == "":
+		return below
+	case below == "":
+		return above
+	default:
+		return above + "\n" + below
+	}
+}
+
 // withComments wraps val with the comments written on the block it came from,
 // returning val unwrapped when there were none. The wrapper is what carries a
 // comment to the emitter, and an unconditional one would put every value
 // behind it for nothing.
 func withComments(val any, c blockComment) any {
-	if c.head == "" && c.foot == "" {
+	if c.head == "" && c.foot == "" && c.trailing == "" {
 		return val
 	}
 
-	return annotated{value: val, head: c.head, foot: c.foot}
+	return annotated{value: val, head: c.head, foot: c.foot, comment: c.trailing}
 }
 
 // annotate wraps val with whatever comments were written above or beside r,
@@ -1433,7 +1474,7 @@ func annotateStep(converted any, comments step.Comments) any {
 				continue
 			}
 
-			nested[name] = annotated{value: value, comment: comment.Line, head: comment.Head}
+			nested[name] = annotated{value: value, comment: comment.Line, head: comment.Head, foot: comment.Foot}
 		}
 	}
 
