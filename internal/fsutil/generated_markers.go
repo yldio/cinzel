@@ -50,14 +50,19 @@ func WithoutGeneratedMarker(comment string) string {
 }
 
 // HasGeneratedMarker reports whether path has cinzel markers for provider.
+//
+// A file that cannot be read is not one of cinzel's. The markers go on the
+// first two lines of everything cinzel writes, so a file it cannot get them
+// from is someone else's, and the answer to "may this be deleted" is no. It
+// used to be an error instead, and the error travelled up through the prune
+// and ended the run: a file the author put in the output directory with a line
+// over 64KB in it, which bufio.Scanner refuses, failed a parse that had already
+// written its YAML, at exit 1, pointing the author at the issue tracker over
+// their own file.
 func HasGeneratedMarker(path, provider string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-
-		return false, err
+		return false, nil
 	}
 
 	defer f.Close()
@@ -89,10 +94,8 @@ func HasGeneratedMarker(path, provider string) (bool, error) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return false, err
-	}
-
+	// scanner.Err() is not consulted: a file that could not be read through is
+	// one whose markers were not found, which is the same answer this returns.
 	return false, nil
 }
 
