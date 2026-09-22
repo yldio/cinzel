@@ -186,11 +186,11 @@ session can pick.
   depth, subdirectory and local actions, branch and short-SHA versions,
   interpolated actions, and a missing `version`. Two findings, both in
   `trailingCommentEnd` — see
-  `pin-trailing-comment-stops-at-the-first-one.md`. One question left open
-  rather than decided: the rewrite replaces the whole trailing comment, so an
-  author's own note on the version line is lost, and it is not clear whether
-  that note should be kept beside the tag or is correctly treated as belonging
-  to the version being replaced. The resolver, the cache and the API error
+  `pin-trailing-comment-stops-at-the-first-one.md`. A third followed from them
+  and was raised rather than decided alone: the rewrite replaced the whole
+  trailing comment, so an author's own note on the version line was lost. It is
+  now carried over behind the tag, which is also what makes the rewrite
+  idempotent. The resolver, the cache and the API error
   paths were read but not probed: they need a server stub this session did not
   build.
 - `internal/ai` (1678) — assist, prompt construction, HCL stripping.

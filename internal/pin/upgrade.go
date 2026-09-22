@@ -120,7 +120,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		edits = append(edits, versionEdit{
 			start: ref.start,
 			end:   ref.end,
-			text:  versionLine(sha, latestTag),
+			text:  versionLine(sha, latestTag, ref.note),
 		})
 
 		reportf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, shortSHA(sha))

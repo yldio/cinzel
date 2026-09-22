@@ -255,12 +255,17 @@ step "b" {
 	}
 }
 
-// A block comment on the version line is replaced along with the rest of it.
+// A block comment on the version line is rewritten along with the rest of it.
 // The replacement carries its own "# tag" comment, and leaving a "/*" standing
 // after it commented out the opening of the block comment while its "*/" stayed
 // on a line of its own, so the file no longer parsed. The pin itself reported
 // success, and the breakage surfaced on the next parse.
-func TestBlockCommentOnTheVersionLineIsReplaced(t *testing.T) {
+//
+// What the author wrote inside it comes over into that "#" comment, on one
+// line: a "#" runs to the newline, so a block comment written over two lines
+// carried into one verbatim would end the comment halfway and leave the rest as
+// HCL.
+func TestBlockCommentOnTheVersionLineIsRewrittenAsOneLine(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		comment string
@@ -296,8 +301,10 @@ func TestBlockCommentOnTheVersionLineIsReplaced(t *testing.T) {
 				t.Fatalf("the pinned file no longer parses: %v\n%s", err, out)
 			}
 
-			if strings.Contains(string(out), "by hand") {
-				t.Errorf("the old comment was left beside the new one:\n%s", out)
+			want := `    version = "ffffffffffffffffffffffffffffffffffffffff" # v4 pinned by hand` + "\n"
+
+			if !strings.Contains(string(out), want) {
+				t.Errorf("version line = not %q, in:\n%s", want, out)
 			}
 		})
 	}

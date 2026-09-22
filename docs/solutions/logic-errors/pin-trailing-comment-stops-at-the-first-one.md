@@ -99,3 +99,54 @@ wherever the language has a comment form that closes before the newline.
 
 When a rewrite replaces a span of text, the span ends at the last character the
 rewrite is responsible for. A line ending is the file's, not the line's.
+
+## The author's note went with it
+
+A third fault sat behind the other two, and it is the reason the fix to them is
+shaped the way it is. The rewrite replaces the whole trailing comment, so
+
+```hcl
+version = "v4" # do not move: v5 drops node16
+```
+
+came back as
+
+```hcl
+version = "aaaa…" # v4
+```
+
+and the instruction not to move was gone, with the pin reporting success. The
+tag comment is the tool's to overwrite. Everything else on that line is the
+author's.
+
+`authorNote` now reads the old comment and carries what the author wrote into
+the new one, behind the tag. Three things decide its shape:
+
+The tag goes first, which is what makes the rewrite idempotent. A line this
+tool wrote reads back as the same note with the leading tag dropped, so pinning
+a file repeatedly leaves one note and one tag however many times it runs.
+
+Which leading word counts as the tool's depends on the version the line holds.
+On a full SHA a pin has already been over the line, so a leading tag is the one
+it left, and keeping it is the superseded `# v5 # v4` naming a version the SHA
+is not. On a tag, nothing has pinned the line yet, so the only word dropped is
+one naming that same tag — a note opening `v5 drops node16` keeps its first
+word. A first version dropped any tag-shaped leading word and ate it.
+
+The test runs per comment, not once over the whole run, because the tag is not
+always first: `/* pinned */ # v4` holds the note first and the superseded tag
+behind it.
+
+Every comment collapses into one run of text. The note is written back as a
+single `#`, which runs to the newline, so a block comment written over two
+lines carried across verbatim would end the comment halfway and leave its tail
+as HCL.
+
+The three tests written for the first two faults asserted the old comment was
+gone, which is the contract this change reverses. Each had one assertion that
+was load-bearing and one that only encoded "destroyed". They now assert the
+whole rewritten line, which is what tells a note carried over apart from a
+comment left standing beside the new one — the same exactness the CRLF lesson
+above is about. Four reverts were run against them, each compiling: no note at
+all, the greedy tag drop, no collapse, and the unconditional step-back. Each
+fails.
