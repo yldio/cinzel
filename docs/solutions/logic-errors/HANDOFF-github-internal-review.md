@@ -238,10 +238,15 @@ session can pick.
   block cannot state, and a `run` indented with tabs on line 1 became YAML no
   reader accepts. See `literal-block-cannot-state-its-own-first-line.md`.
   `document.go` was read and not probed.
+- ~~`internal/cinzelerror` (513)~~ Probed, one finding. The error wrapping, the
+  user-input marking and the duplicate-suffix guard all hold. `SafeForTerminal`
+  escapes every C0 and C1 control, but a bidirectional override is not a control
+  and reorders the message that quotes the name, which is the forgery the
+  function exists to stop. See
+  `a-bidi-override-reorders-the-error-that-quotes-it.md`.
 - `internal/yamlwriter` (358),
   `internal/hclcomment` (195), `internal/naming` (199),
-  `internal/cinzelerror` (513), `internal/unescape` (93), `internal/maputil`
-  (92), `internal/test` (90).
+  `internal/unescape` (93), `internal/maputil` (92), `internal/test` (90).
 
 `provider/github`, 5510 lines plus four subpackages (`action/`, `job/`,
 `step/`, `workflow/`):
