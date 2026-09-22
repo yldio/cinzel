@@ -144,7 +144,11 @@ func scalarNode(scalar any) (*yamlv3.Node, error) {
 		node := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: s}
 
 		if strings.Contains(s, "\n") {
-			node.Style = yamlv3.LiteralStyle
+			if literalBlockHolds(s) {
+				node.Style = yamlv3.LiteralStyle
+			} else {
+				node.Style = yamlv3.DoubleQuotedStyle
+			}
 
 			return node, nil
 		}
@@ -159,6 +163,29 @@ func scalarNode(scalar any) (*yamlv3.Node, error) {
 	default:
 		return &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: fmt.Sprintf("%v", s)}, nil
 	}
+}
+
+// literalBlockHolds reports whether a literal block can carry s and give it
+// back unchanged.
+//
+// A block writes its content indented, and the first line is what fixes the
+// indentation for the rest. Two shapes of first line it cannot state:
+//
+//   - one starting with a tab. The indentation would read as two spaces and a
+//     tab, and a tab is not indentation, so the file does not parse at all. A
+//     script written with tabs reaches this by being indented on line 1.
+//   - an empty one. Leading blank lines sit above the indentation indicator
+//     that would have to describe them, so a reader drops them.
+//
+// Neither is worth a block. The value goes out double-quoted instead, which is
+// less pleasant to read and says exactly what the string is.
+func literalBlockHolds(s string) bool {
+	first := s
+	if end := strings.Index(s, "\n"); end >= 0 {
+		first = s[:end]
+	}
+
+	return first != "" && !strings.HasPrefix(first, "\t")
 }
 
 // plainWords are the strings a YAML 1.1 reader turns into a boolean or a null,

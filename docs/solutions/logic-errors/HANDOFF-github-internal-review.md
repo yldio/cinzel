@@ -231,7 +231,14 @@ session can pick.
   process cannot open, failed a `parse` that had already written its YAML. See
   `prune-aborts-over-a-file-it-does-not-own.md`. The rest of the package — the
   path helpers, the walk itself — was not read.
-- `internal/yamldoc` (617), `internal/yamlwriter` (358),
+- ~~`internal/yamldoc` (617)~~ `encode.go` probed, one finding. Scalars and keys
+  came back clean across every misreadable shape tried — numbers, YAML 1.1
+  booleans in any case, sexagesimals, the reserved indicators. The fault is in
+  multi-line strings: every one got a literal block, including the two shapes a
+  block cannot state, and a `run` indented with tabs on line 1 became YAML no
+  reader accepts. See `literal-block-cannot-state-its-own-first-line.md`.
+  `document.go` was read and not probed.
+- `internal/yamlwriter` (358),
   `internal/hclcomment` (195), `internal/naming` (199),
   `internal/cinzelerror` (513), `internal/unescape` (93), `internal/maputil`
   (92), `internal/test` (90).
