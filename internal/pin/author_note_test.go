@@ -6,6 +6,8 @@ package pin
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -172,6 +174,85 @@ func TestANoteOpeningOnAnotherVersionIsKept(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if note := authorNote(" "+tc.comment, tc.version); note != tc.want {
 				t.Errorf("authorNote(%q, %q) = %q, want %q", tc.comment, tc.version, note, tc.want)
+			}
+		})
+	}
+}
+
+// upgradeSequence resolves each tag in turn, so a file can be upgraded
+// repeatedly and the comment watched as it goes.
+type upgradeSequence struct {
+	tags []string
+	n    int
+}
+
+func (s *upgradeSequence) LatestTag(_ context.Context, _, _ string) (string, error) {
+	tag := s.tags[s.n]
+
+	if s.n < len(s.tags)-1 {
+		s.n++
+	}
+
+	return tag, nil
+}
+
+// Distinct per tag: a stub deriving the SHA from the tag's length gave two tags
+// of equal length the same one, and the upgrade correctly skipped the second as
+// already current, which reads in the output exactly like a comment that failed
+// to advance.
+func (s *upgradeSequence) ResolveTag(_ context.Context, _, _, tag string) (string, error) {
+	return fmt.Sprintf("%x", sha1.Sum([]byte(tag))), nil
+}
+
+// A tag is whatever the repository releases. GitHub takes names semver does
+// not, and an upgrade writes back what LatestTag returned, so the comment a
+// pass leaves does not always look like "v5". Recognising only the semver shape
+// left the rest unrecognised, and the tag a pass wrote was kept as the author's
+// note and grew on every run: three upgrades of a repository releasing
+// "stable", "latest" and "edge" gave "# edge latest stable", naming two
+// versions the SHA is not.
+func TestARepeatedUpgradeLeavesOneTagWhateverItIsNamed(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		tags []string
+		want string
+	}{
+		{"words", []string{"stable", "latest", "edge"}, "edge"},
+		{"dated", []string{"release-2024", "release-2025", "release-2026"}, "release-2026"},
+		{"semver", []string{"v5", "v6", "v7"}, "v7"},
+		{"dotted", []string{"2024.1.1", "2025.1.1", "2026.1.1"}, "2026.1.1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := writeHCL(t, `step "a" {
+  uses {
+    action  = "acme/x"
+    version = "v4"
+  }
+}
+`)
+
+			resolver := &upgradeSequence{tags: tc.tags}
+
+			for range tc.tags {
+				var buf bytes.Buffer
+
+				if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			out, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := string(out)
+
+			// The whole comment: a superseded tag does not replace the current
+			// one, it queues up behind it, which a check for the current tag
+			// alone does not see.
+			if want := "# " + tc.want + "\n"; !strings.Contains(got, want) {
+				t.Errorf("comment = not %q, in:\n%s", want, got)
 			}
 		})
 	}

@@ -380,22 +380,43 @@ func versionLine(sha, tag, note string) string {
 // success. The note is the author's, and a rewrite of the version is not a
 // reason to delete it.
 //
-// version is what the line holds now, which is what says whether a comment
-// opens with a tag this tool wrote. A full SHA is a line a pin has already been
-// over, so a leading tag there is the one it left and is dropped: kept, it is
-// the superseded "# v5 # v4" naming a version the SHA is not. A line still on a
-// tag has not been pinned, so the only word dropped is one naming that same
-// tag, and an author's note opening on some other version keeps it.
-//
-// The test runs per comment, not once over the run, because the tag a pin left
-// is not always the first thing on the line: "/* pinned */ # v4" holds the
-// author's note first and the superseded tag behind it.
-//
 // Every comment on the line collapses into one run of text, because the note is
 // written back as a single "#" comment and a newline carried into one would end
 // it early.
 func authorNote(comment, version string) string {
+	bodies := commentBodies(comment)
+
+	// The shape versionLine writes: one "#" comment, on a line a pin has been
+	// over, with the tag it resolved first. That shape is what identifies the
+	// leading word as this tool's rather than the author's, and identifying it
+	// by shape rather than by what a tag looks like is what keeps a repository
+	// releasing "stable" and "edge" from accumulating "# edge latest stable"
+	// over three upgrades. A tag is whatever a repository releases, so there is
+	// no pattern that recognises every one of them and nothing else.
+	if len(bodies) == 1 && bodies[0].hash && isCommitSHA(version) {
+		return strings.Join(dropLeading(strings.Fields(bodies[0].text)), " ")
+	}
+
 	var notes []string
+
+	for _, body := range bodies {
+		notes = append(notes, keepNote(strings.Fields(body.text), version)...)
+	}
+
+	return strings.Join(notes, " ")
+}
+
+// commentBody is one comment from a version line's trailing run. hash records
+// whether it was written as "#", which is the form a pin writes.
+type commentBody struct {
+	text string
+	hash bool
+}
+
+// commentBodies splits a version line's trailing comment run into the text
+// inside each comment.
+func commentBodies(comment string) []commentBody {
+	var bodies []commentBody
 
 	rest := comment
 
@@ -409,7 +430,7 @@ func authorNote(comment, version string) string {
 				break
 			}
 
-			notes = appendNote(notes, rest[2:2+closed], version)
+			bodies = append(bodies, commentBody{text: rest[2 : 2+closed]})
 			rest = rest[2+closed+2:]
 
 			continue
@@ -417,37 +438,50 @@ func authorNote(comment, version string) string {
 
 		switch {
 		case strings.HasPrefix(rest, "//"):
-			notes = appendNote(notes, rest[2:], version)
+			bodies = append(bodies, commentBody{text: rest[2:]})
 		case strings.HasPrefix(rest, "#"):
-			notes = appendNote(notes, rest[1:], version)
+			bodies = append(bodies, commentBody{text: rest[1:], hash: true})
 		}
 
 		break
 	}
 
-	return strings.Join(notes, " ")
+	return bodies
 }
 
-// appendNote adds one comment's words to notes, dropping a leading tag that
-// names the version the line already holds.
-func appendNote(notes []string, body, version string) []string {
-	words := strings.Fields(body)
-
-	if len(words) > 0 && namesThisVersion(words[0], version) {
-		words = words[1:]
+// keepNote returns one comment's words with a leading tag naming a version the
+// line no longer holds taken off.
+//
+// A line still on a tag has not been pinned, so the only word dropped is one
+// naming that same tag: an author's note opening "v5 drops node16" keeps its
+// first word. On a SHA the line has been pinned, and a tag-shaped word there
+// names a version the SHA is not, wherever in the run it sits —
+// "/* pinned */ # v4" holds the author's note first and the superseded tag
+// behind it.
+func keepNote(words []string, version string) []string {
+	if len(words) == 0 {
+		return nil
 	}
 
-	return append(notes, words...)
+	if words[0] == version {
+		return dropLeading(words)
+	}
+
+	if isCommitSHA(version) && tagPattern.MatchString(words[0]) {
+		return dropLeading(words)
+	}
+
+	return words
 }
 
-// namesThisVersion reports whether word is the tag comment a pin writes beside
-// the version it resolved, rather than something the author wrote.
-func namesThisVersion(word, version string) bool {
-	if word == version {
-		return true
+// dropLeading returns words without its first, which is nil rather than an
+// empty slice when nothing is left.
+func dropLeading(words []string) []string {
+	if len(words) < 2 {
+		return nil
 	}
 
-	return isCommitSHA(version) && tagPattern.MatchString(word)
+	return words[1:]
 }
 
 // trailingCommentEnd returns the offset just past a comment sitting at the end

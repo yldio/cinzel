@@ -133,6 +133,27 @@ is not. On a tag, nothing has pinned the line yet, so the only word dropped is
 one naming that same tag — a note opening `v5 drops node16` keeps its first
 word. A first version dropped any tag-shaped leading word and ate it.
 
+That left a hole, found by probing repeated upgrades rather than repeated pins.
+A tag is whatever a repository releases, and GitHub takes names semver does not.
+An upgrade writes back what `LatestTag` returned, checked only against
+`safeNamePattern`, so the tag a pass leaves does not always look like `v5`.
+Recognising only the semver shape left the rest unrecognised, kept as the
+author's note, and growing on every run: three upgrades of a repository
+releasing `stable`, `latest` and `edge` gave
+
+```hcl
+version = "aaaa…" # edge latest stable
+```
+
+which is the superseded comment this whole scan exists to prevent, reached by
+another route. Widening the pattern to `safeNamePattern` fixed that and broke
+the note: `/* pinned */` lost its word too.
+
+The tool's tag is identified by the comment's shape instead. `versionLine`
+writes exactly one `#` comment, tag first, on a line holding a SHA. That triple
+is recognisable without guessing what a tag looks like, and there is no pattern
+that recognises every tag and nothing else.
+
 The test runs per comment, not once over the whole run, because the tag is not
 always first: `/* pinned */ # v4` holds the note first and the superseded tag
 behind it.
