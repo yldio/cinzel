@@ -269,7 +269,13 @@ session can pick.
   `LineComment` or `TrailingComment`, both of which are one line by
   construction. `Line` leaves an existing "#" alone, so a comment read from HCL
   and written back is unchanged.
-- `internal/unescape` (93), `internal/maputil` (92), `internal/test` (90).
+- ~~`internal/unescape` (93)~~ Probed, one finding, and it is the worst shape
+  found so far: a script line holding a backslash was rewritten, silently, in
+  both providers. The pass tells its own escapes from the author's text by
+  parity, which only a double-quoted scalar obeys; a plain scalar and an HCL
+  heredoc both leave a backslash single. See
+  `a-backslash-in-a-script-read-as-an-escape.md`.
+- `internal/maputil` (92), `internal/test` (90).
 
 `provider/github`, 5510 lines plus four subpackages (`action/`, `job/`,
 `step/`, `workflow/`):
