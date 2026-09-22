@@ -179,7 +179,16 @@ session can pick.
 `internal/`, about 12k lines over 13 packages:
 
 - `internal/command` (3164) — flag and config handling. `.cinzelrc.yaml`
-  parsing was reviewed in `20f8a92`; the rest was not.
+  parsing was reviewed in `20f8a92`. The assist pipeline has now been probed
+  end to end: `splitYAMLDocuments` (nine separator shapes, including one inside
+  a block scalar and a legal `--- # comment` it does not cut on — the unparser
+  refuses a multi-document file outright, so nothing is lost silently),
+  `mergeHCLFiles`, and `deduplicateWithExisting`. One finding, in the last:
+  a generated block clashing with the context kept the label the context
+  already held, and the session parses together with that context. See
+  `assist-dedup-writes-two-blocks-under-one-label.md`. The rest of the package
+  — the other commands, `validateRelativePath`, `printPinSummary` — was not
+  read.
 - ~~`internal/pin` (2631) — network-facing, the GitHub API resolver, upgrade
   logic. Largest untouched surface.~~ The rewrite path was probed over 21 shapes
   through `PinFile` and `UpgradeFile`: comment forms, attribute order, nesting
@@ -193,7 +202,16 @@ session can pick.
   idempotent. The resolver, the cache and the API error
   paths were read but not probed: they need a server stub this session did not
   build.
-- `internal/ai` (1678) — assist, prompt construction, HCL stripping.
+- ~~`internal/ai` (1678) — assist, prompt construction, HCL stripping.~~
+  Probed, no defects. `StripHCLContext` was checked against its own doc comment
+  with markers in every position a value can sit in: only block labels and file
+  names survive, which is what the comment says it keeps, and both callers say
+  so to the user in those words (`assist.go:85` and the refine path). Every
+  leftover-fence shape `StripFences` can emit — a non-yaml fence beside the
+  yaml one, an indented fence, CRLF fences, prose kept as a second document —
+  fails at exit 1 with no HCL written, because backticks cannot start a YAML
+  token. The column-0 anchor that causes the indented and CRLF misses is
+  deliberate, and `provider.go:28` records what taking it out broke.
 - ~~`internal/hclparser` (1925) — note `internal/hclparser/errors.go` has zero
   `UserInput` markings, where every other errors.go marks most of them. Some of
   those errors are certainly the author's fault and are sending people to the
