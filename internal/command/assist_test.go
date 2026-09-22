@@ -585,6 +585,12 @@ func TestShortErrorPreviewIsUntouched(t *testing.T) {
 // that exists and cannot be read is different: deduplication silently does not
 // happen, so assist repeats blocks the user already has, with no sign why.
 func TestUnreadableContextDirIsReported(t *testing.T) {
+	// Windows has no Unix permission bits: os.Mkdir's mode only toggles the
+	// read-only flag there, which does not stop a directory being listed.
+	if runtime.GOOS == "windows" {
+		t.Skip("a 0000 directory is still readable on Windows")
+	}
+
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0000 directory regardless of its mode")
 	}
@@ -627,6 +633,12 @@ func TestMissingContextDirIsSilent(t *testing.T) {
 // A file inside the context directory that cannot be read is a block that will
 // not be deduplicated against, which is worth the same warning.
 func TestUnreadableContextFileIsReported(t *testing.T) {
+	// Windows has no Unix permission bits: a 0000 file reads back as 0666 and
+	// opens normally. See TestInitTightensPermissionsOnAnExistingFile.
+	if runtime.GOOS == "windows" {
+		t.Skip("a 0000 file is still readable on Windows")
+	}
+
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a 0000 file regardless of its mode")
 	}

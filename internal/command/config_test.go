@@ -47,8 +47,8 @@ func TestConfigSetsParseOutputDirectory(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.parseOpts.OutputDirectory != ".github/workflows" {
-			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, ".github/workflows")
+		if want := filepath.FromSlash(".github/workflows"); p.parseOpts.OutputDirectory != want {
+			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, want)
 		}
 	})
 }
@@ -63,8 +63,8 @@ func TestConfigSetsParseDirectory(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.parseOpts.Directory != "./cinzel" {
-			t.Fatalf("parse directory = %q, want %q", p.parseOpts.Directory, "./cinzel")
+		if want := filepath.FromSlash("./cinzel"); p.parseOpts.Directory != want {
+			t.Fatalf("parse directory = %q, want %q", p.parseOpts.Directory, want)
 		}
 
 		if p.parseOpts.File != "" {
@@ -83,8 +83,8 @@ func TestConfigSetsUnparseOutputDirectory(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.unparseOpts.OutputDirectory != "./cinzel" {
-			t.Fatalf("unparse output-directory = %q, want %q", p.unparseOpts.OutputDirectory, "./cinzel")
+		if want := filepath.FromSlash("./cinzel"); p.unparseOpts.OutputDirectory != want {
+			t.Fatalf("unparse output-directory = %q, want %q", p.unparseOpts.OutputDirectory, want)
 		}
 	})
 }
@@ -199,8 +199,8 @@ func TestInvalidInactiveProviderFieldTypeDoesNotFail(t *testing.T) {
 			t.Fatalf("Execute() error = %v", err)
 		}
 
-		if p.parseOpts.OutputDirectory != ".github/workflows" {
-			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, ".github/workflows")
+		if want := filepath.FromSlash(".github/workflows"); p.parseOpts.OutputDirectory != want {
+			t.Fatalf("parse output-directory = %q, want %q", p.parseOpts.OutputDirectory, want)
 		}
 	})
 }
@@ -598,7 +598,7 @@ func TestConfigErrorsAreTheAuthorsToFix(t *testing.T) {
 		{"path is not a string", "github:\n  parse:\n    file: 3\n"},
 		{"yml is not a boolean", "github:\n  parse:\n    yml: \"yes\"\n"},
 		{"file and directory together", "github:\n  parse:\n    file: a.hcl\n    directory: d\n"},
-		{"path names one machine", "github:\n  parse:\n    output-directory: /tmp/elsewhere\n"},
+		{"path names one machine", "github:\n  parse:\n    output-directory: " + absoluteTestPath() + "\n"},
 		{"path climbs out", "github:\n  parse:\n    output-directory: ../elsewhere\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

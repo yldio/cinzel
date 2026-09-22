@@ -22,6 +22,12 @@ func runInit(t *testing.T, home string, answers string) string {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 
+	// os.UserConfigDir reads %AppData% on Windows and neither of the two
+	// above, so without this the run wrote into the real user profile: a
+	// second run then found the first one's file and took the overwrite
+	// branch when the test meant it to write a fresh one.
+	t.Setenv("AppData", filepath.Join(home, "AppData", "Roaming"))
+
 	in, err := os.CreateTemp(t.TempDir(), "stdin")
 	if err != nil {
 		t.Fatal(err)
