@@ -57,7 +57,14 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, map[string][]byte, er
 			return nil
 		}
 
-		if filepath.Ext(current) != ".hcl" {
+		// Folded, the way ListFilesWithExtensions folds the extensions it is
+		// given. macOS and Windows both open "build.HCL" as the file the
+		// single-file branch above reads without checking an extension at all,
+		// so the same file was read when named on the command line and skipped
+		// when found in a directory. Skipped silently: a gitlab run wrote a
+		// pipeline missing that file's jobs at exit 0, and a github run treated
+		// an already generated YAML as stale and deleted it.
+		if !strings.EqualFold(filepath.Ext(current), ".hcl") {
 			return nil
 		}
 
