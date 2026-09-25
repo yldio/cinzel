@@ -147,8 +147,12 @@ func (cmd *Cli) assistCommand(p provider.Provider) *cli.Command {
 				results, pinErr := pin.PinDirectory(ctx, sessionDir, resolver, cmd.Writer, false)
 				if pinErr != nil {
 					_, _ = fmt.Fprintf(cmd.Writer, "warning: pin failed: %v\n", pinErr)
-				} else {
-					cmd.printPinSummary(results)
+				} else if summaryErr := cmd.printPinSummary(results); summaryErr != nil {
+					// Pinning is a post-step here, and the generated HCL is
+					// already written. An action that would not resolve is
+					// reported as a warning rather than thrown away along with
+					// the file the prompt paid for.
+					_, _ = fmt.Fprintf(cmd.Writer, "warning: %v\n", summaryErr)
 				}
 			}
 

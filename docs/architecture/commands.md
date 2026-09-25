@@ -33,3 +33,9 @@ The tag stays on the line it pinned: `version = "<sha>" # <tag>`.
 by SHA, and updates both the version and its comment.
 
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit.
+
+Either command exits non-zero when it could not resolve an action, so a CI step
+calling `cinzel github pin` fails on a workflow still holding an unpinned one.
+Each failure is named as it happens, and the summary line counts them. With
+`--parse`, `upgrade` writes the regenerated YAML for what did upgrade before
+reporting the failure.

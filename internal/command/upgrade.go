@@ -57,10 +57,10 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				return err
 			}
 
-			cmd.printUpgradeSummary(results)
+			summaryErr := cmd.printUpgradeSummary(results)
 
 			if !parse || dryRun {
-				return nil
+				return summaryErr
 			}
 
 			// Check if anything was actually upgraded.
@@ -75,7 +75,7 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 			}
 
 			if !upgraded {
-				return nil
+				return summaryErr
 			}
 
 			parseDir := dirPath
@@ -93,11 +93,19 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 
 			_, _ = fmt.Fprintf(cmd.Writer, "\nRegenerating YAML...\n")
 
-			return p.Parse(provider.ProviderOps{
+			if err := p.Parse(provider.ProviderOps{
 				Directory:       parseDir,
 				OutputDirectory: outputDir,
 				DryRun:          false,
-			})
+			}); err != nil {
+				return err
+			}
+
+			// The regenerated YAML is written either way: what upgraded is
+			// correct, and holding it back over an action that did not would
+			// leave the directory half converted. The failure is still the
+			// command's outcome.
+			return summaryErr
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -131,7 +139,12 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 	}
 }
 
-func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) {
+// printUpgradeSummary writes the counts and reports whether any action failed.
+//
+// Same as the pin side: the command returned nil over a printed "1 failed" and
+// exited 0. Worse here, because --parse then regenerates YAML from a directory
+// the run already knows it could not fully upgrade.
+func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) error {
 	upgraded := 0
 	current := 0
 	failed := 0
@@ -148,4 +161,10 @@ func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) {
 	}
 
 	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d upgraded, %d already current, %d failed\n", upgraded, current, failed)
+
+	if failed > 0 {
+		return fmt.Errorf("%w: %d of %d", errUpgradeFailed, failed, len(results))
+	}
+
+	return nil
 }

@@ -75,7 +75,9 @@ trigger a regeneration, which is what it did before.
 
 The exit code is left alone. A partial run is still a run, and the question of
 whether pin should exit non-zero on a skipped file is a separate decision from
-whether it should say so.
+whether it should say so. That decision was taken later, in
+`pin-and-upgrade-reported-a-failure-at-exit-zero.md`: both commands now exit
+non-zero on a counted failure, which includes the file-level one added here.
 
 ## Prevention
 
