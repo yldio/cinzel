@@ -237,7 +237,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 
 	sections.next()
 
-	if err := writeReferenceListAttribute(workflowBody, "jobs", "job", jobRefs); err != nil {
+	if err := writeReferenceListAttribute(workflowBody, "jobs", "job", jobRefs, comments.at("jobs").head); err != nil {
 		return nil, err
 	}
 
@@ -309,7 +309,7 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 	if len(stepRefs) > 0 {
 		sections.next()
 
-		if err := writeReferenceListAttribute(jobBody, "steps", "step", stepRefs); err != nil {
+		if err := writeReferenceListAttribute(jobBody, "steps", "step", stepRefs, comments.at("steps").head); err != nil {
 			return err
 		}
 	}
@@ -594,10 +594,22 @@ func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment 
 	return nil
 }
 
-func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, refs []string) error {
+// writeReferenceListAttribute writes a list of references, e.g. "jobs = [
+// job.build, ]". head is the comment written above the YAML key this list
+// stands for.
+//
+// It takes that comment because the keys reaching it are the two the writers
+// above skip: "jobs" and "steps" become top-level blocks referenced from here,
+// so their loops "continue" past them before reaching the line that writes a
+// head comment. The comment above them was dropped, and a foot comment closing
+// the key before them was dropped with it, since yaml.v3 hands a mapping's
+// closing comment back as the head of the key that follows.
+func writeReferenceListAttribute(body *hclwrite.Body, attr string, root string, refs []string, head string) error {
 	if len(refs) == 0 {
 		return nil
 	}
+
+	hclcomment.WriteLeading(body, head)
 
 	tokens := hclwrite.Tokens{{Type: hclsyntax.TokenOBrack, Bytes: []byte("[")}, {Type: hclsyntax.TokenNewline, Bytes: []byte("\n")}}
 

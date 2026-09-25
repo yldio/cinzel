@@ -184,7 +184,7 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 		if len(stepRefs) > 0 {
 			runsSections.next()
 
-			if err := writeReferenceListAttribute(runsBody, "steps", "step", stepRefs); err != nil {
+			if err := writeReferenceListAttribute(runsBody, "steps", "step", stepRefs, comments.child("runs").at("steps").head); err != nil {
 				return nil, err
 			}
 		}
