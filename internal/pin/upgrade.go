@@ -167,6 +167,11 @@ func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.W
 		if err != nil {
 			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 
+			// Carried as a result for the same reason as in PinDirectory: the
+			// summary counts results, so a file that could not be read at all
+			// was reported as no failure.
+			allResults = append(allResults, UpgradeResult{Action: path, Error: err})
+
 			continue
 		}
 

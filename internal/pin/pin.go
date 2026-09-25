@@ -734,6 +734,13 @@ func PinDirectory(ctx context.Context, dir string, resolver Resolver, w io.Write
 		if err != nil {
 			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 
+			// The warning was the whole of it, so a file nothing could be read
+			// from left no result behind and the summary counted no failure
+			// for it: a directory holding one unparseable file and one already
+			// pinned reported "0 pinned, 1 already pinned, 0 failed" and exited
+			// 0, which reads as a clean run.
+			allResults = append(allResults, PinResult{Action: path, Error: err})
+
 			continue
 		}
 

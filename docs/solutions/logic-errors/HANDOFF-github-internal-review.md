@@ -16,7 +16,7 @@ tags:
   - "review"
 status: "part done — the null finding, the reader question and provider/github are closed, internal/ is still open"
 created_date: "2026-09-20"
-updated_date: "2026-09-20"
+updated_date: "2026-09-25"
 ---
 
 # Handoff: internal/ and provider/github
@@ -186,9 +186,13 @@ session can pick.
   `mergeHCLFiles`, and `deduplicateWithExisting`. One finding, in the last:
   a generated block clashing with the context kept the label the context
   already held, and the session parses together with that context. See
-  `assist-dedup-writes-two-blocks-under-one-label.md`. The rest of the package
-  — the other commands, `validateRelativePath`, `printPinSummary` — was not
-  read.
+  `assist-dedup-writes-two-blocks-under-one-label.md`. `validateRelativePath`
+  and `printPinSummary` have since been read and probed clean: the first is
+  POSIX-correct over 23 path shapes and its doc comment scopes itself honestly
+  to `..` and absolute paths, and the second's case order is safe because the
+  producers are mutually exclusive. The summary it prints was wrong for another
+  reason, upstream in `internal/pin`, recorded below. The rest of the package,
+  the other commands and `init.go`, was not read.
 - ~~`internal/pin` (2631) — network-facing, the GitHub API resolver, upgrade
   logic. Largest untouched surface.~~ The rewrite path was probed over 21 shapes
   through `PinFile` and `UpgradeFile`: comment forms, attribute order, nesting
@@ -199,9 +203,13 @@ session can pick.
   and was raised rather than decided alone: the rewrite replaced the whole
   trailing comment, so an author's own note on the version line was lost. It is
   now carried over behind the tag, which is also what makes the rewrite
-  idempotent. The resolver, the cache and the API error
-  paths were read but not probed: they need a server stub this session did not
-  build.
+  idempotent. The directory walkers were probed after that and hold one more
+  finding: a file neither of them could read at all was warned about and
+  dropped, and both summaries count results, so `pin` and `upgrade` reported
+  `0 failed` at exit 0 over a directory holding a file they had skipped. See
+  `a-skipped-file-counted-as-no-failure.md`. The resolver, the cache and the API
+  error paths were read but not probed: they need a server stub this session did
+  not build.
 - ~~`internal/ai` (1678) — assist, prompt construction, HCL stripping.~~
   Probed, no defects. `StripHCLContext` was checked against its own doc comment
   with markers in every position a value can sit in: only block labels and file
@@ -275,7 +283,11 @@ session can pick.
   parity, which only a double-quoted scalar obeys; a plain scalar and an HCL
   heredoc both leave a backslash single. See
   `a-backslash-in-a-script-read-as-an-escape.md`.
-- `internal/maputil` (92), `internal/test` (90).
+- ~~`internal/maputil` (92), `internal/test` (90).~~ Both probed, no defects.
+  `maputil`'s aliasing, ordering and non-string-key shapes are all settled
+  upstream by `rejectNonStringKeys`, and a duplicate matrix key in the block
+  form is refused. `internal/test` is test doubles only, on no production
+  path.
 
 `provider/github`, 5510 lines plus four subpackages (`action/`, `job/`,
 `step/`, `workflow/`):
@@ -290,7 +302,11 @@ session can pick.
   `github-env-block-comments-read-by-halves.md`.
 - `unparse_workflow.go` (765) was read only around the emit funnel, and now the
   foot writer — see the note above.
-- `validate.go` (572) — remember the criterion above before touching it.
+- ~~`validate.go` (572) — remember the criterion above before touching it.~~
+  Probed, no defects. Parse and unparse validation is symmetric, which
+  `validateParsedJobs` carries an explicit comment about for the step `uses`
+  case, and the `uses` split and join roundtrip stable. What is left is schema
+  checking, which is actionlint's.
 
 ## Method that worked
 
