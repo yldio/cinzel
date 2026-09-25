@@ -237,8 +237,14 @@ session can pick.
   toward keeping the file except a read failure, which ended the run instead.
   A hand-written file in the output directory with a line over 64KB, or one the
   process cannot open, failed a `parse` that had already written its YAML. See
-  `prune-aborts-over-a-file-it-does-not-own.md`. The rest of the package — the
-  path helpers, the walk itself — was not read.
+  `prune-aborts-over-a-file-it-does-not-own.md`. The walk has since been probed
+  too, and holds the worst-reaching finding here: `ParseHCLInput` compared the
+  extension exactly where every neighbour folds case, so an input named
+  `build.HCL` was invisible to a directory run and read without complaint by a
+  single-file one. A gitlab pipeline came out missing that file's jobs, and a
+  github run deleted the YAML it had already generated for it. See
+  `an-hcl-file-skipped-for-its-extension-case.md`. `WriteFile`,
+  `joinExtensions` and `UniqueOutputName` were read and are clean.
 - ~~`internal/yamldoc` (617)~~ `encode.go` probed, one finding. Scalars and keys
   came back clean across every misreadable shape tried — numbers, YAML 1.1
   booleans in any case, sexagesimals, the reserved indicators. The fault is in
