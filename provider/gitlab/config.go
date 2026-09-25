@@ -240,6 +240,14 @@ type parseConfig struct {
 	Includes  []hclIncludeBlock  `hcl:"include,block"`
 	Default   []hclDefaultBlock  `hcl:"default,block"`
 	Spec      []hclSpecBlock     `hcl:"spec,block"`
+
+	// Body takes the top-level keys the schema does not name, which unparse
+	// writes here for a GitLab keyword cinzel has no block for. Without it the
+	// HCL unparse had just written was refused by the next parse, so the two
+	// commands the README puts side by side did not compose: "my_extra = v"
+	// came out at exit 0 and went back in as "An argument named "my_extra" is
+	// not expected here." at exit 1.
+	Body hcl.Body `hcl:",remain"`
 }
 
 // hclSpecBlock is the pipeline's "spec" header, which GitLab requires to sit in
