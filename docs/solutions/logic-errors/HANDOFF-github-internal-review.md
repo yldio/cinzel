@@ -245,13 +245,18 @@ session can pick.
   github run deleted the YAML it had already generated for it. See
   `an-hcl-file-skipped-for-its-extension-case.md`. `WriteFile`,
   `joinExtensions` and `UniqueOutputName` were read and are clean.
-- ~~`internal/yamldoc` (617)~~ `encode.go` probed, one finding. Scalars and keys
+- ~~`internal/yamldoc` (617)~~ Both files probed, one finding in `encode.go`. Scalars and keys
   came back clean across every misreadable shape tried — numbers, YAML 1.1
   booleans in any case, sexagesimals, the reserved indicators. The fault is in
   multi-line strings: every one got a literal block, including the two shapes a
   block cannot state, and a `run` indented with tabs on line 1 became YAML no
   reader accepts. See `literal-block-cannot-state-its-own-first-line.md`.
-  `document.go` was read and not probed.
+  `document.go` has since been probed and is clean: numeric and YAML 1.1
+  boolean-lookalike keys, nested ordering, `Map(nil)` and `Seq(nil)`, a shared
+  `Doc` pointer, a duplicate name, 60-deep nesting and foot placement on every
+  value kind all hold, and eight runs of the same input hash identically. A
+  multi-line inline comment cannot inject a key. The comment path it feeds is
+  where the finding above came from.
 - ~~`internal/cinzelerror` (513)~~ Probed, one finding. The error wrapping, the
   user-input marking and the duplicate-suffix guard all hold. `SafeForTerminal`
   escapes every C0 and C1 control, but a bidirectional override is not a control
@@ -306,8 +311,17 @@ session can pick.
   One finding, in the comment path: the step and job readers each read half of
   an env or with block's comments. See
   `github-env-block-comments-read-by-halves.md`.
-- `unparse_workflow.go` (765) was read only around the emit funnel, and now the
-  foot writer — see the note above.
+- `unparse_workflow.go` (765) was read only around the emit funnel, the foot
+  writer (see the note above) and the reference-list emitter. The last holds one
+  finding: `jobs` and `steps` become top-level blocks referenced from a list, so
+  both writers `continue` past those keys before the line that writes a head
+  comment, and `writeReferenceListAttribute` took no comment at all. A note above
+  either was dropped on unparse at exit 0. See
+  `a-reference-list-loses-the-comment-above-it.md`. Two neighbouring shapes were
+  probed and are not defects: a comment followed by a blank line leaves a
+  trailing empty `#` line in the HCL, which parses and is byte-stable over two
+  passes, and the foot comment of a non-last key is not dropped, because yaml.v3
+  hands these back as heads rather than feet.
 - ~~`validate.go` (572) — remember the criterion above before touching it.~~
   Probed, no defects. Parse and unparse validation is symmetric, which
   `validateParsedJobs` carries an explicit comment about for the step `uses`
