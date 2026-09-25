@@ -1,4 +1,44 @@
 cinzel
+## [1.0.0](https://github.com/yldio/cinzel/compare/v0.7.0..v1.0.0) - 2026-09-25
+
+### ⛰️  Features
+
+- *(command)* [**breaking**] Exit non-zero when an action cannot be pinned or upgraded (#96) - ([53386ad](https://github.com/yldio/cinzel/commit/53386ad6188619b37ad459278cd810e5103a2286))
+
+### 🐛 Bug Fixes
+
+- *(ai)* Say when the config file exists and was not used - ([cb8aad6](https://github.com/yldio/cinzel/commit/cb8aad619033b076602c44a3ef1433995e351f0f))
+- *(ai)* Drop a partial rune left by the context truncation - ([ca7b459](https://github.com/yldio/cinzel/commit/ca7b459d653d7e9308163dffa4f83680a4e3d198))
+- *(ai)* Take only a fence at column 0 as a fence - ([1066023](https://github.com/yldio/cinzel/commit/10660234cc102307e99fe4558a006b6263e3a533))
+- *(assist)* Give a clashing block a free label, and move its references with it (#83) - ([b6cbb8b](https://github.com/yldio/cinzel/commit/b6cbb8bf526c7809b81c7882a94e2f0cc257e2ef))
+- *(cinzelerror)* Escape the bidi overrides that reorder an error message (#86) - ([a258f7f](https://github.com/yldio/cinzel/commit/a258f7ff2e2b8f5aabd64690029d6e430068eb3b))
+- *(fsutil)* Read an HCL file whatever the case of its extension (#91) - ([8ce4c89](https://github.com/yldio/cinzel/commit/8ce4c898af6673a5e76589386e9a0254dbd3be89))
+- *(fsutil)* Read a file it cannot open as one it does not own (#84) - ([0730f4d](https://github.com/yldio/cinzel/commit/0730f4d3736221600910314a9bb7de4a6ddcb120))
+- *(github)* Keep the comment above a key that holds a map (#95) - ([82cc328](https://github.com/yldio/cinzel/commit/82cc32876efd940a27a4697dce07a1d643b32fe7))
+- *(github)* Keep the comment above a jobs or steps list (#92) - ([28c41d0](https://github.com/yldio/cinzel/commit/28c41d0a0541f8bf6a963975832db85d7f8b17cc))
+- *(github)* Read an env block's comments from both paths (#80) - ([a6d5e23](https://github.com/yldio/cinzel/commit/a6d5e2326ddddc85510aa713d69e06164df2eab5))
+- *(github)* Keep a matrix axis named the way it was written - ([9f3d15b](https://github.com/yldio/cinzel/commit/9f3d15ba0f41e0cedd7c233350daedcd8f4aba7c))
+- *(gitlab)* Read back the top-level key unparse passes through (#93) - ([c75c525](https://github.com/yldio/cinzel/commit/c75c525ce95a575623daf25bdb5dc52e5d50bc6d))
+- *(gitlab)* Refuse the top-level key that sanitizes to itself (#88) - ([0d280f3](https://github.com/yldio/cinzel/commit/0d280f39d49cab483798130c371e3ef19e2c23f2))
+- *(hclparser)* Keep the fraction when adding, subtracting or multiplying (#94) - ([4cfe6d8](https://github.com/yldio/cinzel/commit/4cfe6d83e54b8e56a5737b484e9692d5a4ad9d40))
+- *(naming)* Prefix an identifier starting with any digit - ([bf413e0](https://github.com/yldio/cinzel/commit/bf413e00be4c502179e5349ea893bec932c98385))
+- *(pin)* Count a file it could not read as a failure (#90) - ([1527df3](https://github.com/yldio/cinzel/commit/1527df337066b33bc9e6b72a4a5d835401aa7584))
+- *(pin)* Recognise the tag a pass wrote by the shape of the comment (#82) - ([6ce3f1f](https://github.com/yldio/cinzel/commit/6ce3f1f8f90ffcf2f6353c51ff176c269036a1da))
+- *(pin)* Read the whole trailing comment, and keep what the author wrote in it (#81) - ([98ab484](https://github.com/yldio/cinzel/commit/98ab4848bca5399e2eb834e3224a24ab96d8e5a3))
+- *(unescape)* Keep a backslash the author wrote (#89) - ([7635482](https://github.com/yldio/cinzel/commit/76354825e74c6f441b8dc7d7cb0c0873379e85fd))
+- *(yamldoc)* Quote a multi-line value a literal block cannot state (#87) - ([f4cedf3](https://github.com/yldio/cinzel/commit/f4cedf36d6303c3797f1c162b979564739fe2498))
+- *(yamlwriter)* Take a cty.Value by whatever route it arrives - ([d1005b6](https://github.com/yldio/cinzel/commit/d1005b6a0aedf176c5c945f8a760afe2481fb531))
+
+### 📚 Documentation
+
+- Record the cty.Value-behind-an-any marshal bug - ([68e2aab](https://github.com/yldio/cinzel/commit/68e2aabe8d025f6a8937185163e3b1fd61555bf3))
+- Record the five bugs from the internal/ai and naming review - ([788ca4f](https://github.com/yldio/cinzel/commit/788ca4f60be809434087dc058aed993675d77414))
+
+### Cleanup
+
+- *(yamlwriter)* Drop the unused Writer surface - ([1fbfd0a](https://github.com/yldio/cinzel/commit/1fbfd0afb4e1cf72a9ff04245ff8c9fc3df847ac))
+
+
 ## [0.7.0](https://github.com/yldio/cinzel/compare/v0.6.2..v0.7.0) - 2026-09-18
 
 ### ⛰️  Features
