@@ -32,24 +32,21 @@ jobs:
           fi
       - id: release_app_token
         name: Create release app token
-        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: "${{ secrets.RELEASE_APP_ID }}"
-          # Everything this token does is contents-level: tag, commit the changelog,
-          # create the release, upload its assets and push the homebrew cask. Without
-          # an explicit scope the token carries every permission the app was granted.
           permission-contents: write
           private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
           repositories: "cinzel,homebrew-cinzel"
       - id: checkout_release
         name: Checkout (full history)
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: "0"
           persist-credentials: "false"
       - id: mise_setup
         name: Setup mise
-        uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: "true"
           install: "true"
@@ -57,7 +54,7 @@ jobs:
           GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
           HOMEBREW_TAP_GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
         id: goreleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           args: release --clean
           distribution: goreleaser

@@ -4,14 +4,11 @@
 step "checkout" {
   name = "Checkout"
 
-  // actions/checkout v6.0.2
   uses {
     action  = "actions/checkout"
-    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+    version = "3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
   }
 
-  // Nothing in this job needs a token in .git/config. The one step that
-  // pushes carries its credentials in its own environment instead.
   with {
     name  = "persist-credentials"
     value = "false"
@@ -21,10 +18,9 @@ step "checkout" {
 step "checkout_release" {
   name = "Checkout (full history)"
 
-  // actions/checkout v6.0.2
   uses {
     action  = "actions/checkout"
-    version = "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+    version = "3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
   }
 
   with {
@@ -41,28 +37,6 @@ step "checkout_release" {
 step "verify_release_token" {
   name = "Verify the release token before anything changes"
 
-  // The release job's first mutation pushes a tag. Everything after it
-  // assumes the token can write and that the credentials the pushing steps
-  // carry in their environment actually authenticate, and neither is
-  // checkable until it is used. Both are checked here instead, while the
-  // repository is still untouched: a scope that turns out to be too narrow
-  // fails before the tag exists rather than after.
-  //
-  // homebrew-cinzel is checked here too. It is pushed by the release-packages
-  // job, which this job triggers by creating the release, so this is the last
-  // point where a missing scope can be reported without a release already
-  // being published.
-  //
-  // Scope is what is checkable here, not permission. The token is an app
-  // installation token, so "repos/$repo" was the wrong place to ask: its
-  // "permissions" object describes the authenticated user, and an
-  // installation token has no user behind it, so the field came back absent
-  // and the check could never pass. /installation/repositories answers for
-  // the installation itself, which is what the token actually is.
-  //
-  // contents:write is settled at mint time — create-github-app-token fails
-  // when the installation was never granted a permission the step asks for —
-  // and the dry run below proves it for this repository outright.
   run = <<EOF
 set -euo pipefail
 
@@ -106,10 +80,9 @@ step "release_app_token" {
   id   = "release_app_token"
   name = "Create release app token"
 
-  // actions/create-github-app-token v3.0.0
   uses {
     action  = "actions/create-github-app-token"
-    version = "f8d387b68d61c58ab83c6c016672934102569859"
+    version = "bcd2ba49218906704ab6c1aa796996da409d3eb1" # v3.2.0
   }
 
   with {
@@ -127,9 +100,6 @@ step "release_app_token" {
     value = "cinzel,homebrew-cinzel"
   }
 
-  // Everything this token does is contents-level: tag, commit the changelog,
-  // create the release, upload its assets and push the homebrew cask. Without
-  // an explicit scope the token carries every permission the app was granted.
   with {
     name  = "permission-contents"
     value = "write"
@@ -139,10 +109,9 @@ step "release_app_token" {
 step "mise_setup" {
   name = "Setup mise"
 
-  // jdx/mise-action v4.0.0
   uses {
     action  = "jdx/mise-action"
-    version = "c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4"
+    version = "c2a87611a18de5b3828c5652fe268e992400cb5c" # v4.3.0
   }
 
   with {
@@ -161,10 +130,9 @@ step "tag_version" {
   name = "Bump version and push tag"
   if   = "$${{ steps.resolve_release_tag.outputs.skip != 'true' }}"
 
-  // mathieudutour/github-tag-action v6.2
   uses {
     action  = "mathieudutour/github-tag-action"
-    version = "a22cf08638b34d5badda920f9daf6e72c477b07b"
+    version = "af99e60ce8132224b8e6ebab5023449fe256ed46" # v7
   }
 
   with {
@@ -228,7 +196,6 @@ step "create_release" {
   id   = "create_release"
   name = "Create a GitHub release"
 
-  // ncipollo/release-action v1.21.0
   uses {
     action  = "ncipollo/release-action"
     version = "339a81892b84b4eeb0f6e744e4574d79d0d9b8dd"
@@ -254,10 +221,9 @@ step "git_cliff_changelog" {
   id   = "git_cliff_changelog"
   name = "Generate full changelog"
 
-  // orhun/git-cliff-action v4.7.1
   uses {
     action  = "orhun/git-cliff-action"
-    version = "c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72"
+    version = "a9a95522b26fe6403f7bb24031f21fb573d0f5ff" # v4.9.1
   }
 
   with {
@@ -290,10 +256,9 @@ step "git_cliff_release_notes" {
   id   = "git_cliff"
   name = "Generate release notes"
 
-  // orhun/git-cliff-action v4.7.1
   uses {
     action  = "orhun/git-cliff-action"
-    version = "c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72"
+    version = "a9a95522b26fe6403f7bb24031f21fb573d0f5ff" # v4.9.1
   }
 
   with {
@@ -320,10 +285,9 @@ step "git_cliff_release_notes" {
 step "commit_release" {
   name = "Commit release changelog"
 
-  // stefanzweifel/git-auto-commit-action v7.1.0
   uses {
     action  = "stefanzweifel/git-auto-commit-action"
-    version = "04702edda442b2e678b25b537cec683a1493fcb9"
+    version = "4a55954c782fc1ea30b9056cd3e7a2b40ca8887d" # v7.2.0
   }
 
   with {
@@ -341,9 +305,6 @@ step "commit_release" {
     value = "$${{ github.ref_name }}"
   }
 
-  // The action pushes the changelog commit with a bare "git push origin" and
-  // takes no token for it. The credentials go in this step's environment, so
-  // the checkout leaves nothing in .git/config for the earlier steps to read.
   env {
     name  = "GIT_CONFIG_COUNT"
     value = "1"
@@ -381,17 +342,11 @@ step "coverage" {
   name = "Coverage"
   if   = "$${{ matrix.os == 'ubuntu-24.04' }}"
 
-  // gwatts/go-coverage-action v2.0.0
   uses {
     action  = "gwatts/go-coverage-action"
     version = "2845595538a59d63d1bf55f109c14e104c6f7cb3"
   }
 
-  // The action pushes refs/notes/gocoverage with a bare "git push origin"
-  // and takes no token for it. git reads configuration from GIT_CONFIG_COUNT
-  // and its numbered pairs, so the credentials live in this step's
-  // environment rather than in .git/config, where every other step in the
-  // job would be able to read them.
   env {
     name  = "GIT_CONFIG_COUNT"
     value = "1"
@@ -412,7 +367,6 @@ step "calculate_next_version" {
   id   = "calculate_next_version"
   name = "Calculate next version"
 
-  // ietf-tools/semver-action v1.11.0
   uses {
     action  = "ietf-tools/semver-action"
     version = "c90370b2958652d71c06a3484129a4d423a6d8a8"
@@ -435,10 +389,9 @@ step "calculate_next_version" {
 }
 
 step "goreleaser" {
-  // goreleaser/goreleaser-action v7.0.0
   uses {
     action  = "goreleaser/goreleaser-action"
-    version = "ec59f474b9834571250b370d4735c50f8e2d1e29"
+    version = "f06c13b6b1a9625abc9e6e439d9c05a8f2190e94" # v7.2.3
   }
 
   with {
