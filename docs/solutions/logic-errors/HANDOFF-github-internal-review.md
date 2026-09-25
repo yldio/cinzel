@@ -178,7 +178,13 @@ session can pick.
 
 `internal/`, about 12k lines over 13 packages:
 
-- `internal/command` (3164) — flag and config handling. `.cinzelrc.yaml`
+- `internal/command` (3164) — flag and config handling. `config.go` has now
+  been probed over ten shapes: a duplicate key, an anchor alias, a merge key, a
+  null, an empty string, a trailing slash and `a/../b` are all either refused
+  or handled, and an empty `output-directory` falls through to the provider's
+  default rather than writing at the root. `init.go` was read and its three
+  recorded fixes hold. One finding stands in `pin.go` and `upgrade.go`, raised
+  rather than fixed because it changes an exit code: see the section below. `.cinzelrc.yaml`
   parsing was reviewed in `20f8a92`. The assist pipeline has now been probed
   end to end: `splitYAMLDocuments` (nine separator shapes, including one inside
   a block scalar and a legal `--- # comment` it does not cut on — the unparser
@@ -229,8 +235,14 @@ session can pick.
   open-an-issue line in by hand at twelve sites and put back what the mark took
   off. Probing it also turned up a template holding one interpolation being
   refused where the same reference written bare resolves. See
-  `hclparser-typos-sent-to-the-issue-tracker.md`. The rest of the package was
-  not read.
+  `hclparser-typos-sent-to-the-issue-tracker.md`. `binaryopexpr.go` has since
+  been probed and held a second finding: add, subtract and multiply read each
+  side with `big.Float.Int64` before operating, so `1.5 + 2.5` was computed as
+  `1 + 2`, and `0.5 + 0.5` came back as 0 and was then refused as "must be
+  greater than zero" over arithmetic the author had written correctly. Divide
+  never had it. See `arithmetic-truncated-before-the-operation.md`. The
+  `Int64` in `scopetraversalexpr.go` looks the same and is correct: it reads a
+  list index. The rest of the package was not read.
 - ~~`internal/fsutil` (753)~~ `generated_markers.go` probed, one finding.
   `PruneStaleGeneratedYAML` deletes files, so `HasGeneratedMarker` is the
   boundary, and twelve ownership shapes were put through it: every miss errs
@@ -337,6 +349,30 @@ passthrough as deliberate. It is now decided and fixed: the key is read back
 rather than refused, which keeps the passthrough those tests describe and
 closes the roundtrip the README documents. See
 `a-passed-through-key-cannot-be-read-back.md`.
+
+## Open: pin and upgrade report a failure at exit 0
+
+`printPinSummary` and `printUpgradeSummary` count a failed result and print it,
+and both actions then `return nil`. A run that could not pin an action prints
+
+```
+warning: could not pin some-org/some-action@v1: GitHub API returned 404 ...
+
+Pin summary: 1 pinned, 0 already pinned, 1 failed
+```
+
+and exits 0. Reproduced against the live API with one real action and one that
+does not exist. `upgrade` prints the same shape, and its `--parse` gate reads
+the same results, so it regenerates YAML from a directory it knows it failed on.
+
+This is the same family as `a-skipped-file-counted-as-no-failure.md`, which
+fixed the counting. The count is now right and the exit code still is not.
+
+Not fixed here, because it changes an exit code rather than an output file, and
+a CI step calling `cinzel github pin` starts failing the moment it changes.
+Nothing in the repo pins the current behaviour as deliberate: no test asserts
+it and neither README nor `docs/architecture/commands.md` mentions an exit code
+for either command. It needs a decision, not a patch.
 
 ## Method that worked
 
