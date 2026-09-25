@@ -361,10 +361,11 @@ rather than refused, which keeps the passthrough those tests describe and
 closes the roundtrip the README documents. See
 `a-passed-through-key-cannot-be-read-back.md`.
 
-## Open: pin and upgrade report a failure at exit 0
+## Fixed: pin and upgrade reported a failure at exit 0
 
-`printPinSummary` and `printUpgradeSummary` count a failed result and print it,
-and both actions then `return nil`. A run that could not pin an action prints
+`printPinSummary` and `printUpgradeSummary` counted a failed result and printed
+it, and both actions then `return nil`. A run that could not pin an action
+printed
 
 ```
 warning: could not pin some-org/some-action@v1: GitHub API returned 404 ...
@@ -372,18 +373,15 @@ warning: could not pin some-org/some-action@v1: GitHub API returned 404 ...
 Pin summary: 1 pinned, 0 already pinned, 1 failed
 ```
 
-and exits 0. Reproduced against the live API with one real action and one that
-does not exist. `upgrade` prints the same shape, and its `--parse` gate reads
-the same results, so it regenerates YAML from a directory it knows it failed on.
+and exited 0, so a CI step calling `cinzel github pin` went green over a
+workflow still holding an unpinned action. `upgrade` printed the same shape, and
+its `--parse` gate read the same results, so it regenerated YAML from a
+directory it knew it had failed on.
 
-This is the same family as `a-skipped-file-counted-as-no-failure.md`, which
-fixed the counting. The count is now right and the exit code still is not.
-
-Not fixed here, because it changes an exit code rather than an output file, and
-a CI step calling `cinzel github pin` starts failing the moment it changes.
-Nothing in the repo pins the current behaviour as deliberate: no test asserts
-it and neither README nor `docs/architecture/commands.md` mentions an exit code
-for either command. It needs a decision, not a patch.
+Both summaries now return the failure and both actions return it.
+`upgrade --parse` still writes the regenerated YAML first, and `assist` still
+reports a failed pin as a warning, because the HCL it generated is already on
+disk. Written up in `pin-and-upgrade-reported-a-failure-at-exit-zero.md`.
 
 ## Method that worked
 

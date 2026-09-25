@@ -44,9 +44,7 @@ func (cmd *Cli) pinCommand() *cli.Command {
 					return err
 				}
 
-				cmd.printPinSummary(results)
-
-				return nil
+				return cmd.printPinSummary(results)
 			}
 
 			results, err := pin.PinDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun)
@@ -54,9 +52,7 @@ func (cmd *Cli) pinCommand() *cli.Command {
 				return err
 			}
 
-			cmd.printPinSummary(results)
-
-			return nil
+			return cmd.printPinSummary(results)
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -80,7 +76,14 @@ func (cmd *Cli) pinCommand() *cli.Command {
 	}
 }
 
-func (cmd *Cli) printPinSummary(results []pin.PinResult) {
+// printPinSummary writes the counts and reports whether any action failed.
+//
+// The count has been right since a skipped file started being counted, and the
+// command still ended at exit 0 over it: a run printing "1 failed" passed, so a
+// CI step calling pin went green on a workflow holding an unpinned action,
+// which is the thing pinning exists to prevent. The failures are already named
+// on the way through, so the error says only that there were some.
+func (cmd *Cli) printPinSummary(results []pin.PinResult) error {
 	pinned := 0
 	skipped := 0
 	failed := 0
@@ -97,4 +100,10 @@ func (cmd *Cli) printPinSummary(results []pin.PinResult) {
 	}
 
 	_, _ = fmt.Fprintf(cmd.Writer, "\nPin summary: %d pinned, %d already pinned, %d failed\n", pinned, skipped, failed)
+
+	if failed > 0 {
+		return fmt.Errorf("%w: %d of %d", errPinFailed, failed, len(results))
+	}
+
+	return nil
 }
