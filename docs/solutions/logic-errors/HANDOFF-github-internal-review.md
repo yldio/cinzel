@@ -328,6 +328,16 @@ session can pick.
   case, and the `uses` split and join roundtrip stable. What is left is schema
   checking, which is actionlint's.
 
+## The gitlab passthrough question, now decided
+
+An unknown top-level key was written out as a bare attribute at exit 0 and
+refused by the next parse at exit 1, because `parseConfig` had no `,remain`.
+This was raised rather than fixed unasked, since three tests pinned the
+passthrough as deliberate. It is now decided and fixed: the key is read back
+rather than refused, which keeps the passthrough those tests describe and
+closes the roundtrip the README documents. See
+`a-passed-through-key-cannot-be-read-back.md`.
+
 ## Method that worked
 
 Stub or neuter the guard, run the roundtrip, see whether HCL -> YAML -> HCL

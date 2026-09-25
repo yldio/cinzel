@@ -182,6 +182,10 @@ func parseHCLToPipeline(body hcl.Body, sources map[string][]byte) (map[string]an
 		jobs["."+key] = templateMap
 	}
 
+	if err := parsePassthroughAttrs(pipeline, cfg.Body, hv); err != nil {
+		return nil, nil, err
+	}
+
 	remapJobRefs(jobs, keys)
 
 	if err := validatePipeline(pipeline, jobs); err != nil {
@@ -1186,6 +1190,47 @@ func setNullableAttr(out map[string]any, key string, expr hcl.Expression, hv *hc
 	}
 
 	return setOptionalAttr(out, key, expr, hv)
+}
+
+// parsePassthroughAttrs reads the top-level attributes the schema does not name
+// into the pipeline map, which is the other half of the passthrough unparse
+// already performs: a GitLab keyword cinzel has no block for is written out as
+// a bare attribute, and without this it could not be read back. The HCL unparse
+// had just written was refused by the next parse, so the two commands the
+// README puts side by side did not compose.
+//
+// The attributes come from the body gohcl left over, so a key the schema did
+// consume is already hidden and cannot be read twice. Its diagnostics are
+// dropped rather than returned: the only one it raises here is that the body
+// still holds blocks, which are the job, template and include blocks the
+// schema took, and reporting those as an error would refuse every pipeline
+// that has one.
+//
+// A key already in the map is left alone. Nothing reaches that today, since
+// every name the schema writes is hidden by the time this runs, but the map
+// is what the YAML is built from and overwriting a parsed block with a raw
+// attribute would lose the block.
+func parsePassthroughAttrs(pipeline map[string]any, body hcl.Body, hv *hclparser.HCLVars) error {
+	if body == nil {
+		return nil
+	}
+
+	attrs, _ := body.JustAttributes()
+
+	for _, name := range maputil.SortedKeys(attrs) {
+		if _, taken := pipeline[name]; taken {
+			continue
+		}
+
+		value, err := parseAttr(attrs[name].Expr, hv)
+		if err != nil {
+			return fmt.Errorf("error in top-level key '%s': %w", name, err)
+		}
+
+		pipeline[name] = value
+	}
+
+	return nil
 }
 
 func parseGenericBodyMap(body hcl.Body, hv *hclparser.HCLVars) (map[string]any, error) {
