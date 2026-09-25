@@ -244,9 +244,32 @@ session can pick.
   and reorders the message that quotes the name, which is the forgery the
   function exists to stop. See
   `a-bidi-override-reorders-the-error-that-quotes-it.md`.
-- `internal/yamlwriter` (358),
-  `internal/hclcomment` (195), `internal/naming` (199),
-  `internal/unescape` (93), `internal/maputil` (92), `internal/test` (90).
+- ~~`internal/yamlwriter` (358)~~ Probed, no defects. One live caller,
+  `stepsToMap` in `parse_workflow.go:1488`, and one struct reaching it, every
+  field tagged. cty strings carrying a YAML 1.1 boolean, a leading zero, a
+  sexagesimal or a special character all come back as themselves, and the real
+  pipeline quotes them; null, unknown, NilVal, DynamicVal, empty collections,
+  tuples and sets are all handled; output is byte-identical over eight runs
+  despite the unordered maps, because `annotateStep` and the emitter order it
+  downstream. `convertCty` panics on a marked value, which nothing in the repo
+  produces: no call site marks, so it is unreachable rather than a defect.
+- ~~`internal/naming` (199)~~ Read and probed through its callers, one finding.
+  The functions themselves hold: `SanitizeIdentifier` decodes the first rune
+  rather than indexing a byte, and puts every non-ASCII rune to hclsyntax rather
+  than to Go's tables, both of which earlier fixes put there. It returns the
+  empty string for input it can make nothing of, which its callers in
+  `provider/gitlab/unparse_pipeline.go` mostly treat as a value to decide about:
+  the template and job loops substitute a name, `jobRefID` refuses. The
+  passthrough guard read it as an answer about identity instead, and the empty
+  key is its fixpoint. See `the-empty-key-sanitizes-to-itself.md`.
+- ~~`internal/hclcomment` (195)~~ Read, no defects. Three functions over about
+  60 lines. `WriteLeading` splits on newlines and puts a "#" on each; `Trailing`
+  does not split, which would matter if a trailing comment could carry a
+  newline, and it cannot: every value reaching it comes from a YAML node's
+  `LineComment` or `TrailingComment`, both of which are one line by
+  construction. `Line` leaves an existing "#" alone, so a comment read from HCL
+  and written back is unchanged.
+- `internal/unescape` (93), `internal/maputil` (92), `internal/test` (90).
 
 `provider/github`, 5510 lines plus four subpackages (`action/`, `job/`,
 `step/`, `workflow/`):

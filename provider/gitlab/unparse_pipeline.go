@@ -649,7 +649,13 @@ func pipelineToHCL(doc map[string]any, filename string, c *comments) ([]byte, er
 			// identifier produced HCL nothing can read back: "my weird key =
 			// v" is three block labels and an equals sign. It went out with
 			// only the passthrough warning and exit 0.
-			if naming.SanitizeIdentifier(key) != key {
+			// The empty key is asked about separately. Sanitizing it returns
+			// it unchanged, which is the one way a key that is not an
+			// identifier can equal its own sanitized form, so it passed the
+			// test below and went out as an attribute with no name at all: a
+			// line reading `= "v"`, at exit 0, which cinzel's own parse then
+			// refused with "An argument or block definition is required here."
+			if key == "" || naming.SanitizeIdentifier(key) != key {
 				return nil, errKeyNotAnIdentifier(key)
 			}
 
