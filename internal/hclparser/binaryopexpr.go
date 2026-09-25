@@ -5,6 +5,7 @@ package hclparser
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
@@ -48,20 +49,11 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 
 	switch boe.expression.Op {
 	case hclsyntax.OpAdd:
-		lVal, _ := lhs.AsBigFloat().Int64()
-		rVal, _ := rhs.AsBigFloat().Int64()
-
-		return cty.NumberIntVal(lVal + rVal), nil
+		return numberVal(new(big.Float).Add(lhs.AsBigFloat(), rhs.AsBigFloat())), nil
 	case hclsyntax.OpSubtract:
-		lVal, _ := lhs.AsBigFloat().Int64()
-		rVal, _ := rhs.AsBigFloat().Int64()
-
-		return cty.NumberIntVal(lVal - rVal), nil
+		return numberVal(new(big.Float).Sub(lhs.AsBigFloat(), rhs.AsBigFloat())), nil
 	case hclsyntax.OpMultiply:
-		lVal, _ := lhs.AsBigFloat().Int64()
-		rVal, _ := rhs.AsBigFloat().Int64()
-
-		return cty.NumberIntVal(lVal * rVal), nil
+		return numberVal(new(big.Float).Mul(lhs.AsBigFloat(), rhs.AsBigFloat())), nil
 	case hclsyntax.OpDivide:
 		if rhs.AsBigFloat().Sign() == 0 {
 			return cty.NilVal, errDivisionByZero
@@ -86,6 +78,28 @@ func (boe *BinaryOpExpr) Parse() (cty.Value, error) {
 	default:
 		return cty.NilVal, errUnsupportedBinaryOperator
 	}
+}
+
+// numberVal turns a computed big.Float into a cty number, keeping a whole
+// result whole.
+//
+// The three operators above used to read each side with big.Float.Int64, which
+// truncates: "1.5 + 2.5" was computed as "1 + 2" and came back as 3, and
+// "0.5 + 0.5" came back as 0, which the workflow validator then refused as
+// "must be greater than zero" over arithmetic the author had written
+// correctly. Division never had it, because it reads both sides as Float64.
+//
+// The whole case is kept separate so an integer result still writes as "6"
+// rather than "6.0", which is what every golden holds and what a reader of the
+// YAML expects of a minute count.
+func numberVal(f *big.Float) cty.Value {
+	if f.IsInt() {
+		if i, acc := f.Int64(); acc == big.Exact {
+			return cty.NumberIntVal(i)
+		}
+	}
+
+	return cty.NumberVal(f)
 }
 
 // requireNumbers reports an arithmetic or ordering operand that is not a known
