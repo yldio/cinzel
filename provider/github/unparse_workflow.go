@@ -445,6 +445,13 @@ func writeNestedMapAsBlock(body *hclwrite.Body, blockType string, raw any, comme
 		}
 
 		if nestedMap, isMap := toStringAnyMap(value); isMap {
+			// The head goes on before the recursion, because the recursion
+			// opens a block for this key and writes only what is inside it.
+			// The scalar branch below gets it from writeCommentedAttribute, so
+			// a comment survived above "shell: bash" and was dropped above the
+			// "run:" one line up.
+			hclcomment.WriteLeading(blockBody, comments.at(key).head)
+
 			if err := writeNestedMapAsBlock(blockBody, key, nestedMap, comments.child(key)); err != nil {
 				return err
 			}

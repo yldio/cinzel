@@ -333,7 +333,18 @@ session can pick.
   probed and are not defects: a comment followed by a blank line leaves a
   trailing empty `#` line in the HCL, which parses and is byte-stable over two
   passes, and the foot comment of a non-last key is not dropped, because yaml.v3
-  hands these back as heads rather than feet.
+  hands these back as heads rather than feet. The rest of the file has since
+  been read, and holds the same shape once more: `writeNestedMapAsBlock`
+  recurses for a key whose value is a map, and the recursion opens the block
+  and writes only what is inside it, so the head comment above that key was
+  dropped while the same comment one line lower, above a scalar, survived. See
+  `a-nested-block-loses-the-comment-above-it.md`. Everything else there was
+  probed clean: a job id colliding after sanitizing (`my-job` and `my_job`) is
+  suffixed and both keep their original names on the way back, a step named
+  only by punctuation still gets a valid identifier, a step called `job` or
+  `step` does not collide with the block type, a dangling `needs` is refused
+  with the job named, and env keys holding a dot, a space or an upper-case
+  letter roundtrip.
 - ~~`validate.go` (572) — remember the criterion above before touching it.~~
   Probed, no defects. Parse and unparse validation is symmetric, which
   `validateParsedJobs` carries an explicit comment about for the step `uses`
