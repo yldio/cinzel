@@ -65,9 +65,19 @@ steps, err := parseStepsFromYAML(yamlBytes)
 > a mapping, the decoder reads the keys it knows and ignores the rest, so any
 > mapping of mappings converted. `something: {do: another}` became a step named
 > "something" with `do` dropped, at exit 0. The fallback now requires every
-> value to carry only keys a step declares and to set `uses` or `run`, and a
-> file that reaches the end of the chain is warned about rather than skipped in
-> silence.
+> value to carry only keys a step declares, and a file that reaches the end of
+> the chain is warned about rather than skipped in silence. See
+> `looksLikeStep` in `provider/github/io_helpers.go`.
+
+> **Later still.** That check first also required `uses` or `run`, on the
+> reasoning that a step running neither runs nothing. It broke the roundtrip.
+> Parse writes a step carrying only a name whenever the block holds only one,
+> and a step-only file is cinzel's own library of step definitions rather than
+> something GitHub reads, so there is nothing wrong with that step. Worse, the
+> chain judges the document as a whole: one such step made the file "not a set
+> of steps", and every working step beside it was skipped too. The requirement
+> is gone; the unknown-key rule is what catches `do: another`, and it caught it
+> on its own all along.
 
 ## Prevention Guidance
 

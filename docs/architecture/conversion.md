@@ -27,9 +27,16 @@ warning on stderr, and a run that converts nothing at all ends non-zero.
 
 Step-only is the last link, so every file the earlier two refuse arrives there:
 a dependabot config, an issue template, anything else sharing the directory. It
-recognises a step rather than accepting what is left — every value has to carry
-only keys a step declares and to set `uses` or `run`. Without that, any mapping
-of mappings converted, with the keys no step declares silently dropped.
+recognises a step rather than accepting what is left — every value has to be a
+mapping, and every key in it has to be one a step declares. Without that, any
+mapping of mappings converted, with the keys no step declares silently dropped.
+
+The test stops there. A step that sets neither `uses` nor `run` runs nothing,
+but a step-only file is cinzel's own library of step definitions rather than
+something GitHub reads, and parse writes such a step whenever a block carries
+only a name. Requiring one of the two refused cinzel's own output, and since the
+chain judges the document as a whole, one such step took every working step
+beside it down with it.
 
 ## Output paths
 
