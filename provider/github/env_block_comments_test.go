@@ -127,7 +127,7 @@ func TestEnvBlockCommentsAreStableAcrossTwoPasses(t *testing.T) {
 	first := readWorkflow(t, parseWorkflow(t, hcl))
 	second := readWorkflow(t, parseWorkflow(t, unparse(t, first)))
 
-	if first != second {
+	if withoutGeneratedMarkers(first) != withoutGeneratedMarkers(second) {
 		t.Errorf("the YAML changed on the second pass\nfirst:\n%s\nsecond:\n%s", first, second)
 	}
 
@@ -159,6 +159,30 @@ func readWorkflow(t *testing.T, dir string) string {
 	}
 
 	return string(content)
+}
+
+// withoutGeneratedMarkers drops cinzel's own header lines from generated YAML.
+//
+// A roundtrip moves the definition from one HCL file to another, so the source
+// marker names a different file on each pass and always will. The markers are
+// cinzel's note about where the file came from rather than any of the content
+// it converted, and it is the content these tests are asking about.
+func withoutGeneratedMarkers(yaml string) string {
+	lines := strings.Split(yaml, "\n")
+
+	for len(lines) > 0 {
+		trimmed := strings.TrimSpace(lines[0])
+
+		if trimmed != "# generated-by: cinzel" &&
+			!strings.HasPrefix(trimmed, "# cinzel-provider:") &&
+			!strings.HasPrefix(trimmed, "# cinzel-source:") {
+			break
+		}
+
+		lines = lines[1:]
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // stepWithBody returns a workflow whose one step has the given body.

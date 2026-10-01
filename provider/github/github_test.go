@@ -1024,8 +1024,11 @@ workflow "ci" {
 
 	t.Run("removes renamed workflow output after successful regeneration", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		firstInputFile := filepath.Join(tmpDir, "first.hcl")
-		secondInputFile := filepath.Join(tmpDir, "second.hcl")
+		// One file, edited between the runs, because that is what renaming a
+		// workflow is. Written as two files it would be a run reading an HCL
+		// file the first run never saw, and the output of a file this run did
+		// not read is deliberately left alone.
+		inputFile := filepath.Join(tmpDir, "workflow.hcl")
 		outputDir := filepath.Join(tmpDir, "out")
 
 		firstContent := `step "echo" {
@@ -1064,19 +1067,19 @@ workflow "ci" {
 }
 `
 
-		if err := os.WriteFile(firstInputFile, []byte(firstContent), 0o644); err != nil {
+		if err := os.WriteFile(inputFile, []byte(firstContent), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := os.WriteFile(secondInputFile, []byte(secondContent), 0o644); err != nil {
+		if err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := New().Parse(provider.ProviderOps{File: firstInputFile, OutputDirectory: outputDir}); err != nil {
+		if err := os.WriteFile(inputFile, []byte(secondContent), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := New().Parse(provider.ProviderOps{File: secondInputFile, OutputDirectory: outputDir}); err != nil {
+		if err := New().Parse(provider.ProviderOps{File: inputFile, OutputDirectory: outputDir}); err != nil {
 			t.Fatal(err)
 		}
 
