@@ -80,9 +80,12 @@ func TestASkippedFileIsWarnedAbout(t *testing.T) {
 	}
 }
 
-// A step is a mapping that runs something. A mapping carrying only the keys a
-// step shares with anything else — a name, a description — is not one, and the
-// keys a step does not declare are exactly what the decoder would drop.
+// A step is a mapping whose every key is one a step declares. The keys a step
+// does not declare are exactly what the decoder would drop, so a document
+// carrying one is not a set of steps.
+//
+// Carrying no key that runs anything is not the test. Parse writes a step with
+// only a name, and refusing that here refused cinzel's own output.
 func TestOnlyDocumentsShapedLikeStepsConvert(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -93,7 +96,7 @@ func TestOnlyDocumentsShapedLikeStepsConvert(t *testing.T) {
 		{"a step that uses an action", "checkout:\n  uses: actions/checkout@v4\n", true},
 		{"a step with every key it may carry", "build:\n  id: build\n  name: Build\n  if: always()\n  run: make\n  shell: bash\n  working-directory: ./src\n  env:\n    FOO: bar\n  continue-on-error: true\n  timeout-minutes: 5\n", true},
 		{"a mapping carrying a key no step declares", "something:\n  do: another\n", false},
-		{"a mapping that sets nothing to run", "something:\n  name: a name\n", false},
+		{"a step carrying only a name, which is what parse writes", "something:\n  name: a name\n", true},
 		{"a step key beside one no step declares", "something:\n  run: make\n  do: another\n", false},
 		{"an empty mapping", "something: {}\n", false},
 	}
