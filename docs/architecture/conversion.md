@@ -19,6 +19,18 @@ The chain runs in `provider/github/github.go`; the workflow case is
 `classifyWorkflowDocument` (`provider/github/unparse_workflow.go`), which
 delegates to `ghworkflow.NewYAMLDocument`.
 
+## Unparse: what is converted and what is skipped
+
+The detection chain classifies each YAML file as a workflow, an action or a set
+of steps, in that order. A file matching none of the three is skipped with a
+warning on stderr, and a run that converts nothing at all ends non-zero.
+
+Step-only is the last link, so every file the earlier two refuse arrives there:
+a dependabot config, an issue template, anything else sharing the directory. It
+recognises a step rather than accepting what is left — every value has to carry
+only keys a step declares and to set `uses` or `run`. Without that, any mapping
+of mappings converted, with the keys no step declares silently dropped.
+
 ## Output paths
 
 - actions → `<dir>/<name>/action.yml`
