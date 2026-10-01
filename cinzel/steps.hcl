@@ -86,7 +86,7 @@ step "release_app_token" {
   }
 
   with {
-    name  = "app-id"
+    name  = "client-id"
     value = "$${{ secrets.RELEASE_APP_ID }}"
   }
 
