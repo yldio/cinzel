@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/internal/fsutil"
 	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/yldio/cinzel/provider"
@@ -223,6 +224,12 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 		}
 
 		if hclBytes == nil {
+			// Said nothing before. A file skipped in the middle of a directory
+			// run left no trace at all, so pointing unparse at a ".github"
+			// holding one workflow and four other YAML files reported the same
+			// success as a run that converted every one of them.
+			warnf("skipping '%s': not a workflow, an action or a set of steps", file)
+
 			continue
 		}
 
@@ -327,4 +334,17 @@ func actionNameFor(file string) string {
 	}
 
 	return dir
+}
+
+// warnf writes one warning to stderr, with the control characters in it
+// escaped.
+//
+// A warning quotes a path read off the command line, and a path is free to
+// carry an ANSI escape sequence. Written to a terminal as it stands, the
+// sequence is acted on rather than shown: a crafted name erases the warning
+// that names it and leaves a line of its own in its place, so a run that
+// skipped a file reads as a run that skipped nothing. The errors the tool ends
+// on are escaped for the same reason.
+func warnf(format string, args ...any) {
+	fmt.Fprintln(os.Stderr, cinzelerror.SafeForTerminal("warning: "+fmt.Sprintf(format, args...)))
 }
