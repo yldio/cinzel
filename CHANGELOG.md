@@ -1,4 +1,15 @@
 cinzel
+## [1.1.0](https://github.com/yldio/cinzel/compare/v1.0.0..v1.1.0) - 2026-10-01
+
+### ⛰️  Features
+
+- *(github)* Prune only this run's outputs, and refuse YAML that is not ours (#97) - ([048ad58](https://github.com/yldio/cinzel/commit/048ad589e0ddb102bbceceebb24025f946f4e871))
+
+### ⚙️ Miscellaneous Tasks
+
+- Upgrade versions in GitHub Actions - ([ceebb66](https://github.com/yldio/cinzel/commit/ceebb660b698b7a73f936e3a548f6930c508672d))
+
+
 ## [1.0.0](https://github.com/yldio/cinzel/compare/v0.7.0..v1.0.0) - 2026-09-25
 
 ### ⛰️  Features
