@@ -84,7 +84,7 @@ func TestDeprecationMessageRoundtrips(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if string(again) != string(got) {
+	if withoutGeneratedMarkers(string(again)) != withoutGeneratedMarkers(string(got)) {
 		t.Errorf("roundtrip is not stable:\nfirst:\n%s\nsecond:\n%s", got, again)
 	}
 }

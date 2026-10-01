@@ -11,4 +11,8 @@ type WorkflowYAMLFile struct {
 	JobOrder []string
 	// FootComment closes the document, below its last key.
 	FootComment string
+	// Source is the HCL file this was declared in, spelled by fsutil.SourceKey.
+	// It goes into the generated file's markers so a later run can tell which
+	// outputs are its own to prune.
+	Source string
 }

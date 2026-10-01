@@ -19,6 +19,25 @@ The chain runs in `provider/github/github.go`; the workflow case is
 `classifyWorkflowDocument` (`provider/github/unparse_workflow.go`), which
 delegates to `ghworkflow.NewYAMLDocument`.
 
+## Unparse: what is converted and what is skipped
+
+The detection chain classifies each YAML file as a workflow, an action or a set
+of steps, in that order. A file matching none of the three is skipped with a
+warning on stderr, and a run that converts nothing at all ends non-zero.
+
+Step-only is the last link, so every file the earlier two refuse arrives there:
+a dependabot config, an issue template, anything else sharing the directory. It
+recognises a step rather than accepting what is left — every value has to be a
+mapping, and every key in it has to be one a step declares. Without that, any
+mapping of mappings converted, with the keys no step declares silently dropped.
+
+The test stops there. A step that sets neither `uses` nor `run` runs nothing,
+but a step-only file is cinzel's own library of step definitions rather than
+something GitHub reads, and parse writes such a step whenever a block carries
+only a name. Requiring one of the two refused cinzel's own output, and since the
+chain judges the document as a whole, one such step took every working step
+beside it down with it.
+
 ## Output paths
 
 - actions → `<dir>/<name>/action.yml`
@@ -77,3 +96,44 @@ one closing a body each land where they were written.
 
 See `docs/solutions/logic-errors/hcl-inline-comment-propagation-to-yaml.md` for
 why it is a wrapper rather than a side map.
+
+## Generated markers and pruning
+
+Every YAML file parse writes opens with cinzel's own header:
+
+```yaml
+# generated-by: cinzel
+# cinzel-provider: github
+# cinzel-source: src/ci.hcl
+```
+
+The header is load-bearing for a delete. After writing, `Parse` calls
+`fsutil.PruneStaleGeneratedYAML`, which walks the output directory and removes
+generated files the run did not write — how a renamed workflow's old output
+gets cleaned up. Two things keep that walk from deleting more than it should.
+
+The provider line makes the file cinzel's. A file without it was written by
+hand and is never touched, whatever its name.
+
+The source line makes the file some particular HCL file's. The prune deletes a
+marked file only when the source it records was among the files the run read,
+so a run narrowed with `-f` cleans up after its own input and leaves every
+other file's output alone. A rename is still cleaned up: the file that renamed
+it was read. Paths are spelled by `fsutil.SourceKey` — relative to the working
+directory with forward slashes, absolute for a file outside it — because both
+sides of that comparison have to spell one file one way.
+
+A file with no source line is pruned on the provider line alone. That is what
+every file written before the line existed looks like, so they prune as they
+always did and the line appears as files are regenerated.
+
+Three cases record no source. GitLab writes one pipeline built from every file
+read, so there is no single file to name, and nothing there prunes. A step-only
+parse collects steps from across the input the same way. Neither has a block to
+ask.
+
+`fsutil.WithoutGeneratedMarker` strips all three lines on the way back, or
+unparsing a generated file would copy cinzel's note into the HCL — and the
+source line names the very file it would be written into.
+
+See `docs/solutions/best-practices/a-narrowed-parse-prunes-what-it-did-not-look-at.md`.

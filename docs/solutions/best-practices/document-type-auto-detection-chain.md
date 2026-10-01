@@ -40,7 +40,9 @@ The detection chain in `github.go` (`unparseYAMLFile`):
 
 1. **Workflow**: `classifyWorkflowDocument()` — has `on` and/or `jobs` keys
 2. **Action**: `classifyActionDocument()` — has `name` and `runs`, but NOT `on` or `jobs`
-3. **Step-only**: fallback — `parseStepsFromYAML()`
+3. **Step-only**: fallback — `parseStepsFromYAML()`, which now asks whether
+   each value is shaped like a step (`looksLikeStep`, `io_helpers.go`) rather
+   than only whether it is a mapping
 
 ```go
 // Single unmarshal
@@ -59,9 +61,28 @@ if actionDoc := classifyActionDocument(doc); actionDoc != nil {
 steps, err := parseStepsFromYAML(yamlBytes)
 ```
 
+> **Later.** Being the last link made the step-only path a catch-all: a step is
+> a mapping, the decoder reads the keys it knows and ignores the rest, so any
+> mapping of mappings converted. `something: {do: another}` became a step named
+> "something" with `do` dropped, at exit 0. The fallback now requires every
+> value to carry only keys a step declares, and a file that reaches the end of
+> the chain is warned about rather than skipped in silence. See
+> `looksLikeStep` in `provider/github/io_helpers.go`.
+
+> **Later still.** That check first also required `uses` or `run`, on the
+> reasoning that a step running neither runs nothing. It broke the roundtrip.
+> Parse writes a step carrying only a name whenever the block holds only one,
+> and a step-only file is cinzel's own library of step definitions rather than
+> something GitHub reads, so there is nothing wrong with that step. Worse, the
+> chain judges the document as a whole: one such step made the file "not a set
+> of steps", and every working step beside it was skipped too. The requirement
+> is gone; the unknown-key rule is what catches `do: another`, and it caught it
+> on its own all along.
+
 ## Prevention Guidance
 
 - The `isActionDocument()` check explicitly excludes documents with `on` or `jobs` keys to avoid false positives.
 - When adding new document types (e.g., reusable workflow definitions), add them to the chain BEFORE the step-only fallback.
+- The step-only fallback is not a catch-all. It is the last link, so everything the earlier links refuse arrives there, and what it accepts it converts. It has to recognise a step rather than accept what is left.
 - Always check the most specific type first (workflow has the most distinguishing keys), then progressively less specific.
 - Test edge cases: a minimal document with just `name` and `runs` should classify as action, not workflow.

@@ -15,8 +15,19 @@ tags:
   - "output"
   - "github-actions"
 created_date: "2026-09-19"
-updated_date: "2026-09-19"
+updated_date: "2026-10-01"
 ---
+
+> **Resolved.** The marker now carries the source: a generated file records the
+> HCL file it came from on a `# cinzel-source:` line, and the prune deletes a
+> marked file only when that source was among the ones the run read. The
+> narrowed run below keeps `ci.yaml`; a rename still takes its own old output,
+> because the file that renamed it was read. A file with no source line — every
+> file written before this existed — prunes the way this note describes, so
+> nothing needed rewriting. Written by `fsutil.PrependGeneratedMarker`, read by
+> `fsutil.GeneratedSource`, spelled by `fsutil.SourceKey`, and gated in
+> `fsutil.PruneStaleGeneratedYAML`. The narrative below is kept: it is why the
+> marker holds a source at all.
 
 ## What happens
 

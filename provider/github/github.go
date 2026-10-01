@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/internal/fsutil"
 	"github.com/yldio/cinzel/internal/unescape"
 	"github.com/yldio/cinzel/provider"
@@ -60,6 +61,11 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
+	// What this run is allowed to delete. A generated file naming a source
+	// outside this set was written from an HCL file the run never looked at,
+	// so it is not this run's to call stale.
+	readSources := fsutil.ReadSourceSet(sources)
+
 	outputDir := resolveParseOutputDirectory(opts)
 
 	if len(workflows) == 0 && len(actions) == 0 {
@@ -75,7 +81,9 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
-		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+		// No source: steps are collected from every file read, so there is no
+		// single block, and no single file, to name.
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, "")
 
 		outputPath := filepath.Join(outputDir, resolveParseFilename(opts))
 
@@ -93,7 +101,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		currentWorkflowOutputs := map[string]struct{}{}
 		currentWorkflowOutputs[filepath.Clean(outputPath)] = struct{}{}
 
-		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName)
+		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName, readSources)
 	}
 
 	// Every file this run writes has to be recorded, actions included: the
@@ -113,7 +121,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
-		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, workflowFile.Source)
 
 		outputPath := filepath.Join(outputDir, workflowFile.Filename+workflowExt(opts))
 		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
@@ -139,7 +147,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		// to tell an action cinzel wrote from one written by hand, so it can
 		// own neither, and renaming an action left the old directory sitting
 		// there with a live action.yml in it for good.
-		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, actionFile.Source)
 
 		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
 		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
@@ -159,7 +167,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return nil
 	}
 
-	return fsutil.PruneStaleGeneratedYAML(outputDir, currentOutputs, providerName)
+	return fsutil.PruneStaleGeneratedYAML(outputDir, currentOutputs, providerName, readSources)
 }
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.
@@ -216,6 +224,12 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 		}
 
 		if hclBytes == nil {
+			// Said nothing before. A file skipped in the middle of a directory
+			// run left no trace at all, so pointing unparse at a ".github"
+			// holding one workflow and four other YAML files reported the same
+			// success as a run that converted every one of them.
+			warnf("skipping '%s': not a workflow, an action or a set of steps", file)
+
 			continue
 		}
 
@@ -320,4 +334,17 @@ func actionNameFor(file string) string {
 	}
 
 	return dir
+}
+
+// warnf writes one warning to stderr, with the control characters in it
+// escaped.
+//
+// A warning quotes a path read off the command line, and a path is free to
+// carry an ANSI escape sequence. Written to a terminal as it stands, the
+// sequence is acted on rather than shown: a crafted name erases the warning
+// that names it and leaves a line of its own in its place, so a run that
+// skipped a file reads as a run that skipped nothing. The errors the tool ends
+// on are escaped for the same reason.
+func warnf(format string, args ...any) {
+	fmt.Fprintln(os.Stderr, cinzelerror.SafeForTerminal("warning: "+fmt.Sprintf(format, args...)))
 }
