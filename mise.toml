@@ -39,6 +39,9 @@ go build -ldflags "-s -w -X main.version=$VERSION" -o ./bin/cinzel ./cinzel.go
 [tasks.changelog]
 run = "git cliff --offline --output CHANGELOG.md"
 
+[tasks.next-version]
+run = "git cliff --bumped-version"
+
 [tasks.coverpath]
 run = "mkdir -p ./coverage"
 
