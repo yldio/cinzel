@@ -5,6 +5,7 @@ package github
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/yldio/cinzel/internal/fsutil"
 	"github.com/yldio/cinzel/internal/hclparser"
 )
 
@@ -54,4 +55,27 @@ func labelledBlocks(body hcl.Body, blockType string) []*hcl.Block {
 	}
 
 	return content.Blocks
+}
+
+// labelledBlockSources returns the file each block of the given type was
+// declared in, keyed by block label and spelled by fsutil.SourceKey.
+//
+// Read from the same headers as the comments above, and for the same reason: a
+// header keeps its source range through the merge of every file in the
+// directory, so a block still names the file it came from rather than the
+// directory the run was pointed at.
+func labelledBlockSources(blocks []*hcl.Block) map[string]string {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	sources := map[string]string{}
+
+	for _, block := range blocks {
+		if key := fsutil.SourceKey(block.DefRange.Filename); key != "" {
+			sources[block.Labels[0]] = key
+		}
+	}
+
+	return sources
 }

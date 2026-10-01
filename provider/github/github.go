@@ -60,6 +60,11 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
+	// What this run is allowed to delete. A generated file naming a source
+	// outside this set was written from an HCL file the run never looked at,
+	// so it is not this run's to call stale.
+	readSources := fsutil.ReadSourceSet(sources)
+
 	outputDir := resolveParseOutputDirectory(opts)
 
 	if len(workflows) == 0 && len(actions) == 0 {
@@ -75,7 +80,9 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
-		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+		// No source: steps are collected from every file read, so there is no
+		// single block, and no single file, to name.
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, "")
 
 		outputPath := filepath.Join(outputDir, resolveParseFilename(opts))
 
@@ -93,7 +100,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		currentWorkflowOutputs := map[string]struct{}{}
 		currentWorkflowOutputs[filepath.Clean(outputPath)] = struct{}{}
 
-		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName)
+		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName, readSources)
 	}
 
 	// Every file this run writes has to be recorded, actions included: the
@@ -113,7 +120,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 			return err
 		}
 
-		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, workflowFile.Source)
 
 		outputPath := filepath.Join(outputDir, workflowFile.Filename+workflowExt(opts))
 		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
@@ -139,7 +146,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		// to tell an action cinzel wrote from one written by hand, so it can
 		// own neither, and renaming an action left the old directory sitting
 		// there with a live action.yml in it for good.
-		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, actionFile.Source)
 
 		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
 		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
@@ -159,7 +166,7 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		return nil
 	}
 
-	return fsutil.PruneStaleGeneratedYAML(outputDir, currentOutputs, providerName)
+	return fsutil.PruneStaleGeneratedYAML(outputDir, currentOutputs, providerName, readSources)
 }
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.

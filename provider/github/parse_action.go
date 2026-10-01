@@ -16,12 +16,18 @@ type ActionYAMLFile struct {
 	Content  map[string]any
 	// FootComment closes the document, below its last key.
 	FootComment string
+	// Source is the HCL file this was declared in, spelled by fsutil.SourceKey.
+	// It goes into the generated file's markers so a later run can tell which
+	// outputs are its own to prune.
+	Source string
 }
 
 func parseHCLActions(actions []hclActionBlock, body hcl.Body, hv *hclparser.HCLVars, stepMap map[string]any) ([]ActionYAMLFile, error) {
 	result := make([]ActionYAMLFile, 0, len(actions))
 	takenFilenames := make(map[string]string, len(actions))
-	comments := labelledBlockComments(hv, labelledBlocks(body, "action"))
+	actionBlocks := labelledBlocks(body, "action")
+	comments := labelledBlockComments(hv, actionBlocks)
+	sources := labelledBlockSources(actionBlocks)
 
 	for _, a := range actions {
 		content, filename, err := parseActionConfig(a, hv, stepMap)
@@ -45,6 +51,7 @@ func parseHCLActions(actions []hclActionBlock, body hcl.Body, hv *hclparser.HCLV
 			Filename:    filename,
 			Content:     content,
 			FootComment: comments[a.ID].foot,
+			Source:      sources[a.ID],
 		})
 	}
 

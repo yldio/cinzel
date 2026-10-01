@@ -122,7 +122,9 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 
 	parsedWorkflows := make([]WorkflowYAMLFile, 0, len(cfg.Workflows))
 	takenFilenames := make(map[string]string, len(cfg.Workflows))
-	workflowComments := labelledBlockComments(hv, labelledBlocks(body, "workflow"))
+	workflowBlocks := labelledBlocks(body, "workflow")
+	workflowComments := labelledBlockComments(hv, workflowBlocks)
+	workflowSources := labelledBlockSources(workflowBlocks)
 
 	for _, wf := range cfg.Workflows {
 		workflow, err := parseWorkflowConfig(wf, hv)
@@ -191,6 +193,7 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 			Content:     workflow.Body,
 			JobOrder:    workflow.JobRefs,
 			FootComment: workflowComments[wf.ID].foot,
+			Source:      workflowSources[wf.ID],
 		})
 	}
 
