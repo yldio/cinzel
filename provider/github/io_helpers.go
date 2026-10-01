@@ -96,13 +96,22 @@ func keepWholeNumbersExactInYAML(content []byte) ([]byte, error) {
 	return yamlv3.Marshal(&node)
 }
 
-// looksLikeStep reports whether a mapping could be a step GitHub would run.
+// looksLikeStep reports whether a mapping could be a step.
 //
 // Every key has to be one a step declares, since the decoder silently ignores
 // the ones it does not know and a document of arbitrary mappings would
-// otherwise convert to steps with most of its content dropped. And a step has
-// to do something: "uses" or "run" is what makes it a step rather than a
-// mapping that happens to carry a name.
+// otherwise convert to steps with most of its content dropped.
+//
+// Carrying no key at all is the one other refusal, which is the rule parse
+// already applies from the other side: checkStepNotEmpty refuses a step that
+// converted to nothing, because an empty step goes out as a bare "-" under
+// "steps" and GitHub rejects the file.
+//
+// Nothing more than that. Requiring "uses" or "run" looks right — a step that
+// runs neither runs nothing — but parse emits a step carrying only a name, and
+// a step-only file is cinzel's own library of step definitions rather than
+// something GitHub reads. Demanding it here refused cinzel's own output, and a
+// file holding one such step beside a working one was skipped whole.
 func looksLikeStep(v cty.Value) bool {
 	mapping := v.AsValueMap()
 
@@ -116,10 +125,7 @@ func looksLikeStep(v cty.Value) bool {
 		}
 	}
 
-	_, hasUses := mapping["uses"]
-	_, hasRun := mapping["run"]
-
-	return hasUses || hasRun
+	return true
 }
 
 // stepYAMLKeys is every key a step carries in YAML, as GitHub spells them.
