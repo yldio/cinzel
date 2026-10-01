@@ -1,5 +1,6 @@
 # generated-by: cinzel
 # cinzel-provider: github
+# cinzel-source: cinzel/workflows.hcl
 name: Pull Request
 on:
   pull_request:
