@@ -68,7 +68,9 @@ func (p *GitLab) Parse(opts provider.ProviderOps) error {
 		return err
 	}
 
-	outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName)
+	// No source is recorded: a pipeline is one file built from every HCL file
+	// read, so there is no single file to name, and nothing here prunes.
+	outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, "")
 
 	outputPath := filepath.Join(resolveParseOutputDirectory(opts), ".gitlab-ci.yml")
 

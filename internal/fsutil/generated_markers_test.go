@@ -12,7 +12,7 @@ import (
 
 func TestPrependGeneratedMarker(t *testing.T) {
 	content := []byte("name: CI\n")
-	output := string(PrependGeneratedMarker(content, "github"))
+	output := string(PrependGeneratedMarker(content, "github", ""))
 
 	if !strings.Contains(output, "# generated-by: cinzel") {
 		t.Fatalf("expected generated marker header, got: %q", output)
@@ -86,7 +86,7 @@ func TestPruneStaleGeneratedYAML(t *testing.T) {
 	}
 
 	currentOutputs := map[string]struct{}{filepath.Clean(currentPath): {}}
-	if err := PruneStaleGeneratedYAML(tmpDir, currentOutputs, "github"); err != nil {
+	if err := PruneStaleGeneratedYAML(tmpDir, currentOutputs, "github", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -132,7 +132,7 @@ func TestPruneReachesASubdirectory(t *testing.T) {
 
 	current := map[string]struct{}{filepath.Clean(filepath.Join(nested, "current.yaml")): {}}
 
-	if err := PruneStaleGeneratedYAML(dir, current, "github"); err != nil {
+	if err := PruneStaleGeneratedYAML(dir, current, "github", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -151,7 +151,7 @@ func TestPruneReachesASubdirectory(t *testing.T) {
 func TestPruneToleratesAMissingDirectory(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "not-there")
 
-	if err := PruneStaleGeneratedYAML(missing, map[string]struct{}{}, "github"); err != nil {
+	if err := PruneStaleGeneratedYAML(missing, map[string]struct{}{}, "github", nil); err != nil {
 		t.Errorf("want no error for a missing directory, got %v", err)
 	}
 }
@@ -183,7 +183,7 @@ func TestPruneKeepsAnOutputSpelledDifferently(t *testing.T) {
 		t.Skip("filesystem is case-sensitive, so the two names are two files")
 	}
 
-	if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{recorded: {}}, "github"); err != nil {
+	if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{recorded: {}}, "github", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -208,7 +208,7 @@ func TestPruneStillRemovesAStaleFileBesideACurrentOne(t *testing.T) {
 		}
 	}
 
-	if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{current: {}}, "github"); err != nil {
+	if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{current: {}}, "github", nil); err != nil {
 		t.Fatal(err)
 	}
 

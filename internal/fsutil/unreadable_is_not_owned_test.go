@@ -61,16 +61,16 @@ func TestAFileThatCannotBeReadIsLeftAlone(t *testing.T) {
 			// an earlier one. The stale file has to still go: a prune that
 			// stops deleting anything would pass the first assertion alone.
 			current := filepath.Join(dir, "current.yaml")
-			if err := os.WriteFile(current, PrependGeneratedMarker([]byte("name: current\n"), "github"), 0600); err != nil {
+			if err := os.WriteFile(current, PrependGeneratedMarker([]byte("name: current\n"), "github", ""), 0600); err != nil {
 				t.Fatal(err)
 			}
 
 			stale := filepath.Join(dir, "stale.yaml")
-			if err := os.WriteFile(stale, PrependGeneratedMarker([]byte("name: stale\n"), "github"), 0600); err != nil {
+			if err := os.WriteFile(stale, PrependGeneratedMarker([]byte("name: stale\n"), "github", ""), 0600); err != nil {
 				t.Fatal(err)
 			}
 
-			if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{current: {}}, "github"); err != nil {
+			if err := PruneStaleGeneratedYAML(dir, map[string]struct{}{current: {}}, "github", nil); err != nil {
 				t.Fatalf("the prune failed over a file it does not own: %v", err)
 			}
 
