@@ -4,6 +4,7 @@
 package gitlab
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -109,19 +110,28 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 
 	outputDir := resolveUnparseOutputDirectory(opts)
 
-	// Files were read but none of them held a pipeline, so again nothing was
-	// written. The same silence hides the same mistake. A dry run counts: it
-	// found the pipeline and only skipped the write it was told to skip.
-	found := false
-
 	// The output name comes from the input's basename, so a recursive run over
 	// two directories each holding a ".gitlab-ci.yml" aimed both at one path.
 	takenNames := make(map[string]struct{}, len(files))
 
+	// Every file is converted before any of them is written. Returning at the
+	// first failure left the files converted before it on disk and never read
+	// the ones after, so which half of a directory survived was decided by
+	// where the failing file sorted.
+	converted := make([]unparsedFile, 0, len(files))
+
+	// Collected rather than returned at the first, so a directory of broken
+	// pipelines is read through in one run instead of one key at a time.
+	failures := make([]error, 0)
+
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
-			return err
+			// Named, like the two below. A directory run that returned this
+			// bare said a file could not be read without saying which one.
+			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
+
+			continue
 		}
 
 		// Named, the way the conversion error below is. A directory run reads
@@ -130,37 +140,65 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 		// failed to parse without saying which.
 		doc, err := parseYAMLDocument(yamlBytes)
 		if err != nil {
-			return fmt.Errorf("error in file '%s': %w", file, err)
+			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
+
+			continue
 		}
 
+		// Passing over a file that holds no pipeline is not a failure: cinzel
+		// never had it, so nothing is lost and the run goes on.
 		if !classifyPipelineDocument(doc) {
 			continue
 		}
 
-		found = true
-
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+
 		hclBytes, err := pipelineToHCL(doc, baseName, documentComments(yamlBytes))
 		if err != nil {
-			return fmt.Errorf("error in file '%s': %w", file, err)
-		}
+			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
 
-		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, baseName)+".hcl")
-
-		if opts.DryRun {
-			fmt.Printf("# file: %s\n", outputPath)
-			fmt.Println(string(hclBytes))
 			continue
 		}
 
-		if err := fsutil.WriteFile(outputPath, hclBytes); err != nil {
+		converted = append(converted, unparsedFile{name: baseName, hcl: hclBytes})
+	}
+
+	// Before the no-definitions check below. "found" used to be set before the
+	// conversion rather than after it, so a run whose only pipeline failed had
+	// already recorded that it found one; checking the failures first makes
+	// that ordering stop mattering, and reports what the user can act on.
+	if len(failures) > 0 {
+		return errors.Join(failures...)
+	}
+
+	// Files were read but none of them held a pipeline, so again nothing was
+	// written. The same silence hides the same mistake. A dry run counts: it
+	// found the pipeline and only skipped the write it was told to skip.
+	if len(converted) == 0 {
+		return errNoDefinitions
+	}
+
+	for _, out := range converted {
+		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, out.name)+".hcl")
+
+		if opts.DryRun {
+			fmt.Printf("# file: %s\n", outputPath)
+			fmt.Println(string(out.hcl))
+
+			continue
+		}
+
+		if err := fsutil.WriteFile(outputPath, out.hcl); err != nil {
 			return err
 		}
 	}
 
-	if !found {
-		return errNoDefinitions
-	}
-
 	return nil
+}
+
+// unparsedFile is one converted pipeline waiting to be written: the output
+// basename it was given, and the HCL it became.
+type unparsedFile struct {
+	name string
+	hcl  []byte
 }
