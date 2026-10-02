@@ -115,6 +115,12 @@ about and dropped so the summary counted nothing. There, a failure was being
 treated as a skip. Here, a failure was being reported correctly and the files
 around it were not.
 
+The warning is what keeps the skip honest, and GitLab did not have one. It
+passed over a file holding no pipeline in silence, so a directory with one
+pipeline beside four other YAML files reported what a full conversion reports.
+GitHub had warned there since the note above. Both providers name a skipped file
+now.
+
 ## The drifted IDs, left alone
 
 `usedStepIDs` and `usedJobIDs` are claimed as each block is written, during
@@ -154,3 +160,7 @@ rather than a restatement — on its own it would only prove the run stops.
 Also covered: every failure is named rather than the first; a skipped file
 beside a good one still lets the run write; a dry run with a bad file prints
 nothing, since printing up to the failure is the same partial result on stdout.
+
+`provider/gitlab/skipped_file_warning_test.go` covers the warning: the run
+succeeds, the pipeline beside the skipped file is written, the skipped file is
+named on stderr, and the converted one is not — naming it would read as a skip.

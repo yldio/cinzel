@@ -31,6 +31,10 @@ is lost. A file that is recognised and then fails to convert stops the run, and
 the run writes nothing at all — not the files that converted before it, not the
 ones after.
 
+A skip is named on stderr in both providers. GitLab stayed silent about it for
+longer, which made a directory holding one pipeline beside four other YAML files
+report what a full conversion reports.
+
 That is why every file is converted into memory before any of them is written,
 in both providers. Writing inside the conversion loop meant a failure left the
 files ahead of it on disk and never read the ones behind it, so which half of a

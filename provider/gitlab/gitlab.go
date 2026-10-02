@@ -145,9 +145,17 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 			continue
 		}
 
-		// Passing over a file that holds no pipeline is not a failure: cinzel
-		// never had it, so nothing is lost and the run goes on.
 		if !classifyPipelineDocument(doc) {
+			// Said nothing before. A file skipped in the middle of a directory
+			// run left no trace at all, so pointing unparse at a directory
+			// holding one pipeline and four other YAML files reported the same
+			// success as a run that converted every one of them. The GitHub
+			// provider has warned here for the same reason.
+			//
+			// Skipping is not failing: cinzel never had this file, so passing
+			// over it loses nothing and the run goes on.
+			warnf("skipping '%s': not a pipeline", file)
+
 			continue
 		}
 
