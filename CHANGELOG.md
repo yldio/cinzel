@@ -1,4 +1,15 @@
 cinzel
+## [1.1.1](https://github.com/yldio/cinzel/compare/v1.1.0..v1.1.1) - 2026-10-02
+
+### 🐛 Bug Fixes
+
+- A failed unparse no longer leaves half a directory converted (#99) - ([1246fdb](https://github.com/yldio/cinzel/commit/1246fdb2628b48042a15f6bfeecfba4fd3666f9d))
+
+### ⚙️ Miscellaneous Tasks
+
+- Use the client-id input on create-github-app-token (#98) - ([06d2762](https://github.com/yldio/cinzel/commit/06d27622de23678b76d6846f5f1f032f19975ec2))
+
+
 ## [1.1.0](https://github.com/yldio/cinzel/compare/v1.0.0..v1.1.0) - 2026-10-01
 
 ### ⛰️  Features
