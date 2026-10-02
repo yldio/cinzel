@@ -25,6 +25,22 @@ The detection chain classifies each YAML file as a workflow, an action or a set
 of steps, in that order. A file matching none of the three is skipped with a
 warning on stderr, and a run that converts nothing at all ends non-zero.
 
+Skipping and failing are different outcomes, deliberately. A file that is none
+of the three is passed over and the run goes on: cinzel never had it, so nothing
+is lost. A file that is recognised and then fails to convert stops the run, and
+the run writes nothing at all — not the files that converted before it, not the
+ones after.
+
+A skip is named on stderr in both providers. GitLab stayed silent about it for
+longer, which made a directory holding one pipeline beside four other YAML files
+report what a full conversion reports.
+
+That is why every file is converted into memory before any of them is written,
+in both providers. Writing inside the conversion loop meant a failure left the
+files ahead of it on disk and never read the ones behind it, so which half of a
+directory survived was decided by where the failing file sorted. Every failure
+is collected and reported together, rather than the first one the run met.
+
 Step-only is the last link, so every file the earlier two refuse arrives there:
 a dependabot config, an issue template, anything else sharing the directory. It
 recognises a step rather than accepting what is left — every value has to be a

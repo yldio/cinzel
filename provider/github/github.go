@@ -4,6 +4,7 @@
 package github
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -197,30 +198,46 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	// file, because two workflows each holding a "mise setup" step used to
 	// produce two "step \"mise_setup\"" blocks, and cinzel then refused to read
 	// its own output back.
+	//
+	// Conversion claims an ID as it writes the block, so a file that fails
+	// halfway leaves its IDs taken and a later file's "checkout" comes out as
+	// "checkout_2". Nothing reads those bytes: a failure anywhere means the
+	// run writes nothing at all. Clearing the set per file is not the answer
+	// either, since sharing it is the point.
 	usedStepIDs := map[string]struct{}{}
 
 	// Job block labels share the same address space for the same reason.
 	usedJobIDs := map[string]struct{}{}
 
-	// Files were read but none of them held anything this tool has a
-	// definition for, so nothing was written. Returning nil there said the
-	// input was converted when it was not: pointing at the wrong directory, or
-	// at one holding only issue templates and a dependabot config, both land
-	// exactly here. A dry run counts: it found the document and only skipped
-	// the write it was told to skip.
-	found := false
+	// Every file is converted before any of them is written. Returning at the
+	// first failure left the files converted before it on disk and never read
+	// the ones after, so which half of a directory survived was decided by
+	// where the failing file sorted. A half-converted directory reads as a
+	// finished one, and the usual next step is deleting the YAML it came from.
+	converted := make([]unparsedFile, 0, len(files))
+
+	// Collected rather than returned at the first, so a directory of broken
+	// workflows is read through in one run instead of one key at a time.
+	failures := make([]error, 0)
 
 	for _, file := range files {
 		yamlBytes, err := os.ReadFile(file)
 		if err != nil {
-			return err
+			// Named, like the conversion failure below. A directory run that
+			// returned this bare said a file could not be read without saying
+			// which one.
+			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
+
+			continue
 		}
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
 		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file), usedStepIDs, usedJobIDs)
 		if err != nil {
-			return fmt.Errorf("error in file '%s': %w", file, err)
+			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
+
+			continue
 		}
 
 		if hclBytes == nil {
@@ -228,31 +245,56 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			// run left no trace at all, so pointing unparse at a ".github"
 			// holding one workflow and four other YAML files reported the same
 			// success as a run that converted every one of them.
+			//
+			// Skipping is not failing: cinzel never had this file, so passing
+			// over it loses nothing and the run goes on.
 			warnf("skipping '%s': not a workflow, an action or a set of steps", file)
 
 			continue
 		}
 
-		found = true
+		converted = append(converted, unparsedFile{name: name, hcl: hclBytes})
+	}
 
-		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, name)+".hcl")
+	// Before the no-definitions check below, so a run where every file failed
+	// reports the failures rather than claiming it found nothing.
+	if len(failures) > 0 {
+		return errors.Join(failures...)
+	}
+
+	// Files were read but none of them held anything this tool has a
+	// definition for, so nothing was written. Returning nil there said the
+	// input was converted when it was not: pointing at the wrong directory, or
+	// at one holding only issue templates and a dependabot config, both land
+	// exactly here. A dry run counts: it found the document and only skipped
+	// the write it was told to skip.
+	if len(converted) == 0 {
+		return errNoDefinitions
+	}
+
+	for _, out := range converted {
+		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, out.name)+".hcl")
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
-			fmt.Println(string(hclBytes))
+			fmt.Println(string(out.hcl))
+
 			continue
 		}
 
-		if err := fsutil.WriteFile(outputPath, hclBytes); err != nil {
+		if err := fsutil.WriteFile(outputPath, out.hcl); err != nil {
 			return err
 		}
 	}
 
-	if !found {
-		return errNoDefinitions
-	}
-
 	return nil
+}
+
+// unparsedFile is one converted document waiting to be written: the output
+// basename it was given, and the HCL it became.
+type unparsedFile struct {
+	name string
+	hcl  []byte
 }
 
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
