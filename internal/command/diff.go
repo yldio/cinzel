@@ -6,9 +6,9 @@ package command
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/urfave/cli/v3"
+	"github.com/yldio/cinzel/internal/fsutil"
 	"github.com/yldio/cinzel/provider"
 )
 
@@ -86,6 +86,7 @@ func (cmd *Cli) diffCommand(p provider.Provider) *cli.Command {
 // leaves the reader hunting for it.
 func (cmd *Cli) reportDiff(results []provider.DiffResult) error {
 	differs, missing, stale := 0, 0, 0
+	color := fsutil.UseColor(cmd.Writer)
 
 	for _, result := range results {
 		switch result.Status {
@@ -95,7 +96,7 @@ func (cmd *Cli) reportDiff(results []provider.DiffResult) error {
 			differs++
 
 			_, _ = fmt.Fprintf(cmd.Writer, "%s differs\n", result.Path)
-			writeIndented(cmd.Writer, result.Unified)
+			_, _ = fmt.Fprint(cmd.Writer, fsutil.Colorize(result.Unified, color))
 		case provider.DiffMissing:
 			missing++
 
@@ -118,12 +119,4 @@ func (cmd *Cli) reportDiff(results []provider.DiffResult) error {
 	}
 
 	return nil
-}
-
-// writeIndented indents a block so the diff reads as belonging to the file
-// named above it.
-func writeIndented(w interface{ Write([]byte) (int, error) }, block string) {
-	for _, line := range strings.Split(strings.TrimSuffix(block, "\n"), "\n") {
-		_, _ = fmt.Fprintf(w, "  %s\n", line)
-	}
 }

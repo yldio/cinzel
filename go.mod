@@ -14,6 +14,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.75.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/hcl/v2 v2.25.0
+	github.com/mattn/go-isatty v0.0.20
 	github.com/openai/openai-go/v3 v3.66.0
 	github.com/urfave/cli/v3 v3.13.0
 	github.com/zclconf/go-cty v1.19.0
@@ -134,7 +135,6 @@ require (
 	github.com/maratori/testpackage v1.1.1 // indirect
 	github.com/matoous/godox v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/mgechev/revive v1.9.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect

@@ -67,3 +67,14 @@ binary with it.
 `Diff` is not on `provider.Provider`. The command reaches it through a
 one-method `differ` interface, so the two test doubles implementing the
 provider interface do not have to answer for it.
+
+Removed and added lines are coloured on a terminal, through
+`fsutil.UseColor`, which asks the writer it was handed rather than `os.Stdout`:
+cinzel writes through an injected `io.Writer`, so a run collected into a buffer
+is plain and a test does not have to own a stream. `NO_COLOR` set to anything,
+including the empty string, turns it off, as does `TERM=dumb`.
+
+The marker occupies its own column (`markerRemoved`, `markerAdded`,
+`markerContext` in `internal/fsutil/difftext.go`). A unified diff conventionally
+writes it against the content, which in YAML moves the indentation of the lines
+whose indentation is being read.

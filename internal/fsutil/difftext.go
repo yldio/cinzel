@@ -12,6 +12,18 @@ import (
 // change, the same three a unified diff conventionally carries.
 const diffContextLines = 3
 
+// The markers each line opens with. A unified diff writes the marker against
+// the content, which in YAML puts it where the indentation is: "-    key:"
+// reads as a line indented by five, and the eye counts the wrong column on
+// the one line that matters. Here the marker has a column of its own and the
+// content starts at the same place whatever the marker, so what moved is the
+// text and not the indentation.
+const (
+	markerRemoved = "- "
+	markerAdded   = "+ "
+	markerContext = "  "
+)
+
 // NormalizeLineEndings rewrites CRLF as LF.
 //
 // Every generated file is written with LF, but the copy on disk came through
@@ -137,12 +149,12 @@ func alignedLines(a []string, b []string, pairs [][2]int) []diffLine {
 
 	emitUpTo := func(nextA int, nextB int) {
 		for i < nextA {
-			lines = append(lines, diffLine{text: "-" + a[i], a: i, b: j})
+			lines = append(lines, diffLine{text: markerRemoved + a[i], a: i, b: j})
 			i++
 		}
 
 		for j < nextB {
-			lines = append(lines, diffLine{text: "+" + b[j], a: i, b: j})
+			lines = append(lines, diffLine{text: markerAdded + b[j], a: i, b: j})
 			j++
 		}
 	}
@@ -150,7 +162,7 @@ func alignedLines(a []string, b []string, pairs [][2]int) []diffLine {
 	for _, pair := range pairs {
 		emitUpTo(pair[0], pair[1])
 
-		lines = append(lines, diffLine{text: " " + a[i], a: i, b: j})
+		lines = append(lines, diffLine{text: markerContext + a[i], a: i, b: j})
 		i++
 		j++
 	}

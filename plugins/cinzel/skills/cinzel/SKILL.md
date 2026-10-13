@@ -211,6 +211,9 @@ It also reports a file parse would delete, which is what a renamed workflow
 leaves behind. Takes the same flags as `parse`, and reads parse's
 `.cinzelrc.yaml` section.
 
+Output is colourised on a terminal only, so a captured run is plain text.
+`NO_COLOR` turns it off.
+
 Run it from the repository root. The `cinzel-source` marker is relative to
 where cinzel ran, so diffing from elsewhere reports files whose YAML is
 actually unchanged.
