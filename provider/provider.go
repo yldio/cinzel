@@ -71,3 +71,31 @@ func (plan ParsePlan) Print() {
 		fmt.Println(string(out.Content))
 	}
 }
+
+// DiffStatus is what a diff found for one path.
+type DiffStatus int
+
+const (
+	// DiffIdentical means the file on disk is what a parse would write.
+	DiffIdentical DiffStatus = iota
+
+	// DiffDiffers means the file is there and says something else.
+	DiffDiffers
+
+	// DiffMissing means a parse would create the file.
+	DiffMissing
+
+	// DiffStale means the file is cinzel's and a parse would delete it,
+	// which is what a renamed workflow leaves behind.
+	DiffStale
+)
+
+// DiffResult is one path and what a parse would do to it.
+type DiffResult struct {
+	Path   string
+	Status DiffStatus
+
+	// Unified is the diff from what is on disk to what would be written,
+	// set only for DiffDiffers.
+	Unified string
+}

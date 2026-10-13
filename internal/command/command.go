@@ -219,6 +219,7 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 	}
 
 	providerCmd.Commands = append(providerCmd.Commands, cmd.assistCommand(p))
+	providerCmd.Commands = append(providerCmd.Commands, cmd.diffCommand(p))
 
 	if p.GetProviderName() == "github" {
 		providerCmd.Commands = append(providerCmd.Commands, cmd.pinCommand())

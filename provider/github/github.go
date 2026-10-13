@@ -398,3 +398,14 @@ func actionNameFor(file string) string {
 func warnf(format string, args ...any) {
 	fmt.Fprintln(os.Stderr, cinzelerror.SafeForTerminal("warning: "+fmt.Sprintf(format, args...)))
 }
+
+// Diff reports what a parse would change in the output directory, writing
+// nothing.
+func (p *GitHub) Diff(opts provider.ProviderOps) ([]provider.DiffResult, error) {
+	plan, err := p.planParse(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return plan.Diff(providerName)
+}

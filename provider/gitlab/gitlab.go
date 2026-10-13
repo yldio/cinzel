@@ -228,3 +228,17 @@ type unparsedFile struct {
 	name string
 	hcl  []byte
 }
+
+// Diff reports what a parse would change in the output directory, writing
+// nothing.
+//
+// A pipeline is one file and nothing here prunes, so this is that file
+// compared against what is committed.
+func (p *GitLab) Diff(opts provider.ProviderOps) ([]provider.DiffResult, error) {
+	plan, err := p.planParse(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return plan.Diff(providerName)
+}
