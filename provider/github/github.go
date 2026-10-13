@@ -47,39 +47,76 @@ func (p *GitHub) GetUnparseDescription() string { return unparseDesc }
 
 // Parse converts HCL workflow definitions into GitHub Actions YAML files.
 func (p *GitHub) Parse(opts provider.ProviderOps) error {
-	inputPath, err := resolveInputPath(opts)
+	plan, err := p.planParse(opts)
 	if err != nil {
 		return err
+	}
+
+	if opts.DryRun {
+		plan.Print()
+
+		return nil
+	}
+
+	for _, out := range plan.Outputs {
+		if err := fsutil.WriteFile(out.Path, out.Content); err != nil {
+			return err
+		}
+	}
+
+	return fsutil.PruneStaleGeneratedYAML(plan.OutputDirectory, plan.CurrentOutputs, providerName, plan.ReadSources)
+}
+
+// planParse works out every file a parse would write, without writing one.
+//
+// Parse is this followed by a write and a prune, and Diff is this followed by
+// a read and a comparison, so the two cannot disagree about what a run
+// produces. The dry run prints it.
+//
+// The prune's inputs are carried rather than its answer. Whether a file is
+// stale depends on what is on disk, and under Parse that means after the
+// writes have happened: sameAsCurrentOutput compares by file identity, and a
+// path written moments ago is what makes a case-only rename come out right.
+// Asking here would be asking too early.
+func (p *GitHub) planParse(opts provider.ProviderOps) (provider.ParsePlan, error) {
+	inputPath, err := resolveInputPath(opts)
+	if err != nil {
+		return provider.ParsePlan{}, err
 	}
 
 	body, sources, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
 	if err != nil {
-		return err
+		return provider.ParsePlan{}, err
 	}
 
 	workflows, stepMap, actions, err := parseHCLToWorkflows(body, sources)
 	if err != nil {
-		return err
+		return provider.ParsePlan{}, err
 	}
 
-	// What this run is allowed to delete. A generated file naming a source
+	// What a run is allowed to delete. A generated file naming a source
 	// outside this set was written from an HCL file the run never looked at,
 	// so it is not this run's to call stale.
 	readSources := fsutil.ReadSourceSet(sources)
 
 	outputDir := resolveParseOutputDirectory(opts)
 
+	plan := provider.ParsePlan{
+		OutputDirectory: outputDir,
+		ReadSources:     readSources,
+	}
+
 	if len(workflows) == 0 && len(actions) == 0 {
 		// Nothing was declared. Writing here would leave a "{}" document
 		// behind and, worse, make it the only current output, so the prune
-		// below would delete every other generated file in the directory.
+		// would delete every other generated file in the directory.
 		if len(stepMap) == 0 {
-			return errNoDefinitions
+			return provider.ParsePlan{}, errNoDefinitions
 		}
 
 		outputBytes, err := marshalStepsYAML(stepMap)
 		if err != nil {
-			return err
+			return provider.ParsePlan{}, err
 		}
 
 		// No source: steps are collected from every file read, so there is no
@@ -88,60 +125,41 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 
 		outputPath := filepath.Join(outputDir, resolveParseFilename(opts))
 
-		if opts.DryRun {
-			fmt.Printf("# file: %s\n", outputPath)
-			fmt.Println(string(outputBytes))
+		plan.Outputs = append(plan.Outputs, provider.PlannedOutput{Path: outputPath, Content: outputBytes})
+		plan.CurrentOutputs = map[string]struct{}{filepath.Clean(outputPath): {}}
 
-			return nil
-		}
-
-		if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-			return err
-		}
-
-		currentWorkflowOutputs := map[string]struct{}{}
-		currentWorkflowOutputs[filepath.Clean(outputPath)] = struct{}{}
-
-		return fsutil.PruneStaleGeneratedYAML(outputDir, currentWorkflowOutputs, providerName, readSources)
+		return plan, nil
 	}
 
 	// Every file this run writes has to be recorded, actions included: the
-	// prune below walks the whole tree, and anything it does not find here is
-	// read as stale and removed.
-	currentOutputs := make(map[string]struct{}, len(workflows)+len(actions))
+	// prune walks the whole tree, and anything it does not find here is read
+	// as stale and removed.
+	plan.CurrentOutputs = make(map[string]struct{}, len(workflows)+len(actions))
 
 	// Checked before anything is written, so a collision leaves the directory
 	// as it was rather than partway through the run.
 	if err := checkOutputPaths(workflows, actions, outputDir, workflowExt(opts)); err != nil {
-		return err
+		return provider.ParsePlan{}, err
 	}
 
 	for _, workflowFile := range workflows {
 		outputBytes, err := marshalWorkflowYAML(workflowFile.Content, workflowFile.JobOrder, workflowFile.FootComment)
 		if err != nil {
-			return err
+			return provider.ParsePlan{}, err
 		}
 
 		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, workflowFile.Source)
 
 		outputPath := filepath.Join(outputDir, workflowFile.Filename+workflowExt(opts))
-		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
 
-		if opts.DryRun {
-			fmt.Printf("# file: %s\n", outputPath)
-			fmt.Println(string(outputBytes))
-			continue
-		}
-
-		if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-			return err
-		}
+		plan.Outputs = append(plan.Outputs, provider.PlannedOutput{Path: outputPath, Content: outputBytes})
+		plan.CurrentOutputs[filepath.Clean(outputPath)] = struct{}{}
 	}
 
 	for _, actionFile := range actions {
 		outputBytes, err := marshalWorkflowYAML(actionFile.Content, nil, actionFile.FootComment)
 		if err != nil {
-			return err
+			return provider.ParsePlan{}, err
 		}
 
 		// An action is marked like a workflow. Without it the prune has no way
@@ -150,25 +168,15 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		// there with a live action.yml in it for good.
 		outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, actionFile.Source)
 
+		// Always action.yml, whatever --yml says: that is the name GitHub
+		// looks for, and it is not the workflow extension to choose.
 		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
-		currentOutputs[filepath.Clean(outputPath)] = struct{}{}
 
-		if opts.DryRun {
-			fmt.Printf("# file: %s\n", outputPath)
-			fmt.Println(string(outputBytes))
-			continue
-		}
-
-		if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-			return err
-		}
+		plan.Outputs = append(plan.Outputs, provider.PlannedOutput{Path: outputPath, Content: outputBytes})
+		plan.CurrentOutputs[filepath.Clean(outputPath)] = struct{}{}
 	}
 
-	if opts.DryRun {
-		return nil
-	}
-
-	return fsutil.PruneStaleGeneratedYAML(outputDir, currentOutputs, providerName, readSources)
+	return plan, nil
 }
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.
