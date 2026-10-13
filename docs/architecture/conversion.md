@@ -61,8 +61,12 @@ beside it down with it.
 
 ## Defaults applied on parse
 
-- a workflow with no permissions gets `permissions: {}`
 - a step with no `id` gets one from its block label, unless `ignore_id` is set
+
+A workflow with no `permissions` used to get `permissions: {}`. It does not
+any more: parse writes what the HCL holds, and an absent block stays absent.
+An empty one written by hand still goes out as `{}`, which is why
+`checkBlockNotEmpty` exempts it.
 
 ## Schema
 

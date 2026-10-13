@@ -33,9 +33,11 @@ A `cinzel/` directory holding `.hcl` files, or a `.cinzelrc.yaml`. If so, the
 HCL is the source and the YAML under `.github/workflows/` is generated: edit
 the HCL and re-run `parse`. Editing the YAML directly is lost on the next run.
 
-Generated YAML carries `generated-by: cinzel` and `cinzel-provider: <name>` in
-a header comment. That marker is how cinzel recognises its own output when it
-prunes stale files, so do not strip it.
+Generated YAML opens with `generated-by: cinzel`, `cinzel-provider: <name>`
+and, for GitHub workflows and actions, `cinzel-source: <the HCL file>`. Those
+lines are how cinzel recognises its own output when it prunes stale files, and
+the source line is why a run narrowed with `--file` cleans up only what that
+file produced. Do not strip them.
 
 ## Converting a pipeline you already have
 
@@ -58,6 +60,15 @@ Shared flags: `--file`/`-f` one file, `--directory`/`-d` a directory (not with
 `--file`), `--recursive`/`-r` walk into subdirectories, `--output-directory`,
 `--dry-run`. Parse also takes `--yml` for a `.yml` extension; GitLab parse
 always writes `.gitlab-ci.yml` regardless.
+
+`--file` refuses a directory — use `--directory` for that, in every command
+that takes both, `pin` and `upgrade` included.
+
+Comments survive both directions, above a block, beside a value and closing a
+body, so there is no need to re-add one after a conversion.
+
+Conversion adds nothing of its own. A workflow that declares no `permissions`
+is written without one; do not expect cinzel to supply a default.
 
 ## What the HCL looks like
 
@@ -177,7 +188,24 @@ Both take `--dry-run`, `--file`/`-f`, `--directory`/`-d` (default `cinzel`).
 No token needed for public actions; `GITHUB_TOKEN` in the environment raises
 the rate limit from 60/hour to 5000.
 
+Both exit non-zero when an action could not be resolved. A zero exit is the
+only evidence that everything pinned — the summary line prints a count either
+way, so read the exit code rather than the output.
+
 Run `parse` after `pin` or the YAML still carries the old tags.
+
+## Checking the two are in step
+
+After changing HCL, confirm the committed YAML matches what parse produces:
+
+```sh
+out=$(mktemp -d)
+cinzel github parse --directory cinzel --output-directory "$out"
+diff -ru .github/workflows "$out"
+```
+
+A non-zero diff means either the YAML was hand-edited or the HCL changed
+without a regeneration. Many repos run this in CI.
 
 ## Defaults in a file
 
