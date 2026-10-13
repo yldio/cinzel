@@ -260,9 +260,39 @@ func sameAsCurrentOutput(path string, currentOutputs map[string]struct{}) bool {
 // always was. A nil readSources means the caller tracks no sources and asks for
 // that same behaviour throughout.
 func PruneStaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{}, provider string, readSources map[string]struct{}) error {
-	cleanOutputDir, err := filepath.Abs(outputDir)
+	stale, err := StaleGeneratedYAML(outputDir, currentOutputs, provider, readSources)
 	if err != nil {
 		return err
+	}
+
+	for _, path := range stale {
+		if err := os.Remove(path); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// StaleGeneratedYAML is the set of files PruneStaleGeneratedYAML would remove,
+// in the order the walk reaches them.
+//
+// The rules are the ones documented above; this is where they are applied, and
+// the prune is the same walk followed by a remove. Separated so a caller can
+// ask what a run would delete without deleting it: "cinzel <provider> diff"
+// reports a stale file as one the committed tree holds and a parse would not
+// write, which is how a renamed workflow's orphan is told apart from a file
+// whose contents drifted.
+//
+// Nothing here writes, and nothing it inspects has to exist. A path named in
+// currentOutputs that is not on disk is one a run has not written yet, which
+// sameAsCurrentOutput already reads as "not the file being looked at".
+func StaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{}, provider string, readSources map[string]struct{}) ([]string, error) {
+	stale := []string{}
+
+	cleanOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return nil, err
 	}
 
 	err = filepath.WalkDir(outputDir, func(current string, d os.DirEntry, walkErr error) error {
@@ -324,15 +354,17 @@ func PruneStaleGeneratedYAML(outputDir string, currentOutputs map[string]struct{
 			return nil
 		}
 
-		return os.Remove(absPath)
+		stale = append(stale, absPath)
+
+		return nil
 	})
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return stale, nil
 		}
 
-		return err
+		return nil, err
 	}
 
-	return nil
+	return stale, nil
 }
