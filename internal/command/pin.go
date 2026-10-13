@@ -6,6 +6,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/pin"
@@ -27,6 +28,10 @@ func (cmd *Cli) pinCommand() *cli.Command {
 			if filePath != "" {
 				if err := validateRelativePath(filePath); err != nil {
 					return fmt.Errorf("--file: %w", err)
+				}
+
+				if err := requireFileNotDirectory(filePath); err != nil {
+					return err
 				}
 			}
 
@@ -103,6 +108,25 @@ func (cmd *Cli) printPinSummary(results []pin.PinResult) error {
 
 	if failed > 0 {
 		return fmt.Errorf("%w: %d of %d", errPinFailed, failed, len(results))
+	}
+
+	return nil
+}
+
+// requireFileNotDirectory refuses a --file that names a directory.
+//
+// pin and upgrade pick PinFile or PinDirectory from which flag was set rather
+// than from what the path turns out to be, so a directory passed to --file
+// walked it anyway. --file means a file in every other command; it means one
+// here too.
+func requireFileNotDirectory(p string) error {
+	stat, err := os.Stat(p)
+	if err != nil {
+		return err
+	}
+
+	if stat.IsDir() {
+		return fmt.Errorf("--file: %w: %s", errFileIsADirectory, p)
 	}
 
 	return nil

@@ -5,6 +5,7 @@ package github
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -27,6 +28,20 @@ func resolveInputPath(opts provider.ProviderOps) (string, error) {
 	}
 
 	if opts.File != "" {
+		stat, err := os.Stat(opts.File)
+		if err != nil {
+			return "", err
+		}
+
+		// --file names a file. It reached a directory only because the path
+		// goes on to be stat'd again further down, and a reader following the
+		// flag's own wording had no reason to expect it: --directory is the
+		// flag for that, the two refuse to be set together, and nothing said
+		// one stood in for the other.
+		if stat.IsDir() {
+			return "", fmt.Errorf("%w: %s", errFileIsADirectory, opts.File)
+		}
+
 		return opts.File, nil
 	}
 

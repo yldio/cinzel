@@ -13,6 +13,7 @@ import (
 var (
 	errInputPathRequired       = cinzelerror.UserInput(errors.New("`file` or `directory` must be set"))
 	errInputPathConflict       = cinzelerror.UserInput(errors.New("`file` and `directory` cannot be set together"))
+	errFileIsADirectory        = cinzelerror.UserInput(errors.New("`file` names a directory, use `directory` for that"))
 	errParseNotImplemented     = errors.New("gitlab parse is not implemented yet")
 	errUnparseNotImplemented   = errors.New("gitlab unparse is not implemented yet")
 	errBlockIDNotString        = cinzelerror.UserInput(errors.New("'id' must be a non-empty string"))

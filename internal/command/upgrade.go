@@ -31,6 +31,10 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				if err := validateRelativePath(filePath); err != nil {
 					return fmt.Errorf("--file: %w", err)
 				}
+
+				if err := requireFileNotDirectory(filePath); err != nil {
+					return err
+				}
 			}
 
 			if dirPath != "" {
