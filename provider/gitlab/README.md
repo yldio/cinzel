@@ -7,6 +7,10 @@ cinzel gitlab unparse --file .gitlab-ci.yml --output-directory ./cinzel   # YAML
 cinzel gitlab parse   --file ./cinzel/.gitlab-ci.hcl --output-directory . # HCL -> YAML
 ```
 
+```sh
+cinzel gitlab diff    # what would parse change? writes nothing
+```
+
 Add `--dry-run` to print instead of writing. `--file` names one file and
 `--directory` a directory of them. `cinzel gitlab -h` lists every flag.
 

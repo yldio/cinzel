@@ -64,11 +64,10 @@ ghalint run
 # The repo's own workflows are generated from cinzel/*.hcl by cinzel itself.
 # Editing .github/workflows by hand leaves the two out of step until the next
 # regeneration silently reverts it, so the check runs in CI.
-run = """
-out=$(mktemp -d)
-go run . github parse --directory cinzel --output-directory "$out"
-diff -ru .github/workflows "$out"
-"""
+#
+# cinzel's own command, which is also how the command gets exercised on every
+# pull request rather than only by its tests.
+run = "go run . github diff --directory cinzel --output-directory .github/workflows"
 
 [tasks.test-ci]
 run = "go test ./... --cover"
