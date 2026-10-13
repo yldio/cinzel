@@ -1178,7 +1178,7 @@ workflow "ci" {
 	})
 }
 
-func TestParsePermissionsDefault(t *testing.T) {
+func TestParsePermissions(t *testing.T) {
 	minimalWorkflow := func(permissionsBlock string) string {
 		return `step "test" { run = "echo hi" }
 
@@ -1218,11 +1218,18 @@ workflow "ci" {
 		return string(out)
 	}
 
-	t.Run("no permissions block emits permissions: {}", func(t *testing.T) {
+	// Parse used to add "permissions: {}" to a workflow that set none, which
+	// made a converted pipeline carry a key its YAML never had and an
+	// unparse-parse roundtrip hand back more than it was given. cinzel
+	// converts what is written; what a workflow should declare is between
+	// its author and their linter.
+	t.Run("no permissions block writes no permissions", func(t *testing.T) {
 		yaml := parseAndReadYAML(t, minimalWorkflow(""))
 
-		if !strings.Contains(yaml, "permissions: {}") {
-			t.Errorf("expected permissions: {} in output\ngot:\n%s", yaml)
+		for _, line := range strings.Split(yaml, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "permissions:") {
+				t.Errorf("permissions appeared in a workflow that set none\ngot:\n%s", yaml)
+			}
 		}
 	})
 

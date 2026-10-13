@@ -66,7 +66,7 @@ ghalint run
 # regeneration silently reverts it, so the check runs in CI.
 run = """
 out=$(mktemp -d)
-go run . github parse --file cinzel --output-directory "$out"
+go run . github parse --directory cinzel --output-directory "$out"
 diff -ru .github/workflows "$out"
 """
 

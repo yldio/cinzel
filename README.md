@@ -20,6 +20,10 @@ HCL has references. A step is a block, and a job points at it by name:
 
 ```yaml
 # .github/workflows/ci.yaml
+name: CI
+on:
+  push:
+    branches: [main]
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -48,6 +52,10 @@ job "build_and_test" {
 `step.checkout` is a real reference. Rename the block and every job using it
 follows. Write the step once and ten jobs can share it. GitHub and GitLab still
 only read YAML, so cinzel converts back.
+
+Comments survive the trip, in both directions and in all three positions — a
+comment above a block, one beside a value, one closing a body. The note saying
+why a version is held back is still there after the conversion.
 
 ## Install
 
@@ -81,6 +89,11 @@ cinzel gitlab parse --file ./cinzel/.gitlab-ci.hcl --output-directory .
 
 Add `--dry-run` to either to see the result without writing anything.
 
+Converting is a conversion, not a rewrite: what the YAML says is what the HCL
+says, and parse writes back what the HCL holds. cinzel adds no keys of its own
+— a workflow that declares no `permissions` gets none, and what a pipeline
+ought to declare is for you and your linter to settle.
+
 The two providers work the same way but their HCL differs, because the
 platforms do:
 
@@ -95,7 +108,7 @@ platforms do:
 
 | Flag | Description |
 | --- | --- |
-| `--file`, `-f` | Read one file. |
+| `--file`, `-f` | Read one file. A directory is refused; `--directory` is for that. |
 | `--directory`, `-d` | Read every matching file in a directory. Not with `--file`. |
 | `--recursive`, `-r` | Walk subdirectories of `--directory`. |
 | `--output-directory` | Where to write. Parse defaults to `.github/workflows` (GitHub) or the working directory (GitLab); unparse defaults to `./cinzel`. |
@@ -126,6 +139,23 @@ be committed and read on every machine that checks the repo out, so an absolute
 path or a leading `~` is refused with an error naming the key. Forward slashes
 are converted to whatever the running system separates with, so one spelling
 works on Linux, macOS and Windows.
+
+## Keeping the two in step
+
+Once the HCL is the source, the YAML under `.github/workflows` is output, and
+an edit made there goes away the next time anyone runs parse. Nothing stops
+that edit at the time it is made, so this repo checks for it in CI:
+
+```sh
+out=$(mktemp -d)
+cinzel github parse --directory cinzel --output-directory "$out"
+diff -ru .github/workflows "$out"
+```
+
+`diff` exits non-zero when the generated YAML and the committed YAML have
+drifted apart, which is either a hand-edit of the output or HCL somebody
+changed without regenerating. The same shape works for GitLab with
+`--output-directory "$out"` and a diff against `.gitlab-ci.yml`.
 
 ## Generating a pipeline from a prompt
 
@@ -193,6 +223,11 @@ cinzel github upgrade --parse    # and regenerate the YAML
 
 Both take `--dry-run`, `--file`/`-f` and `--directory`/`-d` (default `cinzel`).
 `upgrade --parse` writes to `--output-directory` (default `.github/workflows`).
+
+Either command exits non-zero when it could not resolve an action, so a CI step
+running `cinzel github pin --dry-run` fails on a workflow that still holds an
+unpinned one. Each failure is named as it happens and the summary line counts
+them.
 
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.

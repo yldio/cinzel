@@ -631,10 +631,6 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 		out["permissions"] = withComments(child, blockComments(block.Body, hv))
 	}
 
-	if _, ok := out["permissions"]; !ok {
-		out["permissions"] = map[string]any{}
-	}
-
 	for _, block := range cfg.Defaults {
 		child, err := parseBodyMap(block.Body, hv, "defaults")
 		if err != nil {

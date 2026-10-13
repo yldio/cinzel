@@ -7,7 +7,8 @@ cinzel gitlab unparse --file .gitlab-ci.yml --output-directory ./cinzel   # YAML
 cinzel gitlab parse   --file ./cinzel/.gitlab-ci.hcl --output-directory . # HCL -> YAML
 ```
 
-Add `--dry-run` to print instead of writing. `cinzel gitlab -h` lists every flag.
+Add `--dry-run` to print instead of writing. `--file` names one file and
+`--directory` a directory of them. `cinzel gitlab -h` lists every flag.
 
 ## What it looks like
 
@@ -88,6 +89,9 @@ keyword is, unparse a pipeline that uses it and read what comes out.
 in HCL, so HCL does not try to interpolate it itself. Parse puts it back. A bare
 `$CI_PIPELINE_SOURCE` with no braces, as in the example above, needs no
 escaping.
+
+Comments travel in both directions — above a block, beside a value, closing a
+body — so a note explaining a rule is still there after the conversion.
 
 ## The rest of the shape
 

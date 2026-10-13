@@ -8,7 +8,8 @@ cinzel github unparse --file .github/workflows/ci.yaml --output-directory ./cinz
 cinzel github parse   --file ./cinzel/ci.hcl --output-directory .github/workflows   # HCL -> YAML
 ```
 
-Add `--dry-run` to print instead of writing. `cinzel github -h` lists every flag.
+Add `--dry-run` to print instead of writing. `--file` names one file and
+`--directory` a directory of them. `cinzel github -h` lists every flag.
 
 ## What it looks like
 
@@ -104,6 +105,43 @@ github.sha }}` in HCL, so HCL does not try to interpolate it. Parse puts it
 back. Never write the escape by hand — the converter owns it in both
 directions.
 
+Comments come across too, in both directions: above a block, beside a value,
+and closing a body. A note explaining why a version is held back survives the
+conversion rather than being dropped on the way.
+
+## Values shared between blocks
+
+A `variable` block holds a value other blocks point at, the same way `step` and
+`job` blocks are pointed at. It is an HCL value, resolved at conversion time
+and gone by the time GitHub sees anything — not a workflow `env` and not a
+GitLab CI variable, which is a different thing under the same word.
+
+```hcl
+variable "list_os" {
+  value = ["ubuntu-24.04", "macos-15", "windows-2022"]
+}
+
+job "test" {
+  strategy {
+    matrix {
+      variable {
+        name  = "os"
+        value = variable.list_os
+      }
+    }
+  }
+
+  runs_on {
+    runners = "$${{ matrix.os }}"
+  }
+
+  steps = [step.test]
+}
+```
+
+The matrix expands to the three runners. Another job wanting the same spread
+writes `variable.list_os` too, and one edit moves both.
+
 ## Composite actions
 
 An action is the other document type. It uses `input`, `output` and `runs`
@@ -175,8 +213,10 @@ cinzel github upgrade   # bump to the latest version, then pin
 ```
 
 Both take `--dry-run`, `--file` and `--directory` (default `cinzel`).
-`upgrade --parse` regenerates the YAML afterwards. No token is needed for
-public actions; `GITHUB_TOKEN` raises the rate limit from 60 to 5000 an hour.
+`upgrade --parse` regenerates the YAML afterwards. Either command exits
+non-zero when an action could not be resolved, so a CI step calling one fails
+on a workflow still holding an unpinned action. No token is needed for public
+actions; `GITHUB_TOKEN` raises the rate limit from 60 to 5000 an hour.
 
 ## What gets checked
 
@@ -226,13 +266,30 @@ GitHub's own schema for these blocks is affected.
 
 ## Generated output
 
-Parse writes `generated-by: cinzel` and `cinzel-provider: github` at the top of
-every file. That is how a later run recognises its own output: stale YAML is
-pruned only when both markers match. If a file you expected to disappear is
+Parse opens every file it writes with three lines:
+
+```yaml
+# generated-by: cinzel
+# cinzel-provider: github
+# cinzel-source: cinzel/ci.hcl
+```
+
+They are what lets a later run recognise its own output and delete what it no
+longer writes, which is how a renamed workflow's old YAML gets cleaned up. The
+provider line makes the file cinzel's — one without it was written by hand and
+is never touched. The source line makes it one particular HCL file's, so a run
+narrowed with `--file` prunes only what that file produced and leaves every
+other workflow's output alone.
+
+A step-only parse records no source, since it collects steps from across the
+input and has no single file to name. If a file you expected to disappear is
 still there, check its markers first, then the output directory's permissions.
 
 Beyond that: `on` is written unquoted, indentation is two spaces, and the
-top-level key order is `name`, `on`, `jobs`, then the rest.
+top-level key order is `name`, `on`, `jobs`, then the rest. Nothing is added
+that the HCL did not say: a workflow declaring no `permissions` is written
+without one, and whether a pipeline ought to declare it is between you and
+your linter.
 
 ## Contributing
 

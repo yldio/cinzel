@@ -3,7 +3,6 @@
 # cinzel-source: testdata/fixtures/formatting/workflow_parse_script_literal.hcl
 on:
   push:
-permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest

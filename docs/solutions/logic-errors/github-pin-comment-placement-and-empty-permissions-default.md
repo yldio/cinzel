@@ -34,6 +34,17 @@ related:
 > sentinel-swap pattern in the prevention section is still a sound technique;
 > it is just no longer used here.
 
+> Problem 3 has since been reversed. A workflow declaring no `permissions` now
+> gets no `permissions` key: the injection at `parseWorkflowConfig` is gone,
+> and parse writes what the HCL holds. The least-privilege argument below is
+> sound, but it is a policy call about someone's pipeline rather than a
+> conversion, and 16 of the 17 goldens carrying `permissions: {}` had no such
+> key in their source — an unparse-parse roundtrip handed back more than it was
+> given. ghalint's `job_permissions` policy asks for the job-level key, which
+> this never added. Problem 2 still holds: an empty `permissions {}` written by
+> hand goes out as `{}`, which is why `checkBlockNotEmpty` exempts it
+> (`provider/github/parse_workflow.go`).
+
 Two independent logic errors in the `github pin`/`upgrade` commands and the workflow permissions parser, both producing semantically wrong output from valid input.
 
 ## Symptoms

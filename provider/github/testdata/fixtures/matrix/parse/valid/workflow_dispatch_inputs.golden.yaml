@@ -4,7 +4,6 @@ on:
       target:
         required: true
         type: string
-permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest

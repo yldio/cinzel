@@ -12,6 +12,7 @@ import (
 var (
 	errInputPathRequired      = cinzelerror.UserInput(errors.New("`file` or `directory` must be set"))
 	errInputPathConflict      = cinzelerror.UserInput(errors.New("`file` and `directory` cannot be set together"))
+	errFileIsADirectory       = cinzelerror.UserInput(errors.New("`file` names a directory, use `directory` for that"))
 	errNoYAMLFiles            = cinzelerror.UserInput(errors.New("no YAML files found in input"))
 	errNoDefinitions          = cinzelerror.UserInput(errors.New("no workflow, action or step definitions found in input"))
 	errUnsupportedBodyType    = errors.New("unsupported body type")
