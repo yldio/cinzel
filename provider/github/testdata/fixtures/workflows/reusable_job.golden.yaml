@@ -1,4 +1,3 @@
-permissions: {}
 jobs:
   release:
     secrets: inherit
