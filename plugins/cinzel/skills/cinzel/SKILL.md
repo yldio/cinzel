@@ -64,6 +64,18 @@ always writes `.gitlab-ci.yml` regardless.
 `--file` refuses a directory — use `--directory` for that, in every command
 that takes both, `pin` and `upgrade` included.
 
+`--directory` is repeatable on unparse, for composite actions kept in folders
+of their own. Parse takes one. GitHub unparse reads `.github/workflows` when
+no `--directory` is given.
+
+`--root` resolves every path against a directory instead of the working
+directory, both directions, both providers. Not with `--output-directory`,
+which it replaces in v2.
+
+An action's HCL carries a `path` saying where it lives — `path = "actions-a"`
+writes `actions-a/setup/action.yml`. Unparse fills it in. Do not hand-edit it
+to climb out of the repository; parse refuses that.
+
 Comments survive both directions, above a block, beside a value and closing a
 body, so there is no need to re-add one after a conversion.
 

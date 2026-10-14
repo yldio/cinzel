@@ -109,14 +109,20 @@ func (p *GitLab) planParse(opts provider.ProviderOps) (provider.ParsePlan, error
 
 // Unparse converts GitLab YAML to HCL pipeline definitions.
 func (p *GitLab) Unparse(opts provider.ProviderOps) error {
-	inputPath, err := resolveInputPath(opts)
+	inputPaths, err := resolveInputPaths(opts)
 	if err != nil {
 		return err
 	}
 
-	files, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
-	if err != nil {
-		return err
+	files := make([]string, 0, len(inputPaths))
+
+	for _, inputPath := range inputPaths {
+		found, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
+		if err != nil {
+			return err
+		}
+
+		files = append(files, found...)
 	}
 
 	// Nothing was read. Reporting success here says the input was converted

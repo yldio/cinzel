@@ -3,16 +3,91 @@
 
 package provider
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"sort"
+	"strings"
+)
 
 // ProviderOps holds the options passed to a provider's Parse or Unparse operation.
 type ProviderOps struct {
-	File            string
-	Directory       string
+	File string
+
+	// Directory is one directory of input. Directories is several, which
+	// unparse takes because a repository can keep its composite actions in
+	// folders of its own — actions-a, actions-b — alongside the workflows.
+	//
+	// Both are read, so a caller setting either is understood. InputPaths
+	// puts them together.
+	Directory   string
+	Directories []string
+
 	OutputDirectory string
-	Recursive       bool
-	DryRun          bool
-	YML             bool // use .yml extension instead of .yaml
+
+	// Root is the directory every other path is resolved against, so one
+	// setting relocates a whole run: the input read, the output written, and
+	// on GitHub the place each action's own path starts from.
+	//
+	// Empty means the working directory, which is where cinzel reads
+	// .cinzelrc.yaml and spells its source markers from, so a run left alone
+	// behaves as it always has.
+	//
+	// Set together with OutputDirectory it is an error rather than a
+	// precedence rule: the two answer one question, and a reader should not
+	// have to remember which wins.
+	Root string
+
+	Recursive bool
+	DryRun    bool
+	YML       bool // use .yml extension instead of .yaml
+}
+
+// InputDirectories is every directory a run was asked to read, in the order
+// given, with duplicates dropped.
+func (opts ProviderOps) InputDirectories() []string {
+	seen := make(map[string]struct{}, len(opts.Directories)+1)
+	dirs := make([]string, 0, len(opts.Directories)+1)
+
+	for _, dir := range append([]string{opts.Directory}, opts.Directories...) {
+		if dir == "" {
+			continue
+		}
+
+		key := filepath.Clean(dir)
+
+		if _, already := seen[key]; already {
+			continue
+		}
+
+		seen[key] = struct{}{}
+
+		dirs = append(dirs, dir)
+	}
+
+	return dirs
+}
+
+// ResolveRoot is the directory a run resolves its paths against.
+func (opts ProviderOps) ResolveRoot() string {
+	if opts.Root == "" {
+		return "."
+	}
+
+	return opts.Root
+}
+
+// UnderRoot joins path onto the run's root, leaving an absolute path alone.
+//
+// An absolute path names one place whatever the root is, and the flags that
+// carry one are the operator's own typing rather than anything read out of a
+// file, so it is taken as given.
+func (opts ProviderOps) UnderRoot(path string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(opts.ResolveRoot(), path)
 }
 
 // Provider defines the interface that each CI/CD provider must implement.
@@ -49,6 +124,19 @@ type PlannedOutput struct {
 type ParsePlan struct {
 	// OutputDirectory is the directory the prune walks.
 	OutputDirectory string
+
+	// PruneDirectories are the other directories this run wrote into, which
+	// the prune walks as well.
+	//
+	// An action carrying a path lands outside the output directory, and the
+	// prune only ever looked there: renaming one left the old action.yml on
+	// disk, live and runnable, which is the bug the marker was added to stop.
+	//
+	// Only directories this run actually produced an action in. Walking the
+	// whole root instead would read .git and node_modules on every parse, to
+	// catch the one case this misses — an action moved from one folder to
+	// another, where the old folder is no longer anything the run touches.
+	PruneDirectories []string
 
 	// Outputs are the files to write, in the order the run produces them.
 	Outputs []PlannedOutput
@@ -98,4 +186,54 @@ type DiffResult struct {
 	// Unified is the diff from what is on disk to what would be written,
 	// set only for DiffDiffers.
 	Unified string
+}
+
+// PruneTargets are the directories a prune or a diff has to look in: the
+// output directory, and each one an action was written to.
+//
+// A directory already covered by another is dropped. The walk recurses, so
+// an output directory of "." contains every action directory under it, and
+// asking for both reported one stale file twice — harmless to a prune, which
+// removes it once, and wrong in a diff, which counted it twice and said so.
+func (plan ParsePlan) PruneTargets() []string {
+	targets := append([]string{plan.OutputDirectory}, plan.PruneDirectories...)
+
+	// Shortest first, so a directory is compared against the one that would
+	// contain it rather than the other way round.
+	sort.Slice(targets, func(i, j int) bool { return len(targets[i]) < len(targets[j]) })
+
+	kept := make([]string, 0, len(targets))
+
+	for _, target := range targets {
+		if !coveredBy(target, kept) {
+			kept = append(kept, target)
+		}
+	}
+
+	return kept
+}
+
+// coveredBy reports whether a walk of one of the directories in covers target.
+func coveredBy(target string, in []string) bool {
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return false
+	}
+
+	for _, candidate := range in {
+		absCandidate, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+
+		if absTarget == absCandidate {
+			return true
+		}
+
+		if strings.HasPrefix(absTarget, absCandidate+string(filepath.Separator)) {
+			return true
+		}
+	}
+
+	return false
 }

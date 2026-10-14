@@ -136,10 +136,9 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Value:   "",
 						Usage:   "Load HCL from a `FILE`",
 					},
-					&cli.StringFlag{
+					&cli.StringSliceFlag{
 						Name:    "directory",
 						Aliases: []string{"d"},
-						Value:   "",
 						Usage:   "Load HCL files from a `DIRECTORY`",
 					},
 					&cli.BoolFlag{
@@ -152,6 +151,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Name:  "output-directory",
 						Value: "",
 						Usage: "Parsed files (YAML) are created in `DIRECTORY`",
+					},
+					&cli.StringFlag{
+						Name:  "root",
+						Value: "",
+						Usage: "Resolve every path against `DIRECTORY` instead of the working directory (not with --output-directory)",
 					},
 					&cli.BoolFlag{
 						Name:  "yml",
@@ -191,11 +195,10 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Value:   "",
 						Usage:   "Load YAML from a `FILE`",
 					},
-					&cli.StringFlag{
+					&cli.StringSliceFlag{
 						Name:    "directory",
 						Aliases: []string{"d"},
-						Value:   "",
-						Usage:   "Load YAML files from a `DIRECTORY`",
+						Usage:   "Load YAML files from a `DIRECTORY`, repeatable for actions kept in folders of their own",
 					},
 					&cli.BoolFlag{
 						Name:    "recursive",
@@ -207,6 +210,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Name:  "output-directory",
 						Value: "",
 						Usage: "Parsed files (HCL) are created in `DIRECTORY`",
+					},
+					&cli.StringFlag{
+						Name:  "root",
+						Value: "",
+						Usage: "Resolve every path against `DIRECTORY` instead of the working directory (not with --output-directory)",
 					},
 					&cli.BoolFlag{
 						Name:  "dry-run",

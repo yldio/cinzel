@@ -157,3 +157,24 @@ unparsing a generated file would copy cinzel's note into the HCL — and the
 source line names the very file it would be written into.
 
 See `docs/solutions/best-practices/a-narrowed-parse-prunes-what-it-did-not-look-at.md`.
+
+## Where an action is written
+
+A workflow goes to the output directory; an action goes wherever its `path`
+attribute says, joined onto the output directory. `path` is the folders above
+the action and `filename` is the action's own folder, written apart because
+the block label goes through `sanitizeIdentifier` and a path through that
+becomes `actions_a_setup`.
+
+Unparse records the path relative to the run's root, not the working
+directory. `SourceKey` spells a file outside the working directory absolutely,
+which is right for a marker read on the same machine and wrong for HCL that is
+committed. An action outside the root records nothing.
+
+Both halves are fenced by `checkFilenameStaysInside`, apart and joined:
+`a/../../x` only escapes once the two are put together.
+
+The prune and the diff walk the output directory plus each directory the run
+wrote an action into, with overlapping targets dropped — a walk recurses, so
+an output directory of `.` already covers every action directory under it, and
+asking for both reported one stale file twice.

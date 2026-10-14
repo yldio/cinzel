@@ -32,11 +32,25 @@ type providerCommandConfig struct {
 func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (provider.ProviderOps, []string, error) {
 	opts := provider.ProviderOps{
 		File:            cmd.String("file"),
-		Directory:       cmd.String("directory"),
+		Directories:     directoriesFrom(cmd),
 		OutputDirectory: cmd.String("output-directory"),
+		Root:            cmd.String("root"),
 		Recursive:       cmd.Bool("recursive"),
 		DryRun:          cmd.Bool("dry-run"),
 		YML:             cmd.Bool("yml"),
+	}
+
+	// Both answer where output goes, one per document type and one for the
+	// run. Picking a winner would be a rule to remember; refusing is a
+	// sentence that says what to do instead.
+	if opts.Root != "" && opts.OutputDirectory != "" {
+		return provider.ProviderOps{}, nil, errRootAndOutputDirectory
+	}
+
+	if opts.Root != "" {
+		if err := validateRelativePath(opts.Root); err != nil {
+			return provider.ProviderOps{}, nil, fmt.Errorf("--root: %w", err)
+		}
 	}
 
 	conf, warnings, err := loadProviderCommandConfig(configFilename, providerName, commandName)
@@ -230,6 +244,25 @@ func findMappingValue(n *yaml.Node, key string) *yaml.Node {
 		if n.Content[i].Value == key {
 			return n.Content[i+1]
 		}
+	}
+
+	return nil
+}
+
+// directoriesFrom reads --directory however the command declares it.
+//
+// Unparse takes several, because composite actions can live in folders of
+// their own; parse takes one, since a recursive read of the HCL already
+// merges every file into one body and references cross those files freely.
+// The flag is a slice on one and a string on the other, and this asks for
+// whichever it is rather than making every caller know.
+func directoriesFrom(cmd *cli.Command) []string {
+	if dirs := cmd.StringSlice("directory"); len(dirs) > 0 {
+		return dirs
+	}
+
+	if dir := cmd.String("directory"); dir != "" {
+		return []string{dir}
 	}
 
 	return nil

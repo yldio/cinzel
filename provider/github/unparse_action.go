@@ -6,6 +6,9 @@ package github
 import (
 	"errors"
 	"fmt"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/yldio/cinzel/internal/unescape"
@@ -37,13 +40,25 @@ func isActionDocument(doc map[string]any) bool {
 	return hasRuns && !hasOn && !hasJobs
 }
 
-func actionToHCL(doc map[string]any, filename string, comments *yamlComments, usedStepIDs map[string]struct{}) ([]byte, error) {
+// actionToHCL converts one action document. location is where the action was
+// read from, relative to the run's root: "actions-a/setup" for an action at
+// "actions-a/setup/action.yml".
+//
+// The last segment is the action's name and the rest is where it lives, and
+// the two are written apart. One string did both jobs before, which worked
+// only while an action could not sit anywhere but the output directory: the
+// block label comes from sanitizeIdentifier, and a path through that becomes
+// "actions_a_setup" rather than "setup".
+func actionToHCL(doc map[string]any, location string, comments *yamlComments, usedStepIDs map[string]struct{}) ([]byte, error) {
 	if err := validateActionDocument(doc); err != nil {
 		return nil, err
 	}
 
 	f := hclwrite.NewEmptyFile()
 	root := f.Body()
+
+	actionPath, filename := path.Split(path.Clean(filepath.ToSlash(location)))
+	actionPath = strings.TrimSuffix(actionPath, "/")
 
 	actionID := sanitizeIdentifier(filename)
 
@@ -70,6 +85,13 @@ func actionToHCL(doc map[string]any, filename string, comments *yamlComments, us
 	actionBody := actionBlock.Body()
 
 	actionBody.SetAttributeValue("filename", cty.StringVal(filename))
+
+	// Only written when there is one. An action directly under the output
+	// directory has nothing to say about where it sits, and every file
+	// converted before this attribute existed looks exactly like that.
+	if actionPath != "" && actionPath != "." {
+		actionBody.SetAttributeValue("path", cty.StringVal(actionPath))
+	}
 
 	actionSections := newBodySections(actionBody)
 

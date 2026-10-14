@@ -132,8 +132,18 @@ type hclActionBrandingBlock struct {
 }
 
 type hclActionBlock struct {
-	ID          string                   `hcl:"id,label"`
+	ID string `hcl:"id,label"`
+
+	// Filename is the action's own folder name, and Path the folders above
+	// it. An action is read from "<path>/<filename>/action.yml", so the two
+	// together are where it goes and apart they are what it is called and
+	// where it lives.
+	//
+	// Split because a workflow has no Path: GitHub reads .github/workflows
+	// and nowhere else, so a workflow has nothing to say about where it sits
+	// while an action can sit anywhere the repository puts it.
 	Filename    hcl.Expression           `hcl:"filename,optional"`
+	Path        hcl.Expression           `hcl:"path,optional"`
 	Name        hcl.Expression           `hcl:"name,optional"`
 	Description hcl.Expression           `hcl:"description,optional"`
 	Author      hcl.Expression           `hcl:"author,optional"`

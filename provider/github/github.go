@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -64,7 +66,13 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		}
 	}
 
-	return fsutil.PruneStaleGeneratedYAML(plan.OutputDirectory, plan.CurrentOutputs, providerName, plan.ReadSources)
+	for _, dir := range plan.PruneTargets() {
+		if err := fsutil.PruneStaleGeneratedYAML(dir, plan.CurrentOutputs, providerName, plan.ReadSources); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // planParse works out every file a parse would write, without writing one.
@@ -136,6 +144,10 @@ func (p *GitHub) planParse(opts provider.ProviderOps) (provider.ParsePlan, error
 	// as stale and removed.
 	plan.CurrentOutputs = make(map[string]struct{}, len(workflows)+len(actions))
 
+	// The directories actions land in, deduplicated: several actions sharing
+	// a folder is one directory to walk, not one per action.
+	pruneDirs := make(map[string]struct{})
+
 	// Checked before anything is written, so a collision leaves the directory
 	// as it was rather than partway through the run.
 	if err := checkOutputPaths(workflows, actions, outputDir, workflowExt(opts)); err != nil {
@@ -170,25 +182,67 @@ func (p *GitHub) planParse(opts provider.ProviderOps) (provider.ParsePlan, error
 
 		// Always action.yml, whatever --yml says: that is the name GitHub
 		// looks for, and it is not the workflow extension to choose.
-		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
+		//
+		// An action carrying a path is placed against the root rather than
+		// the output directory. The path was recorded relative to the root
+		// on the way out — "actions-a" means the repository's actions-a —
+		// and joining it onto a parse output directory of .github/workflows
+		// put the action at .github/workflows/actions-a/setup/action.yml,
+		// which converts cleanly, prunes correctly, and is never read by
+		// GitHub. An action without a path keeps going where it always did.
+		outputPath := filepath.Join(actionOutputBase(opts, outputDir, actionFile.Filename), actionFile.Filename, "action.yml")
 
 		plan.Outputs = append(plan.Outputs, provider.PlannedOutput{Path: outputPath, Content: outputBytes})
 		plan.CurrentOutputs[filepath.Clean(outputPath)] = struct{}{}
+
+		// The folder the action's own directory sits in, which is where a
+		// rename leaves the one it replaced. Only recorded when the action
+		// carries a path: without one it is already under the output
+		// directory the prune walks anyway.
+		if parent := filepath.Dir(filepath.Dir(outputPath)); !sameDirectory(parent, outputDir) {
+			pruneDirs[filepath.Clean(parent)] = struct{}{}
+		}
 	}
+
+	for dir := range pruneDirs {
+		plan.PruneDirectories = append(plan.PruneDirectories, dir)
+	}
+
+	// Sorted so a run walks them the same way twice, which keeps what a
+	// failure reports from depending on map order.
+	sort.Strings(plan.PruneDirectories)
 
 	return plan, nil
 }
 
+// sameDirectory reports whether two paths name one directory, so the prune is
+// not asked to walk the output directory twice.
+func sameDirectory(a string, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
 // Unparse converts GitHub Actions YAML files into HCL definitions.
 func (p *GitHub) Unparse(opts provider.ProviderOps) error {
-	inputPath, err := resolveInputPath(opts)
+	for _, dir := range opts.InputDirectories() {
+		if namesTheWorkflowsDirectory(dir) {
+			warnf("--directory %s is the directory unparse reads anyway, and will stop being needed", dir)
+		}
+	}
+
+	inputPaths, err := unparseInputPaths(opts)
 	if err != nil {
 		return err
 	}
 
-	files, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
-	if err != nil {
-		return err
+	files := make([]string, 0, len(inputPaths))
+
+	for _, inputPath := range inputPaths {
+		found, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
+		if err != nil {
+			return err
+		}
+
+		files = append(files, found...)
 	}
 
 	if len(files) == 0 {
@@ -241,7 +295,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
-		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file), usedStepIDs, usedJobIDs)
+		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file, opts.ResolveRoot()), usedStepIDs, usedJobIDs)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
 
@@ -340,7 +394,11 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
 		out, err := actionToHCL(actionDoc, actionName, comments, usedStepIDs)
 
-		return out, actionName, err
+		// The HCL file is named after the action, not after where the action
+		// goes. The folders above it are written inside the file as "path",
+		// so naming the file for the whole location would put them in two
+		// places and spell "actions-a/setup.hcl" as one flat name.
+		return out, path.Base(filepath.ToSlash(actionName)), err
 	}
 
 	steps, err := parseStepsFromYAML(yamlBytes)
@@ -364,23 +422,30 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), baseName, nil
 }
 
-// actionNameFor picks the name an action is known by. An action lives at
-// <name>/action.yml, so the directory holding the file is its identity and
-// the basename is the same word for every action there is. Naming the output
-// after the basename dropped that identity: the action came back called
-// "action", and a second one in the same run wrote over the first.
+// actionNameFor picks where an action is known to live, relative to the
+// working directory: "actions-a/setup" for "actions-a/setup/action.yml".
+//
+// An action lives at <name>/action.yml, so the directory holding the file is
+// its identity and the basename is the same word for every action there is.
+// Naming the output after the basename dropped that identity: the action came
+// back called "action", and a second one in the same run wrote over the first.
+//
+// The folders above it are kept too, because an action can sit anywhere the
+// repository puts it and that is the only record of where. Taking the last
+// directory alone sent every action to one place on the way back, and two
+// named "setup" in different folders could not both convert.
 //
 // Only the fixed filenames GitHub reads are treated this way. A document that
 // happens to be an action but sits under some other name is left with that
 // name, which is the only thing left to go on.
-func actionNameFor(file string) string {
+func actionNameFor(file string, root string) string {
 	base := strings.ToLower(filepath.Base(file))
 
 	if base != "action.yml" && base != "action.yaml" {
 		return strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	}
 
-	dir := filepath.Base(filepath.Dir(file))
+	dir := filepath.Dir(file)
 
 	// A file directly under "." or the filesystem root has no directory name
 	// to take. Nothing is better than the basename there.
@@ -388,7 +453,53 @@ func actionNameFor(file string) string {
 		return strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	}
 
-	return dir
+	if located := relativeToRoot(dir, root); located != "" {
+		return located
+	}
+
+	// Outside the root, so there is nothing portable to record. The action's
+	// own folder is the identity it has always had.
+	located := filepath.Base(dir)
+	if located == "." || located == string(os.PathSeparator) || located == "" {
+		return strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	}
+
+	return located
+}
+
+// relativeToRoot spells dir the way the HCL will carry it: relative to the
+// root the run was given, with forward slashes.
+//
+// Relative to the root rather than to the working directory, because what
+// goes into the HCL is committed and read again on another machine. A run
+// given an absolute --directory would otherwise write that machine's own
+// path into the file, and parse would refuse it on the way back as a write
+// outside the output directory — which it is.
+//
+// A directory the root does not contain has no relative spelling that means
+// anything to a later reader, so nothing is recorded and the action keeps the
+// behaviour it had before it could say where it lived.
+func relativeToRoot(dir string, root string) string {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return ""
+	}
+
+	rel, err := filepath.Rel(absRoot, absDir)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+
+	if rel == "." {
+		return ""
+	}
+
+	return filepath.ToSlash(rel)
 }
 
 // warnf writes one warning to stderr, with the control characters in it
@@ -456,4 +567,26 @@ func checkUnparseNameClash(converted []unparsedFile) error {
 	}
 
 	return nil
+}
+
+// actionOutputBase is the directory an action's own path is placed against.
+//
+// The output directory when the action names no path, so nothing written
+// before the attribute existed moves. The run's root when it does, because
+// that is what the path was recorded against and the only base that puts the
+// action back where it was read from.
+//
+// An explicit --output-directory wins either way: a caller naming a
+// destination is asking for everything to go there, which is what a test or
+// a scratch conversion wants.
+func actionOutputBase(opts provider.ProviderOps, outputDir string, filename string) string {
+	if opts.OutputDirectory != "" {
+		return outputDir
+	}
+
+	if filepath.Dir(filename) == "." {
+		return outputDir
+	}
+
+	return opts.ResolveRoot()
 }
