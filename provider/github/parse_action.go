@@ -5,6 +5,7 @@ package github
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/yldio/cinzel/internal/hclparser"
@@ -30,13 +31,26 @@ func parseHCLActions(actions []hclActionBlock, body hcl.Body, hv *hclparser.HCLV
 	sources := labelledBlockSources(actionBlocks)
 
 	for _, a := range actions {
-		content, filename, err := parseActionConfig(a, hv, stepMap)
+		content, filename, actionPath, err := parseActionConfig(a, hv, stepMap)
 		if err != nil {
 			return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
 		}
 
 		if filename == "" {
 			filename = "action"
+		}
+
+		// Checked apart as well as joined. "a/../../x" and "../a" clean to
+		// the same thing once joined, and an author who wrote the first
+		// should be told which half of what they wrote is the problem.
+		for _, part := range []string{actionPath, filename} {
+			if err := checkFilenameStaysInside(part); err != nil {
+				return nil, fmt.Errorf("error in action '%s': %w", a.ID, err)
+			}
+		}
+
+		if actionPath != "" {
+			filename = path.Join(actionPath, filename)
 		}
 
 		if err := checkFilenameStaysInside(filename); err != nil {
@@ -60,54 +74,61 @@ func parseHCLActions(actions []hclActionBlock, body hcl.Body, hv *hclparser.HCLV
 
 // parseActionConfig converts one action block, returning its content and the
 // filename to write it under.
-func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, string, error) {
+func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, string, string, error) {
 	out := make(map[string]any)
 
 	filename, err := parseAttr(cfg.Filename, hv)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	name, _ := filename.(string)
 
+	actionPath, err := parseAttr(cfg.Path, hv)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	dir, _ := actionPath.(string)
+
 	if err := setOptionalYAMLAttr(out, "name", cfg.Name, hv); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if err := setOptionalYAMLAttr(out, "description", cfg.Description, hv); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if err := setOptionalYAMLAttr(out, "author", cfg.Author, hv); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	for _, input := range cfg.Inputs {
 		inputMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(inputMap, "description", input.Description, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "required", input.Required, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		if err := setOptionalYAMLAttr(inputMap, "default", input.Default, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		// GitHub spells this one in camel case, alone among the input keys.
 		// Writing "deprecation-message" produced a file GitHub ignores and
 		// cinzel's own strict shape rejects on the way back.
 		if err := setOptionalYAMLAttr(inputMap, "deprecationMessage", input.DeprecationMessage, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		inputs := getOrCreateMap(out, "inputs")
 
 		if err := claimBlockKey(inputs, "input", input.ID); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		inputs[input.ID] = inputMap
@@ -117,17 +138,17 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		outputMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(outputMap, "description", output.Description, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		if err := setOptionalYAMLAttr(outputMap, "value", output.Value, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		outputs := getOrCreateMap(out, "outputs")
 
 		if err := claimBlockKey(outputs, "output", output.ID); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		outputs[output.ID] = outputMap
@@ -136,11 +157,11 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 	for _, runs := range cfg.Runs {
 		runsMap, err := parseActionRunsConfig(runs, hv, stepMap)
 		if err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		if err := claimSingletonBlock(out, "runs", "runs"); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		out["runs"] = runsMap
@@ -150,21 +171,21 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 		brandingMap := make(map[string]any)
 
 		if err := setOptionalYAMLAttr(brandingMap, "icon", branding.Icon, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		if err := setOptionalYAMLAttr(brandingMap, "color", branding.Color, hv); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		if err := claimSingletonBlock(out, "branding", "branding"); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 
 		out["branding"] = brandingMap
 	}
 
-	return out, name, nil
+	return out, name, dir, nil
 }
 
 func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMap map[string]any) (map[string]any, error) {
