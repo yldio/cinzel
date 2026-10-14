@@ -411,3 +411,22 @@ func claimFilename(taken map[string]string, filename, id string) error {
 
 	return nil
 }
+
+// unparseInputPaths is resolveInputPaths with the workflows directory added.
+//
+// GitHub reads .github/workflows and nowhere else, so a run that names no
+// directory at all means that one. Naming it is still understood and still
+// works; it is simply the one directory nobody should have to type.
+func unparseInputPaths(opts provider.ProviderOps) ([]string, error) {
+	if opts.File == "" && len(opts.InputDirectories()) == 0 {
+		opts.Directories = []string{defaultParseOutputDirectory}
+	}
+
+	return resolveInputPaths(opts)
+}
+
+// namesTheWorkflowsDirectory reports whether a directory the caller passed is
+// the one cinzel would have read anyway.
+func namesTheWorkflowsDirectory(dir string) bool {
+	return filepath.Clean(filepath.FromSlash(dir)) == filepath.Clean(defaultParseOutputDirectory)
+}

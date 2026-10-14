@@ -215,7 +215,13 @@ func sameDirectory(a string, b string) bool {
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.
 func (p *GitHub) Unparse(opts provider.ProviderOps) error {
-	inputPaths, err := resolveInputPaths(opts)
+	for _, dir := range opts.InputDirectories() {
+		if namesTheWorkflowsDirectory(dir) {
+			warnf("--directory %s is the directory unparse reads anyway, and will stop being needed", dir)
+		}
+	}
+
+	inputPaths, err := unparseInputPaths(opts)
 	if err != nil {
 		return err
 	}
