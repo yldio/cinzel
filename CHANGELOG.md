@@ -1,4 +1,12 @@
 cinzel
+## [1.2.2](https://github.com/yldio/cinzel/compare/v1.2.1..v1.2.2) - 2026-10-14
+
+### 🐛 Bug Fixes
+
+- *(github)* Let a workflow and an action share a name (#107) - ([f65bc59](https://github.com/yldio/cinzel/commit/f65bc59f37013f0a7451bd94e1abfb09480be4a9))
+- *(github)* Separate an action from the steps above it (#106) - ([143a22e](https://github.com/yldio/cinzel/commit/143a22e3ac24d09b483879ebc5bdf950016f707d))
+
+
 ## [1.2.1](https://github.com/yldio/cinzel/compare/v1.2.0..v1.2.1) - 2026-10-14
 
 ### 🐛 Bug Fixes
