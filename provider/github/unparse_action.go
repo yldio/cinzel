@@ -81,6 +81,16 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 		}
 	}
 
+	// A blank line between the steps and the block that uses them. Each step
+	// closes with one, so writing the action straight on put "action" hard
+	// against the "}" above it and the file read as one run of blocks.
+	//
+	// Asked of the body rather than counted: a file with no steps in it has
+	// nothing above the action to separate it from.
+	if len(stepRefs) > 0 {
+		root.AppendNewline()
+	}
+
 	actionBlock := root.AppendNewBlock("action", []string{actionID})
 	actionBody := actionBlock.Body()
 
