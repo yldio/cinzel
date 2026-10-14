@@ -28,7 +28,7 @@ var (
 	errNonStringKey           = cinzelerror.UserInput(errors.New("a mapping key must be a string"))
 	errFilenameEscapes        = cinzelerror.UserInput(errors.New("'filename' must stay inside the output directory"))
 	errDuplicateFilename      = cinzelerror.UserInput(errors.New("two definitions write to the same file"))
-	errUnparseNameClash       = cinzelerror.UserInput(errors.New("two files convert to the same workflow name"))
+	errUnparseNameClash       = cinzelerror.UserInput(errors.New("two files convert to one definition"))
 	errDuplicateJobLabel      = cinzelerror.UserInput(errors.New("two job blocks share a label"))
 	errDuplicateJobKey        = cinzelerror.UserInput(errors.New("two jobs write to the same YAML key"))
 	errDuplicateStepID        = cinzelerror.UserInput(errors.New("two steps in one job write the same step id"))

@@ -295,7 +295,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
-		hclBytes, name, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file, opts.ResolveRoot()), usedStepIDs, usedJobIDs)
+		hclBytes, name, kind, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file, opts.ResolveRoot()), usedStepIDs, usedJobIDs)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
 
@@ -319,6 +319,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			name:     name,
 			source:   file,
 			location: locationOf(file, opts.ResolveRoot()),
+			kind:     kind,
 			hcl:      hclBytes,
 		})
 	}
@@ -361,6 +362,41 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	return nil
 }
 
+// documentKind is which of the three things a converted file turned out to
+// be, matching the detection chain in unparseYAMLFile: "on" and "jobs" make
+// a workflow, "name" and "runs" an action, and neither a file of steps.
+//
+// Jobs are not among them. A job is a block inside a workflow document, and
+// GitHub has no file that holds bare jobs, so unparse never produces one.
+//
+// Two kinds can share a name without colliding, because they are written to
+// different places: "ci.yaml" and "ci/action.yml".
+type documentKind int
+
+const (
+	kindWorkflow documentKind = iota
+	kindAction
+	kindSteps
+)
+
+// String names the kind the way an error reporting a clash should.
+//
+// Every kind is listed rather than defaulting to one: a kind added later and
+// forgotten here would be reported as whichever the default was, and an
+// error naming the wrong type is worse than one naming none.
+func (k documentKind) String() string {
+	switch k {
+	case kindWorkflow:
+		return "workflow"
+	case kindAction:
+		return "action"
+	case kindSteps:
+		return "set of steps"
+	}
+
+	return "document"
+}
+
 // unparsedFile is one converted document waiting to be written: the output
 // basename it was given, the file it was read from, and the HCL it became.
 type unparsedFile struct {
@@ -373,34 +409,39 @@ type unparsedFile struct {
 	// file's own attributes carry.
 	location string
 
+	// kind is what the document turned out to be. A workflow and an action
+	// of the same name are two files in two places, so the clash check has
+	// to know which is which.
+	kind documentKind
+
 	hcl []byte
 }
 
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
 // the document is a workflow, action, or step-only file. Returns nil if
 // the document is empty or unrecognized.
-func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, error) {
+func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, documentKind, error) {
 	doc, order, comments, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
-		return nil, "", err
+		return nil, "", kindWorkflow, err
 	}
 
 	// A file holding no document at all is skipped rather than rejected, the
 	// same as one holding an empty document. Otherwise a single stray empty
 	// file aborts a whole directory run before the real files are reached.
 	if doc == nil {
-		return nil, "", nil
+		return nil, "", kindWorkflow, nil
 	}
 
 	workflowDoc, err := classifyWorkflowDocument(doc)
 	if err != nil {
-		return nil, "", err
+		return nil, "", kindWorkflow, err
 	}
 
 	if workflowDoc != nil {
 		out, err := workflowToHCL(*workflowDoc, baseName, order, comments, usedStepIDs, usedJobIDs)
 
-		return out, baseName, err
+		return out, baseName, kindWorkflow, err
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
@@ -410,16 +451,16 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 		// goes. The folders above it are written inside the file as "path",
 		// so naming the file for the whole location would put them in two
 		// places and spell "actions-a/setup.hcl" as one flat name.
-		return out, path.Base(filepath.ToSlash(actionName)), err
+		return out, path.Base(filepath.ToSlash(actionName)), kindAction, err
 	}
 
 	steps, err := parseStepsFromYAML(yamlBytes)
 	if err != nil {
-		return nil, "", err
+		return nil, "", kindWorkflow, err
 	}
 
 	if len(steps) == 0 {
-		return nil, "", nil
+		return nil, "", kindWorkflow, nil
 	}
 
 	f := hclwrite.NewEmptyFile()
@@ -427,11 +468,11 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 
 	for _, s := range steps {
 		if err := s.Decode(body, "step"); err != nil {
-			return nil, "", err
+			return nil, "", kindWorkflow, err
 		}
 	}
 
-	return unescape.Unicode(hclwrite.Format(f.Bytes())), baseName, nil
+	return unescape.Unicode(hclwrite.Format(f.Bytes())), baseName, kindSteps, nil
 }
 
 // actionNameFor picks where an action is known to live, relative to the
@@ -538,40 +579,40 @@ func (p *GitHub) Diff(opts provider.ProviderOps) ([]provider.DiffResult, error) 
 	return plan.Diff(providerName)
 }
 
-// checkUnparseNameClash refuses a run where two documents would be written
-// under one name.
+// checkUnparseNameClash refuses a run where two documents of one kind would
+// be written under a single name.
 //
 // The HCL files themselves do not collide: UniqueOutputName gives the second
 // one "ci_2.hcl", and the block labels inside it are suffixed the same way.
-// The "filename" attribute is not, because it is what the workflow is called
-// on GitHub rather than a label, so both files come out saying
-// filename = "ci" and parse refuses to read them back:
+// What is not suffixed is the name the document is known by on GitHub, so
+// both come out claiming one workflow and parse refuses to read them back:
 //
 //	two definitions write to the same file: 'ci' and 'ci' both write to 'ci'
 //
 // That error arrives one command later than the mistake and names neither
-// YAML file, so the user is left holding HCL cinzel wrote and will not read.
-// Unparse knows here, and says which two files and why.
+// YAML file. Unparse knows here, and says which two files.
 //
-// Renaming the attribute is not the fix. GitHub reads no subdirectory of
-// .github/workflows, so two workflows cannot differ by path, and writing one
-// as "a/ci" produces a file that is valid, converts cleanly, and never runs.
-//
-// Run after the conversion so a file that was going to fail anyway fails for
-// its own reason, and before any write so a clash leaves the output directory
-// as it was.
+// Kept per kind. A workflow and an action sharing a name are written to
+// "ci.yaml" and "ci/action.yml", two files in two places, and refusing that
+// pair turned an ordinary repository — a check workflow beside the action it
+// calls — into one cinzel would not convert.
 func checkUnparseNameClash(converted []unparsedFile) error {
-	seen := make(map[string]string, len(converted))
+	type claim struct {
+		kind documentKind
+		name string
+	}
+
+	seen := make(map[claim]string, len(converted))
 
 	for _, out := range converted {
 		// Folded, the way UniqueOutputName folds: two names differing only in
 		// case are one file on macOS and Windows.
-		key := strings.ToLower(out.name)
+		key := claim{kind: out.kind, name: strings.ToLower(out.name)}
 
 		if other, clash := seen[key]; clash {
 			return fmt.Errorf(
-				"%w: '%s' and '%s' both convert to a workflow named '%s', and GitHub reads no subdirectory of .github/workflows, so rename one or convert the directories separately",
-				errUnparseNameClash, other, out.source, out.name,
+				"%w: '%s' and '%s' are both the %s '%s', so one of them has to be renamed",
+				errUnparseNameClash, other, out.source, out.kind, out.name,
 			)
 		}
 
