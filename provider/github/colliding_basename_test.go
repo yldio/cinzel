@@ -149,3 +149,86 @@ func TestASingleFileKeepsItsName(t *testing.T) {
 		t.Errorf("want ci.hcl, got %v", err)
 	}
 }
+
+// A workflow and an action of one name are two files in two places —
+// "pr-title-check.yaml" and "pr-title-check/action.yml" — so neither stands
+// in the other's way.
+//
+// The clash check keyed on the name alone, which refused an ordinary
+// repository: a check workflow beside the composite action it calls, both
+// named for the thing they check. The error even explained that GitHub reads
+// no subdirectory of .github/workflows, which is true, is about workflows,
+// and had nothing to do with the pair being refused.
+func TestAWorkflowAndAnActionMayShareAName(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, "in")
+	out := filepath.Join(tmp, "out")
+
+	workflows := filepath.Join(in, ".github", "workflows")
+	action := filepath.Join(in, "actions", "pr-title-check")
+
+	for _, dir := range []string{workflows, action} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	yml := "name: PR Title\non:\n  pull_request: {}\njobs:\n  b:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
+	if err := os.WriteFile(filepath.Join(workflows, "pr-title-check.yml"), []byte(yml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	act := "name: PR Title Check\ndescription: d\nruns:\n  using: composite\n  steps:\n    - name: Check\n      run: ./check.sh\n      shell: bash\n"
+	if err := os.WriteFile(filepath.Join(action, "action.yml"), []byte(act), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := New().Unparse(provider.ProviderOps{Root: in, Directory: "actions", Recursive: true, OutputDirectory: out}); err != nil {
+		t.Fatalf("Unparse() = %v, want the pair converted", err)
+	}
+
+	entries, err := os.ReadDir(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("want both converted, got %d files", len(entries))
+	}
+}
+
+// Two of one kind still collide, and the error says which kind.
+func TestTwoActionsSharingANameAreStillRefused(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, "in")
+
+	for _, dir := range []string{"a/setup", "b/setup"} {
+		full := filepath.Join(in, filepath.FromSlash(dir))
+
+		if err := os.MkdirAll(full, 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		act := "name: " + dir + "\ndescription: d\nruns:\n  using: composite\n  steps:\n    - name: " + filepath.Base(dir) + " step\n      run: echo hi\n      shell: bash\n"
+
+		if err := os.WriteFile(filepath.Join(full, "action.yml"), []byte(act), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err := New().Unparse(provider.ProviderOps{
+		Root:            in,
+		Directories:     []string{"a", "b"},
+		Recursive:       true,
+		OutputDirectory: filepath.Join(tmp, "out"),
+	})
+
+	if !errors.Is(err, errUnparseNameClash) {
+		t.Fatalf("Unparse() = %v, want errUnparseNameClash", err)
+	}
+
+	// Named as what they are, not as "a workflow".
+	if !strings.Contains(err.Error(), "the action 'setup'") {
+		t.Errorf("the error does not name the kind: %v", err)
+	}
+}
