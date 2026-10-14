@@ -1,4 +1,11 @@
 cinzel
+## [1.2.1](https://github.com/yldio/cinzel/compare/v1.2.0..v1.2.1) - 2026-10-14
+
+### 🐛 Bug Fixes
+
+- *(github)* Stop --directory throwing away the workflows (#105) - ([d983bc7](https://github.com/yldio/cinzel/commit/d983bc75a5d9ed8b75df45507bf323cc229f1183))
+
+
 ## [1.2.0](https://github.com/yldio/cinzel/compare/v1.1.1..v1.2.0) - 2026-10-14
 
 ### ⛰️  Features
