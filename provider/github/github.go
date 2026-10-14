@@ -261,7 +261,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			continue
 		}
 
-		converted = append(converted, unparsedFile{name: name, hcl: hclBytes})
+		converted = append(converted, unparsedFile{name: name, source: file, hcl: hclBytes})
 	}
 
 	// Before the no-definitions check below, so a run where every file failed
@@ -278,6 +278,10 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	// the write it was told to skip.
 	if len(converted) == 0 {
 		return errNoDefinitions
+	}
+
+	if err := checkUnparseNameClash(converted); err != nil {
+		return err
 	}
 
 	for _, out := range converted {
@@ -299,10 +303,11 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 }
 
 // unparsedFile is one converted document waiting to be written: the output
-// basename it was given, and the HCL it became.
+// basename it was given, the file it was read from, and the HCL it became.
 type unparsedFile struct {
-	name string
-	hcl  []byte
+	name   string
+	source string
+	hcl    []byte
 }
 
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
@@ -408,4 +413,47 @@ func (p *GitHub) Diff(opts provider.ProviderOps) ([]provider.DiffResult, error) 
 	}
 
 	return plan.Diff(providerName)
+}
+
+// checkUnparseNameClash refuses a run where two documents would be written
+// under one name.
+//
+// The HCL files themselves do not collide: UniqueOutputName gives the second
+// one "ci_2.hcl", and the block labels inside it are suffixed the same way.
+// The "filename" attribute is not, because it is what the workflow is called
+// on GitHub rather than a label, so both files come out saying
+// filename = "ci" and parse refuses to read them back:
+//
+//	two definitions write to the same file: 'ci' and 'ci' both write to 'ci'
+//
+// That error arrives one command later than the mistake and names neither
+// YAML file, so the user is left holding HCL cinzel wrote and will not read.
+// Unparse knows here, and says which two files and why.
+//
+// Renaming the attribute is not the fix. GitHub reads no subdirectory of
+// .github/workflows, so two workflows cannot differ by path, and writing one
+// as "a/ci" produces a file that is valid, converts cleanly, and never runs.
+//
+// Run after the conversion so a file that was going to fail anyway fails for
+// its own reason, and before any write so a clash leaves the output directory
+// as it was.
+func checkUnparseNameClash(converted []unparsedFile) error {
+	seen := make(map[string]string, len(converted))
+
+	for _, out := range converted {
+		// Folded, the way UniqueOutputName folds: two names differing only in
+		// case are one file on macOS and Windows.
+		key := strings.ToLower(out.name)
+
+		if other, clash := seen[key]; clash {
+			return fmt.Errorf(
+				"%w: '%s' and '%s' both convert to a workflow named '%s', and GitHub reads no subdirectory of .github/workflows, so rename one or convert the directories separately",
+				errUnparseNameClash, other, out.source, out.name,
+			)
+		}
+
+		seen[key] = out.source
+	}
+
+	return nil
 }
