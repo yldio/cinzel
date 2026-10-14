@@ -78,25 +78,36 @@ func TestUnderRoot(t *testing.T) {
 	})
 
 	t.Run("a root is joined on", func(t *testing.T) {
-		opts := ProviderOps{Root: "/tmp/x"}
+		root := filepath.Join("tmp", "x")
+		opts := ProviderOps{Root: root}
 
-		if got := opts.UnderRoot("cinzel"); got != filepath.Join("/tmp/x", "cinzel") {
+		if got := opts.UnderRoot("cinzel"); got != filepath.Join(root, "cinzel") {
 			t.Errorf("UnderRoot() = %q, want it under the root", got)
 		}
 	})
 
 	// An absolute path names one place whatever the root says, and the flags
 	// carrying one are the operator's own typing.
+	//
+	// Built for the platform rather than written down: "/elsewhere" is
+	// absolute on Unix and relative on Windows, where absolute means a
+	// volume. Spelled as a literal, this asserted that UnderRoot ignores a
+	// root for a path Windows says is relative to it.
 	t.Run("an absolute path is left alone", func(t *testing.T) {
-		opts := ProviderOps{Root: "/tmp/x"}
+		absolute, err := filepath.Abs(filepath.Join("elsewhere", "ci.hcl"))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-		if got := opts.UnderRoot("/elsewhere/ci.hcl"); got != "/elsewhere/ci.hcl" {
+		opts := ProviderOps{Root: filepath.Join("tmp", "x")}
+
+		if got := opts.UnderRoot(absolute); got != absolute {
 			t.Errorf("UnderRoot() = %q, want it untouched", got)
 		}
 	})
 
 	t.Run("an empty path stays empty", func(t *testing.T) {
-		opts := ProviderOps{Root: "/tmp/x"}
+		opts := ProviderOps{Root: filepath.Join("tmp", "x")}
 
 		if got := opts.UnderRoot(""); got != "" {
 			t.Errorf("UnderRoot(\"\") = %q, want empty", got)
