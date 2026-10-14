@@ -1,4 +1,21 @@
 cinzel
+## [1.2.0](https://github.com/yldio/cinzel/compare/v1.1.1..v1.2.0) - 2026-10-14
+
+### ⛰️  Features
+
+- *(github)* Let actions live outside .github/workflows (#103) - ([baf7acf](https://github.com/yldio/cinzel/commit/baf7acf6c483f13e3d21382a39b9001371e92bbf))
+- Add a diff command that fails when the generated YAML has drifted (#101) - ([6e2f6f5](https://github.com/yldio/cinzel/commit/6e2f6f5d8bb6a6b5be116599b83ad310bec98c4c))
+
+### 🐛 Bug Fixes
+
+- *(github)* Refuse two files that convert to one workflow name (#102) - ([436bfc2](https://github.com/yldio/cinzel/commit/436bfc240e677e2e04a0c5fcc8e55c43ef32bee5))
+- Make --file name a file, stop inventing permissions, and correct the docs (#100) - ([fbd2d44](https://github.com/yldio/cinzel/commit/fbd2d4413a07e7efa58b5f17d9a71d48aa4a37f4))
+
+### 📚 Documentation
+
+- Say --root supersedes --output-directory, not when (#104) - ([a053d26](https://github.com/yldio/cinzel/commit/a053d26f600d9ae3def1699e1a4ce4fec6a87036))
+
+
 ## [1.1.1](https://github.com/yldio/cinzel/compare/v1.1.0..v1.1.1) - 2026-10-02
 
 ### 🐛 Bug Fixes
