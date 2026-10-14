@@ -118,9 +118,16 @@ platforms do:
 `parse` also takes `--yml` to write `.yml` instead of `.yaml`. GitLab parse
 always writes `.gitlab-ci.yml`, so it changes nothing there.
 
-GitHub unparse reads `.github/workflows` when no `--directory` is given, since
-that is the only place GitHub reads a workflow from. Naming it still works and
-warns.
+GitHub unparse always reads `.github/workflows`, whatever else `--directory`
+names, since that is the only place GitHub reads a workflow from. Naming it
+explicitly still works and warns, and a repository without one is passed over
+rather than failed.
+
+`unparse --mirror` lays the HCL out the way the repository is laid out —
+`cinzel/actions/setup.hcl` rather than `cinzel/setup.hcl` — which reads
+better in a tree. Where a file goes on the way back is its own `path` either
+way, so this is a convenience, and a mirrored tree has to be parsed with
+`--recursive`.
 
 A repository keeping composite actions in folders of their own converts in one
 run each way:

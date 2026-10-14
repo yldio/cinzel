@@ -18,6 +18,10 @@ import (
 // ErrNoHCLFiles is returned when no HCL files are found in the given path.
 var ErrNoHCLFiles = cinzelerror.UserInput(errors.New("no HCL files found in input"))
 
+// ErrNoHCLFilesAtTopLevel is returned when a directory holds HCL only below
+// its top level, which is what a mirrored conversion looks like.
+var ErrNoHCLFilesAtTopLevel = cinzelerror.UserInput(errors.New("no HCL files at the top level of the input, though there are some below it: use --recursive"))
+
 // ParseHCLInput parses one or more HCL files from path and returns a merged
 // body along with the bytes each file was parsed from, keyed by filename.
 //
@@ -83,6 +87,14 @@ func ParseHCLInput(path string, recursive bool) (hcl.Body, map[string][]byte, er
 	}
 
 	if len(bodies) == 0 {
+		// A directory holding HCL only in subdirectories is what --mirror
+		// produces, so cinzel's own output read back without --recursive
+		// lands here. Saying there is none is true of the top level and
+		// unhelpful about the rest.
+		if !recursive && hasHCLDeeper(path) {
+			return nil, nil, ErrNoHCLFilesAtTopLevel
+		}
+
 		return nil, nil, ErrNoHCLFiles
 	}
 
@@ -188,4 +200,28 @@ func UniqueOutputName(taken map[string]struct{}, base string) string {
 
 		name = fmt.Sprintf("%s_%d", base, i)
 	}
+}
+
+// hasHCLDeeper reports whether a directory holds HCL below its top level.
+//
+// Asked only to turn "there is none" into "there is none here", so a walk
+// that fails answers no and the plain message stands.
+func hasHCLDeeper(path string) bool {
+	found := false
+
+	_ = filepath.WalkDir(path, func(current string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || filepath.Dir(current) == filepath.Clean(path) {
+			return nil
+		}
+
+		if strings.EqualFold(filepath.Ext(current), ".hcl") {
+			found = true
+
+			return filepath.SkipAll
+		}
+
+		return nil
+	})
+
+	return found
 }

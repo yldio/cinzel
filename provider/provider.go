@@ -41,6 +41,16 @@ type ProviderOps struct {
 	Recursive bool
 	DryRun    bool
 	YML       bool // use .yml extension instead of .yaml
+
+	// Mirror lays the converted HCL out the way the repository is laid out,
+	// so an action read from "actions/setup" is written to
+	// "<output>/actions/setup.hcl" rather than "<output>/setup.hcl".
+	//
+	// Off by default. Where a file goes on the way back is the "path"
+	// attribute inside it either way, so the directories are a convenience
+	// for reading the tree rather than something the conversion needs, and a
+	// mirrored tree has to be parsed with --recursive.
+	Mirror bool
 }
 
 // InputDirectories is every directory a run was asked to read, in the order
