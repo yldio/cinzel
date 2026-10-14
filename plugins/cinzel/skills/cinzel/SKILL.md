@@ -65,8 +65,12 @@ always writes `.gitlab-ci.yml` regardless.
 that takes both, `pin` and `upgrade` included.
 
 `--directory` is repeatable on unparse, for composite actions kept in folders
-of their own. Parse takes one. GitHub unparse reads `.github/workflows` when
-no `--directory` is given.
+of their own. Parse takes one. GitHub unparse always reads
+`.github/workflows` as well, whatever else is named.
+
+`unparse --mirror` writes the HCL in the repository's own shape
+(`cinzel/actions/setup.hcl`). Parse such a tree with `--recursive`, or it
+finds nothing.
 
 `--root` resolves every path against a directory instead of the working
 directory, both directions, both providers. Not with `--output-directory`,

@@ -414,13 +414,40 @@ func claimFilename(taken map[string]string, filename, id string) error {
 
 // unparseInputPaths is resolveInputPaths with the workflows directory added.
 //
-// GitHub reads .github/workflows and nowhere else, so a run that names no
-// directory at all means that one. Naming it is still understood and still
-// works; it is simply the one directory nobody should have to type.
+// GitHub reads .github/workflows and nowhere else, so every unparse reads it,
+// whatever else was named. It was added only to a run naming no directory at
+// all, which meant "-d actions" quietly converted the actions and dropped
+// every workflow in the repository: the one directory nobody should have to
+// type became the one directory naming anything else threw away.
+//
+// A run given --file is converting that file and nothing else, so it is left
+// alone.
 func unparseInputPaths(opts provider.ProviderOps) ([]string, error) {
-	if opts.File == "" && len(opts.InputDirectories()) == 0 {
-		opts.Directories = []string{defaultParseOutputDirectory}
+	if opts.File != "" {
+		return resolveInputPaths(opts)
 	}
+
+	dirs := opts.InputDirectories()
+
+	for _, dir := range dirs {
+		if namesTheWorkflowsDirectory(dir) {
+			return resolveInputPaths(opts)
+		}
+	}
+
+	// Only when it is there. The directory is cinzel's assumption rather
+	// than the caller's instruction, and a repository holding composite
+	// actions and no workflows at all is an ordinary thing to have: failing
+	// it with "stat .github/workflows: no such file or directory" blames the
+	// author for a path they never typed.
+	if _, err := os.Stat(opts.UnderRoot(defaultParseOutputDirectory)); err != nil {
+		return resolveInputPaths(opts)
+	}
+
+	// First, so the workflows convert before whatever else was asked for and
+	// a run reads the same way however the flags were ordered.
+	opts.Directories = append([]string{defaultParseOutputDirectory}, dirs...)
+	opts.Directory = ""
 
 	return resolveInputPaths(opts)
 }

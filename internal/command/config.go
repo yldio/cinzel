@@ -35,6 +35,7 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 		Directories:     directoriesFrom(cmd),
 		OutputDirectory: cmd.String("output-directory"),
 		Root:            cmd.String("root"),
+		Mirror:          cmd.Bool("mirror"),
 		Recursive:       cmd.Bool("recursive"),
 		DryRun:          cmd.Bool("dry-run"),
 		YML:             cmd.Bool("yml"),

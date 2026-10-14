@@ -4,7 +4,7 @@
 [tools]
 actionlint = "latest"
 ghalint = "latest"
-git-cliff = "2.14.1"
+git-cliff = "2.14.2"
 go = "1.27"
 
 [env]

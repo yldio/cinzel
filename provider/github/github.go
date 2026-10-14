@@ -315,7 +315,12 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			continue
 		}
 
-		converted = append(converted, unparsedFile{name: name, source: file, hcl: hclBytes})
+		converted = append(converted, unparsedFile{
+			name:     name,
+			source:   file,
+			location: locationOf(file, opts.ResolveRoot()),
+			hcl:      hclBytes,
+		})
 	}
 
 	// Before the no-definitions check below, so a run where every file failed
@@ -339,7 +344,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	}
 
 	for _, out := range converted {
-		outputPath := filepath.Join(outputDir, fsutil.UniqueOutputName(takenNames, out.name)+".hcl")
+		outputPath := filepath.Join(outputDir, mirroredName(opts, out, takenNames)+".hcl")
 
 		if opts.DryRun {
 			fmt.Printf("# file: %s\n", outputPath)
@@ -361,7 +366,14 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 type unparsedFile struct {
 	name   string
 	source string
-	hcl    []byte
+
+	// location is the folders the file was read from, relative to the run's
+	// root, and empty for one that records none. Only --mirror uses it: it
+	// is where the HCL file goes, not where the conversion goes, which the
+	// file's own attributes carry.
+	location string
+
+	hcl []byte
 }
 
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
@@ -589,4 +601,40 @@ func actionOutputBase(opts provider.ProviderOps, outputDir string, filename stri
 	}
 
 	return opts.ResolveRoot()
+}
+
+// mirroredName is where one converted file goes under the output directory.
+//
+// Flat by default: every file in one folder, each saying where it belongs
+// through its own attributes. With --mirror the repository's own layout is
+// reproduced, which reads better in a tree and costs --recursive on the way
+// back.
+//
+// Only a file that knows where it came from can be mirrored. A workflow has
+// one home and says nothing about it, so it stays where it was.
+func mirroredName(opts provider.ProviderOps, out unparsedFile, taken map[string]struct{}) string {
+	if !opts.Mirror || out.location == "" {
+		return fsutil.UniqueOutputName(taken, out.name)
+	}
+
+	// Already unique: two files cannot share one path in the tree they were
+	// read from, so the name needs no suffix and gets none.
+	return filepath.Join(filepath.FromSlash(out.location), out.name)
+}
+
+// locationOf is the folders a converted file was read from, relative to the
+// run's root.
+//
+// An action is one directory deeper than the folder holding it — the file is
+// at "actions/setup/action.yml" and belongs under "actions" — so the action's
+// own directory is dropped. Anything else is taken as it is.
+func locationOf(file string, root string) string {
+	dir := filepath.Dir(file)
+
+	base := strings.ToLower(filepath.Base(file))
+	if base == "action.yml" || base == "action.yaml" {
+		dir = filepath.Dir(dir)
+	}
+
+	return relativeToRoot(dir, root)
 }

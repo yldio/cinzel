@@ -211,6 +211,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Value: "",
 						Usage: "Parsed files (HCL) are created in `DIRECTORY`",
 					},
+					&cli.BoolFlag{
+						Name:  "mirror",
+						Value: false,
+						Usage: "Lay the HCL out the way the repository is laid out (parse it back with --recursive)",
+					},
 					&cli.StringFlag{
 						Name:  "root",
 						Value: "",
