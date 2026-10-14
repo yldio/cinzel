@@ -8,6 +8,10 @@ cinzel github unparse --file .github/workflows/ci.yaml --output-directory ./cinz
 cinzel github parse   --file ./cinzel/ci.hcl --output-directory .github/workflows   # HCL -> YAML
 ```
 
+```sh
+cinzel github diff    # what would parse change? writes nothing
+```
+
 Add `--dry-run` to print instead of writing. `--file` names one file and
 `--directory` a directory of them. `cinzel github -h` lists every flag.
 
@@ -284,6 +288,12 @@ other workflow's output alone.
 A step-only parse records no source, since it collects steps from across the
 input and has no single file to name. If a file you expected to disappear is
 still there, check its markers first, then the output directory's permissions.
+
+`cinzel github diff` reports the same three answers without writing: a file
+that differs, one parse would create, and one it would prune. The last is
+why the command exists rather than a `diff -ru` against a freshly parsed
+copy — an orphaned output looks exactly like a missing file to a directory
+comparison.
 
 Beyond that: `on` is written unquoted, indentation is two spaces, and the
 top-level key order is `name`, `on`, `jobs`, then the rest. Nothing is added

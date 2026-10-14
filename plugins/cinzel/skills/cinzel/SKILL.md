@@ -199,13 +199,24 @@ Run `parse` after `pin` or the YAML still carries the old tags.
 After changing HCL, confirm the committed YAML matches what parse produces:
 
 ```sh
-out=$(mktemp -d)
-cinzel github parse --directory cinzel --output-directory "$out"
-diff -ru .github/workflows "$out"
+cinzel github diff
+cinzel gitlab diff
 ```
 
-A non-zero diff means either the YAML was hand-edited or the HCL changed
-without a regeneration. Many repos run this in CI.
+Writes nothing. Exit 0 means the committed YAML is what the HCL produces, 1
+means something drifted and every file is named, 2 means cinzel could not work
+it out. Read the exit code: the summary line prints either way.
+
+It also reports a file parse would delete, which is what a renamed workflow
+leaves behind. Takes the same flags as `parse`, and reads parse's
+`.cinzelrc.yaml` section.
+
+Output is colourised on a terminal only, so a captured run is plain text.
+`NO_COLOR` turns it off.
+
+Run it from the repository root. The `cinzel-source` marker is relative to
+where cinzel ran, so diffing from elsewhere reports files whose YAML is
+actually unchanged.
 
 ## Defaults in a file
 

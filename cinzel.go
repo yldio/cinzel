@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"os"
 
@@ -30,6 +31,13 @@ func run(writer io.Writer, v string) error {
 
 func main() {
 	if err := run(os.Stdout, version); err != nil {
+		// A diff that could not reach an answer exits 2, so a workflow can
+		// tell the generated files having drifted from cinzel not having
+		// run. Every other failure is 1, the way it has always been.
+		if errors.Is(err, command.ErrCannotRun) {
+			os.Exit(2)
+		}
+
 		os.Exit(1)
 	}
 }

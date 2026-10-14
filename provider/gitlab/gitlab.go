@@ -44,49 +44,67 @@ func (p *GitLab) GetUnparseDescription() string { return unparseDesc }
 
 // Parse converts HCL pipeline definitions to GitLab YAML.
 func (p *GitLab) Parse(opts provider.ProviderOps) error {
-	inputPath, err := resolveInputPath(opts)
+	plan, err := p.planParse(opts)
 	if err != nil {
 		return err
 	}
-
-	body, sources, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
-	if err != nil {
-		return err
-	}
-
-	pipeline, comments, err := parseHCLToPipeline(body, sources)
-	if err != nil {
-		return err
-	}
-
-	// Nothing was declared. Writing here would leave a "{}" document behind.
-	if len(pipeline) == 0 {
-		return errNoDefinitions
-	}
-
-	outputBytes, err := marshalPipelineYAML(pipeline, comments)
-	if err != nil {
-		return err
-	}
-
-	// No source is recorded: a pipeline is one file built from every HCL file
-	// read, so there is no single file to name, and nothing here prunes.
-	outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, "")
-
-	outputPath := filepath.Join(resolveParseOutputDirectory(opts), ".gitlab-ci.yml")
 
 	if opts.DryRun {
-		fmt.Printf("# file: %s\n", outputPath)
-		fmt.Println(string(outputBytes))
+		plan.Print()
 
 		return nil
 	}
 
-	if err := fsutil.WriteFile(outputPath, outputBytes); err != nil {
-		return err
+	for _, out := range plan.Outputs {
+		if err := fsutil.WriteFile(out.Path, out.Content); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// planParse works out every file a parse would write, without writing one.
+//
+// Parse is this followed by a write, and Diff is this followed by a read and a
+// comparison, so the two cannot disagree about what a run produces. A pipeline
+// is a single file built from every HCL file read, so there is one output and
+// nothing to prune: no source is recorded on it, because there is no single
+// file to name.
+func (p *GitLab) planParse(opts provider.ProviderOps) (provider.ParsePlan, error) {
+	inputPath, err := resolveInputPath(opts)
+	if err != nil {
+		return provider.ParsePlan{}, err
+	}
+
+	body, sources, err := fsutil.ParseHCLInput(inputPath, opts.Recursive)
+	if err != nil {
+		return provider.ParsePlan{}, err
+	}
+
+	pipeline, comments, err := parseHCLToPipeline(body, sources)
+	if err != nil {
+		return provider.ParsePlan{}, err
+	}
+
+	// Nothing was declared. Writing here would leave a "{}" document behind.
+	if len(pipeline) == 0 {
+		return provider.ParsePlan{}, errNoDefinitions
+	}
+
+	outputBytes, err := marshalPipelineYAML(pipeline, comments)
+	if err != nil {
+		return provider.ParsePlan{}, err
+	}
+
+	outputBytes = fsutil.PrependGeneratedMarker(outputBytes, providerName, "")
+
+	outputPath := filepath.Join(resolveParseOutputDirectory(opts), ".gitlab-ci.yml")
+
+	return provider.ParsePlan{
+		OutputDirectory: resolveParseOutputDirectory(opts),
+		Outputs:         []provider.PlannedOutput{{Path: outputPath, Content: outputBytes}},
+	}, nil
 }
 
 // Unparse converts GitLab YAML to HCL pipeline definitions.
@@ -209,4 +227,18 @@ func (p *GitLab) Unparse(opts provider.ProviderOps) error {
 type unparsedFile struct {
 	name string
 	hcl  []byte
+}
+
+// Diff reports what a parse would change in the output directory, writing
+// nothing.
+//
+// A pipeline is one file and nothing here prunes, so this is that file
+// compared against what is committed.
+func (p *GitLab) Diff(opts provider.ProviderOps) ([]provider.DiffResult, error) {
+	plan, err := p.planParse(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return plan.Diff(providerName)
 }
