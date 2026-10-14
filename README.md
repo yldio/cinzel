@@ -109,13 +109,49 @@ platforms do:
 | Flag | Description |
 | --- | --- |
 | `--file`, `-f` | Read one file. A directory is refused; `--directory` is for that. |
-| `--directory`, `-d` | Read every matching file in a directory. Not with `--file`. |
+| `--directory`, `-d` | Read every matching file in a directory. Not with `--file`. Repeatable on unparse; parse takes one. |
 | `--recursive`, `-r` | Walk subdirectories of `--directory`. |
-| `--output-directory` | Where to write. Parse defaults to `.github/workflows` (GitHub) or the working directory (GitLab); unparse defaults to `./cinzel`. |
+| `--root` | Resolve every path against this directory instead of the working directory. Not with `--output-directory`. |
+| `--output-directory` | Where to write. Parse defaults to `.github/workflows` (GitHub) or the working directory (GitLab); unparse defaults to `./cinzel`. Deprecated: `--root` replaces it in v2. |
 | `--dry-run` | Print instead of writing. |
 
 `parse` also takes `--yml` to write `.yml` instead of `.yaml`. GitLab parse
 always writes `.gitlab-ci.yml`, so it changes nothing there.
+
+GitHub unparse reads `.github/workflows` when no `--directory` is given, since
+that is the only place GitHub reads a workflow from. Naming it still works and
+warns.
+
+A repository keeping composite actions in folders of their own converts in one
+run each way:
+
+```sh
+cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github parse -d cinzel
+```
+
+Each action records where it was found, so parse puts it back there. See the
+[GitHub provider README](provider/github/README.md) for the `path` attribute
+that carries it.
+
+### `--root`, and what happens to `--output-directory`
+
+`--output-directory` says where one kind of file goes. `--root` says where the
+whole output shape goes, which is one answer instead of one per document type:
+
+```sh
+cinzel github parse --root /tmp/x
+# → /tmp/x/.github/workflows/ci.yaml
+# → /tmp/x/actions-a/setup/action.yml
+```
+
+It applies to both directions and both providers, and on unparse it is the
+base for what is read as well as what is written. Setting it together with
+`--output-directory` is an error rather than a precedence rule.
+
+`--output-directory` still works and is unchanged. It will be removed in v2,
+leaving `--root` as the one way to put output somewhere else — useful for a
+scratch checkout, a sibling tree, or a temporary directory in a script.
 
 ## Defaults in a file
 

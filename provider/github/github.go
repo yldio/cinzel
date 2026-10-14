@@ -182,7 +182,15 @@ func (p *GitHub) planParse(opts provider.ProviderOps) (provider.ParsePlan, error
 
 		// Always action.yml, whatever --yml says: that is the name GitHub
 		// looks for, and it is not the workflow extension to choose.
-		outputPath := filepath.Join(outputDir, actionFile.Filename, "action.yml")
+		//
+		// An action carrying a path is placed against the root rather than
+		// the output directory. The path was recorded relative to the root
+		// on the way out — "actions-a" means the repository's actions-a —
+		// and joining it onto a parse output directory of .github/workflows
+		// put the action at .github/workflows/actions-a/setup/action.yml,
+		// which converts cleanly, prunes correctly, and is never read by
+		// GitHub. An action without a path keeps going where it always did.
+		outputPath := filepath.Join(actionOutputBase(opts, outputDir, actionFile.Filename), actionFile.Filename, "action.yml")
 
 		plan.Outputs = append(plan.Outputs, provider.PlannedOutput{Path: outputPath, Content: outputBytes})
 		plan.CurrentOutputs[filepath.Clean(outputPath)] = struct{}{}
@@ -559,4 +567,26 @@ func checkUnparseNameClash(converted []unparsedFile) error {
 	}
 
 	return nil
+}
+
+// actionOutputBase is the directory an action's own path is placed against.
+//
+// The output directory when the action names no path, so nothing written
+// before the attribute existed moves. The run's root when it does, because
+// that is what the path was recorded against and the only base that puts the
+// action back where it was read from.
+//
+// An explicit --output-directory wins either way: a caller naming a
+// destination is asking for everything to go there, which is what a test or
+// a scratch conversion wants.
+func actionOutputBase(opts provider.ProviderOps, outputDir string, filename string) string {
+	if opts.OutputDirectory != "" {
+		return outputDir
+	}
+
+	if filepath.Dir(filename) == "." {
+		return outputDir
+	}
+
+	return opts.ResolveRoot()
 }

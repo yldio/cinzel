@@ -220,3 +220,51 @@ func TestAnActionOutsideTheRootRecordsNoPath(t *testing.T) {
 		t.Errorf("an absolute location was written into the HCL:\n%s", content)
 	}
 }
+
+// An action's path is recorded against the run's root, so parse has to place
+// it there. Joined onto a parse output directory of .github/workflows
+// instead, the action landed at .github/workflows/actions-a/setup/action.yml:
+// converted cleanly, pruned correctly, and never read by GitHub, which is the
+// worst shape a failure can take.
+func TestAnActionWithAPathGoesToTheRootNotTheOutputDirectory(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "in.hcl")
+
+	if err := os.WriteFile(src, []byte(actionWithPathHCL("act", "setup", "actions-a")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := New().Parse(provider.ProviderOps{Root: tmp, File: src}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tmp, "actions-a", "setup", "action.yml")); err != nil {
+		t.Errorf("want the action at the root: %v", err)
+	}
+
+	buried := filepath.Join(tmp, ".github", "workflows", "actions-a", "setup", "action.yml")
+
+	if _, err := os.Stat(buried); !os.IsNotExist(err) {
+		t.Errorf("the action was written where GitHub does not read it: %s", buried)
+	}
+}
+
+// Naming a destination asks for everything to go there, which is what a
+// scratch conversion or a test wants.
+func TestAnExplicitOutputDirectoryCollectsActionsToo(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "in.hcl")
+	out := filepath.Join(tmp, "out")
+
+	if err := os.WriteFile(src, []byte(actionWithPathHCL("act", "setup", "actions-a")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := New().Parse(provider.ProviderOps{File: src, OutputDirectory: out}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(out, "actions-a", "setup", "action.yml")); err != nil {
+		t.Errorf("want the action under the named directory: %v", err)
+	}
+}
