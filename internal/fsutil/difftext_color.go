@@ -28,20 +28,30 @@ const (
 // NO_COLOR wins over everything, set to anything at all, per no-color.org.
 // TERM=dumb is honoured for the terminals that announce they cannot.
 func UseColor(w io.Writer) bool {
-	if _, set := os.LookupEnv("NO_COLOR"); set {
-		return false
-	}
-
-	if os.Getenv("TERM") == "dumb" {
-		return false
-	}
-
 	file, ok := w.(*os.File)
 	if !ok {
 		return false
 	}
 
-	return isatty.IsTerminal(file.Fd()) || isatty.IsCygwinTerminal(file.Fd())
+	return colorAllowedByEnv() && (isatty.IsTerminal(file.Fd()) || isatty.IsCygwinTerminal(file.Fd()))
+}
+
+// colorAllowedByEnv reports what the environment says about colour, with no
+// regard to what is being written to.
+//
+// Split out because the terminal check cannot be exercised from a test: go
+// test holds a pipe, so isatty answers no and any assertion about the
+// environment passes for the wrong reason. This half is the half with rules
+// in it, and it can be read on its own.
+func colorAllowedByEnv() bool {
+	if _, set := os.LookupEnv("NO_COLOR"); set {
+		return false
+	}
+
+	// A real terminal that announces it cannot render escapes: Emacs's shell
+	// buffer, some CI shells. isatty says yes to all of them, so without this
+	// the sequences are printed as the literal text "\x1b[31m".
+	return os.Getenv("TERM") != "dumb"
 }
 
 // Colorize puts red on the removed lines of a diff and green on the added

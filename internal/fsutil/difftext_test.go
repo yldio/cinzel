@@ -176,31 +176,70 @@ func TestColorizeDisabledLeavesTheDiffAlone(t *testing.T) {
 	}
 }
 
-// NO_COLOR is honoured by its presence, whatever it is set to, per
-// no-color.org. Set to the empty string it still means no colour.
-func TestUseColorHonoursNoColor(t *testing.T) {
+// What the environment says, asked without a terminal in the way.
+//
+// Asserting this through UseColor proves nothing: go test holds a pipe, so
+// isatty answers no and every case passes whether the rule below exists or
+// not. Deleting the TERM check left the whole suite green.
+func TestColorAllowedByEnv(t *testing.T) {
+	// NO_COLOR counts by being set, whatever it is set to, per no-color.org.
 	for _, value := range []string{"1", "", "false", "0"} {
-		t.Setenv("NO_COLOR", value)
+		t.Run("NO_COLOR="+value, func(t *testing.T) {
+			t.Setenv("TERM", "xterm-256color")
+			t.Setenv("NO_COLOR", value)
 
-		if UseColor(os.Stdout) {
-			t.Errorf("NO_COLOR=%q did not turn colour off", value)
-		}
+			if colorAllowedByEnv() {
+				t.Errorf("NO_COLOR=%q did not turn colour off", value)
+			}
+		})
 	}
+
+	// A terminal that says it cannot render escapes is still a terminal, so
+	// isatty is no help: without this the sequences print as literal text.
+	t.Run("TERM=dumb", func(t *testing.T) {
+		unsetNoColor(t)
+		t.Setenv("TERM", "dumb")
+
+		if colorAllowedByEnv() {
+			t.Error("TERM=dumb did not turn colour off")
+		}
+	})
+
+	t.Run("an ordinary terminal is allowed", func(t *testing.T) {
+		unsetNoColor(t)
+		t.Setenv("TERM", "xterm-256color")
+
+		if !colorAllowedByEnv() {
+			t.Error("colour is off on a terminal that can render it")
+		}
+	})
 }
 
-func TestUseColorIsOffForSomethingThatIsNotATerminal(t *testing.T) {
-	t.Setenv("NO_COLOR", "")
-	os.Unsetenv("NO_COLOR")
+func TestUseColorNeedsATerminal(t *testing.T) {
+	unsetNoColor(t)
+	t.Setenv("TERM", "xterm-256color")
 
 	if UseColor(new(strings.Builder)) {
 		t.Error("a buffer was treated as a terminal")
 	}
 
-	t.Setenv("TERM", "dumb")
-
+	// go test holds a pipe, so even os.Stdout is not one here. That is the
+	// whole reason the environment rules are tested separately.
 	if UseColor(os.Stdout) {
-		t.Error("TERM=dumb did not turn colour off")
+		t.Error("a pipe was treated as a terminal")
 	}
+}
+
+// unsetNoColor clears NO_COLOR for one test and puts it back, so a developer
+// who runs the suite with it set does not see different results.
+func unsetNoColor(t *testing.T) {
+	t.Helper()
+
+	if previous, set := os.LookupEnv("NO_COLOR"); set {
+		t.Cleanup(func() { _ = os.Setenv("NO_COLOR", previous) })
+	}
+
+	_ = os.Unsetenv("NO_COLOR")
 }
 
 func countChanges(diff string) (added int, removed int) {
