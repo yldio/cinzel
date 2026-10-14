@@ -225,7 +225,7 @@ func sameDirectory(a string, b string) bool {
 func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	for _, dir := range opts.InputDirectories() {
 		if namesTheWorkflowsDirectory(dir) {
-			warnf("--directory %s is the directory unparse reads anyway, and will stop being needed", dir)
+			warnf("--directory %s names the directory unparse reads anyway", dir)
 		}
 	}
 

@@ -70,7 +70,7 @@ no `--directory` is given.
 
 `--root` resolves every path against a directory instead of the working
 directory, both directions, both providers. Not with `--output-directory`,
-which it replaces in v2.
+which still works and which it supersedes: prefer `--root`.
 
 An action's HCL carries a `path` saying where it lives — `path = "actions-a"`
 writes `actions-a/setup/action.yml`. Unparse fills it in. Do not hand-edit it

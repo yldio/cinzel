@@ -112,7 +112,7 @@ platforms do:
 | `--directory`, `-d` | Read every matching file in a directory. Not with `--file`. Repeatable on unparse; parse takes one. |
 | `--recursive`, `-r` | Walk subdirectories of `--directory`. |
 | `--root` | Resolve every path against this directory instead of the working directory. Not with `--output-directory`. |
-| `--output-directory` | Where to write. Parse defaults to `.github/workflows` (GitHub) or the working directory (GitLab); unparse defaults to `./cinzel`. Deprecated: `--root` replaces it in v2. |
+| `--output-directory` | Where to write. Parse defaults to `.github/workflows` (GitHub) or the working directory (GitLab); unparse defaults to `./cinzel`. Superseded by `--root`. |
 | `--dry-run` | Print instead of writing. |
 
 `parse` also takes `--yml` to write `.yml` instead of `.yaml`. GitLab parse
@@ -134,7 +134,7 @@ Each action records where it was found, so parse puts it back there. See the
 [GitHub provider README](provider/github/README.md) for the `path` attribute
 that carries it.
 
-### `--root`, and what happens to `--output-directory`
+### `--root`, and `--output-directory`
 
 `--output-directory` says where one kind of file goes. `--root` says where the
 whole output shape goes, which is one answer instead of one per document type:
@@ -149,9 +149,10 @@ It applies to both directions and both providers, and on unparse it is the
 base for what is read as well as what is written. Setting it together with
 `--output-directory` is an error rather than a precedence rule.
 
-`--output-directory` still works and is unchanged. It will be removed in v2,
-leaving `--root` as the one way to put output somewhere else — useful for a
-scratch checkout, a sibling tree, or a temporary directory in a script.
+`--output-directory` still works and is unchanged, and nothing is scheduled to
+remove it. `--root` is the one to reach for in new work: it says where
+everything goes rather than where one kind of file goes, which is the shape a
+repository with actions outside `.github/workflows` needs.
 
 ## Defaults in a file
 
