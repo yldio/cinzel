@@ -58,9 +58,15 @@ func (plan ParsePlan) Diff(providerName string) ([]DiffResult, error) {
 		return results, nil
 	}
 
-	stale, err := fsutil.StaleGeneratedYAML(plan.OutputDirectory, plan.CurrentOutputs, providerName, plan.ReadSources)
-	if err != nil {
-		return nil, err
+	stale := []string{}
+
+	for _, dir := range plan.PruneTargets() {
+		found, err := fsutil.StaleGeneratedYAML(dir, plan.CurrentOutputs, providerName, plan.ReadSources)
+		if err != nil {
+			return nil, err
+		}
+
+		stale = append(stale, found...)
 	}
 
 	for _, path := range stale {

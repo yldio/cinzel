@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -65,7 +66,13 @@ func (p *GitHub) Parse(opts provider.ProviderOps) error {
 		}
 	}
 
-	return fsutil.PruneStaleGeneratedYAML(plan.OutputDirectory, plan.CurrentOutputs, providerName, plan.ReadSources)
+	for _, dir := range plan.PruneTargets() {
+		if err := fsutil.PruneStaleGeneratedYAML(dir, plan.CurrentOutputs, providerName, plan.ReadSources); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // planParse works out every file a parse would write, without writing one.
@@ -137,6 +144,10 @@ func (p *GitHub) planParse(opts provider.ProviderOps) (provider.ParsePlan, error
 	// as stale and removed.
 	plan.CurrentOutputs = make(map[string]struct{}, len(workflows)+len(actions))
 
+	// The directories actions land in, deduplicated: several actions sharing
+	// a folder is one directory to walk, not one per action.
+	pruneDirs := make(map[string]struct{})
+
 	// Checked before anything is written, so a collision leaves the directory
 	// as it was rather than partway through the run.
 	if err := checkOutputPaths(workflows, actions, outputDir, workflowExt(opts)); err != nil {
@@ -175,9 +186,31 @@ func (p *GitHub) planParse(opts provider.ProviderOps) (provider.ParsePlan, error
 
 		plan.Outputs = append(plan.Outputs, provider.PlannedOutput{Path: outputPath, Content: outputBytes})
 		plan.CurrentOutputs[filepath.Clean(outputPath)] = struct{}{}
+
+		// The folder the action's own directory sits in, which is where a
+		// rename leaves the one it replaced. Only recorded when the action
+		// carries a path: without one it is already under the output
+		// directory the prune walks anyway.
+		if parent := filepath.Dir(filepath.Dir(outputPath)); !sameDirectory(parent, outputDir) {
+			pruneDirs[filepath.Clean(parent)] = struct{}{}
+		}
 	}
 
+	for dir := range pruneDirs {
+		plan.PruneDirectories = append(plan.PruneDirectories, dir)
+	}
+
+	// Sorted so a run walks them the same way twice, which keeps what a
+	// failure reports from depending on map order.
+	sort.Strings(plan.PruneDirectories)
+
 	return plan, nil
+}
+
+// sameDirectory reports whether two paths name one directory, so the prune is
+// not asked to walk the output directory twice.
+func sameDirectory(a string, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.
