@@ -268,6 +268,12 @@ HCL identifiers**, and parse reads `_` back as `-`. A key holding an underscore
 or a dot is refused on unparse rather than written out corrupted. No key in
 GitHub's own schema for these blocks is affected.
 
+**Two workflows cannot share a name.** A recursive unparse over directories
+each holding a `ci.yaml` is refused, naming both files. GitHub reads no
+subdirectory of `.github/workflows`, so the two cannot be told apart by path:
+writing one as `a/ci` produces a file that converts cleanly and never runs.
+Rename one, or convert the directories separately.
+
 ## Generated output
 
 Parse opens every file it writes with three lines:
