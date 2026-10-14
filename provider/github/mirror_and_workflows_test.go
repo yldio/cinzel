@@ -171,3 +171,51 @@ func TestWithoutMirrorTheHCLIsFlat(t *testing.T) {
 		}
 	}
 }
+
+// A file read from outside the run's root records no location, because an
+// absolute one names a single machine's disk. --mirror has nothing to place
+// it under, so it goes where a flat conversion would put it rather than
+// somewhere invented.
+func TestMirrorLeavesAFileWithNoLocationFlat(t *testing.T) {
+	outside := t.TempDir()
+	root := t.TempDir()
+
+	action := filepath.Join(outside, "setup")
+
+	if err := os.MkdirAll(action, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	act := "name: Setup\ndescription: d\nruns:\n  using: composite\n  steps:\n    - name: Setup step\n      run: npm ci\n      shell: bash\n"
+	if err := os.WriteFile(filepath.Join(action, "action.yml"), []byte(act), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	hcl := filepath.Join(root, "cinzel")
+
+	err := New().Unparse(provider.ProviderOps{
+		Root:            root,
+		Directory:       action,
+		Recursive:       true,
+		Mirror:          true,
+		OutputDirectory: hcl,
+	})
+	if err != nil {
+		t.Fatalf("Unparse() = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(hcl, "setup.hcl")); err != nil {
+		t.Errorf("want setup.hcl at the top level: %v", err)
+	}
+
+	entries, err := os.ReadDir(hcl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			t.Errorf("a file with no location was mirrored into %s", entry.Name())
+		}
+	}
+}

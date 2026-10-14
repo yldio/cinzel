@@ -613,6 +613,10 @@ func actionOutputBase(opts provider.ProviderOps, outputDir string, filename stri
 // Only a file that knows where it came from can be mirrored. A workflow has
 // one home and says nothing about it, so it stays where it was.
 func mirroredName(opts provider.ProviderOps, out unparsedFile, taken map[string]struct{}) string {
+	// The location check is belt and braces: two files with none would both
+	// be written flat, and checkUnparseNameClash refuses that pair before
+	// this is reached. It stays because the alternative is Join("", name)
+	// quietly skipping the uniqueness pass if that ever stops being true.
 	if !opts.Mirror || out.location == "" {
 		return fsutil.UniqueOutputName(taken, out.name)
 	}
