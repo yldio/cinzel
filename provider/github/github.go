@@ -215,14 +215,20 @@ func sameDirectory(a string, b string) bool {
 
 // Unparse converts GitHub Actions YAML files into HCL definitions.
 func (p *GitHub) Unparse(opts provider.ProviderOps) error {
-	inputPath, err := resolveInputPath(opts)
+	inputPaths, err := resolveInputPaths(opts)
 	if err != nil {
 		return err
 	}
 
-	files, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
-	if err != nil {
-		return err
+	files := make([]string, 0, len(inputPaths))
+
+	for _, inputPath := range inputPaths {
+		found, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
+		if err != nil {
+			return err
+		}
+
+		files = append(files, found...)
 	}
 
 	if len(files) == 0 {

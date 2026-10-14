@@ -12,8 +12,17 @@ import (
 
 // ProviderOps holds the options passed to a provider's Parse or Unparse operation.
 type ProviderOps struct {
-	File            string
-	Directory       string
+	File string
+
+	// Directory is one directory of input. Directories is several, which
+	// unparse takes because a repository can keep its composite actions in
+	// folders of its own — actions-a, actions-b — alongside the workflows.
+	//
+	// Both are read, so a caller setting either is understood. InputPaths
+	// puts them together.
+	Directory   string
+	Directories []string
+
 	OutputDirectory string
 
 	// Root is the directory every other path is resolved against, so one
@@ -32,6 +41,31 @@ type ProviderOps struct {
 	Recursive bool
 	DryRun    bool
 	YML       bool // use .yml extension instead of .yaml
+}
+
+// InputDirectories is every directory a run was asked to read, in the order
+// given, with duplicates dropped.
+func (opts ProviderOps) InputDirectories() []string {
+	seen := make(map[string]struct{}, len(opts.Directories)+1)
+	dirs := make([]string, 0, len(opts.Directories)+1)
+
+	for _, dir := range append([]string{opts.Directory}, opts.Directories...) {
+		if dir == "" {
+			continue
+		}
+
+		key := filepath.Clean(dir)
+
+		if _, already := seen[key]; already {
+			continue
+		}
+
+		seen[key] = struct{}{}
+
+		dirs = append(dirs, dir)
+	}
+
+	return dirs
 }
 
 // ResolveRoot is the directory a run resolves its paths against.
