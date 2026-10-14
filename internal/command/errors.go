@@ -32,7 +32,8 @@ var (
 	// every other command keeps exiting 1 exactly as before.
 	ErrCannotRun = errors.New("cinzel could not work out what parse would change")
 
-	errDiffUnsupported = cinzelerror.UserInput(errors.New("this provider cannot report what parse would change"))
+	errDiffUnsupported        = cinzelerror.UserInput(errors.New("this provider cannot report what parse would change"))
+	errRootAndOutputDirectory = cinzelerror.UserInput(errors.New("--root and --output-directory cannot be set together: --root moves the whole run, --output-directory only the files it names"))
 )
 
 // cannotRun marks err as a diff that never got to an answer, which main reads

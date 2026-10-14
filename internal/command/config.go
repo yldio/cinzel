@@ -34,9 +34,23 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 		File:            cmd.String("file"),
 		Directory:       cmd.String("directory"),
 		OutputDirectory: cmd.String("output-directory"),
+		Root:            cmd.String("root"),
 		Recursive:       cmd.Bool("recursive"),
 		DryRun:          cmd.Bool("dry-run"),
 		YML:             cmd.Bool("yml"),
+	}
+
+	// Both answer where output goes, one per document type and one for the
+	// run. Picking a winner would be a rule to remember; refusing is a
+	// sentence that says what to do instead.
+	if opts.Root != "" && opts.OutputDirectory != "" {
+		return provider.ProviderOps{}, nil, errRootAndOutputDirectory
+	}
+
+	if opts.Root != "" {
+		if err := validateRelativePath(opts.Root); err != nil {
+			return provider.ProviderOps{}, nil, fmt.Errorf("--root: %w", err)
+		}
 	}
 
 	conf, warnings, err := loadProviderCommandConfig(configFilename, providerName, commandName)

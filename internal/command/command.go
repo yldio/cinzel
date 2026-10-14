@@ -153,6 +153,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Value: "",
 						Usage: "Parsed files (YAML) are created in `DIRECTORY`",
 					},
+					&cli.StringFlag{
+						Name:  "root",
+						Value: "",
+						Usage: "Resolve every path against `DIRECTORY` instead of the working directory (not with --output-directory)",
+					},
 					&cli.BoolFlag{
 						Name:  "yml",
 						Value: false,
@@ -207,6 +212,11 @@ func (cmd *Cli) addProvider(p provider.Provider) *cli.Command {
 						Name:  "output-directory",
 						Value: "",
 						Usage: "Parsed files (HCL) are created in `DIRECTORY`",
+					},
+					&cli.StringFlag{
+						Name:  "root",
+						Value: "",
+						Usage: "Resolve every path against `DIRECTORY` instead of the working directory (not with --output-directory)",
 					},
 					&cli.BoolFlag{
 						Name:  "dry-run",

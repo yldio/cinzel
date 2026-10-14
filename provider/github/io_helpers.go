@@ -28,7 +28,7 @@ func resolveInputPath(opts provider.ProviderOps) (string, error) {
 	}
 
 	if opts.File != "" {
-		stat, err := os.Stat(opts.File)
+		stat, err := os.Stat(opts.UnderRoot(opts.File))
 		if err != nil {
 			return "", err
 		}
@@ -42,10 +42,10 @@ func resolveInputPath(opts provider.ProviderOps) (string, error) {
 			return "", fmt.Errorf("%w: %s", errFileIsADirectory, opts.File)
 		}
 
-		return opts.File, nil
+		return opts.UnderRoot(opts.File), nil
 	}
 
-	return opts.Directory, nil
+	return opts.UnderRoot(opts.Directory), nil
 }
 
 func resolveParseOutputDirectory(opts provider.ProviderOps) string {
@@ -53,7 +53,7 @@ func resolveParseOutputDirectory(opts provider.ProviderOps) string {
 		return opts.OutputDirectory
 	}
 
-	return defaultParseOutputDirectory
+	return opts.UnderRoot(defaultParseOutputDirectory)
 }
 
 func resolveUnparseOutputDirectory(opts provider.ProviderOps) string {
@@ -61,7 +61,7 @@ func resolveUnparseOutputDirectory(opts provider.ProviderOps) string {
 		return opts.OutputDirectory
 	}
 
-	return defaultUnparseOutputDirectory
+	return opts.UnderRoot(defaultUnparseOutputDirectory)
 }
 
 func resolveParseFilename(opts provider.ProviderOps) string {

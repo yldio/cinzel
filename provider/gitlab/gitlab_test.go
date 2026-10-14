@@ -51,12 +51,28 @@ func TestProviderWiringSmoke(t *testing.T) {
 func TestDefaultOutputDirectories(t *testing.T) {
 	opts := provider.ProviderOps{}
 
-	if got := resolveParseOutputDirectory(opts); got != "." {
+	// Compared as paths rather than as text: a default now goes through
+	// filepath.Join to pick up the root, which drops the "./" from
+	// "./cinzel". Same directory, spelled the way Join spells it.
+	if got := resolveParseOutputDirectory(opts); filepath.Clean(got) != "." {
 		t.Fatalf("parse output directory = %q, want %q", got, ".")
 	}
 
-	if got := resolveUnparseOutputDirectory(opts); got != "./cinzel" {
+	if got := resolveUnparseOutputDirectory(opts); filepath.Clean(got) != filepath.Clean("./cinzel") {
 		t.Fatalf("unparse output directory = %q, want %q", got, "./cinzel")
+	}
+}
+
+// Every default sits under the root, so one flag moves a whole run.
+func TestDefaultOutputDirectoriesUnderARoot(t *testing.T) {
+	opts := provider.ProviderOps{Root: "/tmp/elsewhere"}
+
+	if got := resolveParseOutputDirectory(opts); got != filepath.Clean("/tmp/elsewhere") {
+		t.Errorf("parse output directory = %q, want it under the root", got)
+	}
+
+	if got := resolveUnparseOutputDirectory(opts); got != filepath.Join("/tmp/elsewhere", "cinzel") {
+		t.Errorf("unparse output directory = %q, want it under the root", got)
 	}
 }
 

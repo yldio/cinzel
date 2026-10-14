@@ -3,16 +3,55 @@
 
 package provider
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+)
 
 // ProviderOps holds the options passed to a provider's Parse or Unparse operation.
 type ProviderOps struct {
 	File            string
 	Directory       string
 	OutputDirectory string
-	Recursive       bool
-	DryRun          bool
-	YML             bool // use .yml extension instead of .yaml
+
+	// Root is the directory every other path is resolved against, so one
+	// setting relocates a whole run: the input read, the output written, and
+	// on GitHub the place each action's own path starts from.
+	//
+	// Empty means the working directory, which is where cinzel reads
+	// .cinzelrc.yaml and spells its source markers from, so a run left alone
+	// behaves as it always has.
+	//
+	// Set together with OutputDirectory it is an error rather than a
+	// precedence rule: the two answer one question, and a reader should not
+	// have to remember which wins.
+	Root string
+
+	Recursive bool
+	DryRun    bool
+	YML       bool // use .yml extension instead of .yaml
+}
+
+// ResolveRoot is the directory a run resolves its paths against.
+func (opts ProviderOps) ResolveRoot() string {
+	if opts.Root == "" {
+		return "."
+	}
+
+	return opts.Root
+}
+
+// UnderRoot joins path onto the run's root, leaving an absolute path alone.
+//
+// An absolute path names one place whatever the root is, and the flags that
+// carry one are the operator's own typing rather than anything read out of a
+// file, so it is taken as given.
+func (opts ProviderOps) UnderRoot(path string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(opts.ResolveRoot(), path)
 }
 
 // Provider defines the interface that each CI/CD provider must implement.
