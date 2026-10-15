@@ -35,7 +35,7 @@ SPDX-License-Identifier: Apache-2.0
   --syn-com: #5c6670;   /* 5.85 grey    */
   --syn-punc: #b45309;  /* 4.64 amber   */
   --syn-num: #b91c1c;   /* 5.97 red     */
-  --syn-ref: #1d4ed8;   /* 6.19 blue    */
+  --syn-ref: #475569;   /* 6.99 slate   */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -55,7 +55,7 @@ SPDX-License-Identifier: Apache-2.0
     --syn-com: #9aa6b2;   /*  6.98 */
     --syn-punc: #ffbe6b;  /* 10.57 */
     --syn-num: #ff8f8f;   /*  7.89 */
-    --syn-ref: #79c0ff;   /*  8.89 */
+    --syn-ref: #aab6c3;   /*  8.39 */
   }
 }
 
@@ -74,7 +74,7 @@ SPDX-License-Identifier: Apache-2.0
   --syn-com: #9aa6b2;
   --syn-punc: #ffbe6b;
   --syn-num: #ff8f8f;
-  --syn-ref: #79c0ff;
+  --syn-ref: #aab6c3;
 }
 
 * { box-sizing: border-box; }
@@ -240,8 +240,10 @@ mark {
 .c { color: var(--syn-com); font-style: italic; }
 .o { color: var(--syn-punc); }
 .n { color: var(--syn-num); }
-/* A YAML mapping key is structure. In bold magenta the scaffolding shouted
-   over the one line that differs, which is the whole point of the pair. */
+/* Structure recedes: a YAML mapping key and an HCL attribute name are
+   scaffolding, and the eye should land on what changed rather than on the
+   shape holding it. Blue also belonged to links, so the page was using one
+   hue for two unrelated meanings. */
 .y { color: var(--syn-ref); }
 .r { color: var(--syn-ref); font-weight: 600; }
 .dim { color: var(--faint); }
