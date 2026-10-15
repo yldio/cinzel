@@ -375,6 +375,7 @@ li { margin-bottom: 5px; }
       <a href="#diff">diff</a>
       <a href="#pin">pin and upgrade</a>
       <a href="#assist">assist</a>
+      <a href="#init">init</a>
 
       <h3>Flags</h3>
       <a href="#flags">Shared flags</a>
@@ -463,7 +464,7 @@ li { margin-bottom: 5px; }
       <table>
         <tr><th>Document</th><th>Written to</th></tr>
         <tr><td>workflow</td><td><code>&lt;output-directory&gt;/&lt;filename&gt;.yaml</code>, normally <code>.github/workflows</code></td></tr>
-        <tr><td>composite action</td><td><code>&lt;path&gt;/&lt;filename&gt;/action.yml</code>, relative to the repository root</td></tr>
+        <tr><td>composite action</td><td><code>&lt;path&gt;/&lt;filename&gt;/action.yml</code>, against the root — or under <code>--output-directory</code> when that is given</td></tr>
         <tr><td>GitLab pipeline</td><td><code>&lt;output-directory&gt;/.gitlab-ci.yml</code></td></tr>
       </table>
       <p>
@@ -471,6 +472,14 @@ li { margin-bottom: 5px; }
         found the file, so a repository keeping actions in <code>actions-a</code>
         and <code>actions-b</code> round-trips in one run each way.
       </p>
+      <div class="note">
+        <p>
+          <strong>An explicit <code>--output-directory</code> collects
+          everything under it</strong>, actions included, which is what a
+          scratch conversion wants. Left off, an action with a
+          <code>path</code> goes where that path says, relative to the root.
+        </p>
+      </div>
     </section>
 
     <section id="unparse">
@@ -523,7 +532,8 @@ li { margin-bottom: 5px; }
         Reports what parse would change, and writes nothing. Built to fail a
         build.
       </p>
-<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">diff</span></pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">diff</span>
+<span class="p">$</span> <span class="k">cinzel</span> <span class="s">gitlab</span> <span class="s">diff</span></pre>
       <table>
         <tr><th>Exit</th><th>Meaning</th></tr>
         <tr><td>0</td><td>The committed YAML is exactly what the HCL produces.</td></tr>
@@ -572,7 +582,10 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
 
     <section id="assist">
       <h2>assist</h2>
-      <p class="lead">A pipeline from a prompt, through the same conversion path.</p>
+      <p class="lead">
+        A pipeline from a prompt, through the same conversion path. Both
+        providers.
+      </p>
 <pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">assist</span> <span class="o">--prompt</span> <span class="n">"golang PR with tests and linting"</span></pre>
       <p>
         Output goes to a timestamped folder under <code>cinzel/assist</code>,
@@ -592,6 +605,27 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
           disk and gets swept into a backup of your home directory.
         </p>
       </div>
+    </section>
+
+    <section id="init">
+      <h2>init</h2>
+      <p class="lead">
+        Writes the configuration <code>assist</code> reads: your default AI
+        provider and the model to use for each.
+      </p>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">init</span></pre>
+      <p>
+        It asks which provider to default to and writes the file to your OS
+        configuration directory with <code>0600</code> permissions. Nothing
+        else needs it — <code>parse</code>, <code>unparse</code>,
+        <code>diff</code>, <code>pin</code> and <code>upgrade</code> all run
+        without any configuration.
+      </p>
+      <p>
+        It deliberately holds no API key. That file lands on disk and gets
+        swept into a backup of your home directory, so the key belongs in the
+        environment instead.
+      </p>
     </section>
 
     <section id="flags">
