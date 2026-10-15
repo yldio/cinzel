@@ -15,51 +15,53 @@ SPDX-License-Identifier: Apache-2.0
 <meta property="og:image" content="https://yldio.github.io/cinzel/logo.png">
 <style>
 :root {
-  --fg: #000;
-  --bg: #fff;
-  --muted: #555;
-  --faint: #767676;
-  --line: #d4d4d4;
-  --link: #0b45c4;
-  --hit: #fffbdd;
-  --code-bg: #f6f6f4;
-  --syn-key: #0b45c4;
-  --syn-str: #0a6b3d;
-  --syn-com: #767676;
-  --syn-punc: #555;
+  /* Catppuccin Latte */
+  --bg: #eff1f5;        /* base     */
+  --code-bg: #e6e9ef;   /* mantle   */
+  --fg: #4c4f69;        /* text     */
+  --muted: #5c5f77;     /* subtext1 */
+  --faint: #8c8fa1;     /* overlay1 */
+  --line: #ccd0da;      /* surface0 */
+  --link: #1e66f5;      /* blue     */
+  --hit: #fae3b7;       /* yellow, lightened to sit under text */
+  --syn-key: #8839ef;   /* mauve    */
+  --syn-str: #40a02b;   /* green    */
+  --syn-com: #9ca0b0;   /* overlay0 */
+  --syn-punc: #179299;  /* teal     */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* Catppuccin Mocha */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --fg: #e8e8e6;
-    --bg: #101010;
-    --muted: #a6a6a2;
-    --faint: #8a8a86;
-    --line: #343434;
-    --link: #7aa7ff;
-    --hit: #2e2a10;
-    --code-bg: #1d1d1d;
-    --syn-key: #7aa7ff;
-    --syn-str: #7cc998;
-    --syn-com: #8a8a86;
-    --syn-punc: #a6a6a2;
+    --bg: #1e1e2e;        /* base     */
+    --code-bg: #181825;   /* mantle   */
+    --fg: #cdd6f4;        /* text     */
+    --muted: #bac2de;     /* subtext1 */
+    --faint: #7f849c;     /* overlay1 */
+    --line: #313244;      /* surface0 */
+    --link: #89b4fa;      /* blue     */
+    --hit: #45475a;       /* surface1, since yellow behind text is unreadable */
+    --syn-key: #cba6f7;   /* mauve    */
+    --syn-str: #a6e3a1;   /* green    */
+    --syn-com: #6c7086;   /* overlay0 */
+    --syn-punc: #94e2d5;  /* teal     */
   }
 }
 
 :root[data-theme="dark"] {
-  --fg: #e8e8e6;
-  --bg: #101010;
-  --muted: #a6a6a2;
-  --faint: #8a8a86;
-  --line: #343434;
-  --link: #7aa7ff;
-  --hit: #2e2a10;
-  --code-bg: #1d1d1d;
-  --syn-key: #7aa7ff;
-  --syn-str: #7cc998;
-  --syn-com: #8a8a86;
-  --syn-punc: #a6a6a2;
+  --bg: #1e1e2e;
+  --code-bg: #181825;
+  --fg: #cdd6f4;
+  --muted: #bac2de;
+  --faint: #7f849c;
+  --line: #313244;
+  --link: #89b4fa;
+  --hit: #45475a;
+  --syn-key: #cba6f7;
+  --syn-str: #a6e3a1;
+  --syn-com: #6c7086;
+  --syn-punc: #94e2d5;
 }
 
 * { box-sizing: border-box; }
