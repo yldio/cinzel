@@ -30,10 +30,12 @@ SPDX-License-Identifier: Apache-2.0
   --link: #0a47b8;      /*  8.06 */
   --hit: #fff3bf;
   --hit-line: #e0b400;
-  --syn-key: #6f1fb0;   /*  8.40 */
-  --syn-str: #0e6b2e;   /*  6.64 */
-  --syn-com: #5c6670;   /*  5.85 */
-  --syn-punc: #9a4a00;  /*  6.26 */
+  --syn-key: #a21caf;   /* 5.84 magenta */
+  --syn-str: #047857;   /* 5.06 teal    */
+  --syn-com: #5c6670;   /* 5.85 grey    */
+  --syn-punc: #b45309;  /* 4.64 amber   */
+  --syn-num: #b91c1c;   /* 5.97 red     */
+  --syn-ref: #1d4ed8;   /* 6.19 blue    */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -48,10 +50,12 @@ SPDX-License-Identifier: Apache-2.0
     --link: #79b8ff;      /*  9.11 */
     --hit: #3d2f00;
     --hit-line: #9e7c00;
-    --syn-key: #d2a8ff;   /*  9.72 */
-    --syn-str: #7ee787;   /* 12.32 */
-    --syn-com: #8b96a3;   /*  6.30 */
-    --syn-punc: #ffab70;  /* 10.19 */
+    --syn-key: #f0a3ff;   /*  9.38 */
+    --syn-str: #5ff58f;   /* 12.31 */
+    --syn-com: #9aa6b2;   /*  6.98 */
+    --syn-punc: #ffbe6b;  /* 10.57 */
+    --syn-num: #ff8f8f;   /*  7.89 */
+    --syn-ref: #79c0ff;   /*  8.89 */
   }
 }
 
@@ -65,21 +69,23 @@ SPDX-License-Identifier: Apache-2.0
   --link: #79b8ff;
   --hit: #3d2f00;
   --hit-line: #9e7c00;
-  --syn-key: #d2a8ff;
-  --syn-str: #7ee787;
-  --syn-com: #8b96a3;
-  --syn-punc: #ffab70;
+  --syn-key: #f0a3ff;
+  --syn-str: #5ff58f;
+  --syn-com: #9aa6b2;
+  --syn-punc: #ffbe6b;
+  --syn-num: #ff8f8f;
+  --syn-ref: #79c0ff;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0 auto;
-  max-width: 800px;
-  padding: 0 24px 72px;
+  max-width: 940px;
+  padding: 0 44px 80px;
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font: 17.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 a { color: var(--link); }
@@ -132,30 +138,30 @@ a { color: var(--link); }
 :root[data-theme="light"] #theme .sun { display: none; }
 
 h1 {
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 700;
   margin: 0 0 3px;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
-.pron { font-size: 13px; color: var(--faint); margin: 0 0 18px; }
+.pron { font-size: 14.5px; color: var(--faint); margin: 0 0 18px; }
 
 .what {
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.45;
   margin: 0 0 14px;
   max-width: 58ch;
 }
 
 .sub {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--muted);
   margin: 0 0 22px;
   max-width: 62ch;
 }
 
-.links { font-size: 15px; margin: 0 0 8px; }
+.links { font-size: 16.5px; margin: 0 0 8px; }
 .links a { margin-right: 16px; }
 
 hr {
@@ -168,14 +174,15 @@ hr {
    body's own 15px the only difference was boldness, which reads as an
    emphasised sentence rather than the start of a section. */
 h2 {
-  font-size: 19px;
-  font-weight: 650;
-  margin: 0 0 6px;
-  letter-spacing: -0.01em;
+  font-size: 25px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 h2 + .lead {
-  font-size: 15px;
+  font-size: 16.5px;
   color: var(--muted);
   margin: 0 0 18px;
   max-width: 64ch;
@@ -198,7 +205,7 @@ h2 + .lead {
 
 .file .label {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--faint);
   margin-bottom: 5px;
 }
@@ -208,10 +215,10 @@ pre {
   background: var(--code-bg);
   border: 1px solid var(--line);
   border-radius: 3px;
-  padding: 12px 14px;
+  padding: 16px 18px;
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.7;
   overflow-x: auto;
   color: var(--fg);
 }
@@ -226,14 +233,21 @@ mark {
   box-shadow: inset 0 -2px 0 var(--hit-line);
 }
 
-.k { color: var(--syn-key); }
+/* Keywords carry weight as well as hue: at this size colour alone is a
+   tint, and the block types are what the eye should land on first. */
+.k { color: var(--syn-key); font-weight: 600; }
 .s { color: var(--syn-str); }
-.c { color: var(--syn-com); }
+.c { color: var(--syn-com); font-style: italic; }
 .o { color: var(--syn-punc); }
+.n { color: var(--syn-num); }
+/* A YAML mapping key is structure. In bold magenta the scaffolding shouted
+   over the one line that differs, which is the whole point of the pair. */
+.y { color: var(--syn-ref); }
+.r { color: var(--syn-ref); font-weight: 600; }
 .dim { color: var(--faint); }
 
 .caption {
-  font-size: 14.5px;
+  font-size: 16px;
   color: var(--muted);
   margin: 12px 0 0;
   max-width: 68ch;
@@ -241,7 +255,7 @@ mark {
 
 .caption code, .lead code, .sub code {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 /* ── commands ─────────────────────────────────────────── */
@@ -249,7 +263,7 @@ mark {
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 14.5px;
+  font-size: 16px;
 }
 
 td {
@@ -262,7 +276,7 @@ tr:last-child td { border-bottom: 0; }
 
 td:first-child {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
   padding-right: 22px;
   width: 1%;
@@ -276,9 +290,9 @@ td:last-child { color: var(--muted); }
   background: var(--code-bg);
   border: 1px solid var(--line);
   border-radius: 3px;
-  padding: 12px 14px;
+  padding: 16px 18px;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
   overflow-x: auto;
   white-space: pre;
@@ -287,10 +301,10 @@ td:last-child { color: var(--muted); }
 .shell .p { color: var(--faint); user-select: none; }
 
 .foot {
-  margin-top: 36px;
-  padding-top: 16px;
+  margin-top: 40px;
+  padding-top: 18px;
   border-top: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--faint);
 }
 
@@ -353,17 +367,17 @@ td:last-child { color: var(--muted); }
   <div class="two">
     <div class="file">
       <div class="label">.github/workflows/ci.yaml</div>
-<pre><span class="k">jobs</span>:
-  <span class="k">test</span>:
-    <span class="k">steps</span>:
-      <span class="o">-</span> <span class="k">uses</span>: actions/checkout@v4</pre>
+<pre><span class="y">jobs</span>:
+  <span class="y">test</span>:
+    <span class="y">steps</span>:
+      <span class="o">-</span> <span class="y">uses</span>: <span class="s">actions/checkout</span><span class="o">@</span><span class="n">v4</span></pre>
     </div>
     <div class="file">
       <div class="label">.github/workflows/nightly.yaml</div>
-<pre><span class="k">jobs</span>:
-  <span class="k">soak</span>:
-    <span class="k">steps</span>:
-      <span class="o">-</span> <span class="k">uses</span>: actions/checkout@<mark>v3</mark></pre>
+<pre><span class="y">jobs</span>:
+  <span class="y">soak</span>:
+    <span class="y">steps</span>:
+      <span class="o">-</span> <span class="y">uses</span>: <span class="s">actions/checkout</span><span class="o">@</span><mark><span class="n">v3</span></mark></pre>
     </div>
   </div>
 
@@ -387,19 +401,19 @@ td:last-child { color: var(--muted); }
       <div class="label">cinzel/steps.hcl</div>
 <pre><span class="k">step</span> <span class="s">"checkout"</span> {
   <span class="k">uses</span> {
-    action  <span class="o">=</span> <span class="s">"actions/checkout"</span>
-    version <span class="o">=</span> <span class="s">"11d5960a3267"</span> <span class="c"># v4</span>
+    <span class="r">action</span>  <span class="o">=</span> <span class="s">"actions/checkout"</span>
+    <span class="r">version</span> <span class="o">=</span> <span class="s">"11d5960a3267"</span> <span class="c"># v4</span>
   }
 }</pre>
     </div>
     <div class="file">
       <div class="label">cinzel/jobs.hcl</div>
 <pre><span class="k">job</span> <span class="s">"test"</span> {
-  steps <span class="o">=</span> [<mark>step.checkout</mark>, step.unit]
+  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.unit]
 }
 
 <span class="k">job</span> <span class="s">"soak"</span> {
-  steps <span class="o">=</span> [<mark>step.checkout</mark>, step.load]
+  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.load]
 }</pre>
     </div>
   </div>
