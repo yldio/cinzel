@@ -27,7 +27,7 @@ SPDX-License-Identifier: Apache-2.0
   --muted: #424a53;     /*  8.99 */
   --faint: #5c6670;     /*  5.85 */
   --line: #c9d1d9;
-  --link: #0a47b8;      /*  8.06 */
+  --link: #0f766e;      /*  5.47 teal, a shade off the headings */
   --hit: #fff3bf;
   --hit-line: #e0b400;
   --syn-key: #a21caf;   /* 5.84 magenta */
@@ -48,7 +48,7 @@ SPDX-License-Identifier: Apache-2.0
     --muted: #b3bdc8;     /*  9.94 */
     --faint: #8b96a3;     /*  6.30 */
     --line: #30363d;
-    --link: #79b8ff;      /*  9.11 */
+    --link: #2dd4bf;      /* 10.17 */
     --hit: #3d2f00;
     --hit-line: #9e7c00;
     --syn-key: #f0a3ff;   /*  9.38 */
@@ -68,7 +68,7 @@ SPDX-License-Identifier: Apache-2.0
   --muted: #b3bdc8;
   --faint: #8b96a3;
   --line: #30363d;
-  --link: #79b8ff;
+  --link: #2dd4bf;
   --hit: #3d2f00;
   --hit-line: #9e7c00;
   --syn-key: #f0a3ff;
@@ -91,7 +91,9 @@ body {
   font: 17.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-a { color: var(--link); }
+/* Headings and links are both teal now, so the underline is what says
+   "this is a link" rather than the colour. It stays on. */
+a { color: var(--link); text-underline-offset: 2px; }
 
 /* ── who, what ────────────────────────────────────────── */
 
