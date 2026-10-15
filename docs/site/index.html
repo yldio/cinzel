@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 <meta name="description" content="cinzel converts CI/CD pipelines between HCL and YAML, both directions, for GitHub Actions and GitLab CI/CD.">
 <link rel="icon" href="logo.png">
 <meta property="og:title" content="cinzel — write CI/CD pipelines in HCL">
-<meta property="og:description" content="Write your pipeline in HCL, where a step can be reused by name. cinzel converts it to the YAML GitHub and GitLab read, and back again.">
+<meta property="og:description" content="Write GitHub Actions workflows or GitLab pipelines as HCL, where a step is defined once and reused by name. cinzel writes the YAML each platform expects, and converts back.">
 <meta property="og:image" content="https://yldio.github.io/cinzel/logo.png">
 <style>
 :root {
@@ -158,6 +158,14 @@ h1 {
   line-height: 1.45;
   margin: 0 0 14px;
   max-width: 58ch;
+}
+
+/* The second paragraph explains the first, so it steps down rather than
+   repeating its weight. */
+.what.second {
+  font-size: 17.5px;
+  color: var(--muted);
+  max-width: 64ch;
 }
 
 .sub {
@@ -347,9 +355,14 @@ td:last-child { color: var(--muted); }
   <p class="pron">/sĩˈzɛl/ · Portuguese for <i>chisel</i></p>
 
   <p class="what">
-    Write your CI/CD pipeline in HCL, where a step is defined once and reused
-    by name. cinzel converts it to the YAML GitHub Actions and GitLab read —
-    and converts your existing YAML the other way, to get you started.
+    cinzel converts CI/CD pipelines between HCL and YAML, in both directions.
+  </p>
+
+  <p class="what second">
+    Write GitHub Actions workflows or GitLab pipelines as HCL — where a step
+    is defined once and reused by name — and cinzel writes the YAML each
+    platform expects. Point it at the pipeline you already run to get the HCL
+    to start from.
   </p>
 
   <p class="sub">
@@ -428,8 +441,8 @@ td:last-child { color: var(--muted); }
   </div>
 
   <p class="caption">
-    Then <code>cinzel github parse</code> writes the YAML both platforms
-    actually read. Bump the version in one place and every job moves with it.
+    Then <code>cinzel github parse</code> writes <code>.github/workflows</code>
+    back out. Bump the version in one place and every job moves with it.
   </p>
 </section>
 
@@ -458,7 +471,7 @@ td:last-child { color: var(--muted); }
     </tr>
     <tr>
       <td>cinzel gitlab …</td>
-      <td>The same two directions for <code>.gitlab-ci.yml</code> — jobs, templates, includes and the pipeline keywords.</td>
+      <td>The same two directions for <code>.gitlab-ci.yml</code>. GitLab's HCL is its own — jobs, templates, includes and the pipeline keywords, not GitHub's blocks.</td>
     </tr>
     <tr>
       <td>cinzel github assist</td>
