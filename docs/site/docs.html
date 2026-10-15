@@ -418,8 +418,8 @@ li { margin-bottom: 5px; }
     <section id="install">
       <h2>Install</h2>
       <p class="lead">A single binary. macOS, Linux and Windows.</p>
-<pre><span class="p">$</span> brew tap yldio/cinzel && brew install --cask cinzel
-<span class="p">$</span> go install github.com/yldio/cinzel@latest</pre>
+<pre><span class="p">$</span> <span class="k">brew</span> <span class="s">tap</span> <span class="n">yldio/cinzel</span> <span class="o">&&</span> <span class="k">brew</span> <span class="s">install</span> <span class="o">--cask</span> <span class="n">cinzel</span>
+<span class="p">$</span> <span class="k">go</span> <span class="s">install</span> <span class="n">github.com/yldio/cinzel@latest</span></pre>
       <p>
         Or download one from the
         <a href="https://github.com/yldio/cinzel/releases">releases page</a>.
@@ -433,13 +433,13 @@ li { margin-bottom: 5px; }
         Point <code>unparse</code> at a pipeline you already run. Nothing is
         written to your YAML.
       </p>
-<pre><span class="p">$</span> cinzel github unparse --output-directory ./cinzel
-<span class="p">$</span> cinzel gitlab unparse -f .gitlab-ci.yml --output-directory ./cinzel</pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">unparse</span> <span class="o">--output-directory</span> <span class="n">./cinzel</span>
+<span class="p">$</span> <span class="k">cinzel</span> <span class="s">gitlab</span> <span class="s">unparse</span> <span class="o">-f</span> <span class="n">.gitlab-ci.yml</span> <span class="o">--output-directory</span> <span class="n">./cinzel</span></pre>
       <p>
         Edit the HCL, then convert it back:
       </p>
-<pre><span class="p">$</span> cinzel github parse -d cinzel
-<span class="p">$</span> cinzel gitlab parse -d cinzel</pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">parse</span> <span class="o">-d</span> <span class="k">cinzel</span>
+<span class="p">$</span> <span class="k">cinzel</span> <span class="s">gitlab</span> <span class="s">parse</span> <span class="o">-d</span> <span class="k">cinzel</span></pre>
       <p>
         Add <code>--dry-run</code> to either to print the result instead of
         writing it.
@@ -476,7 +476,7 @@ li { margin-bottom: 5px; }
     <section id="unparse">
       <h2>unparse</h2>
       <p class="lead">YAML → HCL. The direction you start with.</p>
-<pre><span class="p">$</span> cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel</pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">unparse</span> <span class="o">-d</span> <span class="n">actions-a</span> <span class="o">-d</span> <span class="n">actions-b</span> <span class="o">-r</span> <span class="o">--output-directory</span> <span class="k">cinzel</span></pre>
       <p>
         <code>--directory</code> is repeatable here, for composite actions kept
         in folders of their own. <code>--recursive</code> is needed for those,
@@ -494,7 +494,7 @@ li { margin-bottom: 5px; }
     <section id="parse">
       <h2>parse</h2>
       <p class="lead">HCL → YAML. The direction that produces what runs.</p>
-<pre><span class="p">$</span> cinzel github parse -d cinzel</pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">parse</span> <span class="o">-d</span> <span class="k">cinzel</span></pre>
       <p>
         One <code>--directory</code>. A recursive read merges every file into
         one body, so references cross files freely and a second root would be
@@ -523,7 +523,7 @@ li { margin-bottom: 5px; }
         Reports what parse would change, and writes nothing. Built to fail a
         build.
       </p>
-<pre><span class="p">$</span> cinzel github diff</pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">diff</span></pre>
       <table>
         <tr><th>Exit</th><th>Meaning</th></tr>
         <tr><td>0</td><td>The committed YAML is exactly what the HCL produces.</td></tr>
@@ -553,9 +553,9 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
     <section id="pin">
       <h2>pin and upgrade</h2>
       <p class="lead">GitHub only. Operates on the HCL, not the YAML.</p>
-<pre><span class="p">$</span> cinzel github pin              <span class="c"># every tag becomes the SHA it points at</span>
-<span class="p">$</span> cinzel github upgrade          <span class="c"># bump to latest, then pin</span>
-<span class="p">$</span> cinzel github upgrade --parse  <span class="c"># and regenerate the YAML</span></pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">pin</span>              <span class="c"># every tag becomes the SHA it points at</span>
+<span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">upgrade</span>          <span class="c"># bump to latest, then pin</span>
+<span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">upgrade</span> <span class="o">--parse</span>  <span class="c"># and regenerate the YAML</span></pre>
       <p>The tag stays on the line it pinned:</p>
 <pre><span class="k">uses</span> {
   <span class="y">action</span>  <span class="o">=</span> <span class="s">"actions/checkout"</span>
@@ -573,7 +573,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
     <section id="assist">
       <h2>assist</h2>
       <p class="lead">A pipeline from a prompt, through the same conversion path.</p>
-<pre><span class="p">$</span> cinzel github assist --prompt <span class="s">"golang PR with tests and linting"</span></pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">assist</span> <span class="o">--prompt</span> <span class="n">"golang PR with tests and linting"</span></pre>
       <p>
         Output goes to a timestamped folder under <code>cinzel/assist</code>,
         one per prompt. Blocks matching HCL you already have become a
@@ -581,8 +581,8 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
         actions are pinned to SHAs on the way out.
       </p>
       <p>Refine what came back:</p>
-<pre><span class="p">$</span> cinzel github assist --refine <span class="s">"add a slack notification on failure"</span>
-<span class="p">$</span> cinzel github assist --refine <span class="s">"add caching"</span> --from 20260317-150405</pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">assist</span> <span class="o">--refine</span> <span class="n">"add a slack notification on failure"</span>
+<span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">assist</span> <span class="o">--refine</span> <span class="n">"add caching"</span> <span class="o">--from</span> <span class="n">20260317-150405</span></pre>
       <div class="note">
         <p>
           <strong>The API key comes from the environment.</strong> Set
@@ -615,7 +615,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
         Relocates a whole run — what is read, what is written, and the defaults
         under both.
       </p>
-<pre><span class="p">$</span> cinzel github parse --root /tmp/x
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">parse</span> <span class="o">--root</span> <span class="n">/tmp/x</span>
 <span class="c"># → /tmp/x/.github/workflows/ci.yaml</span>
 <span class="c"># → /tmp/x/actions-a/setup/action.yml</span></pre>
       <p>
