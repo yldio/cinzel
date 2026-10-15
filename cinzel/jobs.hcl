@@ -81,3 +81,36 @@ job "release" {
     step.create_release,
   ]
 }
+
+job "pages" {
+  name = "Pages"
+
+  timeout_minutes = 5
+
+  permissions {
+    contents = "read"
+    pages    = "write"
+    id_token = "write"
+  }
+
+  concurrency {
+    group              = "pages"
+    cancel_in_progress = false
+  }
+
+  environment {
+    name = "github-pages"
+    url  = "$${{ steps.pages_deploy.outputs.page_url }}"
+  }
+
+  runs_on {
+    runners = "ubuntu-latest"
+  }
+
+  steps = [
+    step.checkout,
+    step.pages_configure,
+    step.pages_upload,
+    step.pages_deploy,
+  ]
+}
