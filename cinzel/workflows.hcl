@@ -64,3 +64,32 @@ workflow "release" {
     job.release,
   ]
 }
+
+workflow "pages" {
+  filename = "pages"
+
+  name = "Pages"
+
+  permissions {
+    contents = "read"
+    pages    = "write"
+    id_token = "write"
+  }
+
+  on "push" {
+    branches = [
+      "main"
+    ]
+
+    paths = [
+      "docs/site/**",
+      ".github/workflows/pages.yaml"
+    ]
+  }
+
+  on "workflow_dispatch" {}
+
+  jobs = [
+    job.pages,
+  ]
+}

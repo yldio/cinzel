@@ -419,3 +419,36 @@ step "goreleaser" {
     value = "$${{ steps.release_app_token.outputs.token }}"
   }
 }
+
+step "pages_configure" {
+  name = "Configure Pages"
+
+  uses {
+    action  = "actions/configure-pages"
+    version = "983d7736d9b0ae728b81ab479565c72886d7745b" # v5
+  }
+}
+
+step "pages_upload" {
+  name = "Upload the site"
+
+  uses {
+    action  = "actions/upload-pages-artifact"
+    version = "56afc609e74202658d3ffba0e8f6dda462b719fa" # v3
+  }
+
+  with {
+    name  = "path"
+    value = "docs/site"
+  }
+}
+
+step "pages_deploy" {
+  id   = "pages_deploy"
+  name = "Deploy"
+
+  uses {
+    action  = "actions/deploy-pages"
+    version = "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e" # v4
+  }
+}

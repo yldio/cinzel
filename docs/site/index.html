@@ -1,0 +1,580 @@
+<!doctype html>
+<!--
+Copyright 2026 YLD Limited
+SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cinzel — write CI/CD pipelines in HCL</title>
+<meta name="description" content="cinzel converts CI/CD pipelines between HCL and YAML, both directions, for GitHub Actions and GitLab CI/CD.">
+<link rel="icon" href="logo.png">
+<meta property="og:title" content="cinzel — write CI/CD pipelines in HCL">
+<meta property="og:description" content="Write GitHub Actions workflows or GitLab pipelines as HCL, where a step is defined once and reused by name. cinzel writes the YAML each platform expects, and converts back.">
+<meta property="og:image" content="https://yldio.github.io/cinzel/logo.png">
+<style>
+:root {
+  color-scheme: light dark;
+
+  /* Every value below clears WCAG AA against its background. The palette
+     this replaced was Catppuccin Latte, whose green reaches 2.96:1 as code
+     on the page — a published theme is tuned for an editor, not for text
+     someone has to read once and leave. */
+  --bg: #ffffff;
+  --code-bg: #f4f6f8;
+  --fg: #14171a;        /* 17.99 */
+  --muted: #424a53;     /*  8.99 */
+  --faint: #5c6670;     /*  5.85 */
+  --line: #c9d1d9;
+  --link: #0f766e;      /*  5.47 teal, a shade off the headings */
+  --hit: #fff3bf;
+  --hit-line: #e0b400;
+  /* One family, not six unrelated hues. Everything structural is a teal
+     stepping from near-black to cyan, so the code sits in the same world as
+     the headings; the only warm colour on the page is the version that
+     drifted, which is the one thing a reader has to find. */
+  --syn-key: #0b4f4a;   /* 8.69 deep teal  */
+  --syn-str: #0e7490;   /* 4.95 cyan       */
+  --syn-com: #546b70;   /* 5.22 slate teal */
+  --syn-punc: #5f7278;  /* 4.65 muted      */
+  --syn-num: #b02a37;   /* 6.00 the accent */
+  --head: #115e59;      /* 7.58 teal    */
+  --syn-ref: #44585e;   /* 6.91 slate teal */
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117;
+    --code-bg: #161b22;
+    --fg: #e8edf3;        /* 16.08 */
+    --muted: #b3bdc8;     /*  9.94 */
+    --faint: #8b96a3;     /*  6.30 */
+    --line: #30363d;
+    --link: #2dd4bf;      /* 10.17 */
+    --hit: #3d2f00;
+    --hit-line: #9e7c00;
+    --syn-key: #5eead4;   /* 11.69 */
+    --syn-str: #67d4e8;   /* 10.02 */
+    --syn-com: #78909a;   /*  5.15 */
+    --syn-punc: #8aa0a8;  /*  6.32 */
+    --syn-num: #ff7b8a;   /*  6.96 */
+    --head: #5eead4;      /* 12.79 */
+    --syn-ref: #9db3ba;   /*  7.90 */
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --code-bg: #161b22;
+  --fg: #e8edf3;
+  --muted: #b3bdc8;
+  --faint: #8b96a3;
+  --line: #30363d;
+  --link: #2dd4bf;
+  --hit: #3d2f00;
+  --hit-line: #9e7c00;
+  --syn-key: #5eead4;
+  --syn-str: #67d4e8;
+  --syn-com: #78909a;
+  --syn-punc: #8aa0a8;
+  --syn-num: #ff7b8a;
+  --syn-ref: #9db3ba;
+  --head: #5eead4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  max-width: 940px;
+  padding: 0 44px 80px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+/* Headings and links are both teal now, so the underline is what says
+   "this is a link" rather than the colour. It stays on. */
+a { color: var(--link); text-underline-offset: 2px; }
+
+/* ── who, what ────────────────────────────────────────── */
+
+.top {
+  padding: 40px 0 0;
+  position: relative;
+}
+
+#theme {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#theme:hover { color: var(--fg); border-color: var(--faint); }
+
+#theme:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+#theme svg { width: 17px; height: 17px; display: block; }
+
+/* One icon shows at a time: the sun when the page is dark, because the
+   button offers the other state rather than describing this one. */
+#theme .moon { display: block; }
+#theme .sun { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #theme .moon { display: none; }
+  :root:not([data-theme="light"]) #theme .sun { display: block; }
+}
+
+:root[data-theme="dark"] #theme .moon { display: none; }
+:root[data-theme="dark"] #theme .sun { display: block; }
+:root[data-theme="light"] #theme .moon { display: block; }
+:root[data-theme="light"] #theme .sun { display: none; }
+
+h1 {
+  color: var(--head);
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 3px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.pron { font-size: 14.5px; color: var(--faint); margin: 0 0 18px; }
+
+.what {
+  font-size: 20px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+  max-width: 58ch;
+}
+
+/* The second paragraph explains the first, so it steps down rather than
+   repeating its weight. */
+.what.second {
+  font-size: 17.5px;
+  color: var(--muted);
+  max-width: 64ch;
+}
+
+.sub {
+  font-size: 16px;
+  color: var(--muted);
+  margin: 0 0 22px;
+  max-width: 62ch;
+}
+
+.links { font-size: 16.5px; margin: 0 0 8px; }
+.links a { margin-right: 16px; }
+
+/* The count arrives after the page does, so the link reads "Star" until it
+   lands and stays that way if the request fails. Nothing moves except the
+   word, and the link works either way. */
+.links a.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+}
+
+.links a.stars:hover { text-decoration: underline; }
+.links a.stars svg { width: 14px; height: 14px; }
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 38px 0;
+}
+
+/* A step above the paragraph beneath it, in size as well as weight. At the
+   body's own 15px the only difference was boldness, which reads as an
+   emphasised sentence rather than the start of a section. */
+h2 {
+  color: var(--head);
+  font-size: 25px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+h2 + .lead {
+  font-size: 16.5px;
+  color: var(--muted);
+  margin: 0 0 18px;
+  max-width: 64ch;
+}
+
+/* ── before / after ───────────────────────────────────── */
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Both panes of a pair are one comparison, so they share a height rather
+   than ending wherever their own last line falls. */
+.file { display: flex; flex-direction: column; }
+.file pre { flex: 1; }
+
+.file { min-width: 0; }
+
+.file .label {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--faint);
+  margin-bottom: 5px;
+}
+
+pre {
+  margin: 0;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-x: auto;
+  color: var(--fg);
+}
+
+mark {
+  background: var(--hit);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+  /* Not colour alone: the mark is the one thing a reader has to notice, and
+     a background tint is the first thing lost to a cheap screen. */
+  box-shadow: inset 0 -2px 0 var(--hit-line);
+}
+
+/* Keywords carry weight as well as hue: at this size colour alone is a
+   tint, and the block types are what the eye should land on first. */
+.k { color: var(--syn-key); font-weight: 600; }
+.s { color: var(--syn-str); }
+.c { color: var(--syn-com); font-style: italic; }
+.o { color: var(--syn-punc); }
+.n { color: var(--syn-num); }
+/* Structure recedes: a YAML mapping key and an HCL attribute name are
+   scaffolding, and the eye should land on what changed rather than on the
+   shape holding it. Blue also belonged to links, so the page was using one
+   hue for two unrelated meanings. */
+.y { color: var(--syn-ref); }
+.r { color: var(--syn-ref); font-weight: 600; }
+.dim { color: var(--faint); }
+
+.caption {
+  font-size: 16px;
+  color: var(--muted);
+  margin: 12px 0 0;
+  max-width: 68ch;
+}
+
+.caption code, .lead code, .sub code {
+  font-family: var(--mono);
+  font-size: 14.5px;
+}
+
+/* ── commands ─────────────────────────────────────────── */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 16px;
+}
+
+td {
+  padding: 9px 12px 9px 0;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+tr:last-child td { border-bottom: 0; }
+
+td:first-child {
+  font-family: var(--mono);
+  font-size: 14px;
+  white-space: nowrap;
+  padding-right: 22px;
+  width: 1%;
+}
+
+td:last-child { color: var(--muted); }
+
+/* ── install ──────────────────────────────────────────── */
+
+.shell {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.9;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.shell .p { color: var(--faint); user-select: none; }
+
+.foot {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  color: var(--faint);
+}
+
+.foot a { margin-right: 14px; }
+
+@media (max-width: 680px) {
+  .two { grid-template-columns: 1fr; gap: 14px; }
+  td { display: block; border-bottom: 0; padding: 0; }
+  td:first-child { width: auto; padding-top: 14px; white-space: normal; }
+  td:last-child { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  tr:last-child td:last-child { border-bottom: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <button id="theme" type="button" aria-label="Switch between light and dark">
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+    </svg>
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"/>
+      <path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/>
+    </svg>
+  </button>
+
+  <h1>cinzel</h1>
+  <p class="pron">/sĩˈzɛl/ · Portuguese for <i>chisel</i></p>
+
+  <p class="what">
+    cinzel converts CI/CD pipelines between HCL and YAML, in both directions.
+  </p>
+
+  <p class="what second">
+    Write GitHub Actions workflows or GitLab pipelines as HCL — where a step
+    is defined once and reused by name — and cinzel writes the YAML each
+    platform expects. Point it at the pipeline you already run to get the HCL
+    to start from.
+  </p>
+
+  <p class="sub">
+    Apache-2.0
+  </p>
+
+  <p class="links">
+    <a href="#how">How it works</a>
+    <a href="#commands">Commands</a>
+    <a href="docs.html">Documentation</a>
+    <a href="https://github.com/yldio/cinzel">Source</a>
+    <a class="stars" href="https://github.com/yldio/cinzel/stargazers">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 .5l2.3 4.7 5.2.8-3.7 3.6.9 5.1L8 12.3l-4.7 2.4.9-5.1L.5 6l5.2-.8L8 .5z"/>
+      </svg>
+      <span id="star-count">Star</span>
+    </a>
+  </p>
+</div>
+
+<hr>
+
+<section id="how">
+  <h2>The problem</h2>
+  <p class="lead">
+    A step used by several workflows is written out once per workflow.
+    Nothing connects the copies, so they drift.
+  </p>
+
+  <div class="two">
+    <div class="file">
+      <div class="label">.github/workflows/ci.yaml</div>
+<pre><span class="y">jobs</span>:
+  <span class="y">test</span>:
+    <span class="y">steps</span>:
+      <span class="o">-</span> <span class="y">uses</span>: <span class="s">actions/checkout</span><span class="o">@</span><span class="n">v4</span></pre>
+    </div>
+    <div class="file">
+      <div class="label">.github/workflows/nightly.yaml</div>
+<pre><span class="y">jobs</span>:
+  <span class="y">soak</span>:
+    <span class="y">steps</span>:
+      <span class="o">-</span> <span class="y">uses</span>: <span class="s">actions/checkout</span><span class="o">@</span><mark><span class="n">v3</span></mark></pre>
+    </div>
+  </div>
+
+  <p class="caption">
+    The nightly build is a version behind. It has been for months. You find out
+    when it breaks.
+  </p>
+</section>
+
+<hr>
+
+<section>
+  <h2>In HCL</h2>
+  <p class="lead">
+    The step is a block. Jobs refer to it by name, so there is one copy and one
+    version.
+  </p>
+
+  <div class="two">
+    <div class="file">
+      <div class="label">cinzel/steps.hcl</div>
+<pre><span class="k">step</span> <span class="s">"checkout"</span> {
+  <span class="k">uses</span> {
+    <span class="r">action</span>  <span class="o">=</span> <span class="s">"actions/checkout"</span>
+    <span class="r">version</span> <span class="o">=</span> <span class="s">"11d5960a3267"</span> <span class="c"># v4</span>
+  }
+}</pre>
+    </div>
+    <div class="file">
+      <div class="label">cinzel/jobs.hcl</div>
+<pre><span class="k">job</span> <span class="s">"test"</span> {
+  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.unit]
+}
+
+<span class="k">job</span> <span class="s">"soak"</span> {
+  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.load]
+}</pre>
+    </div>
+  </div>
+
+  <p class="caption">
+    Then <code>cinzel github parse</code> writes <code>.github/workflows</code>
+    back out. Bump the version in one place and every job moves with it.
+  </p>
+</section>
+
+<hr>
+
+<section id="commands">
+  <h2>Commands</h2>
+  <p class="lead">Both providers, both directions.</p>
+
+  <table>
+    <tr>
+      <td>cinzel github unparse</td>
+      <td>Turns the YAML you already run into HCL, so you start from a working pipeline rather than a blank file.</td>
+    </tr>
+    <tr>
+      <td>cinzel github parse</td>
+      <td>Turns the HCL back into YAML. Comments survive — above a block, beside a value, closing a body.</td>
+    </tr>
+    <tr>
+      <td>cinzel github diff</td>
+      <td>Reports what parse would change, and writes nothing. Exits 1 when the committed YAML has drifted, so CI can fail on it.</td>
+    </tr>
+    <tr>
+      <td>cinzel github pin</td>
+      <td>Rewrites every action tag as the commit SHA it points at, keeping the tag in a comment. <code>upgrade</code> bumps first, then pins.</td>
+    </tr>
+    <tr>
+      <td>cinzel gitlab …</td>
+      <td>The same two directions for <code>.gitlab-ci.yml</code>. GitLab's HCL is its own — jobs, templates, includes and the pipeline keywords, not GitHub's blocks.</td>
+    </tr>
+    <tr>
+      <td>cinzel github assist</td>
+      <td>Generates a pipeline from a prompt, through the same conversion path. Blocks you already have are referenced, not duplicated.</td>
+    </tr>
+  </table>
+</section>
+
+<hr>
+
+<section id="install">
+  <h2>Install</h2>
+  <p class="lead">macOS, Linux and Windows. No runtime, no configuration to start.</p>
+<div class="shell"><span class="p">$</span> <span class="k">brew</span> <span class="s">tap</span> <span class="n">yldio/cinzel</span> <span class="o">&&</span> <span class="k">brew</span> <span class="s">install</span> <span class="o">--cask</span> <span class="n">cinzel</span>
+<span class="p">$</span> <span class="k">go</span> <span class="s">install</span> <span class="n">github.com/yldio/cinzel@latest</span></div>
+  <p class="caption">
+    Or download a binary from the
+    <a href="https://github.com/yldio/cinzel/releases">releases page</a>.
+  </p>
+</section>
+
+<p class="foot">
+  <a href="https://github.com/yldio/cinzel">GitHub</a>
+  <a href="https://github.com/yldio/cinzel/blob/main/CHANGELOG.md">Changelog</a>
+  <a href="https://github.com/yldio/cinzel/discussions">Discussions</a>
+  <a href="https://github.com/yldio/cinzel/blob/main/LICENSE">Apache-2.0</a>
+</p>
+
+<p class="foot" style="margin-top:6px;padding-top:0;border:0">
+  Made by <a href="https://www.yld.com/">YLD</a>
+</p>
+
+<script>
+  // Set before paint so a reader who chose dark does not get a white flash.
+  (function () {
+    try {
+      var saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.dataset.theme = saved;
+      }
+    } catch (e) {
+      // Private windows and blocked storage both throw here. The page then
+      // follows the system setting, which is where it started.
+    }
+  })();
+
+  // The star count, fetched on every load so a refresh shows the current
+  // number. Anonymous and unauthenticated: GitHub allows 60 an hour per
+  // address, which a page view is well inside. If it fails for any reason —
+  // offline, rate limited, blocked — the link still says "Star" and still
+  // goes to the stargazers page.
+  fetch("https://api.github.com/repos/yldio/cinzel")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (repo) {
+      if (!repo || typeof repo.stargazers_count !== "number") return;
+
+      var n = repo.stargazers_count;
+      var shown = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+
+      document.getElementById("star-count").textContent = shown;
+    })
+    .catch(function () {
+      // Left as "Star".
+    });
+
+  document.getElementById("theme").addEventListener("click", function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme
+      ? root.dataset.theme === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    root.dataset.theme = dark ? "light" : "dark";
+
+    try {
+      localStorage.setItem("theme", root.dataset.theme);
+    } catch (e) {
+      // The choice holds for this page either way.
+    }
+  });
+</script>
+
+</body>
+</html>
