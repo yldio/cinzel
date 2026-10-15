@@ -15,53 +15,60 @@ SPDX-License-Identifier: Apache-2.0
 <meta property="og:image" content="https://yldio.github.io/cinzel/logo.png">
 <style>
 :root {
-  /* Catppuccin Latte */
-  --bg: #eff1f5;        /* base     */
-  --code-bg: #e6e9ef;   /* mantle   */
-  --fg: #4c4f69;        /* text     */
-  --muted: #5c5f77;     /* subtext1 */
-  --faint: #8c8fa1;     /* overlay1 */
-  --line: #ccd0da;      /* surface0 */
-  --link: #1e66f5;      /* blue     */
-  --hit: #fae3b7;       /* yellow, lightened to sit under text */
-  --syn-key: #8839ef;   /* mauve    */
-  --syn-str: #40a02b;   /* green    */
-  --syn-com: #9ca0b0;   /* overlay0 */
-  --syn-punc: #179299;  /* teal     */
+  color-scheme: light dark;
+
+  /* Every value below clears WCAG AA against its background. The palette
+     this replaced was Catppuccin Latte, whose green reaches 2.96:1 as code
+     on the page — a published theme is tuned for an editor, not for text
+     someone has to read once and leave. */
+  --bg: #ffffff;
+  --code-bg: #f4f6f8;
+  --fg: #14171a;        /* 17.99 */
+  --muted: #424a53;     /*  8.99 */
+  --faint: #5c6670;     /*  5.85 */
+  --line: #c9d1d9;
+  --link: #0a47b8;      /*  8.06 */
+  --hit: #fff3bf;
+  --hit-line: #e0b400;
+  --syn-key: #6f1fb0;   /*  8.40 */
+  --syn-str: #0e6b2e;   /*  6.64 */
+  --syn-com: #5c6670;   /*  5.85 */
+  --syn-punc: #9a4a00;  /*  6.26 */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-/* Catppuccin Mocha */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1e1e2e;        /* base     */
-    --code-bg: #181825;   /* mantle   */
-    --fg: #cdd6f4;        /* text     */
-    --muted: #bac2de;     /* subtext1 */
-    --faint: #7f849c;     /* overlay1 */
-    --line: #313244;      /* surface0 */
-    --link: #89b4fa;      /* blue     */
-    --hit: #45475a;       /* surface1, since yellow behind text is unreadable */
-    --syn-key: #cba6f7;   /* mauve    */
-    --syn-str: #a6e3a1;   /* green    */
-    --syn-com: #6c7086;   /* overlay0 */
-    --syn-punc: #94e2d5;  /* teal     */
+    --bg: #0d1117;
+    --code-bg: #161b22;
+    --fg: #e8edf3;        /* 16.08 */
+    --muted: #b3bdc8;     /*  9.94 */
+    --faint: #8b96a3;     /*  6.30 */
+    --line: #30363d;
+    --link: #79b8ff;      /*  9.11 */
+    --hit: #3d2f00;
+    --hit-line: #9e7c00;
+    --syn-key: #d2a8ff;   /*  9.72 */
+    --syn-str: #7ee787;   /* 12.32 */
+    --syn-com: #8b96a3;   /*  6.30 */
+    --syn-punc: #ffab70;  /* 10.19 */
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #1e1e2e;
-  --code-bg: #181825;
-  --fg: #cdd6f4;
-  --muted: #bac2de;
-  --faint: #7f849c;
-  --line: #313244;
-  --link: #89b4fa;
-  --hit: #45475a;
-  --syn-key: #cba6f7;
-  --syn-str: #a6e3a1;
-  --syn-com: #6c7086;
-  --syn-punc: #94e2d5;
+  --bg: #0d1117;
+  --code-bg: #161b22;
+  --fg: #e8edf3;
+  --muted: #b3bdc8;
+  --faint: #8b96a3;
+  --line: #30363d;
+  --link: #79b8ff;
+  --hit: #3d2f00;
+  --hit-line: #9e7c00;
+  --syn-key: #d2a8ff;
+  --syn-str: #7ee787;
+  --syn-com: #8b96a3;
+  --syn-punc: #ffab70;
 }
 
 * { box-sizing: border-box; }
@@ -81,13 +88,55 @@ a { color: var(--link); }
 
 .top {
   padding: 40px 0 0;
+  position: relative;
 }
 
+#theme {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#theme:hover { color: var(--fg); border-color: var(--faint); }
+
+#theme:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+#theme svg { width: 17px; height: 17px; display: block; }
+
+/* One icon shows at a time: the sun when the page is dark, because the
+   button offers the other state rather than describing this one. */
+#theme .moon { display: block; }
+#theme .sun { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #theme .moon { display: none; }
+  :root:not([data-theme="light"]) #theme .sun { display: block; }
+}
+
+:root[data-theme="dark"] #theme .moon { display: none; }
+:root[data-theme="dark"] #theme .sun { display: block; }
+:root[data-theme="light"] #theme .moon { display: block; }
+:root[data-theme="light"] #theme .sun { display: none; }
+
 h1 {
-  font-size: 23px;
+  font-size: 28px;
   font-weight: 700;
-  margin: 0 0 4px;
-  letter-spacing: -0.01em;
+  margin: 0 0 3px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .pron { font-size: 13px; color: var(--faint); margin: 0 0 18px; }
@@ -112,19 +161,23 @@ h1 {
 hr {
   border: 0;
   border-top: 1px solid var(--line);
-  margin: 32px 0;
+  margin: 38px 0;
 }
 
+/* A step above the paragraph beneath it, in size as well as weight. At the
+   body's own 15px the only difference was boldness, which reads as an
+   emphasised sentence rather than the start of a section. */
 h2 {
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 650;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
 }
 
 h2 + .lead {
   font-size: 15px;
   color: var(--muted);
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   max-width: 64ch;
 }
 
@@ -168,6 +221,9 @@ mark {
   color: inherit;
   padding: 0 2px;
   border-radius: 2px;
+  /* Not colour alone: the mark is the one thing a reader has to notice, and
+     a background tint is the first thing lost to a cheap screen. */
+  box-shadow: inset 0 -2px 0 var(--hit-line);
 }
 
 .k { color: var(--syn-key); }
@@ -252,6 +308,18 @@ td:last-child { color: var(--muted); }
 <body>
 
 <div class="top">
+  <button id="theme" type="button" aria-label="Switch between light and dark">
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+    </svg>
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"/>
+      <path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/>
+    </svg>
+  </button>
+
   <h1>cinzel</h1>
   <p class="pron">/sĩˈzɛl/ · Portuguese for <i>chisel</i></p>
 
@@ -399,6 +467,36 @@ td:last-child { color: var(--muted); }
 <p class="foot" style="margin-top:6px;padding-top:0;border:0">
   Made by <a href="https://www.yld.com/">YLD</a>
 </p>
+
+<script>
+  // Set before paint so a reader who chose dark does not get a white flash.
+  (function () {
+    try {
+      var saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.dataset.theme = saved;
+      }
+    } catch (e) {
+      // Private windows and blocked storage both throw here. The page then
+      // follows the system setting, which is where it started.
+    }
+  })();
+
+  document.getElementById("theme").addEventListener("click", function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme
+      ? root.dataset.theme === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    root.dataset.theme = dark ? "light" : "dark";
+
+    try {
+      localStorage.setItem("theme", root.dataset.theme);
+    } catch (e) {
+      // The choice holds for this page either way.
+    }
+  });
+</script>
 
 </body>
 </html>
