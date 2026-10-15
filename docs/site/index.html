@@ -7,508 +7,393 @@ SPDX-License-Identifier: Apache-2.0
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cinzel — CI/CD pipelines as HCL</title>
+<title>cinzel — one step, four copies</title>
 <meta name="description" content="cinzel converts CI/CD pipelines between YAML and HCL, both directions, for GitHub Actions and GitLab CI/CD.">
 <link rel="icon" href="logo.png">
-<meta property="og:title" content="cinzel — CI/CD pipelines as HCL">
-<meta property="og:description" content="Write a step once. Reference it everywhere. Convert back to YAML.">
+<meta property="og:title" content="cinzel — one step, four copies">
+<meta property="og:description" content="YAML has no way to say: this step, the one I already wrote.">
 <meta property="og:image" content="https://yldio.github.io/cinzel/logo.png">
 <style>
 :root {
-  --ink: #16150f;
-  --ink-soft: #57544a;
-  --ink-faint: #8b8778;
-  --paper: #faf8f3;
-  --paper-raised: #ffffff;
-  --rule: #e2ddd0;
-  --chisel: #b4451f;
-  --chisel-soft: #f4e5de;
-  --code-bg: #1c1a16;
-  --code-ink: #e8e3d7;
-  --code-key: #c9a227;
-  --code-str: #93b06a;
-  --code-dim: #6d6758;
+  --stone: #d7d1c2;
+  --cut: #14120e;
+  --dust: #f1ede3;
+  --chisel: #c1451a;
+  --ink: #14120e;
+  --ink-soft: #5c574b;
+  --ink-faint: #918c7d;
+  --rule: #ddd6c6;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink: #f2efe6;
-    --ink-soft: #b0ab9c;
-    --ink-faint: #7d7869;
-    --paper: #12110e;
-    --paper-raised: #1b1915;
-    --rule: #2e2b24;
-    --chisel: #e07b4f;
-    --chisel-soft: #2a1c15;
-    --code-bg: #080706;
+    --stone: #241f18;
+    --cut: #000000;
+    --dust: #0f0e0b;
+    --chisel: #e8753f;
+    --ink: #efeade;
+    --ink-soft: #a7a192;
+    --ink-faint: #6e695c;
+    --rule: #2b2720;
   }
 }
 
 :root[data-theme="dark"] {
-  --ink: #f2efe6;
-  --ink-soft: #b0ab9c;
-  --ink-faint: #7d7869;
-  --paper: #12110e;
-  --paper-raised: #1b1915;
-  --rule: #2e2b24;
-  --chisel: #e07b4f;
-  --chisel-soft: #2a1c15;
-  --code-bg: #080706;
+  --stone: #241f18;
+  --cut: #000000;
+  --dust: #0f0e0b;
+  --chisel: #e8753f;
+  --ink: #efeade;
+  --ink-soft: #a7a192;
+  --ink-faint: #6e695c;
+  --rule: #2b2720;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--dust);
   color: var(--ink);
-  font-family: var(--sans);
-  font-size: 17px;
-  line-height: 1.6;
+  font: 400 16px/1.55 var(--mono);
   -webkit-font-smoothing: antialiased;
 }
 
-.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+.w { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+a { color: var(--chisel); }
 
-a { color: var(--chisel); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-
-/* ── masthead ─────────────────────────────────────────── */
-
-header {
-  border-bottom: 1px solid var(--rule);
-  position: sticky;
-  top: 0;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(12px);
-  z-index: 10;
+/* a scored line, the mark a chisel leaves */
+.scored {
+  height: 3px;
+  background: repeating-linear-gradient(90deg,
+    var(--chisel) 0 2px, transparent 2px 9px);
 }
 
-.bar {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 14px 0;
-}
-
-.mark {
-  font-family: var(--mono);
-  font-weight: 600;
-  font-size: 16px;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  text-decoration: none;
+header .w {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 14px;
+  padding: 18px 20px;
 }
 
-.mark .chip {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-faint);
-  letter-spacing: 0.04em;
-}
-
-nav { margin-left: auto; display: flex; gap: 22px; align-items: center; }
-
-nav a {
-  font-size: 14px;
-  color: var(--ink-soft);
-  text-decoration: none;
-}
-
-nav a:hover { color: var(--chisel); }
-
-/* ── hero ─────────────────────────────────────────────── */
-
-.hero { padding: 88px 0 56px; }
-
-h1 {
-  font-size: clamp(2.6rem, 7vw, 4.4rem);
-  line-height: 1.02;
-  letter-spacing: -0.035em;
-  font-weight: 620;
-  margin: 0 0 22px;
-  max-width: 15ch;
-}
-
-h1 em {
-  font-style: normal;
-  color: var(--chisel);
-}
-
-.lede {
-  font-size: clamp(1.05rem, 2.3vw, 1.3rem);
-  color: var(--ink-soft);
-  max-width: 52ch;
-  margin: 0 0 34px;
-  line-height: 1.5;
-}
-
-.cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-
-.btn {
-  font-family: var(--mono);
-  font-size: 14px;
-  padding: 11px 18px;
-  border-radius: 7px;
-  text-decoration: none;
-  border: 1px solid transparent;
-  transition: transform .08s ease;
-}
-
-.btn:active { transform: translateY(1px); }
-
-.btn-solid { background: var(--ink); color: var(--paper); }
-.btn-ghost { border-color: var(--rule); color: var(--ink); background: var(--paper-raised); }
-
-/* ── the comparison, the whole point ──────────────────── */
-
-.compare { padding: 8px 0 72px; }
-
-.panes {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 0;
-  align-items: stretch;
-  border: 1px solid var(--rule);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--code-bg);
-}
-
-.pane { min-width: 0; }
-
-.pane-head {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--code-dim);
-  padding: 13px 18px 0;
-}
-
-.chisel-gap {
-  width: 1px;
-  background: var(--rule);
-  position: relative;
-}
-
-.chisel-gap::after {
-  content: "→";
-  position: absolute;
-  top: 46%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--code-bg);
-  color: var(--chisel);
-  font-size: 15px;
-  padding: 7px 4px;
-  line-height: 1;
-}
-
-pre {
-  margin: 0;
-  padding: 12px 18px 20px;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: var(--code-ink);
-  overflow-x: auto;
-  tab-size: 2;
-}
-
-.k { color: var(--code-key); }
-.s { color: var(--code-str); }
-.c { color: var(--code-dim); }
-.r { color: var(--chisel); }
-
-.compare-note {
-  margin: 18px 0 0;
-  font-size: 15px;
-  color: var(--ink-soft);
-  max-width: 68ch;
-}
-
-.compare-note code {
-  font-family: var(--mono);
-  font-size: 13px;
-  background: var(--chisel-soft);
-  color: var(--chisel);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
-/* ── facts ────────────────────────────────────────────── */
-
-.facts {
-  border-top: 1px solid var(--rule);
-  padding: 56px 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 38px 44px;
-}
-
-.fact h3 {
-  font-size: 15px;
-  margin: 0 0 7px;
+.wordmark {
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
 }
 
-.fact p {
-  margin: 0;
+.say { font-size: 11.5px; color: var(--ink-faint); }
+
+header nav { margin-left: auto; display: flex; gap: 18px; font-size: 13px; }
+header nav a { color: var(--ink-soft); text-decoration: none; }
+header nav a:hover { color: var(--chisel); }
+
+.kicker {
+  font-size: 11.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 18px;
+}
+
+/* ── the uncut block ──────────────────────────────────── */
+
+.problem { padding: 56px 0 0; }
+
+.slab {
+  background: var(--stone);
+  padding: 22px 0;
+  border-radius: 2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 20px;
+  padding: 6px 30px;
+  font-size: 13px;
+  line-height: 1.55;
+  align-items: start;
+}
+
+.row .where {
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row .what { white-space: pre; overflow-x: auto; }
+
+.drifted { color: var(--chisel); font-weight: 600; }
+
+.note {
+  margin: 20px 0 0;
   font-size: 14.5px;
   color: var(--ink-soft);
-  line-height: 1.55;
+  max-width: 60ch;
+  line-height: 1.6;
 }
 
-.fact code {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--ink);
+.note b { color: var(--ink); font-weight: 600; }
+
+/* ── the cut ──────────────────────────────────────────── */
+
+.cut {
+  margin: 52px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-/* ── commands ─────────────────────────────────────────── */
+.cut .score { flex: 1; height: 1px; background: var(--rule); }
 
-.commands { border-top: 1px solid var(--rule); padding: 56px 0; }
-
-h2 {
-  font-size: 13px;
-  letter-spacing: 0.1em;
+.cut .word {
+  font-size: 11.5px;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--chisel);
+}
+
+/* ── what comes out ───────────────────────────────────── */
+
+h1 {
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  line-height: 1.25;
+  letter-spacing: -0.03em;
   font-weight: 600;
-  margin: 0 0 26px;
+  margin: 0 0 20px;
 }
 
-.cmd-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
-}
+h1 span { color: var(--chisel); }
 
-.cmd {
-  background: var(--paper-raised);
-  border: 1px solid var(--rule);
-  border-radius: 10px;
-  padding: 18px 20px;
-}
-
-.cmd code {
-  display: block;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--ink);
-  margin-bottom: 8px;
-  line-height: 1.5;
-  /* Wrapped at a space rather than scrolled: a card is read at a glance,
-     and half a command with the rest behind a scrollbar is not one. */
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
-
-.cmd code b { color: var(--chisel); font-weight: 600; }
-
-.cmd span { font-size: 14px; color: var(--ink-soft); }
-
-/* ── install ──────────────────────────────────────────── */
-
-.install { border-top: 1px solid var(--rule); padding: 56px 0 72px; }
-
-.shell {
-  background: var(--code-bg);
-  border-radius: 10px;
-  padding: 18px 20px;
-  font-family: var(--mono);
+.carved {
+  background: var(--cut);
+  color: #e9e4d8;
+  border-radius: 2px;
+  padding: 22px 26px;
   font-size: 13px;
-  color: var(--code-ink);
+  line-height: 1.75;
   overflow-x: auto;
-  line-height: 1.9;
   white-space: pre;
 }
 
-.shell .p { color: var(--chisel); user-select: none; }
+.carved .ref { color: #e8753f; }
+.carved .dim { color: #6f6a5c; }
+.carved .str { color: #9fb471; }
+
+.after {
+  margin: 18px 0 0;
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  max-width: 60ch;
+  line-height: 1.6;
+}
+
+.after code { color: var(--chisel); font-size: 13px; }
+
+/* ── the commands, as a ledger ────────────────────────── */
+
+dl { margin: 0; }
+
+.pair {
+  display: grid;
+  grid-template-columns: 215px 1fr;
+  gap: 24px;
+  padding: 15px 0;
+  border-bottom: 1px dotted var(--rule);
+  align-items: baseline;
+}
+
+.pair:first-of-type { border-top: 1px dotted var(--rule); }
+
+dt { font-size: 13.5px; color: var(--ink-soft); white-space: nowrap; }
+dt b { color: var(--chisel); font-weight: 600; }
+dd { margin: 0; font-size: 14px; color: var(--ink-soft); line-height: 1.55; }
+dd b { color: var(--ink); font-weight: 600; }
+
+/* ── install ──────────────────────────────────────────── */
+
+.install { padding: 52px 0 52px; }
+
+.lines {
+  background: var(--cut);
+  color: #e9e4d8;
+  border-radius: 2px;
+  padding: 20px 26px;
+  font-size: 13px;
+  line-height: 2.1;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.lines .p { color: #e8753f; user-select: none; }
 
 footer {
+  margin-top: 0;
   border-top: 1px solid var(--rule);
-  padding: 26px 0 44px;
-  font-size: 13.5px;
+  padding: 20px 0 44px;
+  font-size: 12.5px;
   color: var(--ink-faint);
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  align-items: center;
+  gap: 8px 18px;
 }
 
 footer a { color: var(--ink-soft); text-decoration: none; }
 footer a:hover { color: var(--chisel); }
-footer .sep { margin-left: auto; }
+footer .end { margin-left: auto; }
 
-@media (max-width: 760px) {
-  .hero { padding: 54px 0 36px; }
-  .panes { grid-template-columns: 1fr; }
-  .chisel-gap { width: auto; height: 1px; }
-  .chisel-gap::after { content: "↓"; padding: 4px 7px; }
-  nav a[data-opt] { display: none; }
+@media (max-width: 720px) {
+  .w { padding: 0 18px; }
+  .problem { padding-top: 36px; }
+  .row { grid-template-columns: 1fr; gap: 2px; padding: 9px 20px; }
+  .row .where { text-align: left; font-size: 11px; }
+  .pair { grid-template-columns: 1fr; gap: 6px; }
+  dt { white-space: normal; }
+  .cut { margin: 38px 0; }
+  .install { padding: 38px 0 44px; }
+  header nav a[data-opt] { display: none; }
+
+  /* The dark and stone blocks have no inset of their own, so at this width
+     they read as flush against the edge while the prose beside them does
+     not. A little more room inside each, and the page keeps one margin. */
+  .carved, .lines { padding: 18px 20px; font-size: 12px; }
+  .slab { padding: 18px 0; }
 }
 </style>
 </head>
 <body>
 
+<div class="scored"></div>
+
 <header>
-  <div class="wrap bar">
-    <a class="mark" href="./">
-      cinzel
-      <span class="chip">/sĩˈzɛl/ · chisel</span>
-    </a>
+  <div class="w">
+    <a class="wordmark" href="./">cinzel</a>
+    <span class="say">/sĩˈzɛl/ · Portuguese for chisel</span>
     <nav>
       <a href="https://github.com/yldio/cinzel#readme">Docs</a>
-      <a data-opt href="https://github.com/yldio/cinzel/blob/main/provider/github/README.md">GitHub Actions</a>
-      <a data-opt href="https://github.com/yldio/cinzel/blob/main/provider/gitlab/README.md">GitLab CI</a>
+      <a data-opt href="https://github.com/yldio/cinzel/releases">Releases</a>
       <a href="https://github.com/yldio/cinzel">Source</a>
     </nav>
   </div>
 </header>
 
-<main class="wrap">
+<main>
 
-  <section class="hero">
-    <h1>Write the step once. <em>Reference it everywhere.</em></h1>
-    <p class="lede">
-      YAML pipelines grow by copy and paste — there is no way to say
-      <em>this step, the one I already wrote</em>. HCL has references.
-      cinzel converts between the two, in both directions.
-    </p>
-    <div class="cta">
-      <a class="btn btn-solid" href="#install">Install</a>
-      <a class="btn btn-ghost" href="https://github.com/yldio/cinzel">View source</a>
+  <section class="w problem">
+    <p class="kicker">One step, four copies, two of them wrong</p>
+
+    <div class="slab">
+      <div class="row">
+        <span class="where">ci.yaml</span>
+        <span class="what">- uses: actions/checkout@v4</span>
+      </div>
+      <div class="row">
+        <span class="where">release.yaml</span>
+        <span class="what">- uses: actions/checkout@v4</span>
+      </div>
+      <div class="row">
+        <span class="where">nightly.yaml</span>
+        <span class="what">- uses: actions/checkout@<span class="drifted">v3</span></span>
+      </div>
+      <div class="row">
+        <span class="where">docs.yaml</span>
+        <span class="what">- uses: actions/checkout@v4
+  with:
+    <span class="drifted">persist-credentials: true</span></span>
+      </div>
     </div>
+
+    <p class="note">
+      YAML has no way to say <b>this step, the one I already wrote</b>. So you
+      write it again. The third copy is a version behind and the fourth leaves
+      a token on disk, and nothing anywhere says so.
+    </p>
   </section>
 
-  <section class="compare">
-    <div class="panes">
-      <div class="pane">
-        <div class="pane-head">.github/workflows/ci.yaml</div>
-<pre><span class="k">name</span>: CI
-<span class="k">on</span>:
-  <span class="k">push</span>:
-    <span class="k">branches</span>: [main]
-<span class="k">jobs</span>:
-  <span class="k">build-and-test</span>:
-    <span class="k">runs-on</span>: ubuntu-latest
-    <span class="k">steps</span>:
-      - <span class="k">uses</span>: actions/checkout@v4
-      - <span class="k">name</span>: Test
-        <span class="k">run</span>: go test ./...</pre>
-      </div>
+  <div class="w cut">
+    <span class="score"></span>
+    <span class="word">cut once</span>
+    <span class="score"></span>
+  </div>
 
-      <div class="chisel-gap"></div>
+  <section class="w">
+    <h1>A step is a block.<br>Every job <span>points at it</span>.</h1>
 
-      <div class="pane">
-        <div class="pane-head">cinzel/ci.hcl</div>
-<pre><span class="k">job</span> <span class="s">"build_and_test"</span> {
-  id = <span class="s">"build-and-test"</span>
-
-  <span class="k">runs_on</span> {
-    runners = <span class="s">"ubuntu-latest"</span>
+<div class="carved"><span class="dim"># cinzel/steps.hcl — written once</span>
+step <span class="str">"checkout"</span> {
+  uses {
+    action  = <span class="str">"actions/checkout"</span>
+    version = <span class="str">"11d5960a3267"</span> <span class="dim"># v4</span>
   }
+}
 
-  steps = [
-    <span class="r">step.checkout</span>,
-    <span class="r">step.test</span>,
-  ]
-}</pre>
-      </div>
-    </div>
+<span class="dim"># cinzel/jobs.hcl — and wherever it is needed</span>
+job <span class="str">"ci"</span>      { steps = [<span class="ref">step.checkout</span>, step.test]  }
+job <span class="str">"release"</span> { steps = [<span class="ref">step.checkout</span>, step.build] }
+job <span class="str">"nightly"</span> { steps = [<span class="ref">step.checkout</span>, step.soak]  }
+job <span class="str">"docs"</span>    { steps = [<span class="ref">step.checkout</span>, step.site]  }</div>
 
-    <p class="compare-note">
-      <code>step.checkout</code> is a real reference. Rename the block and every
-      job using it follows. Write a step once and ten jobs share it. GitHub and
-      GitLab still read only YAML, so cinzel converts back.
+    <p class="after">
+      Bump the version in one place and all four move. Rename the block and
+      every reference follows. GitHub and GitLab read only YAML, so
+      <code>cinzel github parse</code> writes it back — comments, key order and
+      all.
     </p>
   </section>
 
-  <section class="facts">
-    <div class="fact">
-      <h3>Both directions</h3>
-      <p><code>unparse</code> turns the pipeline you already run into HCL.
-      <code>parse</code> turns it back. Start from what you have.</p>
-    </div>
-    <div class="fact">
-      <h3>Comments survive</h3>
-      <p>Above a block, beside a value, closing a body. The note saying why a
-      version is pinned is still there after the round trip.</p>
-    </div>
-    <div class="fact">
-      <h3>Pinned to SHAs</h3>
-      <p><code>pin</code> rewrites every action tag as the commit it points at,
-      keeping the tag in a comment. <code>upgrade</code> bumps, then pins.</p>
-    </div>
-    <div class="fact">
-      <h3>Drift fails the build</h3>
-      <p><code>diff</code> reports what parse would change and writes nothing.
-      Exit 1 on drift, 2 if it could not run.</p>
-    </div>
-    <div class="fact">
-      <h3>Two providers</h3>
-      <p>GitHub Actions — workflows, composite actions, the step graph.
-      GitLab CI/CD — jobs, templates, includes.</p>
-    </div>
-    <div class="fact">
-      <h3>Refuses rather than guesses</h3>
-      <p>HCL that would produce YAML the platform rejects stops with an error
-      naming the problem.</p>
-    </div>
+  <div class="w cut">
+    <span class="score"></span>
+    <span class="word">both directions</span>
+    <span class="score"></span>
+  </div>
+
+  <section class="w">
+    <dl>
+      <div class="pair">
+        <dt>cinzel github <b>unparse</b></dt>
+        <dd>The pipeline you already run, turned into HCL. Start from what you have, not a blank file.</dd>
+      </div>
+      <div class="pair">
+        <dt>cinzel github <b>parse</b></dt>
+        <dd>Back to the YAML the platform reads. Comments survive the trip — above a block, beside a value, closing a body.</dd>
+      </div>
+      <div class="pair">
+        <dt>cinzel github <b>diff</b></dt>
+        <dd>Says what parse would change and writes nothing. Exit <b>1</b> when the committed YAML has drifted, <b>2</b> when it could not run.</dd>
+      </div>
+      <div class="pair">
+        <dt>cinzel github <b>pin</b></dt>
+        <dd>Every action tag becomes the commit it points at, tag kept in a comment. <b>upgrade</b> bumps first, then pins.</dd>
+      </div>
+      <div class="pair">
+        <dt>cinzel gitlab <b>…</b></dt>
+        <dd>The same two directions for <code>.gitlab-ci.yml</code> — jobs, templates, includes, the pipeline keywords.</dd>
+      </div>
+      <div class="pair">
+        <dt>cinzel github <b>assist</b></dt>
+        <dd>A pipeline from a prompt, through the same path your own YAML takes. What you already have is referenced, not duplicated.</dd>
+      </div>
+    </dl>
   </section>
 
-  <section class="commands">
-    <h2>Commands</h2>
-    <div class="cmd-grid">
-      <div class="cmd">
-        <code>cinzel github <b>unparse</b> -d .github/workflows</code>
-        <span>YAML you already run → HCL.</span>
-      </div>
-      <div class="cmd">
-        <code>cinzel github <b>parse</b> -d cinzel</code>
-        <span>HCL → the YAML the platform reads.</span>
-      </div>
-      <div class="cmd">
-        <code>cinzel github <b>diff</b></code>
-        <span>Fails the build when the committed YAML has drifted.</span>
-      </div>
-      <div class="cmd">
-        <code>cinzel github <b>pin</b></code>
-        <span>Every action tag becomes the SHA it points at.</span>
-      </div>
-      <div class="cmd">
-        <code>cinzel gitlab <b>unparse</b> -f .gitlab-ci.yml</code>
-        <span>Same two directions, GitLab's keywords.</span>
-      </div>
-      <div class="cmd">
-        <code>cinzel github <b>assist</b> -p "go PR with tests"</code>
-        <span>A pipeline from a prompt, converted the usual way.</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="install" id="install">
-    <h2>Install</h2>
-    <div class="shell"><span class="p">$</span> brew tap yldio/cinzel &amp;&amp; brew install --cask cinzel
+  <section class="w install" id="install">
+    <p class="kicker">Install</p>
+<div class="lines"><span class="p">$</span> brew tap yldio/cinzel && brew install --cask cinzel
 <span class="p">$</span> go install github.com/yldio/cinzel@latest</div>
   </section>
 
-</main>
+  <footer class="w">
+    <span>Apache-2.0</span>
+    <a href="https://github.com/yldio/cinzel/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/yldio/cinzel/discussions">Discussions</a>
+    <span class="end">Made by <a href="https://www.yld.com/">YLD</a></span>
+  </footer>
 
-<footer class="wrap">
-  <span>Apache-2.0</span>
-  <a href="https://github.com/yldio/cinzel/releases">Releases</a>
-  <a href="https://github.com/yldio/cinzel/blob/main/CHANGELOG.md">Changelog</a>
-  <a href="https://github.com/yldio/cinzel/discussions">Discussions</a>
-  <span class="sep">Made by <a href="https://www.yld.com/">YLD</a></span>
-</footer>
+</main>
 
 </body>
 </html>
