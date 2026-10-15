@@ -116,7 +116,7 @@ func BenchmarkUnparseWorkflowInMemory(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if _, _, err := unparseYAMLFile(content, "workflow_call", "workflow_call", map[string]struct{}{}, map[string]struct{}{}); err != nil {
+		if _, _, _, err := unparseYAMLFile(content, "workflow_call", "workflow_call", map[string]struct{}{}, map[string]struct{}{}); err != nil {
 			b.Fatal(err)
 		}
 	}

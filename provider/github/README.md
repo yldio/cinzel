@@ -322,6 +322,11 @@ subdirectory of `.github/workflows`, so the two cannot be told apart by path:
 writing one as `a/ci` produces a file that converts cleanly and never runs.
 Rename one, or convert the directories separately.
 
+The same holds for two actions. A workflow and an action may share a name,
+though — they are written to `ci.yaml` and `ci/action.yml`, two files in two
+places — so a check workflow beside the composite action it calls converts
+without complaint.
+
 ## Generated output
 
 Parse opens every file it writes with three lines:
