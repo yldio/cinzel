@@ -129,27 +129,28 @@ better in a tree. Where a file goes on the way back is its own `path` either
 way, so this is a convenience, and a mirrored tree has to be parsed with
 `--recursive`.
 
-A repository keeping composite actions in folders of their own converts in one
-run each way:
+If you keep composite actions in folders of their own, one run each way
+converts the lot:
 
 ```sh
-cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github unparse -d actions-x -d actions-y -r --output-directory cinzel
 cinzel github parse -d cinzel
 ```
 
-Each action records where it was found, so parse puts it back there. See the
-[GitHub provider README](provider/github/README.md) for the `path` attribute
-that carries it.
+Each action remembers where it came from, so parse puts it back there. The
+[GitHub provider README](provider/github/README.md) covers the `path` attribute
+that holds it.
 
 ### `--root`, and `--output-directory`
 
 `--output-directory` says where one kind of file goes. `--root` says where the
-whole output shape goes, which is one answer instead of one per document type:
+whole output shape goes, which is one answer instead of one per document type.
+It must be a path relative to where cinzel runs:
 
 ```sh
-cinzel github parse --root /tmp/x
-# → /tmp/x/.github/workflows/ci.yaml
-# → /tmp/x/actions-a/setup/action.yml
+cinzel github parse --root project-x
+# → project-x/.github/workflows/ci.yaml
+# → project-x/actions-x/setup/action.yml
 ```
 
 It applies to both directions and both providers, and on unparse it is the
@@ -175,8 +176,9 @@ github:
 
 A flag on the command line still wins. It covers `parse` and `unparse` only,
 per provider — `assist`, `pin`, `upgrade` and `init` ignore it. The keys are
-`file`, `directory`, `output-directory` and, for parse, `yml`; anything else,
-`recursive` included, prints `warning: ...: unknown key` and is skipped.
+`file`, `directory`, `output-directory` and `yml`; `yml` only affects parse,
+so it is accepted and ignored under `unparse`. Anything else, `recursive`
+included, prints `warning: ...: unknown key` and is skipped.
 
 Paths must be relative and written with forward slashes. The file is meant to
 be committed and read on every machine that checks the repo out, so an absolute
@@ -243,10 +245,12 @@ cannot report. Parse prunes generated YAML it no longer writes, so a renamed
 workflow leaves its old output behind — and a directory comparison reads that
 as a file missing on one side, which looks the same as drift and never clears.
 
-It takes the same flags as `parse` and reads the same `.cinzelrc.yaml` section,
-since it is answering what parse would do. A CRLF checkout is not reported as
-drift: generated files are written with LF, and git converts line endings on
-Windows by default.
+It takes `parse`'s input and output flags — `--file`, `--directory`,
+`--recursive`, `--output-directory` and `--yml` — and not `--root` or
+`--dry-run`, since it writes nothing. It reads the same `.cinzelrc.yaml`
+section, since it is answering what parse would do. A CRLF checkout is not
+reported as drift: generated files are written with LF, and git converts line
+endings on Windows by default.
 
 One thing to know: the `cinzel-source` marker records the HCL file a workflow
 came from, relative to where cinzel ran. Run `diff` from a different directory
