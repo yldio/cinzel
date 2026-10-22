@@ -10,6 +10,13 @@ components:
 origin: docs/plans/2026-03-16-feat-cinzel-assist-ai-workflow-generation-plan.md (deleted, in 64f8348^)
 ---
 
+> Two details have moved since this note was written. `assist` is no longer a
+> top-level command with a `--provider` flag: it is a per-provider subcommand,
+> `cinzel github assist` and `cinzel gitlab assist`
+> (`internal/command/command.go`). And pin no longer adds a
+> `// actions/checkout v4` comment above the `uses` block: the tag now trails
+> the `version` line as `# <tag>` (`internal/pin/pin.go`).
+
 # cinzel assist, pin, and upgrade
 
 Three new commands added to cinzel for AI-powered workflow generation and GitHub Actions version management.

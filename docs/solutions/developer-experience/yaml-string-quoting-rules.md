@@ -15,12 +15,12 @@ tags:
   - "stringNeedsQuoting"
   - "workflow_yaml"
 created_date: "2026-03-08"
-updated_date: "2026-09-18"
+updated_date: "2026-10-22"
 ---
 
 > The function moved and the list moved with it. It is `needsQuoting` in
-> `internal/yamldoc/encode.go:158`, shared by both providers; GitLab keeps its own
-> `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:329`) because running GitLab keys
+> `internal/yamldoc/encode.go:201`, shared by both providers; GitLab keeps its own
+> `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:335`) because running GitLab keys
 > through the shared one would quote a large share of real pipelines. The rules below are
 > right in outline and stale in detail — read the code for the current list. What changed:
 > `y` and `n` joined the boolean words (YAML 1.1 reads those too), a value whose ends are

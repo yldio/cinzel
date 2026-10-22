@@ -12,6 +12,10 @@ symptoms:
 root_cause: "mathieudutour/github-tag-action creates tags via GitHub API (remote), so the local checkout lacks the new tag. git-cliff --latest with --offline sees the previous tag as latest, generating notes for the wrong range."
 ---
 
+> The HCL below is a snapshot: `cinzel/steps.hcl` now pins
+> `orhun/git-cliff-action` to `a9a95522b26fe6403f7bb24031f21fb573d0f5ff`
+> (v4.9.1).
+
 # git-cliff release notes showing wrong version in CI
 
 ## Problem symptoms
