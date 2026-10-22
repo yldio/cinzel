@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 <meta name="description" content="cinzel converts CI/CD pipelines between HCL and YAML, both directions, for GitHub Actions and GitLab CI/CD.">
 <link rel="icon" href="logo.png">
 <meta property="og:title" content="cinzel — write CI/CD pipelines in HCL">
-<meta property="og:description" content="Write GitHub Actions workflows or GitLab pipelines as HCL, where a step is defined once and reused by name. cinzel writes the YAML each platform expects, and converts back.">
+<meta property="og:description" content="cinzel converts CI/CD pipelines between HCL and YAML, in both directions.">
 <meta property="og:image" content="https://yldio.github.io/cinzel/logo.png">
 <style>
 :root {
@@ -158,18 +158,11 @@ h1 {
 .pron { font-size: 14.5px; color: var(--faint); margin: 0 0 18px; }
 
 .what {
-  font-size: 20px;
-  line-height: 1.45;
-  margin: 0 0 14px;
-  max-width: 58ch;
-}
-
-/* The second paragraph explains the first, so it steps down rather than
-   repeating its weight. */
-.what.second {
-  font-size: 17.5px;
-  color: var(--muted);
-  max-width: 64ch;
+  font-size: 26px;
+  line-height: 1.35;
+  margin: 0 0 18px;
+  max-width: 54ch;
+  letter-spacing: -0.01em;
 }
 
 .sub {
@@ -217,7 +210,6 @@ h2 + .lead {
   font-size: 16.5px;
   color: var(--muted);
   margin: 0 0 18px;
-  max-width: 64ch;
 }
 
 /* ── before / after ───────────────────────────────────── */
@@ -372,14 +364,7 @@ td:last-child { color: var(--muted); }
   <p class="pron">/sĩˈzɛl/ · Portuguese for <i>chisel</i></p>
 
   <p class="what">
-    cinzel converts CI/CD pipelines between HCL and YAML, in both directions.
-  </p>
-
-  <p class="what second">
-    Write GitHub Actions workflows or GitLab pipelines as HCL — where a step
-    is defined once and reused by name — and cinzel writes the YAML each
-    platform expects. Point it at the pipeline you already run to get the HCL
-    to start from.
+    cinzel converts CI/CD pipelines between HCL and YAML and vice-versa.
   </p>
 
   <p class="sub">
@@ -403,42 +388,35 @@ td:last-child { color: var(--muted); }
 <hr>
 
 <section id="how">
-  <h2>The problem</h2>
+  <h2>How it works</h2>
   <p class="lead">
-    A step used by several workflows is written out once per workflow.
-    Nothing connects the copies, so they drift.
+    Almost all workflows use the same action more than once, and it is easy to drift versions.
   </p>
 
   <div class="two">
     <div class="file">
-      <div class="label">.github/workflows/ci.yaml</div>
+      <div class="label">.github/workflows/workflow-x.yaml</div>
 <pre><span class="y">jobs</span>:
-  <span class="y">test</span>:
+  <span class="y">job-x</span>:
     <span class="y">steps</span>:
       <span class="o">-</span> <span class="y">uses</span>: <span class="s">actions/checkout</span><span class="o">@</span><span class="n">v4</span></pre>
     </div>
     <div class="file">
-      <div class="label">.github/workflows/nightly.yaml</div>
+      <div class="label">.github/workflows/workflow-y.yaml</div>
 <pre><span class="y">jobs</span>:
-  <span class="y">soak</span>:
+  <span class="y">job-y</span>:
     <span class="y">steps</span>:
       <span class="o">-</span> <span class="y">uses</span>: <span class="s">actions/checkout</span><span class="o">@</span><mark><span class="n">v3</span></mark></pre>
     </div>
   </div>
-
-  <p class="caption">
-    The nightly build is a version behind. It has been for months. You find out
-    when it breaks.
-  </p>
 </section>
 
 <hr>
 
 <section>
-  <h2>In HCL</h2>
+  <h2>...but with cinzel!</h2>
   <p class="lead">
-    The step is a block. Jobs refer to it by name, so there is one copy and one
-    version.
+    A step is a block. Jobs refer to it by reference, and you can reuse the same step for any job.
   </p>
 
   <div class="two">
@@ -453,20 +431,15 @@ td:last-child { color: var(--muted); }
     </div>
     <div class="file">
       <div class="label">cinzel/jobs.hcl</div>
-<pre><span class="k">job</span> <span class="s">"test"</span> {
-  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.unit]
+<pre><span class="k">job</span> <span class="s">"job-x"</span> {
+  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.step-x]
 }
 
-<span class="k">job</span> <span class="s">"soak"</span> {
-  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.load]
+<span class="k">job</span> <span class="s">"job-y"</span> {
+  <span class="r">steps</span> <span class="o">=</span> [<mark><span class="n">step.checkout</span></mark>, step.step-y]
 }</pre>
     </div>
   </div>
-
-  <p class="caption">
-    Then <code>cinzel github parse</code> writes <code>.github/workflows</code>
-    back out. Bump the version in one place and every job moves with it.
-  </p>
 </section>
 
 <hr>
@@ -477,28 +450,28 @@ td:last-child { color: var(--muted); }
 
   <table>
     <tr>
-      <td>cinzel github unparse</td>
+      <td class="s">cinzel &lt;provider&gt; unparse</td>
       <td>Turns the YAML you already run into HCL, so you start from a working pipeline rather than a blank file.</td>
     </tr>
     <tr>
-      <td>cinzel github parse</td>
+      <td class="s">cinzel &lt;provider&gt; parse</td>
       <td>Turns the HCL back into YAML. Comments survive — above a block, beside a value, closing a body.</td>
     </tr>
     <tr>
-      <td>cinzel github diff</td>
+      <td class="s">cinzel &lt;provider&gt; diff</td>
       <td>Reports what parse would change, and writes nothing. Exits 1 when the committed YAML has drifted, so CI can fail on it.</td>
     </tr>
     <tr>
-      <td>cinzel github pin</td>
-      <td>Rewrites every action tag as the commit SHA it points at, keeping the tag in a comment. <code>upgrade</code> bumps first, then pins.</td>
-    </tr>
-    <tr>
-      <td>cinzel gitlab …</td>
-      <td>The same two directions for <code>.gitlab-ci.yml</code>. GitLab's HCL is its own — jobs, templates, includes and the pipeline keywords, not GitHub's blocks.</td>
-    </tr>
-    <tr>
-      <td>cinzel github assist</td>
+      <td class="s">cinzel &lt;provider&gt; assist</td>
       <td>Generates a pipeline from a prompt, through the same conversion path. Blocks you already have are referenced, not duplicated.</td>
+    </tr>
+    <tr>
+      <td class="s">cinzel github pin</td>
+      <td>GitHub only. Rewrites every action tag as the commit SHA it points at, keeping the tag in a comment.</td>
+    </tr>
+    <tr>
+      <td class="s">cinzel github upgrade</td>
+      <td>GitHub only. Upgrades every action to latest tag as the commit SHA it points at, keeping the tag in a comment.</td>
     </tr>
   </table>
 </section>
@@ -510,10 +483,6 @@ td:last-child { color: var(--muted); }
   <p class="lead">macOS, Linux and Windows. No runtime, no configuration to start.</p>
 <div class="shell"><span class="p">$</span> <span class="k">brew</span> <span class="s">tap</span> <span class="n">yldio/cinzel</span> <span class="o">&&</span> <span class="k">brew</span> <span class="s">install</span> <span class="o">--cask</span> <span class="n">cinzel</span>
 <span class="p">$</span> <span class="k">go</span> <span class="s">install</span> <span class="n">github.com/yldio/cinzel@latest</span></div>
-  <p class="caption">
-    Or download a binary from the
-    <a href="https://github.com/yldio/cinzel/releases">releases page</a>.
-  </p>
 </section>
 
 <p class="foot">

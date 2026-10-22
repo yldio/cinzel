@@ -76,8 +76,8 @@ finds nothing.
 directory, both directions, both providers. Not with `--output-directory`,
 which still works and which it supersedes: prefer `--root`.
 
-An action's HCL carries a `path` saying where it lives — `path = "actions-a"`
-writes `actions-a/setup/action.yml`. Unparse fills it in. Do not hand-edit it
+An action's HCL carries a `path` saying where it lives — `path = "actions-x"`
+writes `actions-x/setup/action.yml`. Unparse fills it in. Do not hand-edit it
 to climb out of the repository; parse refuses that.
 
 Comments survive both directions, above a block, beside a value and closing a

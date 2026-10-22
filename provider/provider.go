@@ -16,7 +16,7 @@ type ProviderOps struct {
 
 	// Directory is one directory of input. Directories is several, which
 	// unparse takes because a repository can keep its composite actions in
-	// folders of its own — actions-a, actions-b — alongside the workflows.
+	// folders of its own — actions-x, actions-y — alongside the workflows.
 	//
 	// Both are read, so a caller setting either is understood. InputPaths
 	// puts them together.

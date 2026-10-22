@@ -366,7 +366,7 @@ li { margin-bottom: 5px; }
     <nav id="nav">
       <h3>Start</h3>
       <a href="#install">Install</a>
-      <a href="#start">Start from what you have</a>
+      <a href="#start">Converting your current CI/CD</a>
       <a href="#layout">Where files live</a>
 
       <h3>Commands</h3>
@@ -411,9 +411,7 @@ li { margin-bottom: 5px; }
 
     <h1>Documentation</h1>
     <p class="intro">
-      cinzel converts CI/CD pipelines between HCL and YAML, in both directions,
-      for GitHub Actions and GitLab CI/CD. Each platform has its own HCL — this
-      page covers both.
+      cinzel converts CI/CD pipelines between HCL and YAML. Each platform has its own HCL.
     </p>
 
     <section id="install">
@@ -421,15 +419,10 @@ li { margin-bottom: 5px; }
       <p class="lead">A single binary. macOS, Linux and Windows.</p>
 <pre><span class="p">$</span> <span class="k">brew</span> <span class="s">tap</span> <span class="n">yldio/cinzel</span> <span class="o">&&</span> <span class="k">brew</span> <span class="s">install</span> <span class="o">--cask</span> <span class="n">cinzel</span>
 <span class="p">$</span> <span class="k">go</span> <span class="s">install</span> <span class="n">github.com/yldio/cinzel@latest</span></pre>
-      <p>
-        Or download one from the
-        <a href="https://github.com/yldio/cinzel/releases">releases page</a>.
-        Then <code>cinzel --help</code>.
-      </p>
     </section>
 
     <section id="start">
-      <h2>Start from what you have</h2>
+      <h2>Converting your current CI/CD</h2>
       <p class="lead">
         Point <code>unparse</code> at a pipeline you already run. Nothing is
         written to your YAML.
@@ -437,20 +430,20 @@ li { margin-bottom: 5px; }
 <pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">unparse</span> <span class="o">--output-directory</span> <span class="n">./cinzel</span>
 <span class="p">$</span> <span class="k">cinzel</span> <span class="s">gitlab</span> <span class="s">unparse</span> <span class="o">-f</span> <span class="n">.gitlab-ci.yml</span> <span class="o">--output-directory</span> <span class="n">./cinzel</span></pre>
       <p>
-        Edit the HCL, then convert it back:
+        Edit the HCL to tailor to your preference, then convert it back:
       </p>
 <pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">parse</span> <span class="o">-d</span> <span class="k">cinzel</span>
 <span class="p">$</span> <span class="k">cinzel</span> <span class="s">gitlab</span> <span class="s">parse</span> <span class="o">-d</span> <span class="k">cinzel</span></pre>
       <p>
-        Add <code>--dry-run</code> to either to print the result instead of
+        Or use <code>--dry-run</code> to print the result instead of
         writing it.
       </p>
       <div class="note">
         <p>
-          <strong>GitHub unparse reads <code>.github/workflows</code> on its
-          own.</strong> It is the only place GitHub reads a workflow from, so
-          naming it is never required. Pass <code>-d</code> for the folders
-          holding your composite actions.
+          <strong>github unparse</strong> reads <code>.github/workflows</code> on its
+          own. It is the only place GitHub reads a workflow from, so
+          referencing it with <code>-d/--directory</code> is never required. Pass one or more <code>-d/--directory</code> for including folders
+          holding your composite actions as an example.
         </p>
       </div>
     </section>
@@ -468,16 +461,19 @@ li { margin-bottom: 5px; }
         <tr><td>GitLab pipeline</td><td><code>&lt;output-directory&gt;/.gitlab-ci.yml</code></td></tr>
       </table>
       <p>
-        An action's <code>path</code> is filled in by unparse from where it
-        found the file, so a repository keeping actions in <code>actions-a</code>
-        and <code>actions-b</code> round-trips in one run each way.
+        Unparse fills in an action's <code>path</code> from wherever it found
+        the file. So if you keep actions in <code>actions-x</code> and
+        <code>actions-y</code>, one run each way puts them all back where they
+        started.
       </p>
       <div class="note">
         <p>
-          <strong>An explicit <code>--output-directory</code> collects
-          everything under it</strong>, actions included, which is what a
-          scratch conversion wants. Left off, an action with a
-          <code>path</code> goes where that path says, relative to the root.
+          <strong>By default an action goes where its <code>path</code>
+          says.</strong> With <code>path = "actions-x"</code> you get
+          <code>actions-x/setup/action.yml</code>, starting from the repository
+          root. Add <code>--output-directory out</code> and you get
+          <code>out/actions-x/setup/action.yml</code> instead. The flag moves
+          everything under one directory, workflows included.
         </p>
       </div>
     </section>
@@ -485,18 +481,26 @@ li { margin-bottom: 5px; }
     <section id="unparse">
       <h2>unparse</h2>
       <p class="lead">YAML → HCL. The direction you start with.</p>
-<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">unparse</span> <span class="o">-d</span> <span class="n">actions-a</span> <span class="o">-d</span> <span class="n">actions-b</span> <span class="o">-r</span> <span class="o">--output-directory</span> <span class="k">cinzel</span></pre>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">unparse</span> <span class="o">-d</span> <span class="n">actions-x</span> <span class="o">-d</span> <span class="n">actions-y</span> <span class="o">-r</span> <span class="o">--output-directory</span> <span class="k">cinzel</span></pre>
       <p>
-        <code>--directory</code> is repeatable here, for composite actions kept
-        in folders of their own. <code>--recursive</code> is needed for those,
-        because an action sits a directory deeper than the folder holding it:
-        <code>actions-a/setup/action.yml</code>.
+        You never need <code>-d</code> for workflows. cinzel reads
+        <code>.github/workflows</code> on its own whenever it is there. Use
+        <code>-d</code> for composite actions instead,
+        once for each folder you keep them in, and add <code>-r</code> so it
+        looks inside those folders — an action file lives a level down, at
+        <code>actions-x/setup/action.yml</code>.
+      </p>
+      <h3>When a file cannot be converted</h3>
+      <p>
+        If a YAML file is not a workflow, an action or a set of steps, cinzel
+        skips it and warns you which one it skipped. Leaving a dependabot
+        config or an issue template in the same folder is fine.
       </p>
       <p>
-        A file that is not a workflow, an action or a set of steps is skipped
-        with a warning rather than failing the run. A file that is recognised
-        and then fails to convert stops everything, and nothing is written at
-        all — not the files that converted before it, not the ones after.
+        If it is one of the three and then fails to convert, the whole run
+        stops and nothing gets written — not even the files that converted
+        before it. Your tree is left as it was, and the error tells you which
+        file broke and why.
       </p>
     </section>
 
@@ -651,7 +655,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
       </p>
 <pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">github</span> <span class="s">parse</span> <span class="o">--root</span> <span class="n">/tmp/x</span>
 <span class="c"># → /tmp/x/.github/workflows/ci.yaml</span>
-<span class="c"># → /tmp/x/actions-a/setup/action.yml</span></pre>
+<span class="c"># → /tmp/x/actions-x/setup/action.yml</span></pre>
       <p>
         Setting it together with <code>--output-directory</code> is an error
         rather than a precedence rule: the two answer the same question, one
@@ -738,7 +742,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
       </p>
 <pre><span class="k">action</span> <span class="s">"setup"</span> {
   <span class="y">filename</span> <span class="o">=</span> <span class="s">"setup"</span>
-  <span class="y">path</span>     <span class="o">=</span> <span class="s">"actions-a"</span>
+  <span class="y">path</span>     <span class="o">=</span> <span class="s">"actions-x"</span>
   <span class="y">name</span>     <span class="o">=</span> <span class="s">"Setup"</span>
 
   <span class="y">description</span> <span class="o">=</span> <span class="s">"Installs the toolchain"</span>
@@ -756,7 +760,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
       <p>
         <code>filename</code> is the action's own folder and <code>path</code>
         the folders above it, so this writes
-        <code>actions-a/setup/action.yml</code>. An action with no
+        <code>actions-x/setup/action.yml</code>. An action with no
         <code>path</code> goes under the output directory, as it always did.
       </p>
       <p>

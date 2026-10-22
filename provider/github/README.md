@@ -211,49 +211,50 @@ but an action can sit anywhere the repository puts it. A `path` says where:
 ```hcl
 action "setup" {
   filename = "setup"
-  path     = "actions-a"
+  path     = "actions-x"
 }
 ```
 
-That writes `actions-a/setup/action.yml`. Unparse fills it in from where it
-found the file, so a repository keeping actions in folders of their own
-converts out and back without editing anything:
+That writes `actions-x/setup/action.yml`. Unparse fills the path in from
+wherever it found the file, so if you keep actions in folders of their own they
+convert out and back without you editing anything:
 
 ```sh
-cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github unparse -d actions-x -d actions-y -r --output-directory cinzel
 cinzel github parse -d cinzel
 ```
 
-`--recursive` is needed because an action is always a directory deeper than
-the folder holding it: `actions-a/setup/action.yml`.
+You need `--recursive` because an action file always sits a level below the
+folder you point at: `actions-x/setup/action.yml`.
 
-`--directory` is repeatable on unparse for exactly this, and `.github/workflows`
-is added when it is not named, so one run takes the whole repository:
+You can repeat `--directory` on unparse for exactly this, and cinzel adds
+`.github/workflows` when you have not named it, so one run takes the whole
+repository:
 
 ```sh
-cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github unparse -d actions-x -d actions-y -r --output-directory cinzel
 cinzel github parse -d cinzel
-# .github/workflows/ci.yaml, actions-a/setup/action.yml and
-# actions-b/deploy/action.yml, each back where it came from
+# .github/workflows/ci.yaml, actions-x/setup/action.yml and
+# actions-y/deploy/action.yml, each back where it came from
 ```
 
-With `--recursive`, one directory containing another is refused, since the
-files underneath would be read twice.
+With `--recursive`, passing one directory that contains another is refused,
+since the files underneath would be read twice.
 
-Parse places an action against the repository root rather than the output
-directory, because that is what its path was recorded against. An explicit
-`--output-directory` collects everything under it instead, which is what a
-scratch conversion wants.
+Parse starts an action's path at the repository root, not the output directory,
+because that is what the path was recorded against. Pass `--output-directory`
+and everything lands under it instead, which is what you want for a scratch
+conversion.
 
 An action with no `path` goes under the output directory as it always did, so
-nothing written before this existed changes. A `path` is fenced like
-`filename`: relative, no `..`, nothing absolute. An action read from outside
-the run's root records no path, because an absolute one names a single
-machine's disk and the HCL is meant to be committed.
+nothing you wrote before this existed changes. A `path` is fenced the same way
+`filename` is: relative, no `..`, nothing absolute. An action read from outside
+the run's root gets no path at all, since an absolute one names one machine's
+disk and the HCL is meant to be committed.
 
-Unparse works out which document it is looking at on its own: `on` and `jobs`
-make it a workflow, `name` and `runs` without those make it an action, and
-anything else is read as a file of steps.
+Unparse works out what it is looking at on its own: `on` and `jobs` make it a
+workflow, `name` and `runs` without those make it an action, and anything else
+is read as a file of steps.
 
 ## Pinning and upgrading
 
