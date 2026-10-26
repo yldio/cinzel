@@ -1,6 +1,7 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: testdata/fixtures/workflows/basic_workflow.hcl
+
 on:
   push:
     branches:

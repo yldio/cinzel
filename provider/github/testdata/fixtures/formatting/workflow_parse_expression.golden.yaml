@@ -1,6 +1,7 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: testdata/fixtures/formatting/workflow_parse_expression.hcl
+
 run-name: "${{ github.workflow }} #${{ github.run_number }}"
 on:
   push:
