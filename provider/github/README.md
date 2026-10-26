@@ -113,6 +113,15 @@ Comments come across too, in both directions: above a block, beside a value,
 and closing a body. A note explaining why a version is held back survives the
 conversion rather than being dropped on the way.
 
+A multi-line string keeps its `|` block, but two things do not make the trip.
+A folded `>` value is folded into one line by the YAML reader before cinzel
+sees it, so nothing records that it was wrapped and it comes back as one long
+line. And a script written `run: |-` or `run: |+` comes back as `run: |`: a
+script is written as an HCL heredoc, a heredoc ends on its closing marker's
+own line, and so it holds exactly one trailing newline. Unparse names each
+script it rewrites. The value is unchanged in every case, and a shell reads a
+missing or extra final newline the same as a present one.
+
 The one that does not is the comment above `env`, `with`, `outputs` or
 `secrets`. Each of those is one mapping in YAML and one block per key in HCL,
 so the mapping has no block of its own to carry it; writing it above the first

@@ -89,6 +89,12 @@ to climb out of the repository; parse refuses that.
 Comments survive both directions, above a block, beside a value and closing a
 body, so there is no need to re-add one after a conversion.
 
+A multi-line string keeps its `|` block. A folded `>` value does not: YAML
+folds it into one line as it reads the file, so it comes back as one long
+line with the same value. A script written `run: |-` or `run: |+` comes back
+as `run: |`, since a script becomes a heredoc and a heredoc ends in exactly
+one newline; unparse names each one. The script runs the same either way.
+
 One exception: a comment above `env`, `with`, `outputs` or `secrets`. Those
 become one HCL block per key, so there is no block for a comment about the
 whole mapping. Unparse drops it and names the file, line and path. Move it

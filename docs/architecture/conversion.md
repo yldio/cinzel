@@ -105,6 +105,36 @@ because the shared rules would quote a large share of real pipelines. It still
 scans the whole value, so it quotes an expression the shared one now leaves
 alone.
 
+## Block scalars
+
+A literal `|` string keeps its style through the conversion, in `env`, `with`,
+`inputs`, `outputs` and anywhere else a string is written. Those go out as
+quoted HCL strings holding the newlines, and a value with a newline in it is
+written back as a literal block.
+
+A step's `run` is the exception, because it is the one value written as a
+heredoc (`setAsHeredoc`, `provider/github/step/stepdecode.go`). A heredoc ends
+on its closing marker's own line, so what it holds always ends in exactly one
+newline. That is what `run: |` means, and a script written that way makes the
+trip unchanged.
+
+The other two chomping indicators mean something a heredoc cannot spell. `|-`
+strips every trailing newline and there is no heredoc that ends without one;
+`|+` keeps them all and `setAsHeredoc` trims them. Both come back as `|`, and
+unparse reports each one with its path. Nothing runs differently for it:
+GitHub writes the script to a file and hands it to a shell, which reads a
+missing or extra final newline the same as a present one.
+
+A folded `>` value is a separate loss, everywhere rather than in `run` alone,
+and not reported. YAML folds it into a single line as it reads the file, so by
+the time cinzel has the value there is no newline left in it and no trace that
+it was ever folded. It comes back as one long line, quoted if the text needs
+it. The value is identical; only the wrapping is gone.
+
+The heredoc path is lossy by design. Anything routed through it later — a
+GitLab `script`, say — inherits the same normalisation, where the stakes may
+not be as low.
+
 Workflow key order is `workflowKeyOrder` (`provider/github/workflow_yaml.go`):
 name, run-name, on, permissions, env, defaults, concurrency, jobs, then
 everything else sorted. `jobs` goes last, the way a hand-written workflow
