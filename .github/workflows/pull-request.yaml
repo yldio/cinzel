@@ -1,6 +1,7 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: cinzel/workflows.hcl
+
 name: Pull Request
 on:
   pull_request:
@@ -9,8 +10,8 @@ permissions:
   pull-requests: write
 jobs:
   pull_request:
-    name: "${{ matrix.os }}"
-    runs-on: "${{ matrix.os }}"
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - id: checkout
         name: Checkout
@@ -27,19 +28,19 @@ jobs:
         name: Tests
         run: mise run test-ci
       - id: lint
-        if: "${{ matrix.os == 'ubuntu-24.04' }}"
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         name: Lint
         run: mise run lint
       - id: drift
-        if: "${{ matrix.os == 'ubuntu-24.04' }}"
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         name: Generated workflows match their HCL
         run: mise run drift
       - env:
           GIT_CONFIG_COUNT: "1"
-          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ github.token }}@github.com/.insteadOf"
-          GIT_CONFIG_VALUE_0: "https://github.com/"
+          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ github.token }}@github.com/.insteadOf
+          GIT_CONFIG_VALUE_0: https://github.com/
         id: coverage
-        if: "${{ matrix.os == 'ubuntu-24.04' }}"
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         name: Coverage
         uses: gwatts/go-coverage-action@2845595538a59d63d1bf55f109c14e104c6f7cb3
     strategy:

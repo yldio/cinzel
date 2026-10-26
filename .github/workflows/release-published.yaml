@@ -1,6 +1,7 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: cinzel/workflows.hcl
+
 name: Build Release (Published)
 on:
   release:
@@ -10,18 +11,18 @@ permissions:
   contents: read
 concurrency:
   cancel-in-progress: true
-  group: "release-${{ github.event.release.tag_name }}"
+  group: release-${{ github.event.release.tag_name }}
 jobs:
   release-packages:
-    if: "${{ !github.event.release.prerelease && !github.event.release.draft }}"
+    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
     name: Release packages
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
       - env:
-          RELEASE_APP_ID: "${{ secrets.RELEASE_APP_ID }}"
-          RELEASE_PRIVATE_KEY: "${{ secrets.RELEASE_PRIVATE_KEY }}"
+          RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          RELEASE_PRIVATE_KEY: ${{ secrets.RELEASE_PRIVATE_KEY }}
         id: ensure_release_app
         name: Ensure release app credentials
         run: |
@@ -35,10 +36,10 @@ jobs:
         name: Create release app token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: "${{ secrets.RELEASE_APP_ID }}"
+          client-id: ${{ secrets.RELEASE_APP_ID }}
           permission-contents: write
-          private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
-          repositories: "cinzel,homebrew-cinzel"
+          private-key: ${{ secrets.RELEASE_PRIVATE_KEY }}
+          repositories: cinzel,homebrew-cinzel
       - id: checkout_release
         name: Checkout (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,8 +53,8 @@ jobs:
           cache: "true"
           install: "true"
       - env:
-          GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
-          HOMEBREW_TAP_GITHUB_TOKEN: "${{ steps.release_app_token.outputs.token }}"
+          GITHUB_TOKEN: ${{ steps.release_app_token.outputs.token }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.release_app_token.outputs.token }}
         id: goreleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
