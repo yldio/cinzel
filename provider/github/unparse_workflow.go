@@ -641,7 +641,15 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 
 	var last *hclwrite.Body
 
-	for _, key := range sortedKeys(mapping) {
+	for i, key := range sortedKeys(mapping) {
+		// A blank line between them, the way every other run of blocks in
+		// these files is spaced. Written flush they read as one wall, and a
+		// comment above one of them had nothing separating it from the block
+		// above.
+		if i > 0 {
+			body.AppendNewline()
+		}
+
 		comment := comments.at(key)
 		hclcomment.WriteLeading(body, comment.head)
 
