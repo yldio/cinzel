@@ -135,6 +135,11 @@ better in a tree. Where a file goes on the way back is its own `path` either
 way, so this is a convenience, and a mirrored tree has to be parsed with
 `--recursive`.
 
+A composite action sits at `<dir>/<name>/action.yml`, so a folder of actions
+holds no YAML of its own. `-d .github/actions` reads the actions one level
+down without `--recursive` being typed as well; anything deeper still needs
+the flag.
+
 Workflows stay at the top of the output directory even under `--mirror`.
 `.github/workflows` is the one place GitHub reads a workflow from, so it is
 not a layout worth reproducing: parse writes every workflow back there

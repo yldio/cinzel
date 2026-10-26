@@ -235,6 +235,21 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	}
 
 	files := make([]string, 0, len(inputPaths))
+	seen := map[string]struct{}{}
+
+	// One file reached twice is still one file. Naming a directory of actions
+	// and one of the actions in it is two ways of asking for the same
+	// action.yml, and converting it twice made it collide with itself.
+	add := func(found []string) {
+		for _, file := range found {
+			if _, taken := seen[file]; taken {
+				continue
+			}
+
+			seen[file] = struct{}{}
+			files = append(files, file)
+		}
+	}
 
 	for _, inputPath := range inputPaths {
 		found, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
@@ -242,7 +257,27 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			return err
 		}
 
-		files = append(files, found...)
+		add(found)
+
+		// A composite action is always at "<dir>/<name>/action.yml", one
+		// directory below the folder holding it, so a folder of actions holds
+		// no YAML of its own and reading its top level gave back nothing:
+		// "-d .github/actions" converted none of them and the run reported
+		// success over whatever else it had found.
+		//
+		// Naming the directory is asking for what is in it, so the actions
+		// one level down are read without --recursive being typed as well.
+		// Only "action.yml" and "action.yaml": one level down is also where a
+		// directory of directories keeps everything else, and a caller who
+		// means all of it has --recursive to say so.
+		if !opts.Recursive {
+			actions, err := fsutil.ListNamedFilesInChildren(inputPath, "action.yml", "action.yaml")
+			if err != nil {
+				return err
+			}
+
+			add(actions)
+		}
 	}
 
 	if len(files) == 0 {

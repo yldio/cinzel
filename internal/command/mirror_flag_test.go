@@ -144,3 +144,98 @@ func TestParsingAMirroredTreeWithoutRecursiveSaysWhatToDo(t *testing.T) {
 		}
 	})
 }
+
+// A composite action is always at "<dir>/<name>/action.yml", one directory
+// below the folder holding it, so a folder of actions holds no YAML of its
+// own. Reading only its top level converted none of them: the run wrote the
+// workflows it adds on its own and reported success, so the directory the
+// caller actually named looked as though it had been read.
+//
+// Naming it is asking for what is in it, so --recursive is not needed too.
+func TestADirectoryOfActionsIsReadWithoutRecursive(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeMirrorRepo(t)
+
+		actions := filepath.Join(".github", "actions", "setup")
+
+		if err := os.MkdirAll(actions, 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		writeFile(t, filepath.Join(actions, "action.yml"), []byte(mirrorAction))
+
+		if err := runCommandLine(t, []string{
+			"cinzel", "github", "unparse", "--mirror",
+			"-d", filepath.Join(".github", "actions"),
+			"--output-directory", "cinzel",
+		}); err != nil {
+			t.Fatalf("unparse = %v", err)
+		}
+
+		for _, want := range []string{".github/actions/setup.hcl", "ci.hcl"} {
+			if _, err := os.Stat(filepath.Join("cinzel", filepath.FromSlash(want))); err != nil {
+				t.Errorf("want cinzel/%s: %v", want, err)
+			}
+		}
+	})
+}
+
+// Only one level down, and only an action file. A directory of directories
+// keeps everything else there too, and a caller who means all of it has
+// --recursive to say so.
+func TestOnlyAnActionIsTakenFromTheLevelBelow(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeMirrorRepo(t)
+
+		deep := filepath.Join(".github", "actions", "deep", "nested")
+
+		if err := os.MkdirAll(deep, 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		writeFile(t, filepath.Join(deep, "action.yml"), []byte(mirrorAction))
+
+		if err := runCommandLine(t, []string{
+			"cinzel", "github", "unparse", "--mirror",
+			"-d", filepath.Join(".github", "actions"),
+			"--output-directory", "cinzel",
+		}); err != nil {
+			t.Fatalf("unparse = %v", err)
+		}
+
+		// Two levels down is past where an action of this directory lives.
+		if _, err := os.Stat(filepath.Join("cinzel", ".github", "actions", "deep")); err == nil {
+			t.Error("a file two directories down was read without --recursive")
+		}
+	})
+}
+
+// With --recursive the same run finds the action, and the workflow beside it
+// still lands flat.
+func TestTheSameDirectoryWithRecursiveConvertsTheAction(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeMirrorRepo(t)
+
+		actions := filepath.Join(".github", "actions", "setup")
+
+		if err := os.MkdirAll(actions, 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		writeFile(t, filepath.Join(actions, "action.yml"), []byte(mirrorAction))
+
+		if err := runCommandLine(t, []string{
+			"cinzel", "github", "unparse", "--mirror", "-r",
+			"-d", filepath.Join(".github", "actions"),
+			"--output-directory", "cinzel",
+		}); err != nil {
+			t.Fatalf("unparse = %v", err)
+		}
+
+		for _, want := range []string{"ci.hcl", ".github/actions/setup.hcl"} {
+			if _, err := os.Stat(filepath.Join("cinzel", filepath.FromSlash(want))); err != nil {
+				t.Errorf("want cinzel/%s: %v", want, err)
+			}
+		}
+	})
+}

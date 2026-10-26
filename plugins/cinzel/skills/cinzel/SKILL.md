@@ -73,6 +73,11 @@ of their own. Parse takes one. GitHub unparse always reads
 finds nothing. Workflows stay at the top of the output directory either way:
 `.github/workflows` is where GitHub reads them, not a layout to reproduce.
 
+A composite action sits at `<dir>/<name>/action.yml`, one directory below the
+folder holding it, so a folder of actions holds no YAML of its own. Naming it
+with `-d` reads the actions in it without `--recursive` as well. Anything
+deeper than that, or any other file kept beside them, still needs the flag.
+
 `--root` resolves every path against a directory instead of the working
 directory, both directions, both providers. Not with `--output-directory`,
 which still works and which it supersedes: prefer `--root`.
