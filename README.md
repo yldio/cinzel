@@ -135,6 +135,12 @@ better in a tree. Where a file goes on the way back is its own `path` either
 way, so this is a convenience, and a mirrored tree has to be parsed with
 `--recursive`.
 
+Workflows stay at the top of the output directory even under `--mirror`.
+`.github/workflows` is the one place GitHub reads a workflow from, so it is
+not a layout worth reproducing: parse writes every workflow back there
+whatever the HCL is called, and a mirrored `cinzel/.github/workflows` is a
+directory nothing reads.
+
 If you keep composite actions in folders of their own, one run each way
 converts the lot:
 

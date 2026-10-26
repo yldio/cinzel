@@ -60,7 +60,10 @@ func TestMirrorFlagRoundTrip(t *testing.T) {
 			t.Fatalf("unparse --mirror = %v", err)
 		}
 
-		for _, want := range []string{".github/workflows/ci.hcl", "actions/setup.hcl"} {
+		// The workflow is flat even here: ".github/workflows" is the one
+		// place GitHub reads, so it is not a layout to reproduce, and parse
+		// writes every workflow back there wherever the HCL sits.
+		for _, want := range []string{"ci.hcl", "actions/setup.hcl"} {
 			if _, err := os.Stat(filepath.Join("cinzel", filepath.FromSlash(want))); err != nil {
 				t.Errorf("want cinzel/%s: %v", want, err)
 			}
@@ -112,9 +115,18 @@ func TestWithoutTheMirrorFlagTheOutputIsFlat(t *testing.T) {
 
 // A mirrored tree read without --recursive used to say there was no HCL at
 // all, which reads as "your files are missing" rather than "add a flag".
+//
+// The repository here holds an action and no workflow, so the mirrored output
+// has nothing at its top level. With a workflow in it the top level is no
+// longer empty — a workflow is written flat — and parse reads that one file
+// and reports no error, which is the right answer for what it was given.
 func TestParsingAMirroredTreeWithoutRecursiveSaysWhatToDo(t *testing.T) {
 	withTempWorkingDir(t, func() {
 		writeMirrorRepo(t)
+
+		if err := os.RemoveAll(".github"); err != nil {
+			t.Fatal(err)
+		}
 
 		if err := runCommandLine(t, []string{
 			"cinzel", "github", "unparse", "-d", "actions", "-r", "--mirror", "--output-directory", "cinzel",

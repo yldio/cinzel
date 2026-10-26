@@ -657,11 +657,22 @@ func actionOutputBase(opts provider.ProviderOps, outputDir string, filename stri
 // Only a file that knows where it came from can be mirrored. A workflow has
 // one home and says nothing about it, so it stays where it was.
 func mirroredName(opts provider.ProviderOps, out unparsedFile, taken map[string]struct{}) string {
+	// A workflow is written flat even under --mirror. GitHub reads
+	// ".github/workflows" and nowhere else, so where a workflow was found is
+	// not a layout decision to reproduce: parse writes every one of them back
+	// to that one directory whatever the HCL is called and wherever it sits.
+	// Mirroring it built a "cinzel/.github/workflows" nothing reads back, and
+	// pushed the workflows three directories below the actions beside them.
+	//
+	// An action is the opposite. It is read from wherever the repository put
+	// it, carries that path in its own "path" attribute, and parse writes it
+	// back there, so its folders are worth keeping.
+	//
 	// The location check is belt and braces: two files with none would both
 	// be written flat, and checkUnparseNameClash refuses that pair before
 	// this is reached. It stays because the alternative is Join("", name)
 	// quietly skipping the uniqueness pass if that ever stops being true.
-	if !opts.Mirror || out.location == "" {
+	if !opts.Mirror || out.location == "" || out.kind == kindWorkflow {
 		return fsutil.UniqueOutputName(taken, out.name)
 	}
 

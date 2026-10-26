@@ -70,7 +70,8 @@ of their own. Parse takes one. GitHub unparse always reads
 
 `unparse --mirror` writes the HCL in the repository's own shape
 (`cinzel/actions/setup.hcl`). Parse such a tree with `--recursive`, or it
-finds nothing.
+finds nothing. Workflows stay at the top of the output directory either way:
+`.github/workflows` is where GitHub reads them, not a layout to reproduce.
 
 `--root` resolves every path against a directory instead of the working
 directory, both directions, both providers. Not with `--output-directory`,
