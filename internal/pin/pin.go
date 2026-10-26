@@ -559,11 +559,11 @@ func trailingCommentEnd(content string, from int) int {
 // two asked the API for a repository called "codeql-action/init", which no
 // name pattern lets through, and the action was reported as unpinnable.
 //
-// A reference starting with "." is a path into the repository being built.
-// GitHub takes that version from the checkout, so there is no release to
-// resolve and false is returned.
+// A reference starting with "." or "$" is a path into the repository being
+// built. GitHub takes that version from the checkout or from the running
+// commit, so there is no release to resolve and false is returned.
 func splitAction(action string) (owner, repo string, ok bool) {
-	if strings.HasPrefix(action, ".") {
+	if strings.HasPrefix(action, ".") || strings.HasPrefix(action, "$") {
 		return "", "", false
 	}
 

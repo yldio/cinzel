@@ -18,6 +18,8 @@ func TestValidateUsesRef(t *testing.T) {
 		{name: "with path", uses: "actions/aws/ec2@main"},
 		{name: "local action", uses: "./actions/my-action"},
 		{name: "parent local", uses: "../shared/action"},
+		{name: "self-repository action", uses: "$/.github/actions/setup"},
+		{name: "self-repository workflow", uses: "$/.github/workflows/build.yml"},
 		{name: "docker action", uses: "docker://alpine:3.18"},
 		{name: "docker hub", uses: "docker://ghcr.io/owner/image:latest"},
 		{name: "branch ref", uses: "owner/repo@feature/branch"},
@@ -43,6 +45,7 @@ func TestValidateUsesRef(t *testing.T) {
 		{name: "empty owner", uses: "/repo@v4", wantErr: "empty owner or repo"},
 		{name: "empty repo", uses: "owner/@v4", wantErr: "empty owner or repo"},
 		{name: "docker no image", uses: "docker://", wantErr: "must specify an image"},
+		{name: "self-repository with ref", uses: "$/.github/workflows/build.yml@v1", wantErr: "must not include a version reference"},
 	}
 
 	for _, tt := range invalid {

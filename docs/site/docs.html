@@ -827,7 +827,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
         <li>An <code>action</code> needs <code>name</code> and <code>runs.using</code>.</li>
         <li><code>permissions</code> scopes and levels are checked against the known set.</li>
         <li><code>on.schedule</code> crons are checked for the five-field form and sane ranges.</li>
-        <li>A step's <code>uses</code> must read as <code>owner/repo@ref</code>, <code>./path</code> or <code>docker://image</code>.</li>
+        <li>A step's <code>uses</code> must read as <code>owner/repo@ref</code>, <code>./path</code>, <code>$/path</code> or <code>docker://image</code>. A <code>$/</code> reference carries no version: GitHub resolves it at the commit the caller runs from, and it is not available on GitHub Enterprise Server.</li>
       </ul>
       <p>
         A file failing one of these stops with an error naming the problem,
