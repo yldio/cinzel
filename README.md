@@ -57,6 +57,12 @@ Comments survive the trip, in both directions and in all three positions — a
 comment above a block, one beside a value, one closing a body. The note saying
 why a version is held back is still there after the conversion.
 
+One cannot be carried: the comment above `env`, `with`, `outputs` or
+`secrets`. Each is one mapping in YAML and one block per key in HCL, so there
+is no block to hold a note about the whole set. Unparse drops it and prints
+where it was, as `file:line: path`, rather than silently pinning it to the key
+that happens to sort first.
+
 ## Install
 
 Download a binary from [Releases](https://github.com/yldio/cinzel/releases), or:
@@ -172,13 +178,16 @@ github:
     directory: ./cinzel
     output-directory: .github/workflows
     yml: false
+    recursive: true
 ```
 
-A flag on the command line still wins. It covers `parse` and `unparse` only,
-per provider — `assist`, `pin`, `upgrade` and `init` ignore it. The keys are
-`file`, `directory`, `output-directory` and `yml`; `yml` only affects parse,
-so it is accepted and ignored under `unparse`. Anything else, `recursive`
-included, prints `warning: ...: unknown key` and is skipped.
+A flag on the command line still wins, including `--recursive=false` against a
+file that sets it true. It covers `parse` and `unparse` only, per provider —
+`assist`, `pin`, `upgrade` and `init` ignore it. The keys are `file`,
+`directory`, `output-directory`, `yml` and `recursive`; the last two are
+booleans, written bare rather than quoted, and `yml` only affects parse, so it
+is accepted and ignored under `unparse`. Anything else prints
+`warning: ...: unknown key` and is skipped.
 
 Paths must be relative and written with forward slashes. The file is meant to
 be committed and read on every machine that checks the repo out, so an absolute

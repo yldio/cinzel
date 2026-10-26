@@ -113,6 +113,14 @@ Comments come across too, in both directions: above a block, beside a value,
 and closing a body. A note explaining why a version is held back survives the
 conversion rather than being dropped on the way.
 
+The one that does not is the comment above `env`, `with`, `outputs` or
+`secrets`. Each of those is one mapping in YAML and one block per key in HCL,
+so the mapping has no block of its own to carry it; writing it above the first
+block would turn a note about the whole set into a note about whichever key
+sorts first. Unparse drops it and prints where it was, as `file:line: path`.
+`permissions`, `defaults` and `concurrency` stay a single block and keep
+theirs, as do the comments on a mapping's own keys and the one closing it.
+
 ## Values shared between blocks
 
 A `variable` block holds a value other blocks point at, the same way `step` and
@@ -284,7 +292,10 @@ converts back:
 - `permissions` scopes and levels are checked against the known set.
 - `on.schedule` crons are checked for the 5-field form and sane ranges.
 - `${{ }}` is checked for balanced delimiters and a non-empty body.
-- A step's `uses` must read as `owner/repo@ref`, `./path` or `docker://image`.
+- A step's `uses` must read as `owner/repo@ref`, `./path`, `$/path` or
+  `docker://image`. A `$/` reference names this repository at the commit the
+  caller runs from, so it carries no `@ref` and one is refused. It is not
+  available on GitHub Enterprise Server.
 
 A file that fails one of these stops with an error naming the problem, rather
 than writing YAML that GitHub would reject.

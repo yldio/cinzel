@@ -83,6 +83,11 @@ to climb out of the repository; parse refuses that.
 Comments survive both directions, above a block, beside a value and closing a
 body, so there is no need to re-add one after a conversion.
 
+One exception: a comment above `env`, `with`, `outputs` or `secrets`. Those
+become one HCL block per key, so there is no block for a comment about the
+whole mapping. Unparse drops it and names the file, line and path. Move it
+onto one of the keys, or above the job, to keep it.
+
 Conversion adds nothing of its own. A workflow that declares no `permissions`
 is written without one; do not expect cinzel to supply a default.
 
@@ -135,6 +140,11 @@ step "test" {
   run = "go test ./..."
 }
 ```
+
+A `uses` block takes `owner/repo` with a `version`, a local `./path`, a
+`$/path` for the same repository at the running commit, or `docker://image`.
+A `$/` reference takes no `version`: GitHub resolves it at the caller's own
+commit, and it is not available on GitHub Enterprise Server.
 
 GitLab — jobs are blocks, repeatable things (`rule`, `cache`, `service`,
 `include`) are nested blocks:

@@ -26,6 +26,12 @@ updated_date: "2026-10-22"
 > `y` and `n` joined the boolean words (YAML 1.1 reads those too), a value whose ends are
 > whitespace is quoted, and the special characters are now `: # [ ] { } , & * ! | > %` and
 > backtick — `?`, `-`, `<` and `=` are not among them.
+>
+> Since then the indicator scan moved to the first character, where an indicator is the
+> only thing it can be. Scanning the whole value quoted every `${{ ... }}` expression for
+> the braces in its middle. `:` and `#` are still checked across the value, narrowed to
+> `": "`, a trailing `:` and `" #"`, so `container: node:18` goes out bare. See
+> `docs/architecture/conversion.md`.
 
 ## Problem Description
 

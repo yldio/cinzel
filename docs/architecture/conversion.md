@@ -91,11 +91,19 @@ rewrite them to double on save.
 
 What gets quoted is `needsQuoting` in `internal/yamldoc/encode.go`: the empty
 string and `~`, the YAML 1.1 bool and null words in any case, anything that
-parses as a number, anything with leading or trailing whitespace, and the YAML
-special characters. `@` is not one of them, so `actions/checkout@v4` stays
-bare. GitLab keeps its own `stringNeedsQuoting`
-(`provider/gitlab/pipeline_yaml.go`) because the shared rules would quote a
-large share of real pipelines.
+parses as a number, and anything with leading or trailing whitespace.
+
+The YAML indicators are checked in the first position only, because that is
+the only place they indicate anything: `${{ github.sha }}` and `foo{bar}baz`
+go out bare and read back whole, while `{bar}` is quoted. `:` and `#` are
+checked across the value but only where they bite — `": "`, a trailing `:`,
+and `" #"`. So `foo:bar` and `container: node:18` stay bare. `@` is not an
+indicator anywhere, so `actions/checkout@v4` stays bare too.
+
+GitLab keeps its own `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go`)
+because the shared rules would quote a large share of real pipelines. It still
+scans the whole value, so it quotes an expression the shared one now leaves
+alone.
 
 Workflow key order is `workflowKeyOrder` (`provider/github/workflow_yaml.go`):
 name, run-name, on, permissions, env, defaults, concurrency, jobs, then

@@ -517,6 +517,16 @@ li { margin-bottom: 5px; }
         Comments survive the trip in both directions and in all three
         positions — above a block, beside a value, closing a body.
       </p>
+      <p>
+        One does not: the comment above <code>env</code>, <code>with</code>,
+        <code>outputs</code> or <code>secrets</code>. Each becomes one HCL
+        block per key, so the mapping has no block of its own, and writing the
+        comment above the first block would make a note about the whole set
+        read as a note about one member. Unparse drops it and prints where it
+        was, as <code>file:line: path</code>. <code>permissions</code>,
+        <code>defaults</code> and <code>concurrency</code> stay a single block
+        and keep theirs, as do the comments on the mapping's own keys.
+      </p>
       <h3>Generated markers</h3>
       <p>Every file parse writes opens with three lines:</p>
 <pre><span class="c"># generated-by: cinzel</span>
