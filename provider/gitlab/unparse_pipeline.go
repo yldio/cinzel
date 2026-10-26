@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"io"
 	"os"
 	"reflect"
@@ -733,7 +734,7 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 	_, crossPipeline := need["pipeline"]
 	remote := crossProject || crossPipeline
 
-	nb := body.AppendNewBlock("need", nil)
+	nb := appendSpacedBlock(body, "need", nil)
 
 	for _, key := range sortedKeys(need) {
 		value := need[key]
@@ -786,6 +787,7 @@ func writeNeedBlock(body *hclwrite.Body, need map[string]any, jobIDMap map[strin
 // writeRuleBlock writes one entry of a "rules" list as a rule block, carrying
 // whatever comments that entry held.
 func writeRuleBlock(body *hclwrite.Body, rule map[string]any, c *comments) error {
+	spaceBeforeBlock(body)
 	hclcomment.WriteLeading(body, c.above())
 
 	rb := body.AppendNewBlock("rule", nil)
@@ -805,6 +807,60 @@ func writeRuleBlock(body *hclwrite.Body, rule map[string]any, c *comments) error
 	hclcomment.WriteLeading(rb.Body(), c.below())
 
 	return nil
+}
+
+// appendSpacedBlock opens a block with a blank line above it, unless it is the
+// first thing in the body.
+//
+// A job's "rules", "cache", "needs" and "services" each become a run of
+// blocks, and they were written flush against each other: a wall of braces
+// with no seam, unlike every other run of blocks these files hold.
+func appendSpacedBlock(body *hclwrite.Body, blockType string, labels []string) *hclwrite.Block {
+	spaceBeforeBlock(body)
+
+	return body.AppendNewBlock(blockType, labels)
+}
+
+// spaceBeforeBlock writes the blank line that goes above a block, unless the
+// block is the first thing in the body.
+//
+// Separate from appendSpacedBlock because a comment goes above the block and
+// so has to be written after the blank line, not before it: the caller writing
+// one calls this first, then its comment, then opens the block itself.
+// Appended the other way round, the note above a job's "services" was left
+// stranded above the gap rather than sitting on the block it describes.
+func spaceBeforeBlock(body *hclwrite.Body) {
+	if len(body.Attributes()) == 0 && len(body.Blocks()) == 0 {
+		return
+	}
+
+	// A comment just written is the one belonging to the block about to be
+	// opened, and its own separator already went above it. Another one here
+	// would open a gap between the note and what it describes.
+	if endsWithComment(body) {
+		return
+	}
+
+	body.AppendNewline()
+}
+
+// endsWithComment reports whether the last thing written to the body was a
+// comment line.
+func endsWithComment(body *hclwrite.Body) bool {
+	tokens := body.BuildTokens(nil)
+
+	for i := len(tokens) - 1; i >= 0; i-- {
+		switch tokens[i].Type {
+		case hclsyntax.TokenNewline:
+			continue
+		case hclsyntax.TokenComment:
+			return true
+		default:
+			return false
+		}
+	}
+
+	return false
 }
 
 func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]string, templateIDMap map[string]string, c *comments) error {
@@ -831,7 +887,16 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 		// Written here rather than inside each case: every key below becomes
 		// either an attribute or one or more blocks, and the comment above it
 		// belongs above whichever it becomes.
+		//
+		// The separating blank line goes above the comment, so the two stay
+		// together: written after it, the gap opened between the note and the
+		// block it describes.
 		comment := c.at(key)
+
+		if comment.head != "" {
+			spaceBeforeBlock(body)
+		}
+
 		hclcomment.WriteLeading(body, comment.head)
 
 		switch key {
@@ -972,6 +1037,8 @@ func writeJobBlock(body *hclwrite.Body, job map[string]any, jobIDMap map[string]
 				}
 
 				nested := entryComments
+
+				spaceBeforeBlock(body)
 
 				if isList {
 					nested = entryComments.item(idx)
@@ -1243,7 +1310,7 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 
 		if nested, ok := toStringAnyMap(value); ok {
 			if child, isBlock := schema.child(key); isBlock {
-				b := body.AppendNewBlock(key, nil)
+				b := appendSpacedBlock(body, key, nil)
 
 				if err := writeGenericMap(b.Body(), nested, child, c.child(key)); err != nil {
 					return err
@@ -1279,6 +1346,8 @@ func writeGenericMap(body *hclwrite.Body, mapping map[string]any, schema bodySch
 				for idx, entry := range entries {
 					nested, _ := toStringAnyMap(entry)
 					itemComments := entryComments.item(idx)
+
+					spaceBeforeBlock(body)
 					hclcomment.WriteLeading(body, itemComments.above())
 
 					b := body.AppendNewBlock(key, nil)
@@ -1325,6 +1394,8 @@ func writeServicesBlocks(body *hclwrite.Body, raw any, c *comments) error {
 
 	for idx, item := range services {
 		itemComments := c.item(idx)
+
+		spaceBeforeBlock(body)
 		hclcomment.WriteLeading(body, itemComments.above())
 
 		sb := body.AppendNewBlock("service", nil)
@@ -1365,6 +1436,11 @@ func writeIncludeBlocks(body *hclwrite.Body, raw any, c *comments) error {
 	case []any:
 		for idx, item := range include {
 			itemComments := c.item(idx)
+
+			if idx > 0 {
+				body.AppendNewline()
+			}
+
 			hclcomment.WriteLeading(body, itemComments.above())
 
 			switch v := item.(type) {

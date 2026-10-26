@@ -328,11 +328,16 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 		return errors.New("services must be an object")
 	}
 
-	for _, serviceName := range sortedKeys(services) {
+	for i, serviceName := range sortedKeys(services) {
 		svcVal, ok := toStringAnyMap(services[serviceName])
 
 		if !ok {
 			return fmt.Errorf("service '%s' must be an object", serviceName)
+		}
+
+		// A blank line between them, as between any other pair of blocks.
+		if i > 0 {
+			body.AppendNewline()
 		}
 
 		serviceBlock := body.AppendNewBlock("service", []string{serviceName})
