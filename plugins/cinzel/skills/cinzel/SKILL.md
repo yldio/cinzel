@@ -243,12 +243,14 @@ github:
   parse:
     directory: ./cinzel
     output-directory: .github/workflows
+    recursive: true
 ```
 
-Command-line flags win. It covers `parse` and `unparse` only — `assist`, `pin`,
-`upgrade`, `init` ignore it. Paths must be relative with forward slashes; the
-file is committed and read on every machine, so an absolute path or a `~` is
-refused.
+Keys are `file`, `directory`, `output-directory`, `yml` and `recursive`. The
+last two are booleans, written bare. Command-line flags win. It covers `parse`
+and `unparse` only — `assist`, `pin`, `upgrade`, `init` ignore it. Paths must
+be relative with forward slashes; the file is committed and read on every
+machine, so an absolute path or a `~` is refused.
 
 ## When something fails
 

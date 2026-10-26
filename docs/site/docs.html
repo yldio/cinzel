@@ -669,15 +669,18 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
 <pre><span class="y">github</span>:
   <span class="y">parse</span>:
     <span class="y">directory</span>: ./cinzel
-    <span class="y">output-directory</span>: .github/workflows</pre>
+    <span class="y">output-directory</span>: .github/workflows
+    <span class="y">recursive</span>: true</pre>
       <p>
         A flag on the command line still wins. It covers <code>parse</code> and
         <code>unparse</code> only, per provider — <code>assist</code>,
         <code>pin</code>, <code>upgrade</code> and <code>init</code> ignore it.
         Keys are <code>file</code>, <code>directory</code>,
-        <code>output-directory</code> and <code>yml</code>; <code>yml</code> only
-        affects parse, so it is accepted and ignored under <code>unparse</code>.
-        Anything else prints a warning and is skipped.
+        <code>output-directory</code>, <code>yml</code> and
+        <code>recursive</code>; <code>yml</code> only affects parse, so it is
+        accepted and ignored under <code>unparse</code>. Anything else prints a
+        warning and is skipped. <code>yml</code> and <code>recursive</code> are
+        booleans, written bare rather than quoted.
       </p>
       <p>
         Paths must be relative and written with forward slashes. The file is

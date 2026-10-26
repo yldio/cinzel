@@ -27,6 +27,8 @@ type providerCommandConfig struct {
 	hasOutputDir    bool
 	yml             bool
 	hasYML          bool
+	recursive       bool
+	hasRecursive    bool
 }
 
 func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (provider.ProviderOps, []string, error) {
@@ -65,6 +67,10 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 
 	if !cmd.IsSet("yml") && conf.hasYML {
 		opts.YML = conf.yml
+	}
+
+	if !cmd.IsSet("recursive") && conf.hasRecursive {
+		opts.Recursive = conf.recursive
 	}
 
 	hasCLIFileInput := cmd.IsSet("file") || cmd.IsSet("directory")
@@ -173,6 +179,12 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 			}
 			config.yml = valueNode.Value == "true"
 			config.hasYML = true
+		case "recursive":
+			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
+				return providerCommandConfig{}, nil, configError("%s.%s.%s.recursive must be a boolean", path, providerName, commandName)
+			}
+			config.recursive = valueNode.Value == "true"
+			config.hasRecursive = true
 		default:
 			warnings = append(warnings, fmt.Sprintf("%s.%s.%s.%s: unknown key", path, providerName, commandName, keyNode.Value))
 		}
