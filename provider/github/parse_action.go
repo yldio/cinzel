@@ -131,7 +131,10 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 			return nil, "", "", err
 		}
 
-		inputs[input.ID] = inputMap
+		// The comment above the block, and the one closing it, belong to the
+		// YAML key the block becomes. Stored unwrapped, a note written above
+		// an "input" block reached the HCL and was dropped on the way back.
+		inputs[input.ID] = withComments(inputMap, blockComments(input.Body, hv))
 	}
 
 	for _, output := range cfg.Outputs {
@@ -151,7 +154,7 @@ func parseActionConfig(cfg hclActionBlock, hv *hclparser.HCLVars, stepMap map[st
 			return nil, "", "", err
 		}
 
-		outputs[output.ID] = outputMap
+		outputs[output.ID] = withComments(outputMap, blockComments(output.Body, hv))
 	}
 
 	for _, runs := range cfg.Runs {

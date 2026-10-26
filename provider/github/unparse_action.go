@@ -6,6 +6,7 @@ package github
 import (
 	"errors"
 	"fmt"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	"path"
 	"path/filepath"
 	"strings"
@@ -114,7 +115,11 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, si
 		default:
 			actionSections.next()
 
-			if err := writeAttributeAny(actionBody, toHCLKey(key), doc[key]); err != nil {
+			// With its comments, the way the workflow writer does it. Written
+			// through writeAttributeAny, which carries none, the note above
+			// an action's first key — the one describing the whole file —
+			// was read off the YAML and then dropped on the floor.
+			if err := writeCommentedAttribute(actionBody, toHCLKey(key), doc[key], comments.at(key)); err != nil {
 				return nil, err
 			}
 		}
@@ -138,14 +143,21 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, si
 				return nil, fmt.Errorf("action input '%s' must be an object", name)
 			}
 
+			inputComments := comments.child("inputs")
+
+			hclcomment.WriteLeading(actionBody, inputComments.at(name).head)
+
 			inputBlock := actionBody.AppendNewBlock("input", []string{name})
 			inputBody := inputBlock.Body()
+			attrComments := inputComments.child(name)
 
 			for _, attr := range sortedKeys(inputMap) {
-				if err := writeAttributeAny(inputBody, inputAttrHCLKey(attr), inputMap[attr]); err != nil {
+				if err := writeCommentedAttribute(inputBody, inputAttrHCLKey(attr), inputMap[attr], attrComments.at(attr)); err != nil {
 					return nil, err
 				}
 			}
+
+			hclcomment.WriteLeading(inputBody, attrComments.below())
 		}
 	}
 
@@ -167,14 +179,21 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, si
 				return nil, fmt.Errorf("action output '%s' must be an object", name)
 			}
 
+			outputComments := comments.child("outputs")
+
+			hclcomment.WriteLeading(actionBody, outputComments.at(name).head)
+
 			outputBlock := actionBody.AppendNewBlock("output", []string{name})
 			outputBody := outputBlock.Body()
+			attrComments := outputComments.child(name)
 
 			for _, attr := range sortedKeys(outputMap) {
-				if err := writeAttributeAny(outputBody, toHCLKey(attr), outputMap[attr]); err != nil {
+				if err := writeCommentedAttribute(outputBody, toHCLKey(attr), outputMap[attr], attrComments.at(attr)); err != nil {
 					return nil, err
 				}
 			}
+
+			hclcomment.WriteLeading(outputBody, attrComments.below())
 		}
 	}
 
