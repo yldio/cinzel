@@ -499,6 +499,52 @@ func checkHCLIdentifier(blockType, key, written string) error {
 	return nil
 }
 
+// warnChompedRun reports a multi-line "run" whose block scalar ends in
+// anything other than one newline, which the HCL it becomes cannot hold.
+//
+// A script is written as a heredoc, and a heredoc ends on its closing marker's
+// own line: the value it holds always ends in exactly one newline. That is
+// what "run: |" means, so a script written that way makes the trip unchanged.
+// The other two indicators do not survive it. "|-" strips every trailing
+// newline and a heredoc has no spelling for ending without one; "|+" keeps
+// them all and setAsHeredoc trims them off. Both come back as "|".
+//
+// Nothing runs differently for it. GitHub writes the script to a file and
+// hands it to a shell, and a shell reads a missing or extra final newline the
+// same as a present one. It is reported because the file changes and the
+// author did not ask for that, not because the pipeline changed.
+//
+// Only "run" goes through a heredoc. Every other string, including a
+// multi-line "env" value or a "with" input, is written as a quoted HCL string
+// that holds the value exactly, so none of them is reported here.
+func warnChompedRun(site commentSite, value map[string]any) {
+	run, isString := value["run"].(string)
+
+	if !isString || !strings.Contains(run, "\n") {
+		return
+	}
+
+	trailing := len(run) - len(strings.TrimRight(run, "\n"))
+
+	if trailing == 1 {
+		return
+	}
+
+	indicator := "|+"
+
+	if trailing == 0 {
+		indicator = "|-"
+	}
+
+	where := site.child("run").String(0)
+
+	if where == "" {
+		return
+	}
+
+	warnf("%s: rewriting the script's '%s' as '|': a heredoc ends in exactly one newline, so the other block styles cannot be written back. The script runs the same either way", where, indicator)
+}
+
 // fanOutKeys are the YAML mappings that become one HCL block per key. A
 // comment above one of these has nowhere to land, unlike "permissions" or
 // "defaults", which stay a single block and keep theirs.
@@ -727,6 +773,8 @@ func traversalTokens(root string, attr string) hclwrite.Tokens {
 }
 
 func stepFromMap(site commentSite, value map[string]any, comments *yamlComments) (step.Step, error) {
+	warnChompedRun(site, value)
+
 	ctyValue, err := anyToCty(value)
 	if err != nil {
 		return step.Step{}, err
