@@ -63,7 +63,7 @@ func buildWorkflowJobIndex(jobs map[string]any, order []string, usedRefs map[str
 	return entries, jobRefs, jobIDMap, nil
 }
 
-func writeWorkflowMetadata(sections *bodySections, doc ghworkflow.YAMLDocument, comments *yamlComments) error {
+func writeWorkflowMetadata(sections *bodySections, doc ghworkflow.YAMLDocument, comments *yamlComments, site commentSite) error {
 	body := sections.body
 	appendSection := sections.next
 
@@ -78,8 +78,9 @@ func writeWorkflowMetadata(sections *bodySections, doc ghworkflow.YAMLDocument, 
 
 		// Written here rather than inside each case: every key below becomes
 		// either an attribute or a block, and the comment above it belongs
-		// above whichever it becomes.
-		hclcomment.WriteLeading(body, comment.head)
+		// above whichever it becomes. A fan-out key becomes several, so it
+		// has nowhere for one and headForMapping reports it instead.
+		hclcomment.WriteLeading(body, headForMapping(site, key, comment))
 
 		value := doc.Raw[key]
 		switch key {
@@ -131,8 +132,9 @@ func writeWorkflowMetadata(sections *bodySections, doc ghworkflow.YAMLDocument, 
 	return nil
 }
 
-func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
+func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap map[string]string, comments *yamlComments, site commentSite, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	jobComments := comments.child("jobs")
+	jobsSite := site.child("jobs")
 
 	for _, job := range jobs {
 		jobName := job.Name
@@ -155,7 +157,7 @@ func writeWorkflowJobs(root *hclwrite.Body, jobs []workflowJobEntry, jobIDMap ma
 			jobBlock.Body().SetAttributeValue("id", cty.StringVal(jobName))
 		}
 
-		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, jobComments.child(jobName), generatedVariables, stepRegistry, usedStepIDs); err != nil {
+		if err := writeJobBody(root, jobBlock.Body(), jobID, jobMap, jobIDMap, jobComments.child(jobName), jobsSite.child(jobName), generatedVariables, stepRegistry, usedStepIDs); err != nil {
 			return fmt.Errorf("error in job '%s': %w", jobName, err)
 		}
 	}
@@ -183,10 +185,10 @@ func writeGeneratedVariables(root *hclwrite.Body, generatedVariables map[string]
 	return nil
 }
 
-func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}, stepRefs *[]string) error {
+func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key string, value any, jobIDMap map[string]string, comments *yamlComments, site commentSite, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}, stepRefs *[]string) error {
 	switch key {
 	case "steps":
-		refs, err := writeJobSteps(root, value, comments, stepRegistry, usedStepIDs)
+		refs, err := writeJobSteps(root, site.child("steps"), value, comments, stepRegistry, usedStepIDs)
 		if err != nil {
 			return err
 		}
@@ -225,7 +227,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 	}
 }
 
-func writeJobSteps(root *hclwrite.Body, raw any, comments *yamlComments, stepRegistry map[string]string, usedStepIDs map[string]struct{}) ([]string, error) {
+func writeJobSteps(root *hclwrite.Body, site commentSite, raw any, comments *yamlComments, stepRegistry map[string]string, usedStepIDs map[string]struct{}) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
@@ -249,7 +251,7 @@ func writeJobSteps(root *hclwrite.Body, raw any, comments *yamlComments, stepReg
 		}
 
 		stepID := stepIdentifier(idx, stepObj, usedStepIDs)
-		parsedStep, err := stepFromMap(stepObj, comments.item("steps", idx))
+		parsedStep, err := stepFromMap(site.index(idx), stepObj, comments.item("steps", idx))
 		if err != nil {
 			return nil, err
 		}

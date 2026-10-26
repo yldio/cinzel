@@ -117,6 +117,14 @@ one closing a body each land where they were written.
 See `docs/solutions/logic-errors/hcl-inline-comment-propagation-to-yaml.md` for
 why it is a wrapper rather than a side map.
 
+One comment cannot be carried: the one above `env`, `with`, `outputs` or
+`secrets`. Each becomes one HCL block per key, so the mapping has no block of
+its own, and the only place for the comment was above the first block, where
+the next read attributes it to that key. Unparse drops it and reports where it
+was, as `file:line: path`, on stderr. `permissions`, `defaults` and `concurrency` stay a single block and
+keep theirs. The comments on the mapping's own keys, and the one closing it,
+are unaffected.
+
 ## Generated markers and pruning
 
 Every YAML file parse writes opens with cinzel's own header:

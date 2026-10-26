@@ -49,7 +49,7 @@ func isActionDocument(doc map[string]any) bool {
 // only while an action could not sit anywhere but the output directory: the
 // block label comes from sanitizeIdentifier, and a path through that becomes
 // "actions_a_setup" rather than "setup".
-func actionToHCL(doc map[string]any, location string, comments *yamlComments, usedStepIDs map[string]struct{}) ([]byte, error) {
+func actionToHCL(doc map[string]any, location string, comments *yamlComments, site commentSite, usedStepIDs map[string]struct{}) ([]byte, error) {
 	if err := validateActionDocument(doc); err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 	if runs, ok := toStringAnyMap(doc["runs"]); ok {
 		if using, _ := runs["using"].(string); using == "composite" {
 			if stepsRaw, ok := runs["steps"]; ok {
-				refs, err := writeActionSteps(root, stepsRaw, comments.child("runs"), usedStepIDs)
+				refs, err := writeActionSteps(root, site.child("runs").child("steps"), stepsRaw, comments.child("runs"), usedStepIDs)
 				if err != nil {
 					return nil, err
 				}
@@ -246,7 +246,7 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
-func writeActionSteps(root *hclwrite.Body, raw any, comments *yamlComments, used map[string]struct{}) ([]string, error) {
+func writeActionSteps(root *hclwrite.Body, site commentSite, raw any, comments *yamlComments, used map[string]struct{}) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
@@ -263,7 +263,7 @@ func writeActionSteps(root *hclwrite.Body, raw any, comments *yamlComments, used
 		}
 
 		stepID := stepIdentifier(idx, stepObj, used)
-		parsedStep, err := stepFromMap(stepObj, comments.item("steps", idx))
+		parsedStep, err := stepFromMap(site.index(idx), stepObj, comments.item("steps", idx))
 		if err != nil {
 			return nil, err
 		}

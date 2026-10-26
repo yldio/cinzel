@@ -13,6 +13,10 @@ import (
 type nodeComment struct {
 	head string
 	line string
+	// srcLine is the line the key itself was written on, 1-based, kept so a
+	// comment that cannot be carried can be reported where its author will
+	// find it. Zero when the comment did not come from a parsed document.
+	srcLine int
 }
 
 // withoutHead returns the comment with its head run dropped, for a writer
@@ -23,7 +27,8 @@ func (c nodeComment) withoutHead() nodeComment {
 	return c
 }
 
-// empty reports whether the key carried no comment at all.
+// empty reports whether the key carried no comment at all. srcLine is not a
+// comment, so a key with a line and nothing written on it is still empty.
 func (c nodeComment) empty() bool {
 	return c.head == "" && c.line == ""
 }
@@ -124,8 +129,9 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 		// The head comment is written above the key and the inline one after
 		// the value, which is where yaml.v3 records each of them.
 		comment := nodeComment{
-			head: fsutil.WithoutGeneratedMarker(key.HeadComment),
-			line: value.LineComment,
+			head:    fsutil.WithoutGeneratedMarker(key.HeadComment),
+			line:    value.LineComment,
+			srcLine: key.Line,
 		}
 
 		if !comment.empty() {

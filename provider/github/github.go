@@ -295,7 +295,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
-		hclBytes, name, kind, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file, opts.ResolveRoot()), usedStepIDs, usedJobIDs)
+		hclBytes, name, kind, err := unparseYAMLFile(yamlBytes, file, baseName, actionNameFor(file, opts.ResolveRoot()), usedStepIDs, usedJobIDs)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
 
@@ -420,7 +420,10 @@ type unparsedFile struct {
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
 // the document is a workflow, action, or step-only file. Returns nil if
 // the document is empty or unrecognized.
-func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, documentKind, error) {
+//
+// source is the file as it was named on the command line, carried so a comment
+// the conversion cannot write can be reported where its author will find it.
+func unparseYAMLFile(yamlBytes []byte, source, baseName, actionName string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, documentKind, error) {
 	doc, order, comments, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
 		return nil, "", kindWorkflow, err
@@ -439,13 +442,13 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 	}
 
 	if workflowDoc != nil {
-		out, err := workflowToHCL(*workflowDoc, baseName, order, comments, usedStepIDs, usedJobIDs)
+		out, err := workflowToHCL(*workflowDoc, baseName, order, comments, commentSite{file: source}, usedStepIDs, usedJobIDs)
 
 		return out, baseName, kindWorkflow, err
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
-		out, err := actionToHCL(actionDoc, actionName, comments, usedStepIDs)
+		out, err := actionToHCL(actionDoc, actionName, comments, commentSite{file: source}, usedStepIDs)
 
 		// The HCL file is named after the action, not after where the action
 		// goes. The folders above it are written inside the file as "path",
