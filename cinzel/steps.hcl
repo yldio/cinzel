@@ -401,7 +401,7 @@ step "goreleaser" {
 
   with {
     name  = "version"
-    value = "v2.14.3"
+    value = "v2.19.0"
   }
 
   with {

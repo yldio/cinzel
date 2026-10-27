@@ -54,7 +54,16 @@ homebrew_casks:
     license: Apache-2.0
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/cinzel"]
+        # Homebrew deprecated the "postflight" stanza the raw-Ruby "install"
+        # hook writes, so every install printed a warning telling the user to
+        # report it to the tap. "install_steps" writes "postflight_steps",
+        # which takes Homebrew's declarative DSL rather than arbitrary Ruby:
+        # "on_macos" for the guard, "run" for the command.
+        #
+        # StagedPath is GoReleaser's own field for Homebrew's "staged_path"
+        # token, which uses the same delimiters as a GoReleaser template and
+        # would otherwise have to be escaped.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/cinzel"]
           end

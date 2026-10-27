@@ -60,5 +60,5 @@ jobs:
         with:
           args: release --clean
           distribution: goreleaser
-          version: v2.14.3
+          version: v2.19.0
     timeout-minutes: 20
