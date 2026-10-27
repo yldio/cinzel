@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yldio/cinzel/provider"
 )
 
 const mirrorAction = "name: Setup\ndescription: d\nruns:\n  using: composite\n  steps:\n    - name: Setup step\n      run: npm ci\n      shell: bash\n"
@@ -236,6 +238,73 @@ func TestTheSameDirectoryWithRecursiveConvertsTheAction(t *testing.T) {
 			if _, err := os.Stat(filepath.Join("cinzel", filepath.FromSlash(want))); err != nil {
 				t.Errorf("want cinzel/%s: %v", want, err)
 			}
+		}
+	})
+}
+
+// --ignore-unknown reaches the provider, and the file is refused without it.
+func TestIgnoreUnknownFlagReachesTheProvider(t *testing.T) {
+	const workflow = `name: ci
+on:
+  push: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    bogus: x
+    steps:
+      - run: make
+`
+
+	withTempWorkingDir(t, func() {
+		if err := os.MkdirAll(filepath.Join(".github", "workflows"), 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		writeFile(t, filepath.Join(".github", "workflows", "ci.yaml"), []byte(workflow))
+
+		err := runCommandLine(t, []string{
+			"cinzel", "github", "unparse", "--output-directory", "cinzel",
+		})
+
+		if err == nil {
+			t.Fatal("the unknown key was not refused by default")
+		}
+
+		if err := runCommandLine(t, []string{
+			"cinzel", "github", "unparse", "--ignore-unknown", "--output-directory", "cinzel",
+		}); err != nil {
+			t.Fatalf("unparse --ignore-unknown = %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join("cinzel", "ci.hcl")); err != nil {
+			t.Errorf("want cinzel/ci.hcl: %v", err)
+		}
+	})
+}
+
+// It reads from the configuration file too, and the flag still wins.
+func TestIgnoreUnknownInTheConfigFile(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  unparse:\n    ignore-unknown: true\n"))
+
+		app, _, p := newConfigTestApp(t)
+
+		if err := app.Execute([]string{"cinzel", "github", "unparse"}, []provider.Provider{p}); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		if !p.unparseOpts.IgnoreUnknown {
+			t.Fatal("ignore-unknown = false, want the file's true")
+		}
+
+		app, _, p = newConfigTestApp(t)
+
+		if err := app.Execute([]string{"cinzel", "github", "unparse", "--ignore-unknown=false"}, []provider.Provider{p}); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		if p.unparseOpts.IgnoreUnknown {
+			t.Fatal("ignore-unknown = true, want the flag to have won")
 		}
 	})
 }

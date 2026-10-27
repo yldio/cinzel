@@ -268,8 +268,8 @@ github:
     recursive: true
 ```
 
-Keys are `file`, `directory`, `output-directory`, `yml` and `recursive`. The
-last two are booleans, written bare. Command-line flags win. It covers `parse`
+Keys are `file`, `directory`, `output-directory`, `yml`, `recursive` and
+`ignore-unknown`. The last three are booleans, written bare. Command-line flags win. It covers `parse`
 and `unparse` only — `assist`, `pin`, `upgrade`, `init` ignore it. Paths must
 be relative with forward slashes; the file is committed and read on every
 machine, so an absolute path or a `~` is refused.
@@ -279,6 +279,11 @@ machine, so an absolute path or a `~` is refused.
 cinzel refuses rather than writing a file that cannot be read back. An error
 naming an unknown keyword means the schema does not cover it — check the
 provider README in the cinzel repo before assuming it is a bug.
+
+`unparse --ignore-unknown` drops such keys instead, naming each with its file
+and line. The dropped key is gone from the HCL and so from the YAML the next
+parse writes over the source, and `diff` reports no drift afterwards, so use
+it for a keyword cinzel has not caught up with rather than for a typo.
 
 cinzel does not lint. It converts. Whether GitHub or GitLab accepts the
 resulting pipeline is `actionlint`'s question, not cinzel's.

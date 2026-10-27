@@ -29,6 +29,8 @@ type providerCommandConfig struct {
 	hasYML          bool
 	recursive       bool
 	hasRecursive    bool
+	ignoreUnknown   bool
+	hasIgnoreUnknow bool
 }
 
 func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (provider.ProviderOps, []string, error) {
@@ -39,6 +41,7 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 		Root:            cmd.String("root"),
 		Mirror:          cmd.Bool("mirror"),
 		Recursive:       cmd.Bool("recursive"),
+		IgnoreUnknown:   cmd.Bool("ignore-unknown"),
 		DryRun:          cmd.Bool("dry-run"),
 		YML:             cmd.Bool("yml"),
 	}
@@ -71,6 +74,10 @@ func toProviderOpts(cmd *cli.Command, providerName string, commandName string) (
 
 	if !cmd.IsSet("recursive") && conf.hasRecursive {
 		opts.Recursive = conf.recursive
+	}
+
+	if !cmd.IsSet("ignore-unknown") && conf.hasIgnoreUnknow {
+		opts.IgnoreUnknown = conf.ignoreUnknown
 	}
 
 	hasCLIFileInput := cmd.IsSet("file") || cmd.IsSet("directory")
@@ -185,6 +192,12 @@ func loadProviderCommandConfig(path string, providerName string, commandName str
 			}
 			config.recursive = valueNode.Value == "true"
 			config.hasRecursive = true
+		case "ignore-unknown":
+			if valueNode.Kind != yaml.ScalarNode || valueNode.Tag != "!!bool" {
+				return providerCommandConfig{}, nil, configError("%s.%s.%s.ignore-unknown must be a boolean", path, providerName, commandName)
+			}
+			config.ignoreUnknown = valueNode.Value == "true"
+			config.hasIgnoreUnknow = true
 		default:
 			warnings = append(warnings, fmt.Sprintf("%s.%s.%s.%s: unknown key", path, providerName, commandName, keyNode.Value))
 		}

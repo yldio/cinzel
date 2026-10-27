@@ -27,7 +27,7 @@ import (
 // parseYAMLDocument parses YAML content into a document map and extracts job
 // names in source order, plus every comment written in the file, in a single
 // pass using the yaml.v3 Node API.
-func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments, error) {
+func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments, map[string]int, error) {
 	// GitHub reads one document per file. A file holding more than one used to
 	// be cut short at the first, losing the rest without a word, so the whole
 	// file is rejected instead.
@@ -45,7 +45,7 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments,
 		}
 
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		if len(node.Content) == 0 || isNullNode(node.Content[0]) {
@@ -53,18 +53,18 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments,
 		}
 
 		if first != nil {
-			return nil, nil, nil, errMultipleDocuments
+			return nil, nil, nil, nil, errMultipleDocuments
 		}
 
 		first = node.Content[0]
 	}
 
 	if first == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	if err := rejectNonStringKeys(first); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	keepWholeNumbersExact(first)
@@ -72,10 +72,10 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments,
 	var doc map[string]any
 
 	if err := first.Decode(&doc); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return doc, jobOrder(first), collectComments(first), nil
+	return doc, jobOrder(first), collectComments(first), keyLines(first), nil
 }
 
 // keepWholeNumbersExact retags a whole number too large for an integer so it
@@ -208,7 +208,11 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string, comments *yamlComments, site commentSite, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string, comments *yamlComments, site commentSite, lines map[string]int, ignoreUnknown bool, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
+	if ignoreUnknown {
+		reportDroppedKeys(site, stripUnknownKeys(doc.Raw, workflowYAMLShape{}, lines))
+	}
+
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}

@@ -644,6 +644,7 @@ func TestConfigErrorsAreTheAuthorsToFix(t *testing.T) {
 		{"path is not a string", "github:\n  parse:\n    file: 3\n"},
 		{"yml is not a boolean", "github:\n  parse:\n    yml: \"yes\"\n"},
 		{"recursive is not a boolean", "github:\n  parse:\n    recursive: \"yes\"\n"},
+		{"ignore-unknown is not a boolean", "github:\n  parse:\n    ignore-unknown: \"yes\"\n"},
 		{"file and directory together", "github:\n  parse:\n    file: a.hcl\n    directory: d\n"},
 		{"path names one machine", "github:\n  parse:\n    output-directory: " + absoluteTestPath() + "\n"},
 		{"path climbs out", "github:\n  parse:\n    output-directory: ../elsewhere\n"},

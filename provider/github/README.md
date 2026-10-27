@@ -309,6 +309,15 @@ converts back:
 A file that fails one of these stops with an error naming the problem, rather
 than writing YAML that GitHub would reject.
 
+A YAML key the schema does not declare stops the conversion the same way.
+`unparse --ignore-unknown` drops those keys instead, naming each with its file
+and line, and reports every one rather than stopping at the first. The dropped
+key is gone from the HCL and so from the YAML the next parse writes over the
+source, and `diff` reports no drift afterwards, so it is for a keyword cinzel
+has not caught up with rather than for a typo. The accepted keys are read off
+the shape structs in `validate.go`, so a schema that grows a field needs no
+second list.
+
 ## Coverage
 
 Workflows cover the common triggers and event maps, including the `on: push`

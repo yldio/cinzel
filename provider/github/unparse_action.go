@@ -50,7 +50,11 @@ func isActionDocument(doc map[string]any) bool {
 // only while an action could not sit anywhere but the output directory: the
 // block label comes from sanitizeIdentifier, and a path through that becomes
 // "actions_a_setup" rather than "setup".
-func actionToHCL(doc map[string]any, location string, comments *yamlComments, site commentSite, usedStepIDs map[string]struct{}) ([]byte, error) {
+func actionToHCL(doc map[string]any, location string, comments *yamlComments, site commentSite, lines map[string]int, ignoreUnknown bool, usedStepIDs map[string]struct{}) ([]byte, error) {
+	if ignoreUnknown {
+		reportDroppedKeys(site, stripUnknownKeys(doc, actionYAMLShape{}, lines))
+	}
+
 	if err := validateActionDocument(doc); err != nil {
 		return nil, err
 	}

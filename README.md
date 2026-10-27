@@ -195,16 +195,29 @@ github:
 A flag on the command line still wins, including `--recursive=false` against a
 file that sets it true. It covers `parse` and `unparse` only, per provider —
 `assist`, `pin`, `upgrade` and `init` ignore it. The keys are `file`,
-`directory`, `output-directory`, `yml` and `recursive`; the last two are
-booleans, written bare rather than quoted, and `yml` only affects parse, so it
-is accepted and ignored under `unparse`. Anything else prints
-`warning: ...: unknown key` and is skipped.
+`directory`, `output-directory`, `yml`, `recursive` and `ignore-unknown`; the
+last three are booleans, written bare rather than quoted. `yml` only affects
+parse and `ignore-unknown` only unparse, so each is accepted and ignored under
+the other. Anything else prints `warning: ...: unknown key` and is skipped.
 
 Paths must be relative and written with forward slashes. The file is meant to
 be committed and read on every machine that checks the repo out, so an absolute
 path or a leading `~` is refused with an error naming the key. Forward slashes
 are converted to whatever the running system separates with, so one spelling
 works on Linux, macOS and Windows.
+
+## A key cinzel does not know
+
+A YAML key the schema does not declare stops the conversion, naming the key
+and the line. That is the right answer for a typo: the file is left as it was,
+with nothing lost.
+
+`unparse --ignore-unknown` drops those keys instead, naming each one with its
+file and line. It is worth knowing what that costs. The key is gone from the
+HCL, so it is gone from the YAML the next parse writes — over the file it came
+from. `diff` reports no drift afterwards, because the HCL and the YAML agree:
+they agree on a document missing a key you wrote. Reach for it when a key is
+one cinzel's schema has not caught up with, not to get past a typo.
 
 ## Keeping the two in step
 
