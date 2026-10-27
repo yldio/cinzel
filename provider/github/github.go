@@ -235,6 +235,21 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 	}
 
 	files := make([]string, 0, len(inputPaths))
+	seen := map[string]struct{}{}
+
+	// One file reached twice is still one file. Naming a directory of actions
+	// and one of the actions in it is two ways of asking for the same
+	// action.yml, and converting it twice made it collide with itself.
+	add := func(found []string) {
+		for _, file := range found {
+			if _, taken := seen[file]; taken {
+				continue
+			}
+
+			seen[file] = struct{}{}
+			files = append(files, file)
+		}
+	}
 
 	for _, inputPath := range inputPaths {
 		found, err := fsutil.ListFilesWithExtensions(inputPath, opts.Recursive, ".yaml", ".yml")
@@ -242,7 +257,27 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 			return err
 		}
 
-		files = append(files, found...)
+		add(found)
+
+		// A composite action is always at "<dir>/<name>/action.yml", one
+		// directory below the folder holding it, so a folder of actions holds
+		// no YAML of its own and reading its top level gave back nothing:
+		// "-d .github/actions" converted none of them and the run reported
+		// success over whatever else it had found.
+		//
+		// Naming the directory is asking for what is in it, so the actions
+		// one level down are read without --recursive being typed as well.
+		// Only "action.yml" and "action.yaml": one level down is also where a
+		// directory of directories keeps everything else, and a caller who
+		// means all of it has --recursive to say so.
+		if !opts.Recursive {
+			actions, err := fsutil.ListNamedFilesInChildren(inputPath, "action.yml", "action.yaml")
+			if err != nil {
+				return err
+			}
+
+			add(actions)
+		}
 	}
 
 	if len(files) == 0 {
@@ -295,7 +330,7 @@ func (p *GitHub) Unparse(opts provider.ProviderOps) error {
 
 		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 
-		hclBytes, name, kind, err := unparseYAMLFile(yamlBytes, baseName, actionNameFor(file, opts.ResolveRoot()), usedStepIDs, usedJobIDs)
+		hclBytes, name, kind, err := unparseYAMLFile(yamlBytes, file, baseName, actionNameFor(file, opts.ResolveRoot()), opts.IgnoreUnknown, usedStepIDs, usedJobIDs)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("error in file '%s': %w", file, err))
 
@@ -420,8 +455,11 @@ type unparsedFile struct {
 // unparseYAMLFile converts a YAML file to HCL bytes, detecting whether
 // the document is a workflow, action, or step-only file. Returns nil if
 // the document is empty or unrecognized.
-func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, documentKind, error) {
-	doc, order, comments, err := parseYAMLDocument(yamlBytes)
+//
+// source is the file as it was named on the command line, carried so a comment
+// the conversion cannot write can be reported where its author will find it.
+func unparseYAMLFile(yamlBytes []byte, source, baseName, actionName string, ignoreUnknown bool, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, string, documentKind, error) {
+	doc, order, comments, lines, err := parseYAMLDocument(yamlBytes)
 	if err != nil {
 		return nil, "", kindWorkflow, err
 	}
@@ -439,13 +477,13 @@ func unparseYAMLFile(yamlBytes []byte, baseName, actionName string, usedStepIDs,
 	}
 
 	if workflowDoc != nil {
-		out, err := workflowToHCL(*workflowDoc, baseName, order, comments, usedStepIDs, usedJobIDs)
+		out, err := workflowToHCL(*workflowDoc, baseName, order, comments, commentSite{file: source}, lines, ignoreUnknown, usedStepIDs, usedJobIDs)
 
 		return out, baseName, kindWorkflow, err
 	}
 
 	if actionDoc := classifyActionDocument(doc); actionDoc != nil {
-		out, err := actionToHCL(actionDoc, actionName, comments, usedStepIDs)
+		out, err := actionToHCL(actionDoc, actionName, comments, commentSite{file: source}, lines, ignoreUnknown, usedStepIDs)
 
 		// The HCL file is named after the action, not after where the action
 		// goes. The folders above it are written inside the file as "path",
@@ -654,11 +692,22 @@ func actionOutputBase(opts provider.ProviderOps, outputDir string, filename stri
 // Only a file that knows where it came from can be mirrored. A workflow has
 // one home and says nothing about it, so it stays where it was.
 func mirroredName(opts provider.ProviderOps, out unparsedFile, taken map[string]struct{}) string {
+	// A workflow is written flat even under --mirror. GitHub reads
+	// ".github/workflows" and nowhere else, so where a workflow was found is
+	// not a layout decision to reproduce: parse writes every one of them back
+	// to that one directory whatever the HCL is called and wherever it sits.
+	// Mirroring it built a "cinzel/.github/workflows" nothing reads back, and
+	// pushed the workflows three directories below the actions beside them.
+	//
+	// An action is the opposite. It is read from wherever the repository put
+	// it, carries that path in its own "path" attribute, and parse writes it
+	// back there, so its folders are worth keeping.
+	//
 	// The location check is belt and braces: two files with none would both
 	// be written flat, and checkUnparseNameClash refuses that pair before
 	// this is reached. It stays because the alternative is Join("", name)
 	// quietly skipping the uniqueness pass if that ever stops being true.
-	if !opts.Mirror || out.location == "" {
+	if !opts.Mirror || out.location == "" || out.kind == kindWorkflow {
 		return fsutil.UniqueOutputName(taken, out.name)
 	}
 

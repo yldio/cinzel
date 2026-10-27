@@ -91,11 +91,49 @@ rewrite them to double on save.
 
 What gets quoted is `needsQuoting` in `internal/yamldoc/encode.go`: the empty
 string and `~`, the YAML 1.1 bool and null words in any case, anything that
-parses as a number, anything with leading or trailing whitespace, and the YAML
-special characters. `@` is not one of them, so `actions/checkout@v4` stays
-bare. GitLab keeps its own `stringNeedsQuoting`
-(`provider/gitlab/pipeline_yaml.go`) because the shared rules would quote a
-large share of real pipelines.
+parses as a number, and anything with leading or trailing whitespace.
+
+The YAML indicators are checked in the first position only, because that is
+the only place they indicate anything: `${{ github.sha }}` and `foo{bar}baz`
+go out bare and read back whole, while `{bar}` is quoted. `:` and `#` are
+checked across the value but only where they bite — `": "`, a trailing `:`,
+and `" #"`. So `foo:bar` and `container: node:18` stay bare. `@` is not an
+indicator anywhere, so `actions/checkout@v4` stays bare too.
+
+GitLab keeps its own `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go`)
+because the shared rules would quote a large share of real pipelines. It still
+scans the whole value, so it quotes an expression the shared one now leaves
+alone.
+
+## Block scalars
+
+A literal `|` string keeps its style through the conversion, in `env`, `with`,
+`inputs`, `outputs` and anywhere else a string is written. Those go out as
+quoted HCL strings holding the newlines, and a value with a newline in it is
+written back as a literal block.
+
+A step's `run` is the exception, because it is the one value written as a
+heredoc (`setAsHeredoc`, `provider/github/step/stepdecode.go`). A heredoc ends
+on its closing marker's own line, so what it holds always ends in exactly one
+newline. That is what `run: |` means, and a script written that way makes the
+trip unchanged.
+
+The other two chomping indicators mean something a heredoc cannot spell. `|-`
+strips every trailing newline and there is no heredoc that ends without one;
+`|+` keeps them all and `setAsHeredoc` trims them. Both come back as `|`, and
+unparse reports each one with its path. Nothing runs differently for it:
+GitHub writes the script to a file and hands it to a shell, which reads a
+missing or extra final newline the same as a present one.
+
+A folded `>` value is a separate loss, everywhere rather than in `run` alone,
+and not reported. YAML folds it into a single line as it reads the file, so by
+the time cinzel has the value there is no newline left in it and no trace that
+it was ever folded. It comes back as one long line, quoted if the text needs
+it. The value is identical; only the wrapping is gone.
+
+The heredoc path is lossy by design. Anything routed through it later — a
+GitLab `script`, say — inherits the same normalisation, where the stakes may
+not be as low.
 
 Workflow key order is `workflowKeyOrder` (`provider/github/workflow_yaml.go`):
 name, run-name, on, permissions, env, defaults, concurrency, jobs, then
@@ -116,6 +154,14 @@ one closing a body each land where they were written.
 
 See `docs/solutions/logic-errors/hcl-inline-comment-propagation-to-yaml.md` for
 why it is a wrapper rather than a side map.
+
+One comment cannot be carried: the one above `env`, `with`, `outputs` or
+`secrets`. Each becomes one HCL block per key, so the mapping has no block of
+its own, and the only place for the comment was above the first block, where
+the next read attributes it to that key. Unparse drops it and reports where it
+was, as `file:line: path`, on stderr. `permissions`, `defaults` and `concurrency` stay a single block and
+keep theirs. The comments on the mapping's own keys, and the one closing it,
+are unaffected.
 
 ## Generated markers and pruning
 

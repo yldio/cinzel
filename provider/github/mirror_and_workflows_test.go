@@ -101,6 +101,11 @@ func TestUnparseWithoutAWorkflowsDirectory(t *testing.T) {
 // --mirror lays the HCL out the way the repository is laid out. Where a file
 // goes on the way back is its own "path" attribute either way, so this is for
 // reading the tree rather than for the conversion.
+//
+// A workflow is the exception: it is written flat. GitHub reads
+// ".github/workflows" and nowhere else, so where one was found is not a
+// layout to reproduce, and parse writes every workflow back there whatever
+// the HCL is called.
 func TestMirrorLaysTheHCLOutLikeTheRepository(t *testing.T) {
 	tmp := repoWithWorkflowAndAction(t)
 	hcl := filepath.Join(tmp, "cinzel")
@@ -116,10 +121,17 @@ func TestMirrorLaysTheHCLOutLikeTheRepository(t *testing.T) {
 		t.Fatalf("Unparse() = %v", err)
 	}
 
-	for _, want := range []string{".github/workflows/ci.hcl", "actions/setup.hcl"} {
+	for _, want := range []string{"ci.hcl", "actions/setup.hcl"} {
 		if _, err := os.Stat(filepath.Join(hcl, filepath.FromSlash(want))); err != nil {
 			t.Errorf("want %s: %v", want, err)
 		}
+	}
+
+	// The directory nothing reads back. Built from the folders a workflow was
+	// found in, it put the workflows three levels below the actions beside
+	// them and parse never looked there.
+	if _, err := os.Stat(filepath.Join(hcl, ".github")); err == nil {
+		t.Error("the workflows directory was mirrored into the output")
 	}
 
 	// And back out again, which a mirrored tree needs --recursive for.

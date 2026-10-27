@@ -102,11 +102,10 @@ func TestBlockHeadCommentsSurviveUnparse(t *testing.T) {
 			yaml: commentWorkflowYAML("# who can do what\npermissions:\n  contents: read\n", ""),
 			want: "# who can do what\n  permissions {",
 		},
-		{
-			name: "above a job env block",
-			yaml: commentWorkflowYAML("", "    # what the job needs\n    env:\n      FOO: bar\n"),
-			want: "# what the job needs\n  env {",
-		},
+		// "env" is not here: it becomes one block per key, so the comment
+		// above the mapping has no block of its own and is dropped with a
+		// warning rather than pinned to whichever key sorts first. See
+		// TestAFanOutMappingCommentIsDroppedAndReported.
 		{
 			name: "above a runs-on key",
 			yaml: "on:\n  push: {}\njobs:\n  build:\n    # where it runs\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
@@ -159,4 +158,93 @@ func blockCommentHCL(job, wf string) string {
 	return "step \"hi\" {\n  run = \"echo hi\"\n}\n\n" +
 		"job \"b\" {\n" + job + "  steps = [step.hi]\n}\n\n" +
 		"workflow \"w\" {\n  filename = \"w\"\n" + wf + "  jobs = [job.b]\n}\n"
+}
+
+// A mapping that becomes one block per key has nowhere to put the comment
+// written above it. Writing it above the first block turned a note about the
+// whole set into a note about one member, and merged it beyond telling apart
+// with that member's own comment, so it is dropped and reported instead.
+func TestAFanOutMappingCommentIsDroppedAndReported(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		yaml string
+		// want is the "file:line: path" the report names, with the file left
+		// to the test since it writes to a temporary directory.
+		want string
+	}{
+		{
+			// Line 1 is the comment, so the "env:" above it is line 2.
+			name: "a workflow env block",
+			yaml: "# about the environment\nenv:\n  FOO: bar\n" + commentWorkflowYAML("", ""),
+			want: ":2: env",
+		},
+		{
+			name: "a job env block",
+			yaml: commentWorkflowYAML("", "    # what the job needs\n    env:\n      FOO: bar\n"),
+			want: ":7: jobs.build.env",
+		},
+		{
+			name: "a job outputs block",
+			yaml: commentWorkflowYAML("", "    # what it hands on\n    outputs:\n      FOO: bar\n"),
+			want: ":7: jobs.build.outputs",
+		},
+		{
+			name: "a step with block",
+			yaml: commentWorkflowYAML("", "") +
+				"      - uses: actions/checkout@v4\n        # what it takes\n        with:\n          FOO: bar\n",
+			want: ":10: jobs.build.steps[1].with",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hcl, warnings := unparseWithWarnings(t, tc.yaml)
+
+			if strings.Contains(hcl, "#") {
+				t.Errorf("the comment reached the HCL:\n%s", hcl)
+			}
+
+			// The file is named too, so the author has somewhere to go. The
+			// test owns neither the temporary directory nor its name, so it
+			// asserts the line and path and that a ".yaml" sits before them.
+			if !strings.Contains(warnings, ".yaml"+tc.want+":") {
+				t.Errorf("the drop was not reported at %q, got:\n%s", tc.want, warnings)
+			}
+
+			if got := strings.Count(warnings, "dropping the comment"); got != 1 {
+				t.Errorf("want one report, got %d:\n%s", got, warnings)
+			}
+		})
+	}
+}
+
+// The comment on a key inside the mapping still has a block to live in, and a
+// mapping that stays one block keeps the comment above it. Neither is reported.
+func TestOnlyTheFanOutHeadIsDropped(t *testing.T) {
+	yaml := commentWorkflowYAML(
+		"# who can do what\npermissions:\n  contents: read\n",
+		"    env:\n      # about FOO only\n      FOO: bar\n",
+	)
+
+	hcl, warnings := unparseWithWarnings(t, yaml)
+
+	for _, want := range []string{"# who can do what\n  permissions {", "# about FOO only\n  env {"} {
+		if !strings.Contains(hcl, want) {
+			t.Errorf("want %q in:\n%s", want, hcl)
+		}
+	}
+
+	if strings.Contains(warnings, "dropping the comment") {
+		t.Errorf("nothing was dropped, but it was reported:\n%s", warnings)
+	}
+}
+
+// unparseWithWarnings returns the HCL and whatever the conversion wrote to
+// stderr, which is where a dropped comment is reported.
+func unparseWithWarnings(t *testing.T, yaml string) (string, string) {
+	t.Helper()
+
+	var hcl string
+
+	warnings := captureGitHubStderr(t, func() { hcl = unparse(t, yaml) })
+
+	return hcl, warnings
 }

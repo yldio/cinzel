@@ -57,6 +57,12 @@ Comments survive the trip, in both directions and in all three positions — a
 comment above a block, one beside a value, one closing a body. The note saying
 why a version is held back is still there after the conversion.
 
+One cannot be carried: the comment above `env`, `with`, `outputs` or
+`secrets`. Each is one mapping in YAML and one block per key in HCL, so there
+is no block to hold a note about the whole set. Unparse drops it and prints
+where it was, as `file:line: path`, rather than silently pinning it to the key
+that happens to sort first.
+
 ## Install
 
 Download a binary from [Releases](https://github.com/yldio/cinzel/releases), or:
@@ -129,27 +135,39 @@ better in a tree. Where a file goes on the way back is its own `path` either
 way, so this is a convenience, and a mirrored tree has to be parsed with
 `--recursive`.
 
-A repository keeping composite actions in folders of their own converts in one
-run each way:
+A composite action sits at `<dir>/<name>/action.yml`, so a folder of actions
+holds no YAML of its own. `-d .github/actions` reads the actions one level
+down without `--recursive` being typed as well; anything deeper still needs
+the flag.
+
+Workflows stay at the top of the output directory even under `--mirror`.
+`.github/workflows` is the one place GitHub reads a workflow from, so it is
+not a layout worth reproducing: parse writes every workflow back there
+whatever the HCL is called, and a mirrored `cinzel/.github/workflows` is a
+directory nothing reads.
+
+If you keep composite actions in folders of their own, one run each way
+converts the lot:
 
 ```sh
-cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github unparse -d actions-x -d actions-y -r --output-directory cinzel
 cinzel github parse -d cinzel
 ```
 
-Each action records where it was found, so parse puts it back there. See the
-[GitHub provider README](provider/github/README.md) for the `path` attribute
-that carries it.
+Each action remembers where it came from, so parse puts it back there. The
+[GitHub provider README](provider/github/README.md) covers the `path` attribute
+that holds it.
 
 ### `--root`, and `--output-directory`
 
 `--output-directory` says where one kind of file goes. `--root` says where the
-whole output shape goes, which is one answer instead of one per document type:
+whole output shape goes, which is one answer instead of one per document type.
+It must be a path relative to where cinzel runs:
 
 ```sh
-cinzel github parse --root /tmp/x
-# → /tmp/x/.github/workflows/ci.yaml
-# → /tmp/x/actions-a/setup/action.yml
+cinzel github parse --root project-x
+# → project-x/.github/workflows/ci.yaml
+# → project-x/actions-x/setup/action.yml
 ```
 
 It applies to both directions and both providers, and on unparse it is the
@@ -171,18 +189,35 @@ github:
     directory: ./cinzel
     output-directory: .github/workflows
     yml: false
+    recursive: true
 ```
 
-A flag on the command line still wins. It covers `parse` and `unparse` only,
-per provider — `assist`, `pin`, `upgrade` and `init` ignore it. The keys are
-`file`, `directory`, `output-directory` and, for parse, `yml`; anything else,
-`recursive` included, prints `warning: ...: unknown key` and is skipped.
+A flag on the command line still wins, including `--recursive=false` against a
+file that sets it true. It covers `parse` and `unparse` only, per provider —
+`assist`, `pin`, `upgrade` and `init` ignore it. The keys are `file`,
+`directory`, `output-directory`, `yml`, `recursive` and `ignore-unknown`; the
+last three are booleans, written bare rather than quoted. `yml` only affects
+parse and `ignore-unknown` only unparse, so each is accepted and ignored under
+the other. Anything else prints `warning: ...: unknown key` and is skipped.
 
 Paths must be relative and written with forward slashes. The file is meant to
 be committed and read on every machine that checks the repo out, so an absolute
 path or a leading `~` is refused with an error naming the key. Forward slashes
 are converted to whatever the running system separates with, so one spelling
 works on Linux, macOS and Windows.
+
+## A key cinzel does not know
+
+A YAML key the schema does not declare stops the conversion, naming the key
+and the line. That is the right answer for a typo: the file is left as it was,
+with nothing lost.
+
+`unparse --ignore-unknown` drops those keys instead, naming each one with its
+file and line. It is worth knowing what that costs. The key is gone from the
+HCL, so it is gone from the YAML the next parse writes — over the file it came
+from. `diff` reports no drift afterwards, because the HCL and the YAML agree:
+they agree on a document missing a key you wrote. Reach for it when a key is
+one cinzel's schema has not caught up with, not to get past a typo.
 
 ## Keeping the two in step
 
@@ -243,10 +278,12 @@ cannot report. Parse prunes generated YAML it no longer writes, so a renamed
 workflow leaves its old output behind — and a directory comparison reads that
 as a file missing on one side, which looks the same as drift and never clears.
 
-It takes the same flags as `parse` and reads the same `.cinzelrc.yaml` section,
-since it is answering what parse would do. A CRLF checkout is not reported as
-drift: generated files are written with LF, and git converts line endings on
-Windows by default.
+It takes `parse`'s input and output flags — `--file`, `--directory`,
+`--recursive`, `--output-directory` and `--yml` — and not `--root` or
+`--dry-run`, since it writes nothing. It reads the same `.cinzelrc.yaml`
+section, since it is answering what parse would do. A CRLF checkout is not
+reported as drift: generated files are written with LF, and git converts line
+endings on Windows by default.
 
 One thing to know: the `cinzel-source` marker records the HCL file a workflow
 came from, relative to where cinzel ran. Run `diff` from a different directory

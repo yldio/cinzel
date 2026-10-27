@@ -35,6 +35,13 @@ func PrependGeneratedMarker(content []byte, provider string, source string) []by
 		prefix += fmt.Sprintf(generatedSource, source) + "\n"
 	}
 
+	// A blank line under them, so cinzel's own note reads as a header rather
+	// than as the first line of whatever comment the author wrote above the
+	// file's first key. A YAML reader hands back a run broken by a blank line
+	// as two, which is what WithoutGeneratedMarker wants: the markers on one
+	// side and the author's comment on the other.
+	prefix += "\n"
+
 	return append([]byte(prefix), content...)
 }
 

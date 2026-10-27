@@ -18,7 +18,7 @@ tags:
   - "hcl"
   - "regexp"
 created_date: "2026-03-08"
-updated_date: "2026-09-18"
+updated_date: "2026-10-22"
 ---
 
 ## Critical Patterns
@@ -69,7 +69,7 @@ Always unmarshal YAML once via `parseYAMLDocument()`, then classify with `classi
 
 ### 4. YAML quote style
 
-Use `DoubleQuotedStyle` exclusively. The Zed editor converts single quotes to double quotes on save, which breaks golden tests if `SingleQuotedStyle` is used. The decision of what to quote lives in `needsQuoting` (`internal/yamldoc/encode.go:158`), with GitLab keeping its own `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:329`) because the shared rules would quote a large share of real pipelines.
+Use `DoubleQuotedStyle` exclusively. The Zed editor converts single quotes to double quotes on save, which breaks golden tests if `SingleQuotedStyle` is used. The decision of what to quote lives in `needsQuoting` (`internal/yamldoc/encode.go:201`), with GitLab keeping its own `stringNeedsQuoting` (`provider/gitlab/pipeline_yaml.go:335`) because the shared rules would quote a large share of real pipelines.
 
 ### 5. A structural marker is only one at column 0
 

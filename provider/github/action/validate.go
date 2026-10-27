@@ -12,6 +12,7 @@ import (
 //   - {owner}/{repo}@{ref}
 //   - {owner}/{repo}/{path}@{ref}
 //   - ./local/path
+//   - $/path (same repository, resolved at the running commit)
 //   - docker://{image}
 func ValidateUsesRef(uses string) error {
 	if uses == "" {
@@ -21,6 +22,18 @@ func ValidateUsesRef(uses string) error {
 	// Local action
 
 	if strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../") {
+		return nil
+	}
+
+	// Self-repository action or reusable workflow. GitHub resolves "$/" at the
+	// commit the caller runs from, so there is no ref to name and one is
+	// refused rather than passed through for GitHub to reject.
+
+	if strings.HasPrefix(uses, "$/") {
+		if strings.Contains(uses, "@") {
+			return fmt.Errorf("uses %q must not include a version reference: $/ resolves to the running commit", uses)
+		}
+
 		return nil
 	}
 

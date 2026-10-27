@@ -1,13 +1,14 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: cinzel/workflows.hcl
+
 name: Pages
 on:
   push:
     branches:
       - main
     paths:
-      - "docs/site/**"
+      - docs/site/**
       - .github/workflows/pages.yaml
   workflow_dispatch:
 permissions:
@@ -21,7 +22,7 @@ jobs:
       group: pages
     environment:
       name: github-pages
-      url: "${{ steps.pages_deploy.outputs.page_url }}"
+      url: ${{ steps.pages_deploy.outputs.page_url }}
     name: Pages
     permissions:
       contents: read

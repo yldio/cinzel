@@ -28,6 +28,28 @@ func TestQuotingGaps(t *testing.T) {
 		{name: "a tab at the end", value: "tab\t", want: "a: \"tab\\t\""},
 		{name: "an ordinary word is left alone", value: "yesterday", want: "a: yesterday"},
 		{name: "an inner space is fine", value: "two words", want: "a: two words"},
+
+		// An indicator is only an indicator in the first position. Scanning
+		// the whole value quoted every expression for the braces in its
+		// middle.
+		{name: "an expression", value: "${{ github.sha }}", want: "a: ${{ github.sha }}"},
+		{name: "braces inside", value: "foo{bar}baz", want: "a: foo{bar}baz"},
+		{name: "commas inside", value: "x,y,z", want: "a: x,y,z"},
+		{name: "brackets inside", value: "matrix[0]", want: "a: matrix[0]"},
+		{name: "a colon with no space", value: "foo:bar", want: "a: foo:bar"},
+		{name: "a hash with no space", value: "foo#bar", want: "a: foo#bar"},
+
+		// These still read as something other than the string written.
+		{name: "a leading brace", value: "{bar}", want: `a: "{bar}"`},
+		{name: "a leading bracket", value: "[bar]", want: `a: "[bar]"`},
+		{name: "a leading ampersand", value: "&anchor", want: `a: "&anchor"`},
+		{name: "a leading asterisk", value: "*alias", want: `a: "*alias"`},
+		{name: "a leading bang", value: "!tag", want: `a: "!tag"`},
+		{name: "a leading pipe", value: "|block", want: `a: "|block"`},
+		{name: "a leading hash", value: "#comment", want: `a: "#comment"`},
+		{name: "a colon then a space", value: "foo: bar", want: `a: "foo: bar"`},
+		{name: "a trailing colon", value: "trailing:", want: `a: "trailing:"`},
+		{name: "a space then a hash", value: "foo # bar", want: `a: "foo # bar"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			doc := New()

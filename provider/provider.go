@@ -16,7 +16,7 @@ type ProviderOps struct {
 
 	// Directory is one directory of input. Directories is several, which
 	// unparse takes because a repository can keep its composite actions in
-	// folders of its own — actions-a, actions-b — alongside the workflows.
+	// folders of its own — actions-x, actions-y — alongside the workflows.
 	//
 	// Both are read, so a caller setting either is understood. InputPaths
 	// puts them together.
@@ -51,6 +51,16 @@ type ProviderOps struct {
 	// for reading the tree rather than something the conversion needs, and a
 	// mirrored tree has to be parsed with --recursive.
 	Mirror bool
+
+	// IgnoreUnknown drops a YAML key the schema does not declare instead of
+	// refusing the file, naming each one it drops.
+	//
+	// Off by default, and unparse only. The dropped key is gone from the HCL
+	// and so from the YAML the next parse writes, which is the file it was
+	// read from: a run that passes this is choosing to lose it. Refusing
+	// leaves the file untouched and is the better answer unless the author
+	// knows the key is one cinzel's schema has not caught up with.
+	IgnoreUnknown bool
 }
 
 // InputDirectories is every directory a run was asked to read, in the order

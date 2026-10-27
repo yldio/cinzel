@@ -70,7 +70,7 @@ workflow "wf" {
 func TestJobScalarKeywordsParse(t *testing.T) {
 	for name, tc := range map[string]struct{ attr, want string }{
 		"concurrency": {`  concurrency = "ci-group"`, "concurrency: ci-group"},
-		"container":   {`  container = "node:18"`, `container: "node:18"`},
+		"container":   {`  container = "node:18"`, "container: node:18"},
 		"environment": {`  environment = "production"`, "environment: production"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestJobScalarKeywordsStillAcceptBlocks(t *testing.T) {
   }
 `))
 
-	for _, want := range []string{"group: ci", "cancel-in-progress: true", `image: "node:18"`, "name: prod"} {
+	for _, want := range []string{"group: ci", "cancel-in-progress: true", "image: node:18", "name: prod"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in output, got:\n%s", want, got)
 		}
@@ -145,7 +145,7 @@ jobs:
 
 	got := parseHCLToYAML(t, string(hclBytes))
 
-	for _, want := range []string{"concurrency: ci-group", `container: "node:18"`, "environment: production"} {
+	for _, want := range []string{"concurrency: ci-group", "container: node:18", "environment: production"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q after roundtrip, got:\n%s", want, got)
 		}

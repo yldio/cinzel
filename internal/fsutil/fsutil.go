@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -200,6 +201,66 @@ func UniqueOutputName(taken map[string]struct{}, base string) string {
 
 		name = fmt.Sprintf("%s_%d", base, i)
 	}
+}
+
+// ListNamedFilesInChildren returns the files directly inside each child
+// directory of path whose base name is one of names, matched without regard
+// to case.
+//
+// It is one level and no deeper, which is where a thing kept in a folder of
+// its own lives: a GitHub composite action is always at
+// "<dir>/<name>/action.yml", so a directory holding actions holds no YAML of
+// its own at all. A caller naming that directory means the actions in it, and
+// reading only its top level gave back nothing.
+func ListNamedFilesInChildren(path string, names ...string) ([]string, error) {
+	wanted := make(map[string]struct{}, len(names))
+
+	for _, name := range names {
+		wanted[strings.ToLower(name)] = struct{}{}
+	}
+
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// The input path is a file whenever --file was given, and a file has no
+	// children. Asking anyway failed the run with "not a directory".
+	if !stat.IsDir() {
+		return nil, nil
+	}
+
+	children, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var found []string
+
+	for _, child := range children {
+		if !child.IsDir() {
+			continue
+		}
+
+		entries, err := os.ReadDir(filepath.Join(path, child.Name()))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+
+			if _, ok := wanted[strings.ToLower(entry.Name())]; ok {
+				found = append(found, filepath.Join(path, child.Name(), entry.Name()))
+			}
+		}
+	}
+
+	sort.Strings(found)
+
+	return found, nil
 }
 
 // hasHCLDeeper reports whether a directory holds HCL below its top level.

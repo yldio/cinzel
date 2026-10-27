@@ -17,14 +17,16 @@ tags:
   - "action"
   - "step-only"
 created_date: "2026-03-08"
-updated_date: "2026-09-18"
+updated_date: "2026-10-22"
 ---
 
-> The chain is unchanged and still lives in `provider/github/github.go:240-257`.
-> `classifyWorkflowDocument` (`unparse_workflow.go:193`) now asks
+> The chain is unchanged and still lives in `provider/github/github.go:423-476`.
+> `classifyWorkflowDocument` (`unparse_workflow.go:194`) now asks
 > `ghworkflow.NewYAMLDocument` whether the document is a workflow rather than checking
 > keys itself, so the schema answers the question. `isActionDocument`
-> (`unparse_action.go:32`) is still the key check the prevention section below names.
+> (`unparse_action.go:35`) is the key check the prevention section below names;
+> it no longer requires `name`, only `runs` with `on` and `jobs` excluded, and a
+> missing `name` is refused later, when the action itself is parsed.
 
 ## Problem Description
 

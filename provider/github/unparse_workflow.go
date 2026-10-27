@@ -27,7 +27,7 @@ import (
 // parseYAMLDocument parses YAML content into a document map and extracts job
 // names in source order, plus every comment written in the file, in a single
 // pass using the yaml.v3 Node API.
-func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments, error) {
+func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments, map[string]int, error) {
 	// GitHub reads one document per file. A file holding more than one used to
 	// be cut short at the first, losing the rest without a word, so the whole
 	// file is rejected instead.
@@ -45,7 +45,7 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments,
 		}
 
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		if len(node.Content) == 0 || isNullNode(node.Content[0]) {
@@ -53,18 +53,18 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments,
 		}
 
 		if first != nil {
-			return nil, nil, nil, errMultipleDocuments
+			return nil, nil, nil, nil, errMultipleDocuments
 		}
 
 		first = node.Content[0]
 	}
 
 	if first == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	if err := rejectNonStringKeys(first); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	keepWholeNumbersExact(first)
@@ -72,10 +72,10 @@ func parseYAMLDocument(content []byte) (map[string]any, []string, *yamlComments,
 	var doc map[string]any
 
 	if err := first.Decode(&doc); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return doc, jobOrder(first), collectComments(first), nil
+	return doc, jobOrder(first), collectComments(first), keyLines(first), nil
 }
 
 // keepWholeNumbersExact retags a whole number too large for an integer so it
@@ -208,7 +208,11 @@ func classifyWorkflowDocument(doc map[string]any) (*ghworkflow.YAMLDocument, err
 	return nil, nil
 }
 
-func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string, comments *yamlComments, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
+func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string, comments *yamlComments, site commentSite, lines map[string]int, ignoreUnknown bool, usedStepIDs, usedJobIDs map[string]struct{}) ([]byte, error) {
+	if ignoreUnknown {
+		reportDroppedKeys(site, stripUnknownKeys(doc.Raw, workflowYAMLShape{}, lines))
+	}
+
 	if err := validateWorkflowYAMLDoc(doc); err != nil {
 		return nil, err
 	}
@@ -231,7 +235,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 
 	sections := newBodySections(workflowBody)
 
-	if err := writeWorkflowMetadata(sections, doc, comments); err != nil {
+	if err := writeWorkflowMetadata(sections, doc, comments, site); err != nil {
 		return nil, err
 	}
 
@@ -241,7 +245,7 @@ func workflowToHCL(doc ghworkflow.YAMLDocument, filename string, order []string,
 		return nil, err
 	}
 
-	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, comments, generatedVariables, stepRegistry, usedStepIDs); err != nil {
+	if err := writeWorkflowJobs(root, jobEntries, jobIDMap, comments, site, generatedVariables, stepRegistry, usedStepIDs); err != nil {
 		return nil, err
 	}
 
@@ -282,13 +286,13 @@ func (s *bodySections) next() {
 	s.separated = written
 }
 
-func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, comments *yamlComments, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
+func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job map[string]any, jobIDMap map[string]string, comments *yamlComments, site commentSite, generatedVariables map[string]any, stepRegistry map[string]string, usedStepIDs map[string]struct{}) error {
 	stepRefs := []string{}
 	sections := newBodySections(jobBody)
 
 	for _, key := range sortedKeys(job) {
 		if key == "steps" {
-			refs, err := writeJobSteps(root, job[key], comments, stepRegistry, usedStepIDs)
+			refs, err := writeJobSteps(root, site.child("steps"), job[key], comments, stepRegistry, usedStepIDs)
 			if err != nil {
 				return err
 			}
@@ -299,9 +303,9 @@ func writeJobBody(root *hclwrite.Body, jobBody *hclwrite.Body, jobID string, job
 
 		sections.next()
 
-		hclcomment.WriteLeading(jobBody, comments.at(key).head)
+		hclcomment.WriteLeading(jobBody, headForMapping(site, key, comments.at(key)))
 
-		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, comments, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
+		if err := writeJobKey(root, jobBody, jobID, key, job[key], jobIDMap, comments, site, generatedVariables, stepRegistry, usedStepIDs, &stepRefs); err != nil {
 			return err
 		}
 	}
@@ -328,11 +332,16 @@ func writeServicesBlocks(body *hclwrite.Body, raw any) error {
 		return errors.New("services must be an object")
 	}
 
-	for _, serviceName := range sortedKeys(services) {
+	for i, serviceName := range sortedKeys(services) {
 		svcVal, ok := toStringAnyMap(services[serviceName])
 
 		if !ok {
 			return fmt.Errorf("service '%s' must be an object", serviceName)
+		}
+
+		// A blank line between them, as between any other pair of blocks.
+		if i > 0 {
+			body.AppendNewline()
 		}
 
 		serviceBlock := body.AppendNewBlock("service", []string{serviceName})
@@ -499,10 +508,139 @@ func checkHCLIdentifier(blockType, key, written string) error {
 	return nil
 }
 
+// warnChompedRun reports a multi-line "run" whose block scalar ends in
+// anything other than one newline, which the HCL it becomes cannot hold.
+//
+// A script is written as a heredoc, and a heredoc ends on its closing marker's
+// own line: the value it holds always ends in exactly one newline. That is
+// what "run: |" means, so a script written that way makes the trip unchanged.
+// The other two indicators do not survive it. "|-" strips every trailing
+// newline and a heredoc has no spelling for ending without one; "|+" keeps
+// them all and setAsHeredoc trims them off. Both come back as "|".
+//
+// Nothing runs differently for it. GitHub writes the script to a file and
+// hands it to a shell, and a shell reads a missing or extra final newline the
+// same as a present one. It is reported because the file changes and the
+// author did not ask for that, not because the pipeline changed.
+//
+// Only "run" goes through a heredoc. Every other string, including a
+// multi-line "env" value or a "with" input, is written as a quoted HCL string
+// that holds the value exactly, so none of them is reported here.
+func warnChompedRun(site commentSite, value map[string]any) {
+	run, isString := value["run"].(string)
+
+	if !isString || !strings.Contains(run, "\n") {
+		return
+	}
+
+	trailing := len(run) - len(strings.TrimRight(run, "\n"))
+
+	if trailing == 1 {
+		return
+	}
+
+	indicator := "|+"
+
+	if trailing == 0 {
+		indicator = "|-"
+	}
+
+	where := site.child("run").String(0)
+
+	if where == "" {
+		return
+	}
+
+	warnf("%s: rewriting the script's '%s' as '|': a heredoc ends in exactly one newline, so the other block styles cannot be written back. The script runs the same either way", where, indicator)
+}
+
+// fanOutKeys are the YAML mappings that become one HCL block per key. A
+// comment above one of these has nowhere to land, unlike "permissions" or
+// "defaults", which stay a single block and keep theirs.
+var fanOutKeys = map[string]struct{}{
+	"env":     {},
+	"with":    {},
+	"outputs": {},
+	"secrets": {},
+}
+
+// The comment above a mapping is collected onto the key it was written above,
+// so it is the caller holding it rather than the writer of the blocks.
+//
+// Only the head is dropped. The comments on the mapping's own keys, and the
+// one closing it, each have a block to live in and are written as before.
+// commentSite is where in the source a comment was written: the file, and the
+// path to the key inside it. Both are needed to report a comment the
+// conversion cannot carry, and they are threaded together rather than as two
+// parameters through every writer between here and a step.
+type commentSite struct {
+	file string
+	path string
+}
+
+// child returns the site of a key inside this one.
+func (s commentSite) child(key string) commentSite {
+	if s.path == "" {
+		return commentSite{file: s.file, path: key}
+	}
+
+	return commentSite{file: s.file, path: s.path + "." + key}
+}
+
+// index returns the site of the idx-th item of this one, which is a step.
+func (s commentSite) index(idx int) commentSite {
+	return commentSite{file: s.file, path: fmt.Sprintf("%s[%d]", s.path, idx)}
+}
+
+// String renders the site the way an editor reads it: "file:line: path", with
+// each part left out when it is not known. A site with no file at all renders
+// empty, which is how the measuring caller stays silent.
+func (s commentSite) String(line int) string {
+	switch {
+	case s.file == "":
+		return ""
+	case line > 0:
+		return fmt.Sprintf("%s:%d: %s", s.file, line, s.path)
+	default:
+		return fmt.Sprintf("%s: %s", s.file, s.path)
+	}
+}
+
+// headForMapping returns the head comment to write above the blocks key
+// becomes, reporting and dropping it when key fans out.
+//
+// A site with no file silences the report. stepFingerprint builds a step's
+// comments only to measure them and does so twice per step, so a report from
+// there would say three times over what the conversion says once.
+func headForMapping(site commentSite, key string, comment nodeComment) string {
+	if comment.head == "" {
+		return ""
+	}
+
+	if _, fansOut := fanOutKeys[key]; !fansOut {
+		return comment.head
+	}
+
+	if where := site.child(key).String(comment.srcLine); where != "" {
+		warnf("dropping the comment above %s: it describes the whole mapping, which becomes one block per key, so there is nowhere to write it", where)
+	}
+
+	return ""
+}
+
 // writeNameValueBlocks writes a mapping as one block per key. A comment on
 // that key was written above or beside the pair, and the block is what the
 // pair became, so the head goes above the block and the inline one beside the
 // value it was written beside.
+//
+// The comment above the mapping itself is not written at all. The mapping
+// becomes one block per key and so has no block of its own, and the only place
+// to put it was above the first one, where the next read attributes it to that
+// key. A note about the whole set became a note about whichever member sorted
+// first, and a mapping carrying both comments merged the two beyond telling
+// apart. Dropping it and saying so leaves the author one comment to move,
+// rather than a silent claim they did not write. The caller reports it: only
+// the caller knows the path to name.
 func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, comments *yamlComments) error {
 	mapping, ok := toStringAnyMap(raw)
 
@@ -512,7 +650,15 @@ func writeNameValueBlocks(body *hclwrite.Body, blockType string, raw any, commen
 
 	var last *hclwrite.Body
 
-	for _, key := range sortedKeys(mapping) {
+	for i, key := range sortedKeys(mapping) {
+		// A blank line between them, the way every other run of blocks in
+		// these files is spaced. Written flush they read as one wall, and a
+		// comment above one of them had nothing separating it from the block
+		// above.
+		if i > 0 {
+			body.AppendNewline()
+		}
+
 		comment := comments.at(key)
 		hclcomment.WriteLeading(body, comment.head)
 
@@ -643,7 +789,9 @@ func traversalTokens(root string, attr string) hclwrite.Tokens {
 	}
 }
 
-func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error) {
+func stepFromMap(site commentSite, value map[string]any, comments *yamlComments) (step.Step, error) {
+	warnChompedRun(site, value)
+
 	ctyValue, err := anyToCty(value)
 	if err != nil {
 		return step.Step{}, err
@@ -655,7 +803,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 		return step.Step{}, err
 	}
 
-	s.Comments = stepComments(value, comments)
+	s.Comments = stepComments(site, value, comments)
 
 	return s, nil
 }
@@ -667,7 +815,7 @@ func stepFromMap(value map[string]any, comments *yamlComments) (step.Step, error
 // mapping, and a step is one particular shape. Converting here keeps the step
 // package free of the collector, which it would otherwise have to import from
 // the provider that imports it.
-func stepComments(value map[string]any, comments *yamlComments) step.Comments {
+func stepComments(site commentSite, value map[string]any, comments *yamlComments) step.Comments {
 	out := step.Comments{Head: comments.above(), Foot: comments.below()}
 
 	if comments == nil {
@@ -679,7 +827,11 @@ func stepComments(value map[string]any, comments *yamlComments) step.Comments {
 			out.Attrs = map[string]step.Comment{}
 		}
 
-		out.Attrs[key] = step.Comment{Head: comment.head, Line: comment.line}
+		// A step's "env" and "with" fan out the same way a job's do, and the
+		// head was collected here but never written: the step writer has no
+		// block to hang it on either. It used to vanish without a word.
+		//
+		out.Attrs[key] = step.Comment{Head: headForMapping(site, key, comment), Line: comment.line}
 	}
 
 	// "env" and "with" are the only mappings nested in a step, and their
@@ -830,7 +982,7 @@ func stepFingerprint(stepMap map[string]any, comments *yamlComments) string {
 	// what is written on them are two steps, and collapsing them into one
 	// block drops whichever comment came second. The comments live beside the
 	// map rather than in it, so they are marshalled alongside.
-	c, _ := json.Marshal(stepComments(stepMap, comments))
+	c, _ := json.Marshal(stepComments(commentSite{}, stepMap, comments))
 
 	return string(b) + string(c)
 }

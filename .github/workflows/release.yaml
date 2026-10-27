@@ -1,6 +1,7 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: cinzel/workflows.hcl
+
 name: Release
 on:
   workflow_dispatch:
@@ -19,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - env:
-          RELEASE_APP_ID: "${{ secrets.RELEASE_APP_ID }}"
-          RELEASE_PRIVATE_KEY: "${{ secrets.RELEASE_PRIVATE_KEY }}"
+          RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          RELEASE_PRIVATE_KEY: ${{ secrets.RELEASE_PRIVATE_KEY }}
         id: ensure_release_app
         name: Ensure release app credentials
         run: |
@@ -34,10 +35,10 @@ jobs:
         name: Create release app token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: "${{ secrets.RELEASE_APP_ID }}"
+          client-id: ${{ secrets.RELEASE_APP_ID }}
           permission-contents: write
-          private-key: "${{ secrets.RELEASE_PRIVATE_KEY }}"
-          repositories: "cinzel,homebrew-cinzel"
+          private-key: ${{ secrets.RELEASE_PRIVATE_KEY }}
+          repositories: cinzel,homebrew-cinzel
       - id: checkout_release
         name: Checkout (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,10 +46,10 @@ jobs:
           fetch-depth: "0"
           persist-credentials: "false"
       - env:
-          GH_TOKEN: "${{ steps.release_app_token.outputs.token }}"
+          GH_TOKEN: ${{ steps.release_app_token.outputs.token }}
           GIT_CONFIG_COUNT: "1"
-          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
-          GIT_CONFIG_VALUE_0: "https://github.com/"
+          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf
+          GIT_CONFIG_VALUE_0: https://github.com/
         id: verify_release_token
         name: Verify the release token before anything changes
         run: |
@@ -81,8 +82,8 @@ jobs:
         uses: ietf-tools/semver-action@c90370b2958652d71c06a3484129a4d423a6d8a8
         with:
           branch: main
-          patchList: "fix, perf, refactor"
-          token: "${{ github.token }}"
+          patchList: fix, perf, refactor
+          token: ${{ github.token }}
       - id: resolve_release_tag
         name: Resolve release tag
         run: |
@@ -104,14 +105,14 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
       - id: tag_version
-        if: "${{ steps.resolve_release_tag.outputs.skip != 'true' }}"
+        if: ${{ steps.resolve_release_tag.outputs.skip != 'true' }}
         name: Bump version and push tag
         uses: mathieudutour/github-tag-action@af99e60ce8132224b8e6ebab5023449fe256ed46 # v7
         with:
-          custom_tag: "${{ steps.resolve_release_tag.outputs.tag }}"
-          github_token: "${{ steps.release_app_token.outputs.token }}"
+          custom_tag: ${{ steps.resolve_release_tag.outputs.tag }}
+          github_token: ${{ steps.release_app_token.outputs.token }}
       - env:
-          GITHUB_REPO: "${{ github.repository }}"
+          GITHUB_REPO: ${{ github.repository }}
           OUTPUT: CHANGELOG.md
         id: git_cliff_changelog
         name: Generate full changelog
@@ -119,32 +120,32 @@ jobs:
         with:
           args: "--offline --verbose --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
-          github_token: "${{ steps.release_app_token.outputs.token }}"
+          github_token: ${{ steps.release_app_token.outputs.token }}
       - env:
-          GITHUB_REPO: "${{ github.repository }}"
+          GITHUB_REPO: ${{ github.repository }}
         id: git_cliff
         name: Generate release notes
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         with:
           args: "--offline --verbose --unreleased --tag ${{ steps.tag_version.outputs.new_tag }}"
           config: cliff.toml
-          github_token: "${{ steps.release_app_token.outputs.token }}"
+          github_token: ${{ steps.release_app_token.outputs.token }}
       - env:
           GIT_CONFIG_COUNT: "1"
-          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf"
-          GIT_CONFIG_VALUE_0: "https://github.com/"
+          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ steps.release_app_token.outputs.token }}@github.com/.insteadOf
+          GIT_CONFIG_VALUE_0: https://github.com/
         id: commit_release
         name: Commit release changelog
         uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7.2.0
         with:
-          branch: "${{ github.ref_name }}"
+          branch: ${{ github.ref_name }}
           commit_message: "chore(release): prepare for ${{ steps.tag_version.outputs.new_tag }} [skip ci]"
           file_pattern: CHANGELOG.md
       - id: create_release
         name: Create a GitHub release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd
         with:
-          body: "${{ steps.git_cliff.outputs.content }}"
-          tag: "${{ steps.tag_version.outputs.new_tag }}"
-          token: "${{ steps.release_app_token.outputs.token }}"
+          body: ${{ steps.git_cliff.outputs.content }}
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          token: ${{ steps.release_app_token.outputs.token }}
     timeout-minutes: 20

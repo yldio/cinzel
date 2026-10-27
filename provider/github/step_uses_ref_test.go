@@ -105,6 +105,7 @@ func TestAStepUsesReferenceThatIsFineIsKept(t *testing.T) {
 		{name: "a local action", body: "    action = \"./.github/actions/setup\""},
 		{name: "a parent-relative action", body: "    action = \"../setup\""},
 		{name: "a docker action", body: "    action = \"docker://alpine:3.19\""},
+		{name: "a self-repository action", body: "    action = \"$/.github/actions/setup\""},
 		{name: "an action in a subdirectory", body: "    action  = \"actions/aws/ec2\"\n    version = \"main\""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

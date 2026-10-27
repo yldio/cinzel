@@ -109,7 +109,7 @@ func TestABlockThatSetsSomethingIsKept(t *testing.T) {
 		t.Fatalf("expected the blocks to be written, got %v", err)
 	}
 
-	for _, want := range []string{"fail-fast: false", "image: \"node:18\""} {
+	for _, want := range []string{"fail-fast: false", "image: node:18"} {
 		if !strings.Contains(written, want) {
 			t.Errorf("lost %q:\n%s", want, written)
 		}

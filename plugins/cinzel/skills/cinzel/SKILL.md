@@ -70,18 +70,35 @@ of their own. Parse takes one. GitHub unparse always reads
 
 `unparse --mirror` writes the HCL in the repository's own shape
 (`cinzel/actions/setup.hcl`). Parse such a tree with `--recursive`, or it
-finds nothing.
+finds nothing. Workflows stay at the top of the output directory either way:
+`.github/workflows` is where GitHub reads them, not a layout to reproduce.
+
+A composite action sits at `<dir>/<name>/action.yml`, one directory below the
+folder holding it, so a folder of actions holds no YAML of its own. Naming it
+with `-d` reads the actions in it without `--recursive` as well. Anything
+deeper than that, or any other file kept beside them, still needs the flag.
 
 `--root` resolves every path against a directory instead of the working
 directory, both directions, both providers. Not with `--output-directory`,
 which still works and which it supersedes: prefer `--root`.
 
-An action's HCL carries a `path` saying where it lives — `path = "actions-a"`
-writes `actions-a/setup/action.yml`. Unparse fills it in. Do not hand-edit it
+An action's HCL carries a `path` saying where it lives — `path = "actions-x"`
+writes `actions-x/setup/action.yml`. Unparse fills it in. Do not hand-edit it
 to climb out of the repository; parse refuses that.
 
 Comments survive both directions, above a block, beside a value and closing a
 body, so there is no need to re-add one after a conversion.
+
+A multi-line string keeps its `|` block. A folded `>` value does not: YAML
+folds it into one line as it reads the file, so it comes back as one long
+line with the same value. A script written `run: |-` or `run: |+` comes back
+as `run: |`, since a script becomes a heredoc and a heredoc ends in exactly
+one newline; unparse names each one. The script runs the same either way.
+
+One exception: a comment above `env`, `with`, `outputs` or `secrets`. Those
+become one HCL block per key, so there is no block for a comment about the
+whole mapping. Unparse drops it and names the file, line and path. Move it
+onto one of the keys, or above the job, to keep it.
 
 Conversion adds nothing of its own. A workflow that declares no `permissions`
 is written without one; do not expect cinzel to supply a default.
@@ -135,6 +152,11 @@ step "test" {
   run = "go test ./..."
 }
 ```
+
+A `uses` block takes `owner/repo` with a `version`, a local `./path`, a
+`$/path` for the same repository at the running commit, or `docker://image`.
+A `$/` reference takes no `version`: GitHub resolves it at the caller's own
+commit, and it is not available on GitHub Enterprise Server.
 
 GitLab — jobs are blocks, repeatable things (`rule`, `cache`, `service`,
 `include`) are nested blocks:
@@ -243,18 +265,25 @@ github:
   parse:
     directory: ./cinzel
     output-directory: .github/workflows
+    recursive: true
 ```
 
-Command-line flags win. It covers `parse` and `unparse` only — `assist`, `pin`,
-`upgrade`, `init` ignore it. Paths must be relative with forward slashes; the
-file is committed and read on every machine, so an absolute path or a `~` is
-refused.
+Keys are `file`, `directory`, `output-directory`, `yml`, `recursive` and
+`ignore-unknown`. The last three are booleans, written bare. Command-line flags win. It covers `parse`
+and `unparse` only — `assist`, `pin`, `upgrade`, `init` ignore it. Paths must
+be relative with forward slashes; the file is committed and read on every
+machine, so an absolute path or a `~` is refused.
 
 ## When something fails
 
 cinzel refuses rather than writing a file that cannot be read back. An error
 naming an unknown keyword means the schema does not cover it — check the
 provider README in the cinzel repo before assuming it is a bug.
+
+`unparse --ignore-unknown` drops such keys instead, naming each with its file
+and line. The dropped key is gone from the HCL and so from the YAML the next
+parse writes over the source, and `diff` reports no drift afterwards, so use
+it for a keyword cinzel has not caught up with rather than for a typo.
 
 cinzel does not lint. It converts. Whether GitHub or GitLab accepts the
 resulting pipeline is `actionlint`'s question, not cinzel's.

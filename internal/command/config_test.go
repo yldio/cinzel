@@ -73,6 +73,52 @@ func TestConfigSetsParseDirectory(t *testing.T) {
 	})
 }
 
+// A nested layout needs --recursive on every run, which is the kind of flag
+// the file exists to hold.
+func TestConfigSetsRecursive(t *testing.T) {
+	for _, command := range []string{"parse", "unparse"} {
+		t.Run(command, func(t *testing.T) {
+			withTempWorkingDir(t, func() {
+				writeFile(t, configFilename, []byte("github:\n  "+command+":\n    recursive: true\n"))
+
+				app, _, p := newConfigTestApp(t)
+				err := app.Execute([]string{"cinzel", "github", command}, []provider.Provider{p})
+				if err != nil {
+					t.Fatalf("Execute() error = %v", err)
+				}
+
+				opts := p.parseOpts
+
+				if command == "unparse" {
+					opts = p.unparseOpts
+				}
+
+				if !opts.Recursive {
+					t.Fatalf("%s recursive = false, want true", command)
+				}
+			})
+		})
+	}
+}
+
+// The flag still wins, including when it turns the file's value off: a run
+// that passes --recursive=false asked for one directory and means it.
+func TestRecursiveFlagBeatsConfig(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeFile(t, configFilename, []byte("github:\n  parse:\n    recursive: true\n"))
+
+		app, _, p := newConfigTestApp(t)
+		err := app.Execute([]string{"cinzel", "github", "parse", "--recursive=false"}, []provider.Provider{p})
+		if err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+
+		if p.parseOpts.Recursive {
+			t.Fatal("parse recursive = true, want the flag to have won")
+		}
+	})
+}
+
 func TestConfigSetsUnparseOutputDirectory(t *testing.T) {
 	withTempWorkingDir(t, func() {
 		writeFile(t, configFilename, []byte("github:\n  unparse:\n    output-directory: ./cinzel\n"))
@@ -597,6 +643,8 @@ func TestConfigErrorsAreTheAuthorsToFix(t *testing.T) {
 		{"command is not a mapping", "github:\n  parse: nope\n"},
 		{"path is not a string", "github:\n  parse:\n    file: 3\n"},
 		{"yml is not a boolean", "github:\n  parse:\n    yml: \"yes\"\n"},
+		{"recursive is not a boolean", "github:\n  parse:\n    recursive: \"yes\"\n"},
+		{"ignore-unknown is not a boolean", "github:\n  parse:\n    ignore-unknown: \"yes\"\n"},
 		{"file and directory together", "github:\n  parse:\n    file: a.hcl\n    directory: d\n"},
 		{"path names one machine", "github:\n  parse:\n    output-directory: " + absoluteTestPath() + "\n"},
 		{"path climbs out", "github:\n  parse:\n    output-directory: ../elsewhere\n"},

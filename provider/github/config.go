@@ -102,12 +102,18 @@ type hclActionInputBlock struct {
 	Required           hcl.Expression `hcl:"required,optional"`
 	Default            hcl.Expression `hcl:"default,optional"`
 	DeprecationMessage hcl.Expression `hcl:"deprecation_message,optional"`
+	// Body carries no attribute of its own. It is where the comment above
+	// the block and the one closing it are read from, which the attributes
+	// above cannot reach.
+	Body hcl.Body `hcl:",remain"`
 }
 
 type hclActionOutputBlock struct {
 	ID          string         `hcl:"id,label"`
 	Description hcl.Expression `hcl:"description,optional"`
 	Value       hcl.Expression `hcl:"value,optional"`
+	// Body is the block's own comments, the same as on an input.
+	Body hcl.Body `hcl:",remain"`
 }
 
 type hclActionRunsBlock struct {

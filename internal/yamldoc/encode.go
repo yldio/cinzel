@@ -234,13 +234,11 @@ func needsQuoting(v string) bool {
 		}
 	}
 
-	// Characters that are special in YAML and require quoting.
-
-	for _, c := range v {
-		switch c {
-		case ':', '#', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '`':
-			return true
-		}
+	// A colon opens a mapping only when a space or the end of the value
+	// follows it, and a hash opens a comment only after a space. Elsewhere
+	// both are ordinary characters: "foo:bar" and "foo#bar" read back whole.
+	if strings.Contains(v, ": ") || strings.HasSuffix(v, ":") || strings.Contains(v, " #") {
+		return true
 	}
 
 	// A leading "..." is the document-end marker. yaml.v3 quotes it without
@@ -249,14 +247,18 @@ func needsQuoting(v string) bool {
 		return true
 	}
 
-	// Strings starting with YAML indicators.
-
+	// The remaining indicators are only indicators in the first position. The
+	// scan used to run over the whole value, so a flow character anywhere in
+	// it forced quotes: every "${{ ... }}" expression went out quoted for the
+	// braces in its middle, which YAML reads as part of the scalar.
+	//
+	// "@" and "`" are reserved indicators: YAML does not allow a plain scalar
+	// to start with either. Without them here yaml.v3 still quotes the value,
+	// but picks single quotes.
 	if len(v) > 0 {
 		switch v[0] {
-		// "@" and "`" are reserved indicators: YAML does not allow a plain
-		// scalar to start with either. Without them here yaml.v3 still quotes
-		// the value, but picks single quotes.
-		case '?', '-', '"', '\'', '@', '`':
+		case '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '#',
+			'?', '-', '"', '\'', '@', '`':
 			return true
 		}
 	}

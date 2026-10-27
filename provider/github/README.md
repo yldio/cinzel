@@ -113,6 +113,23 @@ Comments come across too, in both directions: above a block, beside a value,
 and closing a body. A note explaining why a version is held back survives the
 conversion rather than being dropped on the way.
 
+A multi-line string keeps its `|` block, but two things do not make the trip.
+A folded `>` value is folded into one line by the YAML reader before cinzel
+sees it, so nothing records that it was wrapped and it comes back as one long
+line. And a script written `run: |-` or `run: |+` comes back as `run: |`: a
+script is written as an HCL heredoc, a heredoc ends on its closing marker's
+own line, and so it holds exactly one trailing newline. Unparse names each
+script it rewrites. The value is unchanged in every case, and a shell reads a
+missing or extra final newline the same as a present one.
+
+The one that does not is the comment above `env`, `with`, `outputs` or
+`secrets`. Each of those is one mapping in YAML and one block per key in HCL,
+so the mapping has no block of its own to carry it; writing it above the first
+block would turn a note about the whole set into a note about whichever key
+sorts first. Unparse drops it and prints where it was, as `file:line: path`.
+`permissions`, `defaults` and `concurrency` stay a single block and keep
+theirs, as do the comments on a mapping's own keys and the one closing it.
+
 ## Values shared between blocks
 
 A `variable` block holds a value other blocks point at, the same way `step` and
@@ -211,49 +228,50 @@ but an action can sit anywhere the repository puts it. A `path` says where:
 ```hcl
 action "setup" {
   filename = "setup"
-  path     = "actions-a"
+  path     = "actions-x"
 }
 ```
 
-That writes `actions-a/setup/action.yml`. Unparse fills it in from where it
-found the file, so a repository keeping actions in folders of their own
-converts out and back without editing anything:
+That writes `actions-x/setup/action.yml`. Unparse fills the path in from
+wherever it found the file, so if you keep actions in folders of their own they
+convert out and back without you editing anything:
 
 ```sh
-cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github unparse -d actions-x -d actions-y -r --output-directory cinzel
 cinzel github parse -d cinzel
 ```
 
-`--recursive` is needed because an action is always a directory deeper than
-the folder holding it: `actions-a/setup/action.yml`.
+You need `--recursive` because an action file always sits a level below the
+folder you point at: `actions-x/setup/action.yml`.
 
-`--directory` is repeatable on unparse for exactly this, and `.github/workflows`
-is added when it is not named, so one run takes the whole repository:
+You can repeat `--directory` on unparse for exactly this, and cinzel adds
+`.github/workflows` when you have not named it, so one run takes the whole
+repository:
 
 ```sh
-cinzel github unparse -d actions-a -d actions-b -r --output-directory cinzel
+cinzel github unparse -d actions-x -d actions-y -r --output-directory cinzel
 cinzel github parse -d cinzel
-# .github/workflows/ci.yaml, actions-a/setup/action.yml and
-# actions-b/deploy/action.yml, each back where it came from
+# .github/workflows/ci.yaml, actions-x/setup/action.yml and
+# actions-y/deploy/action.yml, each back where it came from
 ```
 
-With `--recursive`, one directory containing another is refused, since the
-files underneath would be read twice.
+With `--recursive`, passing one directory that contains another is refused,
+since the files underneath would be read twice.
 
-Parse places an action against the repository root rather than the output
-directory, because that is what its path was recorded against. An explicit
-`--output-directory` collects everything under it instead, which is what a
-scratch conversion wants.
+Parse starts an action's path at the repository root, not the output directory,
+because that is what the path was recorded against. Pass `--output-directory`
+and everything lands under it instead, which is what you want for a scratch
+conversion.
 
 An action with no `path` goes under the output directory as it always did, so
-nothing written before this existed changes. A `path` is fenced like
-`filename`: relative, no `..`, nothing absolute. An action read from outside
-the run's root records no path, because an absolute one names a single
-machine's disk and the HCL is meant to be committed.
+nothing you wrote before this existed changes. A `path` is fenced the same way
+`filename` is: relative, no `..`, nothing absolute. An action read from outside
+the run's root gets no path at all, since an absolute one names one machine's
+disk and the HCL is meant to be committed.
 
-Unparse works out which document it is looking at on its own: `on` and `jobs`
-make it a workflow, `name` and `runs` without those make it an action, and
-anything else is read as a file of steps.
+Unparse works out what it is looking at on its own: `on` and `jobs` make it a
+workflow, `name` and `runs` without those make it an action, and anything else
+is read as a file of steps.
 
 ## Pinning and upgrading
 
@@ -283,10 +301,22 @@ converts back:
 - `permissions` scopes and levels are checked against the known set.
 - `on.schedule` crons are checked for the 5-field form and sane ranges.
 - `${{ }}` is checked for balanced delimiters and a non-empty body.
-- A step's `uses` must read as `owner/repo@ref`, `./path` or `docker://image`.
+- A step's `uses` must read as `owner/repo@ref`, `./path`, `$/path` or
+  `docker://image`. A `$/` reference names this repository at the commit the
+  caller runs from, so it carries no `@ref` and one is refused. It is not
+  available on GitHub Enterprise Server.
 
 A file that fails one of these stops with an error naming the problem, rather
 than writing YAML that GitHub would reject.
+
+A YAML key the schema does not declare stops the conversion the same way.
+`unparse --ignore-unknown` drops those keys instead, naming each with its file
+and line, and reports every one rather than stopping at the first. The dropped
+key is gone from the HCL and so from the YAML the next parse writes over the
+source, and `diff` reports no drift afterwards, so it is for a keyword cinzel
+has not caught up with rather than for a typo. The accepted keys are read off
+the shape structs in `validate.go`, so a schema that grows a field needs no
+second list.
 
 ## Coverage
 

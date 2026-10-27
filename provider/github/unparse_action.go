@@ -6,6 +6,7 @@ package github
 import (
 	"errors"
 	"fmt"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	"path"
 	"path/filepath"
 	"strings"
@@ -49,7 +50,11 @@ func isActionDocument(doc map[string]any) bool {
 // only while an action could not sit anywhere but the output directory: the
 // block label comes from sanitizeIdentifier, and a path through that becomes
 // "actions_a_setup" rather than "setup".
-func actionToHCL(doc map[string]any, location string, comments *yamlComments, usedStepIDs map[string]struct{}) ([]byte, error) {
+func actionToHCL(doc map[string]any, location string, comments *yamlComments, site commentSite, lines map[string]int, ignoreUnknown bool, usedStepIDs map[string]struct{}) ([]byte, error) {
+	if ignoreUnknown {
+		reportDroppedKeys(site, stripUnknownKeys(doc, actionYAMLShape{}, lines))
+	}
+
 	if err := validateActionDocument(doc); err != nil {
 		return nil, err
 	}
@@ -72,7 +77,7 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 	if runs, ok := toStringAnyMap(doc["runs"]); ok {
 		if using, _ := runs["using"].(string); using == "composite" {
 			if stepsRaw, ok := runs["steps"]; ok {
-				refs, err := writeActionSteps(root, stepsRaw, comments.child("runs"), usedStepIDs)
+				refs, err := writeActionSteps(root, site.child("runs").child("steps"), stepsRaw, comments.child("runs"), usedStepIDs)
 				if err != nil {
 					return nil, err
 				}
@@ -114,7 +119,11 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 		default:
 			actionSections.next()
 
-			if err := writeAttributeAny(actionBody, toHCLKey(key), doc[key]); err != nil {
+			// With its comments, the way the workflow writer does it. Written
+			// through writeAttributeAny, which carries none, the note above
+			// an action's first key — the one describing the whole file —
+			// was read off the YAML and then dropped on the floor.
+			if err := writeCommentedAttribute(actionBody, toHCLKey(key), doc[key], comments.at(key)); err != nil {
 				return nil, err
 			}
 		}
@@ -138,14 +147,21 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 				return nil, fmt.Errorf("action input '%s' must be an object", name)
 			}
 
+			inputComments := comments.child("inputs")
+
+			hclcomment.WriteLeading(actionBody, inputComments.at(name).head)
+
 			inputBlock := actionBody.AppendNewBlock("input", []string{name})
 			inputBody := inputBlock.Body()
+			attrComments := inputComments.child(name)
 
 			for _, attr := range sortedKeys(inputMap) {
-				if err := writeAttributeAny(inputBody, inputAttrHCLKey(attr), inputMap[attr]); err != nil {
+				if err := writeCommentedAttribute(inputBody, inputAttrHCLKey(attr), inputMap[attr], attrComments.at(attr)); err != nil {
 					return nil, err
 				}
 			}
+
+			hclcomment.WriteLeading(inputBody, attrComments.below())
 		}
 	}
 
@@ -167,14 +183,21 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 				return nil, fmt.Errorf("action output '%s' must be an object", name)
 			}
 
+			outputComments := comments.child("outputs")
+
+			hclcomment.WriteLeading(actionBody, outputComments.at(name).head)
+
 			outputBlock := actionBody.AppendNewBlock("output", []string{name})
 			outputBody := outputBlock.Body()
+			attrComments := outputComments.child(name)
 
 			for _, attr := range sortedKeys(outputMap) {
-				if err := writeAttributeAny(outputBody, toHCLKey(attr), outputMap[attr]); err != nil {
+				if err := writeCommentedAttribute(outputBody, toHCLKey(attr), outputMap[attr], attrComments.at(attr)); err != nil {
 					return nil, err
 				}
 			}
+
+			hclcomment.WriteLeading(outputBody, attrComments.below())
 		}
 	}
 
@@ -246,7 +269,7 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, us
 	return unescape.Unicode(hclwrite.Format(f.Bytes())), nil
 }
 
-func writeActionSteps(root *hclwrite.Body, raw any, comments *yamlComments, used map[string]struct{}) ([]string, error) {
+func writeActionSteps(root *hclwrite.Body, site commentSite, raw any, comments *yamlComments, used map[string]struct{}) ([]string, error) {
 	items, ok := raw.([]any)
 
 	if !ok {
@@ -263,7 +286,7 @@ func writeActionSteps(root *hclwrite.Body, raw any, comments *yamlComments, used
 		}
 
 		stepID := stepIdentifier(idx, stepObj, used)
-		parsedStep, err := stepFromMap(stepObj, comments.item("steps", idx))
+		parsedStep, err := stepFromMap(site.index(idx), stepObj, comments.item("steps", idx))
 		if err != nil {
 			return nil, err
 		}

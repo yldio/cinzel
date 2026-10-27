@@ -114,14 +114,23 @@ func TestSubdirectoryActionIsUpgraded(t *testing.T) {
 
 // TestLocalActionIsNotResolved covers the control: an action written as a path
 // into this repository names no GitHub repository, so nothing is asked of the
-// API and nothing is rewritten.
+// API and nothing is rewritten. "$/" is the same case, resolved at the running
+// commit rather than from the checkout.
 func TestLocalActionIsNotResolved(t *testing.T) {
+	for _, action := range []string{"./.github/actions/build", "$/.github/actions/build"} {
+		t.Run(action, func(t *testing.T) { assertActionIsNotResolved(t, action) })
+	}
+}
+
+func assertActionIsNotResolved(t *testing.T, action string) {
+	t.Helper()
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "steps.hcl")
 
 	content := `step "local" {
   uses {
-    action  = "./.github/actions/build"
+    action  = "` + action + `"
     version = "v1"
   }
 }

@@ -1,6 +1,7 @@
 # generated-by: cinzel
 # cinzel-provider: github
 # cinzel-source: testdata/fixtures/formatting/workflow_parse_fidelity.hcl
+
 name: Fidelity ✅
 on:
   push:
