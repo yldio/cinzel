@@ -1,4 +1,15 @@
 cinzel
+## [1.3.0](https://github.com/yldio/cinzel/compare/v1.2.2..v1.3.0) - 2026-10-27
+
+### ⛰️  Features
+
+- Conversion fixes, two flags, and formatting (#109) - ([47069de](https://github.com/yldio/cinzel/commit/47069decea3424d27ac8d4e285815298f511a719))
+
+### 📚 Documentation
+
+- Add a landing page (#108) - ([259fda7](https://github.com/yldio/cinzel/commit/259fda7fb1f45614c6eb88e53f0c5312073da539))
+
+
 ## [1.2.2](https://github.com/yldio/cinzel/compare/v1.2.1..v1.2.2) - 2026-10-14
 
 ### 🐛 Bug Fixes
