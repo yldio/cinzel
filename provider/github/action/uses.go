@@ -70,7 +70,7 @@ func (config *UsesConfig) parseVersion(hv *hclparser.HCLVars) (cty.Value, error)
 }
 
 // Parse resolves the uses block into a single "action@version" cty string value
-// and the inline comment on the version attribute (if any).
+// and the inline comment the block carries (if any).
 func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, string, error) {
 	if config == nil {
 		return cty.NilVal, "", nil
@@ -112,6 +112,14 @@ func (config *UsesListConfig) Parse(hv *hclparser.HCLVars) (cty.Value, string, e
 		if c.Version != nil {
 			comment = hv.TrailingComment(c.Version.Range())
 		}
+	}
+
+	// The two attributes become one "uses" key, which has one line. The
+	// version's comment is the one that belongs there — it is where a pin
+	// tag lands — so the action's is taken only when the version wrote
+	// nothing, rather than being dropped for having nowhere to go.
+	if comment == "" && c.Action != nil {
+		comment = hv.TrailingComment(c.Action.Range())
 	}
 
 	var uses string

@@ -265,21 +265,53 @@ func pipelineComments(body hcl.Body, keys, variableNames map[string]string, vari
 // A variable carrying nothing beyond its value is written out as a plain
 // scalar, so the "name" and "value" attributes its comments were written on
 // are not keys in the output and there is nothing left for them to sit on. One
-// carrying more keeps both as real keys, and its comments stay where they are.
+// carrying more keeps "value" and "description" as real keys, and only its
+// name is left without one.
+//
+// Every comment the block carried belongs to the one key it becomes, so they
+// are joined rather than one of them being picked: a note written beside
+// "name =" used to be dropped on the floor.
 func liftCollapsedVariables(mapping *comments, variables map[string]any) {
 	if mapping == nil {
 		return
 	}
 
 	for key, child := range mapping.children {
+		name := child.at("name")
+
+		// An expanded variable keeps "value" and "description" as real keys,
+		// so only the name has nowhere to go: the block is already written
+		// under what it resolved to, and no key in the output is called
+		// "name". Its comments belong to the key it named.
 		if _, expanded := variables[key].(map[string]any); expanded {
+			if !name.empty() {
+				mapping.setOwn(key, nodeComment{
+					head: joinComments(child.above(), name.head),
+					line: name.line,
+				})
+
+				delete(child.own, "name")
+			}
+
 			continue
 		}
 
-		mapping.setOwn(key, nodeComment{
-			head: firstNonEmpty(child.above(), child.at("name").head),
-			line: child.at("value").line,
-		})
+		value := child.at("value")
+
+		// The collapsed key has one line, and it belongs to the value: that
+		// is the attribute it carries. A comment beside "name =" has nowhere
+		// else to sit once the block is one scalar, so it stacks above the
+		// key rather than taking a line already spoken for.
+		head := joinComments(child.above(), name.head)
+		line := value.line
+
+		if line == "" {
+			line = name.line
+		} else {
+			head = joinComments(head, name.line)
+		}
+
+		mapping.setOwn(key, nodeComment{head: head, line: line})
 
 		delete(mapping.children, key)
 	}

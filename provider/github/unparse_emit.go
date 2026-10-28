@@ -196,14 +196,14 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 
 		return nil
 	case "runs-on":
-		return writeRunsOn(body, value, comments.child(key))
+		return writeRunsOn(body, value, comments.child(key), comments.at(key))
 	case "needs":
 		refs, err := normalizeNeeds(value, jobIDMap)
 		if err != nil {
 			return err
 		}
 
-		return writeReferenceListAttribute(body, "depends_on", "job", refs, "")
+		return writeReferenceListAttribute(body, "depends_on", "job", refs, nodeComment{})
 	case "env":
 		return writeNameValueBlocks(body, "env", value, comments.child(key))
 	case "with":
@@ -219,7 +219,7 @@ func writeJobKey(root *hclwrite.Body, body *hclwrite.Body, jobID string, key str
 
 		return writeNameValueBlocks(body, "secret", value, comments.child(key))
 	case "strategy":
-		return writeStrategyBlock(body, value, generatedVariables)
+		return writeStrategyBlock(body, value, comments.child(key), generatedVariables)
 	case "permissions", "defaults", "concurrency", "container", "environment":
 		return writeNestedMapAsBlock(body, key, value, comments.child(key))
 	default:

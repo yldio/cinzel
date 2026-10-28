@@ -279,7 +279,12 @@ func parseActionRunsConfig(cfg hclActionRunsBlock, hv *hclparser.HCLVars, stepMa
 			steps = append(steps, stepVal)
 		}
 
-		out["steps"] = steps
+		// The list is a reference to blocks written elsewhere, so it has no
+		// value of its own to carry a comment: the "steps" key it becomes
+		// does, the same as a job's.
+		head, line := attrComments(hv, cfg.Steps)
+
+		out["steps"] = withComments(steps, blockComment{head: head, trailing: line})
 	}
 
 	for _, env := range cfg.Env {

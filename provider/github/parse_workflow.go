@@ -108,7 +108,10 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 				steps = append(steps, stepVal)
 			}
 
-			job.Body["steps"] = steps
+			job.Body["steps"] = withComments(steps, blockComment{
+				head:     job.StepsComment.Head,
+				trailing: job.StepsComment.Line,
+			})
 		}
 
 		parsedJobs[j.ID] = job
@@ -176,7 +179,10 @@ func parseHCLToWorkflows(body hcl.Body, sources map[string][]byte) ([]WorkflowYA
 				jobOrder = append(jobOrder, jobContent.Key)
 			}
 
-			workflow.Body["jobs"] = jobs
+			workflow.Body["jobs"] = withComments(jobs, blockComment{
+				head:     workflow.JobsComment.Head,
+				trailing: workflow.JobsComment.Line,
+			})
 			workflow.JobRefs = jobOrder
 		}
 
@@ -277,6 +283,9 @@ func parseJobConfig(cfg hclJobBlock, hv *hclparser.HCLVars) (ghjob.Parsed, error
 	}
 
 	job.StepRefs = stepRefs
+
+	head, line := attrComments(hv, cfg.Steps)
+	job.StepsComment = ghjob.Comment{Head: head, Line: line}
 
 	if refs, err := parseReferenceList(cfg.DependsOn, "job"); err != nil {
 		return ghjob.Parsed{}, err
@@ -566,6 +575,9 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 
 	workflow.JobRefs = jobRefs
 
+	head, line := attrComments(hv, cfg.Jobs)
+	workflow.JobsComment = ghworkflow.Comment{Head: head, Line: line}
+
 	if err := setOptionalYAMLAttr(out, "permissions", cfg.Permissions, hv); err != nil {
 		return ghworkflow.Parsed{}, err
 	}
@@ -591,7 +603,7 @@ func parseWorkflowConfig(cfg hclWorkflowBlock, hv *hclparser.HCLVars) (ghworkflo
 		}
 
 		if eventName == "schedule" {
-			onMap[eventName] = withComments(ghworkflow.DenormalizeScheduleEvent(eventValue), comments)
+			onMap[eventName] = withComments(denormalizeSchedule(eventValue, &comments), comments)
 		} else if len(eventValue) == 0 {
 			onMap[eventName] = withComments(map[string]any{}, comments)
 		} else {
@@ -738,26 +750,52 @@ func blockComments(body hcl.Body, hv *hclparser.HCLVars) blockComment {
 
 // namedBlockComments reads every comment a name/value block carries.
 //
-// There are two places a run of comments sits above one of these: above the
-// block, and above the value inside it. The block becomes a single YAML key,
-// so both belong above that key, joined in the order they were written. Only
-// the first used to be read, so a note written above the "value =" of a job's
-// env block was dropped while the step path kept the same note. The trailing
-// comment on the value is the block's too, for the same reason.
+// There are three places a run of comments sits above one of these: above the
+// block, above the "name =" inside it, and above the "value =". The block
+// becomes a single YAML key, so all three belong above that key, joined in the
+// order they were written. Only the first used to be read, so a note written
+// above the "value =" of a job's env block was dropped while the step path
+// kept the same note.
+//
+// The one line that key has to trail goes to the comment written beside the
+// value, which is the attribute it carries. A comment beside the "name =" has
+// nowhere else to sit, so it stacks above the key rather than being dropped:
+// read as a trailing it would claim a line that already belongs to the value.
 func namedBlockComments(cfg hclNamedBlock, hv *hclparser.HCLVars) blockComment {
 	c := blockComments(cfg.Body, hv)
+	nameHead, nameLine := attrComments(hv, cfg.Name)
+	valueHead, valueLine := attrComments(hv, cfg.Value)
 
-	if cfg.Value == nil {
-		return c
+	head := joinComments(c.head, nameHead)
+	trailing := valueLine
+
+	if valueLine == "" {
+		trailing = nameLine
+	} else {
+		head = joinComments(head, nameLine)
 	}
-
-	r := cfg.Value.Range()
 
 	return blockComment{
-		head:     joinComments(c.head, hv.HeadComment(r)),
-		trailing: hv.TrailingComment(r),
+		head:     joinComments(head, valueHead),
+		trailing: trailing,
 		foot:     c.foot,
 	}
+}
+
+// attrComments reads the comments written above an attribute and beside it,
+// returning both empty for an attribute nobody wrote.
+//
+// gohcl fills an attribute that is not there with a synthetic expression whose
+// range is empty, and reading comments off one takes whatever sits at the top
+// of the file and files it under an attribute that does not exist.
+func attrComments(hv *hclparser.HCLVars, expr hcl.Expression) (head, line string) {
+	if expr == nil || expr.Range().Empty() {
+		return "", ""
+	}
+
+	r := expr.Range()
+
+	return hv.HeadComment(r), hv.TrailingComment(r)
 }
 
 // joinComments runs two comment runs together, dropping an empty one. Each is
@@ -940,7 +978,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 			}
 
 			if eventName == "schedule" {
-				onMap[eventName] = withComments(ghworkflow.DenormalizeScheduleEvent(eventValue), comments)
+				onMap[eventName] = withComments(denormalizeSchedule(eventValue, &comments), comments)
 			} else if len(eventValue) == 0 {
 				onMap[eventName] = withComments(map[string]any{}, comments)
 			} else {
@@ -1055,10 +1093,20 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
+			// The names first: an axis written as a "variable" block arrives
+			// with its name behind a wrapper when a comment was written on
+			// that line, and the normalizer reads the name with a type
+			// assertion it reports as a missing name.
+			axisComments := unwrapMatrixVariableNames(matrixValue)
+			variableHeads := unwrapMatrixVariableBlocks(matrixValue)
+
 			normalized, err := ghjob.NormalizeStrategyMatrix(matrixValue)
 			if err != nil {
 				return nil, err
 			}
+
+			applyAxisComments(normalized, axisComments)
+			applyAxisComments(normalized, variableHeads)
 
 			if err := checkBlockNotEmpty("matrix", normalized); err != nil {
 				return nil, err
@@ -1395,6 +1443,182 @@ func stepValueWithoutID(stepVal any) any {
 // `"defaults" section should have "run" section` — and cinzel's own unparse
 // refuses the runs-on form, so a parse exited 0 on a file nothing downstream
 // could read. "permissions" is the exception: an empty one is written
+// denormalizeSchedule turns a schedule event into the list of {"cron": ...}
+// entries GitHub reads, moving any comment written on the "cron =" line onto
+// the schedule key.
+//
+// The denormalizer reads the cron list with a type assertion, so a comment
+// beside "cron =" left the whole wrapper standing where a list was expected
+// and the parse stopped at "schedule cron must be a string or list". One cron
+// line can become several entries, and none of them is the line the comment
+// was written on, so it goes to the key that stands for all of them rather
+// than being copied onto each.
+func denormalizeSchedule(eventValue map[string]any, comments *blockComment) []any {
+	wrapped, isWrapped := eventValue["cron"].(annotated)
+
+	if !isWrapped {
+		return ghworkflow.DenormalizeScheduleEvent(eventValue)
+	}
+
+	eventValue["cron"] = wrapped.value
+	comments.head = joinComments(comments.head, wrapped.head)
+
+	if comments.trailing == "" {
+		comments.trailing = wrapped.comment
+	}
+
+	return ghworkflow.DenormalizeScheduleEvent(eventValue)
+}
+
+// unwrapMatrixVariableBlocks strips the wrapper off each matrix "variable"
+// block itself, returning what it carried keyed by the axis the block becomes.
+//
+// The normalizer reads the block with a type switch that has no case for a
+// wrapper, so a comment written above "variable {" was reported as
+// "strategy.matrix.variable must be an object or list" at exit 1. A comment
+// above the block is a comment above the axis it declares, so it travels to
+// that key.
+func unwrapMatrixVariableBlocks(matrix map[string]any) map[string]annotated {
+	rawVariables, found := matrix["variable"]
+
+	if !found {
+		return nil
+	}
+
+	entries, isList := rawVariables.([]any)
+
+	if !isList {
+		entries = []any{rawVariables}
+	}
+
+	out := map[string]annotated{}
+	unwrapped := make([]any, 0, len(entries))
+
+	for _, entry := range entries {
+		wrapped, isWrapped := entry.(annotated)
+
+		if !isWrapped {
+			unwrapped = append(unwrapped, entry)
+
+			continue
+		}
+
+		unwrapped = append(unwrapped, wrapped.value)
+
+		mapping, isMap := stepMapValue(wrapped.value)
+
+		if !isMap {
+			continue
+		}
+
+		name, isString := plain(mapping["name"]).(string)
+
+		if !isString {
+			continue
+		}
+
+		if wrapped.head != "" || wrapped.comment != "" {
+			out[name] = wrapped
+		}
+	}
+
+	if isList {
+		matrix["variable"] = unwrapped
+	} else {
+		matrix["variable"] = unwrapped[0]
+	}
+
+	if len(out) == 0 {
+		return nil
+	}
+
+	return out
+}
+
+// unwrapMatrixVariableNames strips the wrapper off the "name" of each matrix
+// variable block, returning the comments it carried keyed by the axis that
+// name becomes.
+//
+// The normalizer reads a name with a type assertion and reports its failure as
+// a missing name, so a comment written beside "name =" turned a valid matrix
+// into "strategy.matrix.variable entries require a non-empty name" at exit 1.
+// Only the name is unwrapped: the value keeps its own comments, which travel
+// to the axis on their own.
+//
+// The blocks arrive under "variable" as one map or a list of them, which is
+// how parseBodyMap writes a block type seen once or many times.
+func unwrapMatrixVariableNames(matrix map[string]any) map[string]annotated {
+	rawVariables, found := matrix["variable"]
+
+	if !found {
+		return nil
+	}
+
+	entries, isList := rawVariables.([]any)
+
+	if !isList {
+		entries = []any{rawVariables}
+	}
+
+	out := map[string]annotated{}
+
+	for _, entry := range entries {
+		mapping, isMap := stepMapValue(entry)
+
+		if !isMap {
+			continue
+		}
+
+		wrapped, isWrapped := mapping["name"].(annotated)
+
+		if !isWrapped {
+			continue
+		}
+
+		name, isString := plain(wrapped.value).(string)
+
+		if !isString {
+			continue
+		}
+
+		mapping["name"] = name
+
+		if wrapped.comment != "" || wrapped.head != "" {
+			out[name] = wrapped
+		}
+	}
+
+	if len(out) == 0 {
+		return nil
+	}
+
+	return out
+}
+
+// applyAxisComments puts the comments written on a variable block's name onto
+// the axis that block became.
+//
+// An axis already carrying comments of its own keeps them: those were written
+// on its value, which is the line the axis is emitted on.
+func applyAxisComments(normalized map[string]any, axisComments map[string]annotated) {
+	for axis, comment := range axisComments {
+		value, found := normalized[axis]
+
+		if !found {
+			continue
+		}
+
+		if existing, wrapped := value.(annotated); wrapped {
+			existing.head = joinComments(comment.head, existing.head)
+			normalized[axis] = existing
+
+			continue
+		}
+
+		normalized[axis] = annotated{value: value, comment: comment.comment, head: comment.head}
+	}
+}
+
 // explicitly as "{}", because an absent permissions field makes GitHub inherit
 // the default token permissions rather than granting none.
 func checkBlockNotEmpty(blockType string, value map[string]any) error {

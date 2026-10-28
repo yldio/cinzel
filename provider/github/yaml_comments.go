@@ -106,6 +106,15 @@ func (c *yamlComments) below() string {
 	return c.foot
 }
 
+// firstNonEmptyComment returns the first of its arguments that is not empty.
+func firstNonEmptyComment(first, second string) string {
+	if first != "" {
+		return first
+	}
+
+	return second
+}
+
 // collectComments reads the comments off a mapping node, every mapping nested
 // under it, and every mapping in a sequence under it, returning nil when there
 // are none to read.
@@ -126,11 +135,13 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		key, value := node.Content[i], node.Content[i+1]
 
-		// The head comment is written above the key and the inline one after
-		// the value, which is where yaml.v3 records each of them.
+		// The head comment is written above the key. The inline one sits
+		// after the value when that is a scalar, and after the key when the
+		// value is a collection starting on the line below, which is where
+		// the emitter put it and where yaml.v3 hands it back.
 		comment := nodeComment{
 			head:    fsutil.WithoutGeneratedMarker(key.HeadComment),
-			line:    value.LineComment,
+			line:    firstNonEmptyComment(value.LineComment, key.LineComment),
 			srcLine: key.Line,
 		}
 

@@ -231,7 +231,7 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, si
 
 			runsSections.next()
 
-			if err := writeAttributeAny(runsBody, toHCLKey(key), runsMap[key]); err != nil {
+			if err := writeCommentedAttribute(runsBody, toHCLKey(key), runsMap[key], comments.child("runs").at(key)); err != nil {
 				return nil, err
 			}
 		}
@@ -239,7 +239,7 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, si
 		if len(stepRefs) > 0 {
 			runsSections.next()
 
-			if err := writeReferenceListAttribute(runsBody, "steps", "step", stepRefs, comments.child("runs").at("steps").head); err != nil {
+			if err := writeReferenceListAttribute(runsBody, "steps", "step", stepRefs, comments.child("runs").at("steps")); err != nil {
 				return nil, err
 			}
 		}
@@ -259,8 +259,10 @@ func actionToHCL(doc map[string]any, location string, comments *yamlComments, si
 		brandingBlock := actionBody.AppendNewBlock("branding", nil)
 		brandingBody := brandingBlock.Body()
 
+		brandingComments := comments.child("branding")
+
 		for _, attr := range sortedKeys(brandingMap) {
-			if err := writeAttributeAny(brandingBody, toHCLKey(attr), brandingMap[attr]); err != nil {
+			if err := writeCommentedAttribute(brandingBody, toHCLKey(attr), brandingMap[attr], brandingComments.at(attr)); err != nil {
 				return nil, err
 			}
 		}
