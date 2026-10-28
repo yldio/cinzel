@@ -1,4 +1,11 @@
 cinzel
+## [1.3.2](https://github.com/yldio/cinzel/compare/v1.3.1..v1.3.2) - 2026-10-28
+
+### 🐛 Bug Fixes
+
+- *(comments)* Carry a comment wherever its attribute moves (#111) - ([abd3657](https://github.com/yldio/cinzel/commit/abd3657ccc3ea91e6628a467f5ec73d651967c8f))
+
+
 ## [1.3.1](https://github.com/yldio/cinzel/compare/v1.3.0..v1.3.1) - 2026-10-27
 
 ### 🐛 Bug Fixes
