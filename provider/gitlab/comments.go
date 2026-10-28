@@ -143,6 +143,19 @@ func (c *comments) empty() bool {
 	return c.own == nil && c.children == nil && c.items == nil && c.head == "" && c.foot == ""
 }
 
+// joinComments runs two comment runs together, dropping an empty one. Each is
+// already a run of whole lines, so one newline between them reads as one run.
+func joinComments(above, below string) string {
+	switch {
+	case above == "":
+		return below
+	case below == "":
+		return above
+	default:
+		return above + "\n" + below
+	}
+}
+
 // yamlKeys renames the HCL spellings that do not match the YAML key the value
 // lands under. Everything absent from here is written under its own name.
 //

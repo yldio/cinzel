@@ -13,6 +13,16 @@ type Parsed struct {
 	Key      string
 	Body     map[string]any
 	StepRefs []string
+	// StepsComment holds what was written above the "steps =" list and beside
+	// it. The list is a reference to blocks written elsewhere, so it has no
+	// value of its own to carry a comment: the "steps" key it becomes does.
+	StepsComment Comment
+}
+
+// Comment holds the comments written above a reference list and beside it.
+type Comment struct {
+	Head string
+	Line string
 }
 
 // ValidationModel contains the fields needed to validate a job definition.

@@ -70,12 +70,22 @@ func addValueRange(out map[string]hcl.Range, hv *hclparser.HCLVars, name, value 
 	out[key] = value.Range()
 }
 
-// BlockComment holds what was written above an env or with block and at the
-// end of its body. The two travel together because they are two halves of one
-// block's comments.
+// BlockComment holds what was written above an env or with block, on the
+// "name =" inside it, and at the end of its body. They travel together
+// because they are the parts of one block's comments.
 type BlockComment struct {
 	Head string
 	Foot string
+	// NameHead and NameLine are the comments written above the "name =" and
+	// beside it. The block becomes a single YAML key, so a note on the name
+	// is a note on that key.
+	NameHead string
+	NameLine string
+}
+
+// Empty reports whether the block carried no comment at all.
+func (c BlockComment) Empty() bool {
+	return c.Head == "" && c.Foot == "" && c.NameHead == "" && c.NameLine == ""
 }
 
 // BlockComments returns the comments written above each env block and closing
@@ -123,7 +133,7 @@ func (config *WithListConfig) BlockComments(hv *hclparser.HCLVars) map[string]Bl
 	return out
 }
 
-// addBlockComment records body's head and foot comments under the name
+// addBlockComment records body's head, foot and name comments under the name
 // expression's resolved string, keeping nothing when there were none.
 //
 // The decode hands back a body and not the block header, so the line to look
@@ -139,7 +149,14 @@ func addBlockComment(out map[string]BlockComment, hv *hclparser.HCLVars, name hc
 
 	comment := BlockComment{Head: hv.HeadComment(sb.SrcRange), Foot: hv.HeadComment(sb.EndRange)}
 
-	if comment.Head == "" && comment.Foot == "" {
+	// An attribute nobody wrote decodes to a synthetic expression with an
+	// empty range, and comments read off one come from wherever that lands.
+	if name != nil && !name.Range().Empty() {
+		comment.NameHead = hv.HeadComment(name.Range())
+		comment.NameLine = hv.TrailingComment(name.Range())
+	}
+
+	if comment.Empty() {
 		return
 	}
 

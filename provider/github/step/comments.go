@@ -58,20 +58,33 @@ func (c Comments) Nest(key string) map[string]Comment {
 // setNested records the comments found on each env or with entry under key,
 // keyed by the entry name they were found for.
 //
-// An entry is written as a block, so it has two places a run of comments can
-// sit above it: above the block, and above the value inside it. Only the
-// second used to be read, so a note written above an "env {" was dropped while
-// the same note on a job's env block was kept. Both are the author's, and both
-// belong above the one key the block becomes, so they are joined in the order
-// they were written.
+// An entry is written as a block, so it has three places a run of comments can
+// sit above it: above the block, above the "name =", and above the value
+// inside it. Only the last used to be read, so a note written above an "env {"
+// was dropped while the same note on a job's env block was kept. All are the
+// author's, and all belong above the one key the block becomes, so they are
+// joined in the order they were written.
 func (c *Comments) setNested(hv *hclparser.HCLVars, key string, ranges map[string]hcl.Range, blocks map[string]action.BlockComment) {
 	entries := map[string]Comment{}
 
 	for name, r := range ranges {
 		block := blocks[name]
+		head := joinComments(block.Head, block.NameHead)
+		line := hv.TrailingComment(r)
+
+		// The one line the key has goes to the comment beside the value,
+		// which is the attribute it carries. One beside the "name =" has
+		// nowhere else to sit, so it stacks above the key rather than
+		// claiming a line that already belongs to the value.
+		if line == "" {
+			line = block.NameLine
+		} else {
+			head = joinComments(head, block.NameLine)
+		}
+
 		comment := Comment{
-			Head: joinComments(block.Head, hv.HeadComment(r)),
-			Line: hv.TrailingComment(r),
+			Head: joinComments(head, hv.HeadComment(r)),
+			Line: line,
 			Foot: block.Foot,
 		}
 

@@ -5,11 +5,12 @@ package github
 
 import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/yldio/cinzel/internal/hclcomment"
 	ghjob "github.com/yldio/cinzel/provider/github/job"
 	"github.com/zclconf/go-cty/cty"
 )
 
-func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[string]any) error {
+func writeStrategyBlock(body *hclwrite.Body, raw any, comments *yamlComments, generatedVariables map[string]any) error {
 	mapping, ok := toStringAnyMap(raw)
 
 	if !ok {
@@ -27,7 +28,7 @@ func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[str
 		value := mapping[key]
 
 		if key == "matrix" {
-			if err := writeMatrixBlock(strategyBody, value, generatedVariables); err != nil {
+			if err := writeMatrixBlock(strategyBody, value, comments.child(key), generatedVariables); err != nil {
 				return err
 			}
 			continue
@@ -37,7 +38,7 @@ func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[str
 			return err
 		}
 
-		if err := writeAttributeAny(strategyBody, toHCLKey(key), value); err != nil {
+		if err := writeCommentedAttribute(strategyBody, toHCLKey(key), value, comments.at(key)); err != nil {
 			return err
 		}
 	}
@@ -45,7 +46,7 @@ func writeStrategyBlock(body *hclwrite.Body, raw any, generatedVariables map[str
 	return nil
 }
 
-func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[string]any) error {
+func writeMatrixBlock(body *hclwrite.Body, raw any, comments *yamlComments, generatedVariables map[string]any) error {
 	mapping, ok := toStringAnyMap(raw)
 
 	if !ok {
@@ -67,8 +68,10 @@ func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[strin
 			matrixBody.AppendNewline()
 		}
 
+		comment := comments.at(axis.Name)
+
 		if axis.Name == "include" || axis.Name == "exclude" {
-			if err := writeAttributeAny(matrixBody, toHCLKey(axis.Name), axis.Value); err != nil {
+			if err := writeCommentedAttribute(matrixBody, toHCLKey(axis.Name), axis.Value, comment); err != nil {
 				return err
 			}
 			continue
@@ -79,10 +82,15 @@ func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[strin
 			existingNames[varName] = struct{}{}
 			generatedVariables[varName] = list
 
+			// The axis is one YAML key and the block it becomes has two
+			// attributes, so the comment goes on the value: that is the line
+			// the axis list was written on, and where the parse reads it back.
+			hclcomment.WriteLeading(matrixBody, comment.head)
+
 			vBlock := matrixBody.AppendNewBlock("variable", nil)
 			vBody := vBlock.Body()
 			vBody.SetAttributeValue("name", cty.StringVal(axis.Name))
-			vBody.SetAttributeRaw("value", traversalTokens("variable", varName))
+			vBody.SetAttributeRaw("value", hclcomment.Trailing(traversalTokens("variable", varName), comment.line))
 			continue
 		}
 
@@ -90,7 +98,7 @@ func writeMatrixBlock(body *hclwrite.Body, raw any, generatedVariables map[strin
 			return err
 		}
 
-		if err := writeAttributeAny(matrixBody, axis.Name, axis.Value); err != nil {
+		if err := writeCommentedAttribute(matrixBody, axis.Name, axis.Value, comment); err != nil {
 			return err
 		}
 	}

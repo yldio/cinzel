@@ -55,6 +55,8 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 		// above the key it belongs to.
 		key := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: it.key, HeadComment: it.value.head}
 
+		moveLineToKey(key, value)
+
 		// A key went out unstyled, so yaml.v3 picked the quotes for one it had
 		// to quote, and it reaches for single. The project writes double.
 		//
@@ -70,6 +72,31 @@ func mapNode(d *Doc) (*yamlv3.Node, error) {
 	}
 
 	return node, nil
+}
+
+// moveLineToKey puts a line comment written on a filled collection onto the
+// key instead.
+//
+// yaml.v3 renders a line comment where the node's own line ends. A scalar ends
+// on the line its key is on, so the comment lands beside it; a filled block
+// collection ends after its last entry, so the comment is emitted against
+// whatever key follows it in the document. A comment on "tags = [...]" came
+// out beside "jobs:" — read by anyone, and by cinzel on the way back, as a
+// note on a key its author never wrote.
+//
+// An empty collection renders as "[]" or "{}" on the key's own line, so it
+// keeps its comment where it is.
+func moveLineToKey(key, value *yamlv3.Node) {
+	if value.LineComment == "" || len(value.Content) == 0 {
+		return
+	}
+
+	if value.Kind != yamlv3.MappingNode && value.Kind != yamlv3.SequenceNode {
+		return
+	}
+
+	key.LineComment = value.LineComment
+	value.LineComment = ""
 }
 
 // setFoot writes the comment that closes a value onto the last node inside it,
