@@ -13,7 +13,7 @@ converts CI/CD pipelines between HCL and YAML.
 Then install the CLI itself, which the plugin drives:
 
 ```sh
-brew tap yldio/cinzel && brew install --cask cinzel
+brew install --cask yldio/tap/cinzel
 # or
 go install github.com/yldio/cinzel@latest
 ```
