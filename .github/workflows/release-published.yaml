@@ -39,7 +39,7 @@ jobs:
           client-id: ${{ secrets.RELEASE_APP_ID }}
           permission-contents: write
           private-key: ${{ secrets.RELEASE_PRIVATE_KEY }}
-          repositories: cinzel,homebrew-cinzel
+          repositories: cinzel,homebrew-tap
       - id: checkout_release
         name: Checkout (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

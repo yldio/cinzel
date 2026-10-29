@@ -7,7 +7,7 @@ This document describes how `cinzel` release distribution is automated for Homeb
 - Source release triggers:
   - Manual release orchestration: GitHub `workflow_dispatch` (`release.yaml`)
   - Published-release packaging: GitHub `release.published` (`release-published.yaml`)
-- Homebrew target: `yldio/cinzel` tap (PR-based updates)
+- Homebrew target: `yldio/tap` tap (PR-based updates)
 - Supported Homebrew targets: macOS and Linux
 - Windows distribution: release artifacts, and nothing automated
 
@@ -28,11 +28,11 @@ Checksums are generated from published release artifacts by GoReleaser into `dis
 
 Preferred model:
 
-- GitHub App installation token scoped to `yldio/cinzel`
+- GitHub App installation token scoped to `yldio/cinzel` and `yldio/homebrew-tap`
 
 Fallback model:
 
-- Fine-grained PAT scoped only to `yldio/cinzel`
+- Fine-grained PAT scoped only to `yldio/homebrew-tap`
 
 Current workflow secret contract:
 
@@ -56,7 +56,7 @@ Tap repository token permissions:
 2. Published-release workflow (`release-published.yaml`) starts on `release.published`.
 3. GoReleaser builds archives and computes checksums.
 4. GoReleaser renders the Homebrew cask update.
-5. GoReleaser pushes/update branch and creates or updates a PR in `yldio/cinzel`.
+5. GoReleaser pushes/update branch and creates or updates a PR in `yldio/homebrew-tap`.
 
 Recommended pre-merge checks:
 

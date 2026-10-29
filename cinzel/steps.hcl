@@ -42,7 +42,7 @@ set -euo pipefail
 
 scoped=$(gh api /installation/repositories --paginate --jq '.repositories[].full_name')
 
-for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
+for repo in "$GITHUB_REPOSITORY" yldio/homebrew-tap; do
   if ! printf '%s\n' "$scoped" | grep -qxF "$repo"; then
     echo "the release token is not scoped to $repo"
     echo "it reaches: $scoped"
@@ -97,7 +97,7 @@ step "release_app_token" {
 
   with {
     name  = "repositories"
-    value = "cinzel,homebrew-cinzel"
+    value = "cinzel,homebrew-tap"
   }
 
   with {
