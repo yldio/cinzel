@@ -20,6 +20,12 @@ tags:
 created_date: "2026-03-11"
 updated_date: "2026-03-11"
 ---
+> The README install command moved on. `brew install --cask cinzel` only
+> works once the tap is trusted, so the install line is now the fully
+> qualified `brew install --cask yldio/tap/cinzel`, and the tap repository
+> was renamed from `homebrew-cinzel` to `homebrew-tap`. See
+> `docs/solutions/integration-issues/homebrew-tap-trust-and-tap-name-stutter.md`.
+
 
 ## Problem
 

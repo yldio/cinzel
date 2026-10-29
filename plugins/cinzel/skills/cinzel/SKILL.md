@@ -22,7 +22,7 @@ reads HCL and writes YAML.
 cinzel --version
 ```
 
-Not installed: `brew tap yldio/cinzel && brew install --cask cinzel`, or
+Not installed: `brew install --cask yldio/tap/cinzel`, or
 `go install github.com/yldio/cinzel@latest`. Do not hand-write HCL in a repo
 that has no cinzel — the generated YAML is what CI actually runs, and without
 the tool nobody can regenerate it.
