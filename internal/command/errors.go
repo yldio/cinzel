@@ -32,6 +32,15 @@ var (
 	// every other command keeps exiting 1 exactly as before.
 	ErrCannotRun = errors.New("cinzel could not work out what parse would change")
 
+	// errNoHCLFiles ends a fmt run that found nothing to format. A run that
+	// checked no file is not a run that passed.
+	errNoHCLFiles = cinzelerror.UserInput(errors.New("no HCL files found"))
+
+	// errUnformatted ends a "fmt --check" run that found a file the
+	// formatter would rewrite. The files are already named on the way
+	// through, so the error says only how many there were.
+	errUnformatted = cinzelerror.UserInput(errors.New("some HCL files are not formatted"))
+
 	errDiffUnsupported        = cinzelerror.UserInput(errors.New("this provider cannot report what parse would change"))
 	errRootAndOutputDirectory = cinzelerror.UserInput(errors.New("--root and --output-directory cannot be set together: --root moves the whole run, --output-directory only the files it names"))
 )

@@ -34,6 +34,7 @@ func (cmd *Cli) Execute(osArgs []string, providers []provider.Provider) error {
 	}
 
 	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.initCommand())
+	cmd.Cmd.Commands = append(cmd.Cmd.Commands, cmd.fmtCommand())
 
 	if err := cmd.Cmd.Run(context.Background(), osArgs); err != nil {
 		// The failure goes to stderr, where the warnings above already go.

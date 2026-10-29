@@ -21,7 +21,7 @@ run = "go tool pkgsite"
 [tasks.fmt]
 run = """
 go fmt ./...
-go tool hclfmt -w ./**/*.hcl
+go run ./cinzel.go fmt
 """
 
 [tasks.build]
