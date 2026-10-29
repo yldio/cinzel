@@ -78,3 +78,21 @@ The marker occupies its own column (`markerRemoved`, `markerAdded`,
 `markerContext` in `internal/fsutil/difftext.go`). A unified diff conventionally
 writes it against the content, which in YAML moves the indentation of the lines
 whose indentation is being read.
+
+## Format (`cinzel fmt`)
+
+`hclwrite.Format` over every `.hcl` file under `--directory` (default
+`cinzel`) or the one `--file` names. Rewritten only when the bytes change, so
+an already-formatted tree writes nothing.
+
+Each file is parsed with `hclsyntax.ParseConfig` first. `hclwrite.Format`
+works on a token stream rather than a parsed document, so it reformats HCL it
+cannot parse as readily as HCL it can, and writing that back leaves a broken
+file laid out neatly enough to look deliberate.
+
+`--check` names the files that would change and exits 1 (`errUnformatted`)
+without writing. That is the CI shape: a drifted file fails the step instead
+of being quietly fixed in a checkout nobody commits.
+
+No provider is involved, so it registers at the top level next to `init`
+rather than under `github`/`gitlab`.
