@@ -38,7 +38,7 @@ jobs:
           client-id: ${{ secrets.RELEASE_APP_ID }}
           permission-contents: write
           private-key: ${{ secrets.RELEASE_PRIVATE_KEY }}
-          repositories: cinzel,homebrew-cinzel
+          repositories: cinzel,homebrew-tap
       - id: checkout_release
         name: Checkout (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,7 +57,7 @@ jobs:
 
           scoped=$(gh api /installation/repositories --paginate --jq '.repositories[].full_name')
 
-          for repo in "$GITHUB_REPOSITORY" yldio/homebrew-cinzel; do
+          for repo in "$GITHUB_REPOSITORY" yldio/homebrew-tap; do
             if ! printf '%s\n' "$scoped" | grep -qxF "$repo"; then
               echo "the release token is not scoped to $repo"
               echo "it reaches: $scoped"

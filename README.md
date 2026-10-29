@@ -68,7 +68,7 @@ that happens to sort first.
 Download a binary from [Releases](https://github.com/yldio/cinzel/releases), or:
 
 ```sh
-brew tap yldio/cinzel && brew install --cask cinzel
+brew install --cask yldio/tap/cinzel
 ```
 
 ```sh
