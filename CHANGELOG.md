@@ -1,4 +1,15 @@
 cinzel
+## [1.4.0](https://github.com/yldio/cinzel/compare/v1.3.2..v1.4.0) - 2026-10-29
+
+### ⛰️  Features
+
+- *(fmt)* Add a formatter for the HCL (#113) - ([14cbb86](https://github.com/yldio/cinzel/commit/14cbb8644d20ce4c301e9e92107e469211779bda))
+
+### 🐛 Bug Fixes
+
+- *(release)* Install the cask as yldio/tap/cinzel (#112) - ([b553a67](https://github.com/yldio/cinzel/commit/b553a673d529a0ec3c6af852e59746c6f673ab2a))
+
+
 ## [1.3.2](https://github.com/yldio/cinzel/compare/v1.3.1..v1.3.2) - 2026-10-28
 
 ### 🐛 Bug Fixes
