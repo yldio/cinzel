@@ -6,7 +6,6 @@ tool (
 	github.com/conventionalcommit/commitlint
 	github.com/golangci/golangci-lint/cmd/golangci-lint
 	github.com/google/addlicense
-	github.com/hashicorp/hcl/v2/cmd/hclfmt
 	golang.org/x/pkgsite/cmd/pkgsite
 )
 
@@ -221,7 +220,6 @@ require (
 	golang.org/x/pkgsite v0.0.0-20260309224630-59cb58a64684 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect
