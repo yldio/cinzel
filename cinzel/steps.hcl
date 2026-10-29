@@ -391,7 +391,7 @@ step "calculate_next_version" {
 step "goreleaser" {
   uses {
     action  = "goreleaser/goreleaser-action"
-    version = "f06c13b6b1a9625abc9e6e439d9c05a8f2190e94" # v7.2.3
+    version = "a4f02ab5355a589de60d917a659ce617ed19b3de" # v7.3.0
   }
 
   with {
