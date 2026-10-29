@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yldio/cinzel/internal/cinzelerror"
 	"github.com/yldio/cinzel/provider"
 )
 
@@ -136,6 +137,10 @@ func TestFmtReachesNestedFilesOnlyWhenRecursive(t *testing.T) {
 	nested := filepath.Join(dir, "cinzel", "github", "workflows.hcl")
 	writeHCL(t, nested, unformattedHCL)
 
+	// A file at the top level as well, so the run below has something to do
+	// either way and the nested file is the only thing under test.
+	writeHCL(t, filepath.Join(dir, "cinzel", "jobs.hcl"), unformattedHCL)
+
 	if _, err := runFmt(t, dir); err != nil {
 		t.Fatalf("fmt: %v", err)
 	}
@@ -159,5 +164,88 @@ func TestFmtRefusesAPathOutsideTheProject(t *testing.T) {
 
 	if _, err := runFmt(t, dir, "--directory", ".."); err == nil {
 		t.Fatal("fmt accepted a directory outside the project")
+	}
+}
+
+// A repository keeping its HCL somewhere other than ./cinzel says so in
+// .cinzelrc.yaml. fmt read its own default regardless, formatted nothing,
+// and reported that as a clean run.
+func TestFmtReadsTheConfiguredDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "infra", "workflows.hcl")
+	writeHCL(t, path, unformattedHCL)
+	writeHCL(t, filepath.Join(dir, configFilename), "github:\n  unparse:\n    output-directory: infra\n")
+
+	if _, err := runFmt(t, dir); err != nil {
+		t.Fatalf("fmt: %v", err)
+	}
+
+	if got := readFile(t, path); got == unformattedHCL {
+		t.Fatal("fmt did not reach the configured directory")
+	}
+}
+
+func TestFmtReadsTheConfiguredParseDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "infra", "workflows.hcl")
+	writeHCL(t, path, unformattedHCL)
+	writeHCL(t, filepath.Join(dir, configFilename), "gitlab:\n  parse:\n    directory: infra\n")
+
+	if _, err := runFmt(t, dir); err != nil {
+		t.Fatalf("fmt: %v", err)
+	}
+
+	if got := readFile(t, path); got == unformattedHCL {
+		t.Fatal("fmt did not reach the configured parse directory")
+	}
+}
+
+// An explicit flag is the whole answer: it is not widened by whatever the
+// configuration happens to name.
+func TestFmtFlagBeatsTheConfiguredDirectory(t *testing.T) {
+	dir := t.TempDir()
+	configured := filepath.Join(dir, "infra", "workflows.hcl")
+	named := filepath.Join(dir, "other", "workflows.hcl")
+	writeHCL(t, configured, unformattedHCL)
+	writeHCL(t, named, unformattedHCL)
+	writeHCL(t, filepath.Join(dir, configFilename), "github:\n  unparse:\n    output-directory: infra\n")
+
+	if _, err := runFmt(t, dir, "--directory", "other"); err != nil {
+		t.Fatalf("fmt: %v", err)
+	}
+
+	if got := readFile(t, configured); got != unformattedHCL {
+		t.Fatal("fmt formatted a directory the flag did not name")
+	}
+
+	if got := readFile(t, named); got == unformattedHCL {
+		t.Fatal("fmt left the named directory unformatted")
+	}
+}
+
+// "0 checked" at exit 0 passes a --check step having checked no file, which
+// is the one answer that must not come back clean.
+func TestFmtFailsWhenThereIsNothingToFormat(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(dir, "cinzel"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := runFmt(t, dir, "--check"); !errors.Is(err, errNoHCLFiles) {
+		t.Fatalf("want errNoHCLFiles, got %v", err)
+	}
+}
+
+// A missing directory is the author's to fix, so it is reported without the
+// invitation to open an issue about it.
+func TestFmtMissingDirectoryIsTheAuthorsFault(t *testing.T) {
+	_, err := runFmt(t, t.TempDir())
+	if err == nil {
+		t.Fatal("fmt accepted a missing directory")
+	}
+
+	if !cinzelerror.IsUserInput(err) {
+		t.Fatalf("a missing directory is reported as cinzel's fault: %v", err)
 	}
 }

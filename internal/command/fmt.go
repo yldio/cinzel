@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -21,29 +23,33 @@ func (cmd *Cli) fmtCommand() *cli.Command {
 		Name:  "fmt",
 		Usage: "Rewrite HCL files in the canonical layout",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			path, flag := c.String("file"), "file"
-
-			if path == "" {
-				path, flag = c.String("directory"), "directory"
-			}
-
-			if path == "" {
-				path = "cinzel"
-			}
-
-			if err := validateRelativePath(path); err != nil {
-				return fmt.Errorf("--%s: %w", flag, err)
-			}
-
-			if flag == "file" {
-				if err := requireFileNotDirectory(path); err != nil {
-					return err
-				}
-			}
-
-			files, err := fsutil.ListFilesWithExtensions(path, c.Bool("recursive"), ".hcl")
+			paths, err := fmtPaths(c)
 			if err != nil {
 				return err
+			}
+
+			files := make([]string, 0, len(paths))
+
+			for _, path := range paths {
+				found, err := fsutil.ListFilesWithExtensions(path, c.Bool("recursive"), ".hcl")
+				if err != nil {
+					// A path that is not there was typed, or written into
+					// the configuration, by whoever is running this. Without
+					// the mark it is reported as cinzel's own fault, under
+					// an invitation to open an issue about a missing
+					// directory.
+					return cinzelerror.UserInput(err)
+				}
+
+				files = append(files, found...)
+			}
+
+			// A run that formatted nothing is a run that was pointed
+			// somewhere wrong. Reporting "0 checked" and exiting 0 passes a
+			// --check step while checking no file at all, which is the one
+			// answer that must not come back clean.
+			if len(files) == 0 {
+				return fmt.Errorf("%w: %s", errNoHCLFiles, strings.Join(paths, ", "))
 			}
 
 			return cmd.formatFiles(files, c.Bool("check"))
@@ -74,6 +80,93 @@ func (cmd *Cli) fmtCommand() *cli.Command {
 			},
 		},
 	}
+}
+
+// fmtPaths works out what to format: what the flags name, or failing that
+// what the configuration file says the HCL is, or failing that "cinzel".
+//
+// The configuration is read because the directory is already written down
+// there, under parse as the HCL that is read and under unparse as where the
+// HCL is written. A repository keeping its HCL somewhere else said so once,
+// and fmt reading only its own default formatted nothing and said so in a
+// line that looked like success.
+func fmtPaths(c *cli.Command) ([]string, error) {
+	if path := c.String("file"); path != "" {
+		if err := validateRelativePath(path); err != nil {
+			return nil, fmt.Errorf("--file: %w", err)
+		}
+
+		if err := requireFileNotDirectory(path); err != nil {
+			return nil, err
+		}
+
+		return []string{path}, nil
+	}
+
+	if path := c.String("directory"); path != "" {
+		if err := validateRelativePath(path); err != nil {
+			return nil, fmt.Errorf("--directory: %w", err)
+		}
+
+		return []string{path}, nil
+	}
+
+	paths, err := configuredHCLPaths()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(paths) == 0 {
+		return []string{"cinzel"}, nil
+	}
+
+	return paths, nil
+}
+
+// configuredHCLPaths returns every path in .cinzelrc.yaml that holds HCL,
+// deduplicated and in a stable order.
+//
+// Which keys those are follows the direction: unparse writes HCL, so its
+// output-directory is HCL, and parse reads HCL, so its file and directory
+// are. The warnings the loader raises belong to the command whose settings
+// they are about, and are left for parse and unparse to report.
+func configuredHCLPaths() ([]string, error) {
+	seen := map[string]struct{}{}
+	paths := make([]string, 0, 4)
+
+	add := func(path string) {
+		if path == "" {
+			return
+		}
+
+		if _, ok := seen[path]; ok {
+			return
+		}
+
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+
+	for _, providerName := range []string{"github", "gitlab"} {
+		unparse, _, err := loadProviderCommandConfig(configFilename, providerName, "unparse")
+		if err != nil {
+			return nil, err
+		}
+
+		add(unparse.outputDirectory)
+
+		parse, _, err := loadProviderCommandConfig(configFilename, providerName, "parse")
+		if err != nil {
+			return nil, err
+		}
+
+		add(parse.directory)
+		add(parse.file)
+	}
+
+	sort.Strings(paths)
+
+	return paths, nil
 }
 
 // formatFiles rewrites each file, or under check only names the ones that

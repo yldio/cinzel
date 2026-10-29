@@ -124,9 +124,12 @@ platforms do:
 `parse` also takes `--yml` to write `.yml` instead of `.yaml`. GitLab parse
 always writes `.gitlab-ci.yml`, so it changes nothing there.
 
-`cinzel fmt` rewrites the HCL in the canonical layout. It takes `--file`,
-`--directory` (default `cinzel`) and `--recursive`, plus `--check`, which
-names the files that would change and exits non-zero without writing one.
+`cinzel fmt` rewrites the HCL in the canonical layout. With no flags it
+formats wherever your HCL lives: the directories named in `.cinzelrc.yaml`,
+or `./cinzel` when there is no config. `--file` and `--directory` name one
+explicitly, `--recursive` walks subdirectories, and `--check` names the files
+that would change and exits non-zero without writing one. A run that finds no
+HCL at all fails rather than reporting a clean check.
 
 GitHub unparse always reads `.github/workflows`, whatever else `--directory`
 names, since that is the only place GitHub reads a workflow from. Naming it

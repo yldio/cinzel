@@ -81,9 +81,25 @@ whose indentation is being read.
 
 ## Format (`cinzel fmt`)
 
-`hclwrite.Format` over every `.hcl` file under `--directory` (default
-`cinzel`) or the one `--file` names. Rewritten only when the bytes change, so
-an already-formatted tree writes nothing.
+`hclwrite.Format` over every `.hcl` file in the paths `fmtPaths` works out.
+Rewritten only when the bytes change, so an already-formatted tree writes
+nothing.
+
+A flag is the whole answer when one is given. Otherwise the paths come from
+`.cinzelrc.yaml`, which is where a repository has already written down where
+its HCL is: `unparse.output-directory` is where HCL is written, and
+`parse.directory` and `parse.file` are where it is read from, across both
+providers, deduplicated and sorted. `cinzel` is the fallback when the config
+names none of them. Reading only that default meant a repository keeping its
+HCL anywhere else had `cinzel fmt` format nothing and say so in a line that
+read like success.
+
+Finding no HCL at all is `errNoHCLFiles`, not a clean run. "0 checked" at
+exit 0 passes a `--check` step having checked no file, which is the one
+answer that must not come back green. A path that does not exist is marked
+`UserInput`: it was typed or configured by the author, and unmarked it is
+reported as cinzel's own bug, under an invitation to open an issue about a
+missing directory.
 
 Each file is parsed with `hclsyntax.ParseConfig` first. `hclwrite.Format`
 works on a token stream rather than a parsed document, so it reformats HCL it
