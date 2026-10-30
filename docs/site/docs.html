@@ -375,6 +375,7 @@ li { margin-bottom: 5px; }
       <a href="#diff">diff</a>
       <a href="#pin">pin and upgrade</a>
       <a href="#assist">assist</a>
+      <a href="#fmt">fmt</a>
       <a href="#init">init</a>
 
       <h3>Flags</h3>
@@ -490,6 +491,23 @@ li { margin-bottom: 5px; }
         looks inside those folders — an action file lives a level down, at
         <code>actions-x/setup/action.yml</code>.
       </p>
+      <h3>--mirror</h3>
+      <p>
+        Lays the HCL out the way the repository is laid out —
+        <code>cinzel/actions/setup.hcl</code> rather than
+        <code>cinzel/setup.hcl</code> — which reads better in a tree. Where a
+        file goes on the way back is its own <code>path</code> either way, so
+        this is a convenience, and a mirrored tree has to be parsed with
+        <code>--recursive</code>.
+      </p>
+      <p>
+        Workflows stay at the top of the output directory even under
+        <code>--mirror</code>. <code>.github/workflows</code> is the one place
+        GitHub reads a workflow from, so a mirrored
+        <code>cinzel/.github/workflows</code> would be a directory nothing
+        reads.
+      </p>
+
       <h3>When a file cannot be converted</h3>
       <p>
         If a YAML file is not a workflow, an action or a set of steps, cinzel
@@ -641,6 +659,30 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
       </div>
     </section>
 
+    <section id="fmt">
+      <h2>fmt</h2>
+      <p class="lead">
+        Rewrites the HCL in the canonical layout, the way
+        <code>unparse</code> would have written it.
+      </p>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">fmt</span></pre>
+      <p>
+        With no flags it formats wherever your HCL lives: the directories
+        named in <code>.cinzelrc.yaml</code>, or <code>./cinzel</code> when
+        there is no config. <code>--file</code> and <code>--directory</code>
+        name one explicitly, and <code>--recursive</code> walks subdirectories.
+      </p>
+      <p>
+        <code>--check</code> names the files that would change and exits
+        non-zero without writing one, which is the form for CI. A run that
+        finds no HCL at all fails rather than reporting a clean check, so a
+        wrong path cannot pass silently.
+      </p>
+<pre><span class="p">$</span> <span class="k">cinzel</span> <span class="s">fmt</span> <span class="o">--check</span>
+<span class="c"># cinzel/workflows.hcl</span>
+<span class="c"># 4 checked, 1 unformatted</span></pre>
+    </section>
+
     <section id="init">
       <h2>init</h2>
       <p class="lead">
@@ -674,6 +716,7 @@ Diff summary: 3 checked, 1 differ, 0 would be created, 1 would be deleted</pre>
         <tr><td>--output-directory</td><td>Where to write. Parse defaults to <code>.github/workflows</code>, unparse to <code>./cinzel</code>.</td></tr>
         <tr><td>--dry-run</td><td>Print instead of writing.</td></tr>
         <tr><td>--yml</td><td>Parse only: write <code>.yml</code> instead of <code>.yaml</code>.</td></tr>
+        <tr><td>--mirror</td><td>Unparse only: lay the HCL out the way the repository is laid out. See below.</td></tr>
       </table>
     </section>
 
