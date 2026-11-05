@@ -42,7 +42,11 @@ func (av *HCLVars) TrailingComment(r hcl.Range) string {
 		newline = len(rest)
 	}
 
-	tail := strings.TrimSpace(string(rest[:newline]))
+	// The comma is syntax rather than something its author wrote, and it is
+	// the one thing that can sit between a value and the comment on it: a
+	// list entry ends before its separator, so without this the comment on
+	// every entry but the last read as no comment at all.
+	tail := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(rest[:newline])), ","))
 
 	if !strings.HasPrefix(tail, "#") && !strings.HasPrefix(tail, "//") {
 		return ""

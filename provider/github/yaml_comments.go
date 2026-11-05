@@ -17,6 +17,11 @@ type nodeComment struct {
 	// comment that cannot be carried can be reported where its author will
 	// find it. Zero when the comment did not come from a parsed document.
 	srcLine int
+	// items holds the comments written on each entry of a list value, by
+	// position, for the entries that are scalars. A mapping in a sequence has
+	// a carrier of its own under items on the parent, so reading one here as
+	// well would write it twice.
+	items []itemComment
 }
 
 // withoutHead returns the comment with its head run dropped, for a writer
@@ -30,7 +35,7 @@ func (c nodeComment) withoutHead() nodeComment {
 // empty reports whether the key carried no comment at all. srcLine is not a
 // comment, so a key with a line and nothing written on it is still empty.
 func (c nodeComment) empty() bool {
-	return c.head == "" && c.line == ""
+	return c.head == "" && c.line == "" && c.items == nil
 }
 
 // yamlComments mirrors the shape of one YAML mapping, holding the comments
@@ -143,6 +148,7 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 			head:    fsutil.WithoutGeneratedMarker(key.HeadComment),
 			line:    firstNonEmptyComment(value.LineComment, key.LineComment),
 			srcLine: key.Line,
+			items:   collectItemComments(value),
 		}
 
 		if !comment.empty() {
@@ -187,6 +193,45 @@ func collectComments(node *yamlv3.Node) *yamlComments {
 	}
 
 	if out.own == nil && out.children == nil && out.items == nil && out.foot == "" {
+		return nil
+	}
+
+	return out
+}
+
+// collectItemComments reads the comments written on the scalar entries of a
+// sequence, returning nil when the value is not a sequence or no entry carries
+// one.
+//
+// The slice is positional, so an entry with nothing on it is an empty entry
+// rather than a missing one and the result lines up with the list it
+// describes. An entry that is itself a collection is left blank: a mapping in
+// a sequence is collected by collectSeqComments, which the step writers read,
+// and reading it here as well would write the same comment twice.
+func collectItemComments(node *yamlv3.Node) []itemComment {
+	if node == nil || node.Kind != yamlv3.SequenceNode {
+		return nil
+	}
+
+	out := make([]itemComment, len(node.Content))
+	found := false
+
+	for i, item := range node.Content {
+		if item.Kind != yamlv3.ScalarNode {
+			continue
+		}
+
+		out[i] = itemComment{
+			head: fsutil.WithoutGeneratedMarker(item.HeadComment),
+			line: item.LineComment,
+		}
+
+		if out[i].head != "" || out[i].line != "" {
+			found = true
+		}
+	}
+
+	if !found {
 		return nil
 	}
 

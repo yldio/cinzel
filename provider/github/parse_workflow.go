@@ -693,7 +693,7 @@ func setOptionalYAMLAttr(out map[string]any, yamlKey string, expr hcl.Expression
 	// The expression range starts at the value and ends where it ends, which
 	// is the same line the attribute is written on either way, so a comment
 	// above it or beside it is found from here without the attribute itself.
-	out[yamlKey] = annotate(val, hv, expr.Range())
+	out[yamlKey] = annotateExpr(val, hv, expr.Range(), expr)
 
 	return nil
 }
@@ -828,14 +828,61 @@ func withComments(val any, c blockComment) any {
 // comment to the emitter, and an unconditional one would put every value
 // behind it for nothing.
 func annotate(val any, hv *hclparser.HCLVars, r hcl.Range) any {
+	return annotateExpr(val, hv, r, nil)
+}
+
+// annotateExpr is annotate with the expression the value was read from, which
+// is what a list's entries are reached through: the decoded value is a plain
+// slice and holds nothing about where each entry was written.
+func annotateExpr(val any, hv *hclparser.HCLVars, r hcl.Range, expr hcl.Expression) any {
 	trailing := hv.TrailingComment(r)
 	head := hv.HeadComment(r)
+	items := itemComments(val, hv, expr)
 
-	if trailing == "" && head == "" {
+	if trailing == "" && head == "" && items == nil {
 		return val
 	}
 
-	return annotated{value: val, comment: trailing, head: head}
+	return annotated{value: val, comment: trailing, head: head, items: items}
+}
+
+// itemComments reads the comments written on each entry of a list, returning
+// nil when the value is not a list or no entry carries one.
+//
+// The slice is positional, so an entry with nothing on it is an empty entry
+// rather than a missing one and the result lines up with the list it
+// describes. A list written on one line carries no entry comments: there is
+// one line for all of them, and whatever is on it trails the attribute.
+func itemComments(val any, hv *hclparser.HCLVars, expr hcl.Expression) []itemComment {
+	tuple, isTuple := expr.(*hclsyntax.TupleConsExpr)
+
+	if !isTuple {
+		return nil
+	}
+
+	list, isList := val.([]any)
+
+	if !isList || len(list) != len(tuple.Exprs) {
+		return nil
+	}
+
+	out := make([]itemComment, len(tuple.Exprs))
+	found := false
+
+	for i, item := range tuple.Exprs {
+		r := item.Range()
+		out[i] = itemComment{head: hv.HeadComment(r), line: hv.TrailingComment(r)}
+
+		if out[i].head != "" || out[i].line != "" {
+			found = true
+		}
+	}
+
+	if !found {
+		return nil
+	}
+
+	return out
 }
 
 func parseNamedConfig(cfg hclNamedBlock, hv *hclparser.HCLVars) (string, any, error) {
@@ -941,7 +988,7 @@ func parseBodyMap(body hcl.Body, hv *hclparser.HCLVars, scope string) (map[strin
 				return nil, err
 			}
 
-			out[yamlKeyIn(scope, name)] = annotate(val, hv, attr.SrcRange)
+			out[yamlKeyIn(scope, name)] = annotateExpr(val, hv, attr.SrcRange, attr.Expr)
 		}
 	}
 
