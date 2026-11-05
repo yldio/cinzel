@@ -1,4 +1,15 @@
 cinzel
+## [1.4.1](https://github.com/yldio/cinzel/compare/v1.4.0..v1.4.1) - 2026-11-05
+
+### 🐛 Bug Fixes
+
+- *(github)* Keep a comment written on a list entry (#115) - ([f0ff179](https://github.com/yldio/cinzel/commit/f0ff1798ab64e425fb8b7ace5868708df854d276))
+
+### 📚 Documentation
+
+- Document fmt and --mirror on the site (#114) - ([1f717e7](https://github.com/yldio/cinzel/commit/1f717e75deb6ba01f2894a424a62a6cd1978c629))
+
+
 ## [1.4.0](https://github.com/yldio/cinzel/compare/v1.3.2..v1.4.0) - 2026-10-29
 
 ### ⛰️  Features
