@@ -19,8 +19,25 @@ import (
 // a line reaching HCL without one is not a comment but a syntax error in the
 // generated file.
 func WriteLeading(body *hclwrite.Body, comment string) {
-	if comment == "" {
+	tokens := LeadingTokens(comment)
+
+	if tokens == nil {
 		return
+	}
+
+	body.AppendUnstructuredTokens(tokens)
+}
+
+// LeadingTokens returns comment as HCL comment lines, each carrying its own
+// newline, for a caller assembling tokens by hand rather than appending to a
+// body. An empty comment returns nil.
+//
+// A list written one entry to a line is the caller this is for: the entries
+// are tokens inside an expression, so there is no body to append a comment to
+// above one of them.
+func LeadingTokens(comment string) hclwrite.Tokens {
+	if comment == "" {
+		return nil
 	}
 
 	tokens := hclwrite.Tokens{}
@@ -32,7 +49,7 @@ func WriteLeading(body *hclwrite.Body, comment string) {
 		})
 	}
 
-	body.AppendUnstructuredTokens(tokens)
+	return tokens
 }
 
 // Trailing returns tokens with comment appended, so it lands on the same line

@@ -735,6 +735,12 @@ func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment 
 
 	hclcomment.WriteLeading(body, comment.head)
 
+	if tokens, ok := commentedListTokens(ctyValue, comment.items); ok {
+		body.SetAttributeRaw(attr, hclcomment.Trailing(tokens, comment.line))
+
+		return nil
+	}
+
 	if comment.line == "" {
 		body.SetAttributeValue(attr, ctyValue)
 
@@ -748,6 +754,34 @@ func writeCommentedAttribute(body *hclwrite.Body, attr string, raw any, comment 
 	body.SetAttributeRaw(attr, hclcomment.Trailing(hclwrite.TokensForValue(ctyValue), comment.line))
 
 	return nil
+}
+
+// commentedListTokens writes a list one entry to a line, each entry carrying
+// the comments written on it, and reports whether it had anything to write.
+//
+// A list goes out on one line, which has room for one comment. Entries with
+// comments of their own need a line each, and a comment above an entry has to
+// be a token inside the expression: there is no body between the brackets to
+// append one to.
+func commentedListTokens(value cty.Value, comments []itemComment) (hclwrite.Tokens, bool) {
+	if len(comments) == 0 || value.IsNull() || !value.CanIterateElements() || value.LengthInt() != len(comments) {
+		return nil, false
+	}
+
+	tokens := hclwrite.Tokens{{Type: hclsyntax.TokenOBrack, Bytes: []byte("[")}, {Type: hclsyntax.TokenNewline, Bytes: []byte("\n")}}
+	it := value.ElementIterator()
+
+	for i := 0; it.Next(); i++ {
+		_, element := it.Element()
+
+		tokens = append(tokens, hclcomment.LeadingTokens(comments[i].head)...)
+		tokens = append(tokens, hclwrite.TokensForValue(element)...)
+		tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenComma, Bytes: []byte(",")})
+		tokens = hclcomment.Trailing(tokens, comments[i].line)
+		tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenNewline, Bytes: []byte("\n")})
+	}
+
+	return append(tokens, &hclwrite.Token{Type: hclsyntax.TokenCBrack, Bytes: []byte("]")}), true
 }
 
 // writeReferenceListAttribute writes a list of references, e.g. "jobs = [

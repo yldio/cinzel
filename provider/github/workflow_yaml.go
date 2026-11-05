@@ -111,7 +111,13 @@ func appendSorted(doc *yamldoc.Doc, mapping map[string]any, seen map[string]stru
 func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 	switch v := value.(type) {
 	case annotated:
-		return docValue(key, v.value, append(opts, yamldoc.WithComment(v.comment), yamldoc.WithHeadComment(v.head), yamldoc.WithFootComment(v.foot))...)
+		opts = append(opts, yamldoc.WithComment(v.comment), yamldoc.WithHeadComment(v.head), yamldoc.WithFootComment(v.foot))
+
+		if list, isList := v.value.([]any); isList && len(v.items) == len(list) {
+			return commentedSeq(key, list, v.items, opts)
+		}
+
+		return docValue(key, v.value, opts...)
 	case nil:
 		return yamldoc.Null(opts...)
 	case map[string]any:
@@ -147,6 +153,31 @@ func docValue(key string, value any, opts ...yamldoc.Opt) yamldoc.Value {
 	}
 }
 
+// commentedSeq renders a list whose entries carry comments of their own. The
+// comment goes on the item, which is where a sequence entry's comment is both
+// written and read back: it has no key to sit on.
+func commentedSeq(key string, list []any, comments []itemComment, opts []yamldoc.Opt) yamldoc.Value {
+	items := make([]yamldoc.Value, 0, len(list))
+
+	for i, item := range list {
+		items = append(items, docValue(key, item, yamldoc.WithComment(comments[i].line), yamldoc.WithHeadComment(comments[i].head)))
+	}
+
+	return yamldoc.Seq(items, opts...)
+}
+
+// itemComment is what was written on one entry of a list: the run of lines
+// above it, and the one sharing its line.
+//
+// These travel beside the list rather than on the values inside it. A wrapper
+// put in the list itself would reach every consumer that reads an entry as a
+// string — the needs list, a cron entry, a matrix axis — and each of those
+// reads the failure as an absent or malformed value rather than as a wrapper.
+type itemComment struct {
+	head string
+	line string
+}
+
 // annotated wraps a value with an optional inline YAML comment and an optional
 // comment written above its key. It threads HCL comments through the
 // map[string]any parse pipeline so that docValue can attach them to the
@@ -163,6 +194,10 @@ type annotated struct {
 	// after it. It belongs to the body rather than to any one attribute, so
 	// it is carried on the value the body becomes.
 	foot string
+	// items holds the comments written on each entry of a list value, by
+	// position. An entry with no comment is an empty entry rather than a
+	// missing one, so the slice lines up with the list it describes.
+	items []itemComment
 }
 
 // plain returns value with every annotated wrapper removed, at any depth.
