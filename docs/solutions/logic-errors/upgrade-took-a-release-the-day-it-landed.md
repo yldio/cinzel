@@ -55,8 +55,15 @@ resolving the latest release. The zero value holds nothing, which is what
 every existing caller passes and how upgrade behaved before.
 
 ```
-held actions/deploy-pages: d6db90164ac5 → v5.0.1, published 65d ago, 24d left
+held actions/deploy-pages: d6db90164ac5 → v5.0.1
+  published 2026-09-01, inside the 90d cooldown
+  upgrades on or after 2026-11-30
 ```
+
+The first draft of that line read "published 65d ago, 24d left", which named
+three quantities and gave a noun to none of them: left until what, and out of
+what window. The two figures are floored, so they summed to 89 against a 90
+day policy and read as an off-by-one. A date is the thing being waited for.
 
 Three decisions sit in where the check goes and what it treats as held.
 

@@ -90,8 +90,17 @@ func TestAReleaseInsideTheCooldownIsNotTaken(t *testing.T) {
 		t.Errorf("the run did not say it held anything: %q", out)
 	}
 
-	if !strings.Contains(out, "11d left") {
-		t.Errorf("the run did not say how much cooldown was left: %q", out)
+	// What the wait ends in, named. "published 65d ago, 24d left" made the
+	// reader work out both the window and the date it clears, and the two
+	// floored figures did not add up to the window either.
+	for _, want := range []string{
+		"published 2026-11-03",
+		"inside the 14d cooldown",
+		"upgrades on or after 2026-11-17",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the held line does not say %q:\n%s", want, out)
+		}
 	}
 }
 

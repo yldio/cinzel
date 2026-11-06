@@ -196,9 +196,16 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		// reported as held for as long as the window lasts, which would read
 		// as an upgrade waiting that is not.
 		if held, left := cooldown.holds(latest); held {
-			reportf(w, "held %s: %s → %s, published %s ago, %s left\n",
+			// Three numbers with no nouns on them — "published 65d ago, 24d
+			// left" — leave the reader working out what the window was and
+			// what the wait ends in, and the two floored figures do not add
+			// up to it either. The date is the thing being waited for, so it
+			// is what the line says.
+			reportf(w, "held %s: %s → %s\n  published %s, inside the %s cooldown\n  upgrades on or after %s\n",
 				ref.Action, ref.Version, latestTag,
-				roundDuration(cooldown.age(latest)), roundDuration(left))
+				latest.Published.UTC().Format(time.DateOnly),
+				roundDuration(cooldown.For),
+				latest.Published.Add(cooldown.For).UTC().Format(time.DateOnly))
 
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,

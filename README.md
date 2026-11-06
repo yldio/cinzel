@@ -397,18 +397,24 @@ leaves a release alone until it has been out for a while:
 # .cinzelrc.yaml
 github:
   upgrade:
-    cooldown-days: 14
+    cooldown-days: 7 # an example, not a recommendation
 ```
+
+Seven days is what the example uses because it is a round number, not because
+it is the right one. How long to wait is a judgement about the actions you
+depend on and how quickly you want their fixes, so pick your own.
 
 ```
 would upgrade actions/upload-pages-artifact: 56afc609e742 → v5.0.0 (fc324d354710)
-held actions/deploy-pages: d6db90164ac5 → v5.0.1, published 65d ago, 24d left
+held actions/deploy-pages: d6db90164ac5 → v5.0.1
+  published 2026-11-03, inside the 7d cooldown
+  upgrades on or after 2026-11-10
 
 Upgrade summary: 1 upgraded, 13 already current, 0 failed, 1 held in cooldown
 ```
 
-A held release is named with the time left, so a run that declines an upgrade
-says why rather than looking like one that found none.
+A held release says when it becomes eligible, so a run that declines an
+upgrade says why rather than looking like one that found none.
 
 `--cooldown-days` overrides the file for one run, and `--cooldown-days 0` turns
 the policy off. Without either there is no cooldown, which is how `upgrade`

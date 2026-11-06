@@ -248,12 +248,13 @@ upgrade does not take a tag the day it lands:
 # .cinzelrc.yaml
 github:
   upgrade:
-    cooldown-days: 14
+    cooldown-days: 7 # an example; pick your own
 ```
 
 `--cooldown-days` overrides it for one run; `0` means no cooldown, which is the
-default. A held release is printed with the time left, and does not fail
-`--check`.
+default. There is no recommended value — how long to wait depends on the
+actions being depended on. A held release is printed with the date it becomes
+eligible, and does not fail `--check`.
 
 Run `parse` after `pin` or the YAML still carries the old tags.
 
