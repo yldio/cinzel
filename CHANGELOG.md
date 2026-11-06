@@ -1,4 +1,11 @@
 cinzel
+## [1.5.0](https://github.com/yldio/cinzel/compare/v1.4.1..v1.5.0) - 2026-11-06
+
+### ⛰️  Features
+
+- *(pin)* Add --check to pin and upgrade (#116) - ([ef3f1d6](https://github.com/yldio/cinzel/commit/ef3f1d6e8230090c4c43dd24c6f1b9aafa1c4eeb))
+
+
 ## [1.4.1](https://github.com/yldio/cinzel/compare/v1.4.0..v1.4.1) - 2026-11-05
 
 ### 🐛 Bug Fixes
