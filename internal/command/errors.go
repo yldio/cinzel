@@ -28,6 +28,11 @@ var (
 	// release than the one in the file.
 	errActionsOutdated = cinzelerror.UserInput(errors.New("some actions are not on their latest version"))
 
+	// errNegativeCooldown refuses a cooldown below zero. A negative window is
+	// not "no cooldown", which is what 0 already says: it is a number whose
+	// author meant something the policy has no way to carry out.
+	errNegativeCooldown = cinzelerror.UserInput(errors.New("cooldown-days cannot be negative"))
+
 	// ErrDiffFound is returned when the generated files are not what the HCL
 	// would produce. It is the whole point of the diff command rather than a
 	// fault, so it exits 1 and says only that, with the files already named.

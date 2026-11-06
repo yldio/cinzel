@@ -10,12 +10,83 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
-// Upgrader extends Resolver with the ability to find the latest release tag.
+// Upgrader extends Resolver with the ability to find the latest release.
 type Upgrader interface {
 	Resolver
-	LatestTag(ctx context.Context, owner, repo string) (string, error)
+	LatestRelease(ctx context.Context, owner, repo string) (Release, error)
+}
+
+// Release is a repository's latest release: the tag to move to, and when it
+// was published.
+type Release struct {
+	Tag       string
+	Published time.Time
+}
+
+// Cooldown holds back a release until it has been out for a while.
+//
+// An upgrade run takes whatever the newest tag is, which means a release
+// published minutes ago lands in CI before anyone has used it. A tag can also
+// be moved or pulled after publication, and the window is the time in which
+// that happens. Waiting is the whole mitigation, so the policy is one
+// duration.
+//
+// The zero value waits for nothing, which is what upgrade did before this
+// existed.
+type Cooldown struct {
+	// For is how long a release has to have been published before an upgrade
+	// takes it.
+	For time.Duration
+
+	// Now is read in tests. Nil means time.Now.
+	Now func() time.Time
+}
+
+// age is how long ago a release was published, by the clock the policy reads.
+func (c Cooldown) age(r Release) time.Duration {
+	now := time.Now
+	if c.Now != nil {
+		now = c.Now
+	}
+
+	return now().Sub(r.Published)
+}
+
+// holds reports whether a release is still inside the cooldown, and how much
+// of it is left.
+//
+// A release with no publication date is taken rather than held. GitHub leaves
+// published_at null on a draft, and an unknown date is not evidence that
+// something is new — holding on it would stall an upgrade for a reason the
+// run cannot explain.
+func (c Cooldown) holds(r Release) (bool, time.Duration) {
+	if c.For <= 0 || r.Published.IsZero() {
+		return false, 0
+	}
+
+	age := c.age(r)
+	if age >= c.For {
+		return false, 0
+	}
+
+	return true, c.For - age
+}
+
+// roundDuration writes a duration the way someone reading a CI log reads one:
+// in days once it is past a day, and never to the nanosecond.
+func roundDuration(d time.Duration) string {
+	if d >= 48*time.Hour {
+		return fmt.Sprintf("%dd", int(d.Hours()/24))
+	}
+
+	if d >= time.Hour {
+		return d.Round(time.Hour).String()
+	}
+
+	return d.Round(time.Minute).String()
 }
 
 // UpgradeResult holds the result of upgrading a single action.
@@ -26,12 +97,17 @@ type UpgradeResult struct {
 	NewSHA     string
 	Error      error
 	WasCurrent bool // true if already on the latest version
+
+	// HeldFor is how much of the cooldown a release still had left when the
+	// run reached it. Non-zero means the upgrade was available and declined,
+	// which is neither current nor failed.
+	HeldFor time.Duration
 }
 
 // UpgradeFile reads an HCL file, checks each action for a newer release,
 // and updates both the version and comment. When dryRun is true, changes
 // are reported but the file is not modified.
-func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Writer, dryRun bool) ([]UpgradeResult, error) {
+func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Writer, dryRun bool, cooldown Cooldown) ([]UpgradeResult, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
@@ -67,7 +143,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			continue
 		}
 
-		latestTag, err := resolver.LatestTag(ctx, owner, repo)
+		latest, err := resolver.LatestRelease(ctx, owner, repo)
 		if err != nil {
 			reportf(w, "warning: could not find latest version for %s: %v\n", ref.Action, err)
 
@@ -79,6 +155,8 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 
 			continue
 		}
+
+		latestTag := latest.Tag
 
 		// Resolve the latest tag to a SHA.
 		sha, err := resolver.ResolveTag(ctx, owner, repo, latestTag)
@@ -108,6 +186,25 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 				Action:     ref.Action,
 				OldVersion: ref.Version,
 				WasCurrent: true,
+			})
+
+			continue
+		}
+
+		// There is an upgrade, and the policy says not yet. Checked after
+		// "already current" so an action sitting on the newest tag is not
+		// reported as held for as long as the window lasts, which would read
+		// as an upgrade waiting that is not.
+		if held, left := cooldown.holds(latest); held {
+			reportf(w, "held %s: %s → %s, published %s ago, %s left\n",
+				ref.Action, ref.Version, latestTag,
+				roundDuration(cooldown.age(latest)), roundDuration(left))
+
+			results = append(results, UpgradeResult{
+				Action:     ref.Action,
+				OldVersion: ref.Version,
+				NewTag:     latestTag,
+				HeldFor:    left,
 			})
 
 			continue
@@ -154,7 +251,7 @@ func upgradedVerb(dryRun bool) string {
 }
 
 // UpgradeDirectory upgrades all HCL files in a directory.
-func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.Writer, dryRun bool) ([]UpgradeResult, error) {
+func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.Writer, dryRun bool, cooldown Cooldown) ([]UpgradeResult, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory %s: %w", dir, err)
@@ -172,7 +269,7 @@ func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.W
 		found = true
 		path := filepath.Join(dir, entry.Name())
 
-		results, err := UpgradeFile(ctx, path, resolver, w, dryRun)
+		results, err := UpgradeFile(ctx, path, resolver, w, dryRun, cooldown)
 		if err != nil {
 			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 

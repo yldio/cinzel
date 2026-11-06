@@ -241,6 +241,20 @@ cinzel github upgrade --check  # fails if anything has a newer release
 `--dry-run` exits 0 whatever it finds, so it cannot gate a step. Use it to see
 what a run would change, and `--check` to assert the state.
 
+A cooldown holds a release back until it has been published for a while, so an
+upgrade does not take a tag the day it lands:
+
+```yaml
+# .cinzelrc.yaml
+github:
+  upgrade:
+    cooldown-days: 14
+```
+
+`--cooldown-days` overrides it for one run; `0` means no cooldown, which is the
+default. A held release is printed with the time left, and does not fail
+`--check`.
+
 Run `parse` after `pin` or the YAML still carries the old tags.
 
 ## Checking the two are in step

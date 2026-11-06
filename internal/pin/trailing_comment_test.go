@@ -41,7 +41,7 @@ func TestASecondCommentAfterABlockCommentIsAlsoRead(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false); err != nil {
+			if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{}); err != nil {
 				t.Fatal(err)
 			}
 

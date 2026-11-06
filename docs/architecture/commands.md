@@ -50,6 +50,23 @@ run that could not reach an action does not know its state either way.
 `--dry-run` alone keeps exiting 0 whatever it reports. It answers what a run
 would do; `--check` answers whether it needs to.
 
+`upgrade` reads a cooldown from `github.upgrade.cooldown-days`, or from
+`--cooldown-days` when that is set. `LatestRelease` returns the publication
+date alongside the tag, and a release still inside the window is reported with
+the time left and skipped, counted apart from both upgraded and failed.
+
+Three things fall out of where the check sits. It comes after "already
+current", so an action on the newest tag is not reported as held for the
+length of the window. A release with no publication date is taken rather than
+held, since GitHub leaves `published_at` null on a draft and an unknown date
+is not evidence of newness. And a held release does not fail `--check`,
+because a repository with a policy would otherwise have a red check for as
+long as every window lasted.
+
+Upgrade reads its own configuration key rather than going through
+`loadProviderCommandConfig`, which validates against the parse and unparse
+schema and would warn "unknown key" on everything written under `upgrade`.
+
 Both report each action through `resolvedVerb`/`upgradedVerb`, which read
 "would pin" and "would upgrade" under a dry run. Those per-action lines are
 the whole of what a failed `--check` step shows, and in the past tense every

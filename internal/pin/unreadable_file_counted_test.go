@@ -53,7 +53,7 @@ func TestAFileThatCannotBeReadIsCountedAsAFailure(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		results, err := UpgradeDirectory(context.Background(), dir, &stubUpgrader{}, &buf, true)
+		results, err := UpgradeDirectory(context.Background(), dir, &stubUpgrader{}, &buf, true, Cooldown{})
 		if err != nil {
 			t.Fatal(err)
 		}

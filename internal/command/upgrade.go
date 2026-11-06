@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/urfave/cli/v3"
 	"github.com/yldio/cinzel/internal/pin"
@@ -47,18 +48,21 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				}
 			}
 
+			cooldown, err := upgradeCooldown(c)
+			if err != nil {
+				return err
+			}
+
 			// No cache wrapper — upgrade checks latest releases which should not
 			// be served from a 24h cache.
 			resolver := pin.NewGitHubResolver("")
 
 			var results []pin.UpgradeResult
 
-			var err error
-
 			if filePath != "" {
-				results, err = pin.UpgradeFile(ctx, filePath, resolver, cmd.Writer, dryRun)
+				results, err = pin.UpgradeFile(ctx, filePath, resolver, cmd.Writer, dryRun, cooldown)
 			} else {
-				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun)
+				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun, cooldown)
 			}
 
 			if err != nil {
@@ -138,6 +142,11 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				Value: false,
 				Usage: "Name the actions that are not on their latest version and exit non-zero, writing nothing",
 			},
+			&cli.IntFlag{
+				Name:  "cooldown-days",
+				Value: 0,
+				Usage: "Leave a release alone until it has been published this many `DAYS`",
+			},
 			&cli.BoolFlag{
 				Name:  "parse",
 				Value: false,
@@ -164,6 +173,7 @@ func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult, check bool) err
 	upgraded := 0
 	current := 0
 	failed := 0
+	held := 0
 
 	for _, r := range results {
 		switch {
@@ -171,12 +181,22 @@ func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult, check bool) err
 			current++
 		case r.Error != nil:
 			failed++
+		case r.HeldFor > 0:
+			held++
 		default:
 			upgraded++
 		}
 	}
 
-	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d %s, %d already current, %d failed\n", upgraded, upgradedVerb(check), current, failed)
+	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d %s, %d already current, %d failed", upgraded, upgradedVerb(check), current, failed)
+
+	// Only when there are some. A run with no policy would otherwise carry a
+	// "0 held in cooldown" it has no cooldown to hold anything in.
+	if held > 0 {
+		_, _ = fmt.Fprintf(cmd.Writer, ", %d held in cooldown", held)
+	}
+
+	_, _ = fmt.Fprintln(cmd.Writer)
 
 	if failed > 0 {
 		return fmt.Errorf("%w: %d of %d", errUpgradeFailed, failed, len(results))
@@ -196,4 +216,30 @@ func upgradedVerb(check bool) string {
 	}
 
 	return "upgraded"
+}
+
+// upgradeCooldown reads the policy from the flag, or failing that from
+// .cinzelrc.yaml.
+//
+// The flag wins when it is set, the way every other setting here resolves. The
+// file is where it usually lives: a cooldown is a policy the repository keeps
+// rather than something retyped on each run, and a scheduled upgrade job that
+// has to remember the flag is one edit away from silently not having it.
+func upgradeCooldown(c *cli.Command) (pin.Cooldown, error) {
+	days := c.Int("cooldown-days")
+
+	if !c.IsSet("cooldown-days") {
+		configured, err := configuredCooldownDays()
+		if err != nil {
+			return pin.Cooldown{}, err
+		}
+
+		days = configured
+	}
+
+	if days < 0 {
+		return pin.Cooldown{}, fmt.Errorf("%w: %d", errNegativeCooldown, days)
+	}
+
+	return pin.Cooldown{For: time.Duration(days) * 24 * time.Hour}, nil
 }

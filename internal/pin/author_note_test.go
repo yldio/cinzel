@@ -124,7 +124,7 @@ func TestUpgradeKeepsTheNoteAndDropsTheOldTag(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false); err != nil {
+	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,14 +186,14 @@ type upgradeSequence struct {
 	n    int
 }
 
-func (s *upgradeSequence) LatestTag(_ context.Context, _, _ string) (string, error) {
+func (s *upgradeSequence) LatestRelease(_ context.Context, _, _ string) (Release, error) {
 	tag := s.tags[s.n]
 
 	if s.n < len(s.tags)-1 {
 		s.n++
 	}
 
-	return tag, nil
+	return Release{Tag: tag}, nil
 }
 
 // Distinct per tag: a stub deriving the SHA from the tag's length gave two tags
@@ -236,7 +236,7 @@ func TestARepeatedUpgradeLeavesOneTagWhateverItIsNamed(t *testing.T) {
 			for range tc.tags {
 				var buf bytes.Buffer
 
-				if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false); err != nil {
+				if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{}); err != nil {
 					t.Fatal(err)
 				}
 			}
