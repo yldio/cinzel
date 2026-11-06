@@ -361,13 +361,31 @@ cinzel github upgrade            # bump to latest, then pin
 cinzel github upgrade --parse    # and regenerate the YAML
 ```
 
-Both take `--dry-run`, `--file`/`-f` and `--directory`/`-d` (default `cinzel`).
-`upgrade --parse` writes to `--output-directory` (default `.github/workflows`).
+Both take `--dry-run`, `--check`, `--file`/`-f` and `--directory`/`-d` (default
+`cinzel`). `upgrade --parse` writes to `--output-directory` (default
+`.github/workflows`).
 
-Either command exits non-zero when it could not resolve an action, so a CI step
-running `cinzel github pin --dry-run` fails on a workflow that still holds an
-unpinned one. Each failure is named as it happens and the summary line counts
-them.
+Either command exits non-zero when it could not resolve an action. Each failure
+is named as it happens and the summary line counts them.
+
+`--check` is the CI form, the way `fmt --check` is. It writes nothing, and ends
+non-zero when there was something to do — `pin --check` on an action still
+following a tag, `upgrade --check` on one with a newer release:
+
+```sh
+cinzel github pin --check      # fails if anything still follows a tag
+cinzel github upgrade --check  # fails if anything has a newer release
+```
+
+```
+would pin actions/checkout@v4.1.0 → 8ade135a41bc
+
+Pin summary: 1 not pinned, 15 already pinned, 0 failed
+```
+
+`--dry-run` prints the same report and exits 0 whatever it finds, so it answers
+"what would this do" rather than "is this done". A step gating on an unpinned
+action wants `--check`.
 
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.

@@ -40,6 +40,21 @@ Each failure is named as it happens, and the summary line counts them. With
 `--parse`, `upgrade` writes the regenerated YAML for what did upgrade before
 reporting the failure.
 
+`--check` turns either command into the question instead of the work. It
+implies `--dry-run`, so nothing is written — a check that pinned what it was
+asked to look for would pass on its own side effect — and it ends non-zero
+when the run found something to do: an action still on a tag for `pin`, a
+newer release for `upgrade`. A failed resolve outranks the finding, because a
+run that could not reach an action does not know its state either way.
+
+`--dry-run` alone keeps exiting 0 whatever it reports. It answers what a run
+would do; `--check` answers whether it needs to.
+
+Both report each action through `resolvedVerb`/`upgradedVerb`, which read
+"would pin" and "would upgrade" under a dry run. Those per-action lines are
+the whole of what a failed `--check` step shows, and in the past tense every
+one of them claimed a change that was not on disk.
+
 ## Diff (`cinzel <provider> diff`)
 
 `planParse` works out every file a parse would write; `ParsePlan.Diff` reads

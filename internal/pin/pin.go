@@ -691,7 +691,7 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 			text:  versionLine(sha, ref.Version, ref.note),
 		})
 
-		reportf(w, "pinned %s@%s → %s\n", ref.Action, ref.Version, shortSHA(sha))
+		reportf(w, "%s %s@%s → %s\n", resolvedVerb(dryRun), ref.Action, ref.Version, shortSHA(sha))
 
 		results = append(results, PinResult{
 			Action: ref.Action,
@@ -709,6 +709,22 @@ func PinFile(ctx context.Context, path string, resolver Resolver, w io.Writer, d
 	}
 
 	return results, nil
+}
+
+// resolvedVerb names what happened to one action, which under a dry run is
+// nothing.
+//
+// A line reading "pinned actions/checkout@v4" over a file the run was told
+// not to write describes a change that is not on disk. Under --check it is
+// worse than cosmetic: the lines naming what the check found are the ones the
+// reader goes to the failed step for, and every one of them claimed the fix
+// had been applied.
+func resolvedVerb(dryRun bool) string {
+	if dryRun {
+		return "would pin"
+	}
+
+	return "pinned"
 }
 
 // PinDirectory pins all HCL files in a directory.

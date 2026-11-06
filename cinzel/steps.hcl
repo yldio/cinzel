@@ -82,7 +82,7 @@ step "release_app_token" {
 
   uses {
     action  = "actions/create-github-app-token"
-    version = "bcd2ba49218906704ab6c1aa796996da409d3eb1" # v3.2.0
+    version = "64ab729a6294000f5aa4a4bc0b73d1f32bc45510" # v3.3.0
   }
 
   with {
@@ -111,7 +111,7 @@ step "mise_setup" {
 
   uses {
     action  = "jdx/mise-action"
-    version = "c2a87611a18de5b3828c5652fe268e992400cb5c" # v4.3.0
+    version = "f5be966e4a917d54244728e6a5fdcd1d93a35e6c" # v5.2.6
   }
 
   with {
@@ -287,7 +287,7 @@ step "commit_release" {
 
   uses {
     action  = "stefanzweifel/git-auto-commit-action"
-    version = "4a55954c782fc1ea30b9056cd3e7a2b40ca8887d" # v7.2.0
+    version = "d0b01107b5db882071f96de5dd4b54961ea93f4c" # v7.2.1
   }
 
   with {
@@ -369,7 +369,7 @@ step "calculate_next_version" {
 
   uses {
     action  = "ietf-tools/semver-action"
-    version = "c90370b2958652d71c06a3484129a4d423a6d8a8"
+    version = "46feaa27e7375da0e3d602721e9fb9573598b880" # v1.12.0
   }
 
   with {
@@ -425,7 +425,7 @@ step "pages_configure" {
 
   uses {
     action  = "actions/configure-pages"
-    version = "983d7736d9b0ae728b81ab479565c72886d7745b" # v5
+    version = "45bfe0192ca1faeb007ade9deae92b16b8254a0d" # v6.0.0
   }
 }
 
