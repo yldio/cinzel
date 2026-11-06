@@ -20,8 +20,12 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 		Action: func(ctx context.Context, c *cli.Command) error {
 			filePath := c.String("file")
 			dirPath := c.String("directory")
-			dryRun := c.Bool("dry-run")
+			check := c.Bool("check")
 			parse := c.Bool("parse")
+
+			// See pin: a check that writes what it was asked to look for
+			// passes on its own side effect.
+			dryRun := c.Bool("dry-run") || check
 
 			if filePath == "" && dirPath == "" {
 				dirPath = "cinzel"
@@ -61,7 +65,7 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				return err
 			}
 
-			summaryErr := cmd.printUpgradeSummary(results)
+			summaryErr := cmd.printUpgradeSummary(results, check)
 
 			if !parse || dryRun {
 				return summaryErr
@@ -130,6 +134,11 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				Usage: "Show what would be upgraded without writing files",
 			},
 			&cli.BoolFlag{
+				Name:  "check",
+				Value: false,
+				Usage: "Name the actions that are not on their latest version and exit non-zero, writing nothing",
+			},
+			&cli.BoolFlag{
 				Name:  "parse",
 				Value: false,
 				Usage: "Regenerate GitHub Actions YAML files after upgrading",
@@ -148,7 +157,10 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 // Same as the pin side: the command returned nil over a printed "1 failed" and
 // exited 0. Worse here, because --parse then regenerates YAML from a directory
 // the run already knows it could not fully upgrade.
-func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) error {
+//
+// Under check the upgraded count is the finding, for the reason given in
+// printPinSummary, and a failure still outranks it.
+func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult, check bool) error {
 	upgraded := 0
 	current := 0
 	failed := 0
@@ -164,11 +176,24 @@ func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult) error {
 		}
 	}
 
-	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d upgraded, %d already current, %d failed\n", upgraded, current, failed)
+	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d %s, %d already current, %d failed\n", upgraded, upgradedVerb(check), current, failed)
 
 	if failed > 0 {
 		return fmt.Errorf("%w: %d of %d", errUpgradeFailed, failed, len(results))
 	}
 
+	if check && upgraded > 0 {
+		return fmt.Errorf("%w: %d of %d", errActionsOutdated, upgraded, len(results))
+	}
+
 	return nil
+}
+
+// upgradedVerb keeps the summary honest under check, where nothing was written.
+func upgradedVerb(check bool) string {
+	if check {
+		return "out of date"
+	}
+
+	return "upgraded"
 }

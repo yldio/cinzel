@@ -19,7 +19,12 @@ func (cmd *Cli) pinCommand() *cli.Command {
 		Action: func(ctx context.Context, c *cli.Command) error {
 			filePath := c.String("file")
 			dirPath := c.String("directory")
-			dryRun := c.Bool("dry-run")
+			check := c.Bool("check")
+
+			// --check answers a question, so it never writes. Asking whether
+			// the HCL is pinned and having the answer be that it now is would
+			// make the check pass on its own side effect.
+			dryRun := c.Bool("dry-run") || check
 
 			if filePath == "" && dirPath == "" {
 				dirPath = "cinzel"
@@ -49,7 +54,7 @@ func (cmd *Cli) pinCommand() *cli.Command {
 					return err
 				}
 
-				return cmd.printPinSummary(results)
+				return cmd.printPinSummary(results, check)
 			}
 
 			results, err := pin.PinDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun)
@@ -57,7 +62,7 @@ func (cmd *Cli) pinCommand() *cli.Command {
 				return err
 			}
 
-			return cmd.printPinSummary(results)
+			return cmd.printPinSummary(results, check)
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -77,6 +82,11 @@ func (cmd *Cli) pinCommand() *cli.Command {
 				Value: false,
 				Usage: "Show what would be pinned without writing files",
 			},
+			&cli.BoolFlag{
+				Name:  "check",
+				Value: false,
+				Usage: "Name the actions that are not pinned and exit non-zero, writing nothing",
+			},
 		},
 	}
 }
@@ -88,7 +98,12 @@ func (cmd *Cli) pinCommand() *cli.Command {
 // CI step calling pin went green on a workflow holding an unpinned action,
 // which is the thing pinning exists to prevent. The failures are already named
 // on the way through, so the error says only that there were some.
-func (cmd *Cli) printPinSummary(results []pin.PinResult) error {
+//
+// Under check, an action that resolved is the finding rather than the work: it
+// was on a tag when the run started and the file was left that way, so the
+// question check asks is answered no. A failure still outranks it, because a
+// run that could not reach an action does not know whether it is pinned.
+func (cmd *Cli) printPinSummary(results []pin.PinResult, check bool) error {
 	pinned := 0
 	skipped := 0
 	failed := 0
@@ -104,13 +119,26 @@ func (cmd *Cli) printPinSummary(results []pin.PinResult) error {
 		}
 	}
 
-	_, _ = fmt.Fprintf(cmd.Writer, "\nPin summary: %d pinned, %d already pinned, %d failed\n", pinned, skipped, failed)
+	_, _ = fmt.Fprintf(cmd.Writer, "\nPin summary: %d %s, %d already pinned, %d failed\n", pinned, pinnedVerb(check), skipped, failed)
 
 	if failed > 0 {
 		return fmt.Errorf("%w: %d of %d", errPinFailed, failed, len(results))
 	}
 
+	if check && pinned > 0 {
+		return fmt.Errorf("%w: %d of %d", errActionsNotPinned, pinned, len(results))
+	}
+
 	return nil
+}
+
+// pinnedVerb keeps the summary honest under check, where nothing was written.
+func pinnedVerb(check bool) string {
+	if check {
+		return "not pinned"
+	}
+
+	return "pinned"
 }
 
 // requireFileNotDirectory refuses a --file that names a directory.

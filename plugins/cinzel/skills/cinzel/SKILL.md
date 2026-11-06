@@ -222,13 +222,24 @@ cinzel github upgrade            # bump to latest, then pin
 cinzel github upgrade --parse    # and regenerate the YAML
 ```
 
-Both take `--dry-run`, `--file`/`-f`, `--directory`/`-d` (default `cinzel`).
-No token needed for public actions; `GITHUB_TOKEN` in the environment raises
-the rate limit from 60/hour to 5000.
+Both take `--dry-run`, `--check`, `--file`/`-f`, `--directory`/`-d` (default
+`cinzel`). No token needed for public actions; `GITHUB_TOKEN` in the
+environment raises the rate limit from 60/hour to 5000.
 
 Both exit non-zero when an action could not be resolved. A zero exit is the
 only evidence that everything pinned — the summary line prints a count either
 way, so read the exit code rather than the output.
+
+`--check` is for CI, or for asking whether the HCL is already pinned or
+current. It writes nothing and exits non-zero when it found something to do:
+
+```sh
+cinzel github pin --check      # fails if anything still follows a tag
+cinzel github upgrade --check  # fails if anything has a newer release
+```
+
+`--dry-run` exits 0 whatever it finds, so it cannot gate a step. Use it to see
+what a run would change, and `--check` to assert the state.
 
 Run `parse` after `pin` or the YAML still carries the old tags.
 
