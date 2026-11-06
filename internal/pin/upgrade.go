@@ -123,7 +123,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			text:  versionLine(sha, latestTag, ref.note),
 		})
 
-		reportf(w, "upgraded %s: %s → %s (%s)\n", ref.Action, ref.Version, latestTag, shortSHA(sha))
+		reportf(w, "%s %s: %s → %s (%s)\n", upgradedVerb(dryRun), ref.Action, ref.Version, latestTag, shortSHA(sha))
 
 		results = append(results, UpgradeResult{
 			Action:     ref.Action,
@@ -142,6 +142,15 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 	}
 
 	return results, nil
+}
+
+// upgradedVerb is resolvedVerb for the upgrade side.
+func upgradedVerb(dryRun bool) string {
+	if dryRun {
+		return "would upgrade"
+	}
+
+	return "upgraded"
 }
 
 // UpgradeDirectory upgrades all HCL files in a directory.
