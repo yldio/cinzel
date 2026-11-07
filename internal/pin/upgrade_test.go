@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type mockGitHubResolver struct {
@@ -101,7 +102,7 @@ func TestUpgradeFileDryRun(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	results, err := UpgradeFile(context.Background(), path, resolver, &buf, true)
+	results, err := UpgradeFile(context.Background(), path, resolver, &buf, true, Cooldown{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +136,7 @@ func TestUpgradeDirectoryNoHCL(t *testing.T) {
 
 	resolver := &stubUpgrader{}
 
-	_, err := UpgradeDirectory(context.Background(), dir, resolver, &buf, false)
+	_, err := UpgradeDirectory(context.Background(), dir, resolver, &buf, false, Cooldown{})
 	if err == nil {
 		t.Error("expected error for directory with no HCL files")
 	}
@@ -144,6 +145,10 @@ func TestUpgradeDirectoryNoHCL(t *testing.T) {
 type stubUpgrader struct {
 	latestTags map[string]string
 	shas       map[string]string
+
+	// published is read by the cooldown tests; a zero time means a release
+	// with no date, which the policy takes rather than holds.
+	published map[string]time.Time
 }
 
 func (s *stubUpgrader) ResolveTag(_ context.Context, owner, repo, tag string) (string, error) {
@@ -156,14 +161,14 @@ func (s *stubUpgrader) ResolveTag(_ context.Context, owner, repo, tag string) (s
 	return "", fmt.Errorf("tag not found: %s", key)
 }
 
-func (s *stubUpgrader) LatestTag(_ context.Context, owner, repo string) (string, error) {
+func (s *stubUpgrader) LatestRelease(_ context.Context, owner, repo string) (Release, error) {
 	key := fmt.Sprintf("%s/%s", owner, repo)
 
 	if tag, ok := s.latestTags[key]; ok {
-		return tag, nil
+		return Release{Tag: tag, Published: s.published[key]}, nil
 	}
 
-	return "", fmt.Errorf("no releases for %s", key)
+	return Release{}, fmt.Errorf("no releases for %s", key)
 }
 
 func TestUpgradeInlineComment(t *testing.T) {
@@ -189,7 +194,7 @@ func TestUpgradeInlineComment(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	_, err := UpgradeFile(context.Background(), path, resolver, &buf, false)
+	_, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{})
 	if err != nil {
 		t.Fatal(err)
 	}

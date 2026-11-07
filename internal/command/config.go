@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/urfave/cli/v3"
@@ -292,4 +293,63 @@ func directoriesFrom(cmd *cli.Command) []string {
 	}
 
 	return nil
+}
+
+// configuredCooldownDays reads github.upgrade.cooldown-days from the
+// configuration file.
+//
+// Upgrade reads its own key rather than going through
+// loadProviderCommandConfig, which validates against the parse and unparse
+// schema and would warn "unknown key" on everything written under upgrade.
+func configuredCooldownDays() (int, error) {
+	configBytes, err := os.ReadFile(configFilename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+
+		return 0, fmt.Errorf("failed to read %s: %w", configFilename, err)
+	}
+
+	var doc yaml.Node
+
+	if err := yaml.Unmarshal(configBytes, &doc); err != nil {
+		return 0, configError("invalid %s: %w", configFilename, err)
+	}
+
+	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return 0, nil
+	}
+
+	upgradeNode := findMappingValue(doc.Content[0], "github")
+	if upgradeNode == nil {
+		return 0, nil
+	}
+
+	upgradeNode = findMappingValue(upgradeNode, "upgrade")
+	if upgradeNode == nil {
+		return 0, nil
+	}
+
+	if upgradeNode.Kind != yaml.MappingNode {
+		return 0, configError("%s.github.upgrade must be a mapping", configFilename)
+	}
+
+	value := findMappingValue(upgradeNode, "cooldown-days")
+	if value == nil {
+		return 0, nil
+	}
+
+	// A quoted number is a string to YAML, and taking it would make the one
+	// spelling that looks the same to a reader behave differently.
+	if value.Kind != yaml.ScalarNode || value.Tag != "!!int" {
+		return 0, configError("%s.github.upgrade.cooldown-days must be a whole number of days", configFilename)
+	}
+
+	days, err := strconv.Atoi(value.Value)
+	if err != nil {
+		return 0, configError("%s.github.upgrade.cooldown-days must be a whole number of days", configFilename)
+	}
+
+	return days, nil
 }

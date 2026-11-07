@@ -152,18 +152,23 @@ func (r *GitHubResolver) dereferenceTag(ctx context.Context, owner, repo, tagSHA
 	return tag.Object.SHA, nil
 }
 
-// LatestTag returns the latest semver tag for a repository by listing tags
-// sorted by version descending.
-func (r *GitHubResolver) LatestTag(ctx context.Context, owner, repo string) (string, error) {
+// LatestRelease returns the latest release of a repository: its tag and when
+// it was published.
+//
+// The date is read because an upgrade is a decision about how new something
+// is, not only about what the newest is. A release published an hour ago and
+// one published a year ago are the same tag to a caller that sees only the
+// name, and a cooldown policy has to tell them apart.
+func (r *GitHubResolver) LatestRelease(ctx context.Context, owner, repo string) (Release, error) {
 	if !safeNamePattern.MatchString(owner) || !safeNamePattern.MatchString(repo) {
-		return "", fmt.Errorf("invalid owner/repo name: %s/%s", owner, repo)
+		return Release{}, fmt.Errorf("invalid owner/repo name: %s/%s", owner, repo)
 	}
 
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", githubAPIBase, owner, repo)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return Release{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
@@ -174,28 +179,29 @@ func (r *GitHubResolver) LatestTag(ctx context.Context, owner, repo string) (str
 
 	resp, err := r.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("GitHub API request failed: %w", err)
+		return Release{}, fmt.Errorf("GitHub API request failed: %w", err)
 	}
 
 	defer drainAndClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", classifyGitHubError(resp.StatusCode, fmt.Sprintf("%s/%s latest release", owner, repo), r.token == "")
+		return Release{}, classifyGitHubError(resp.StatusCode, fmt.Sprintf("%s/%s latest release", owner, repo), r.token == "")
 	}
 
 	var release struct {
-		TagName string `json:"tag_name"`
+		TagName     string    `json:"tag_name"`
+		PublishedAt time.Time `json:"published_at"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return "", fmt.Errorf("failed to decode release response: %w", err)
+		return Release{}, fmt.Errorf("failed to decode release response: %w", err)
 	}
 
 	if release.TagName == "" {
-		return "", fmt.Errorf("no releases found for %s/%s", owner, repo)
+		return Release{}, fmt.Errorf("no releases found for %s/%s", owner, repo)
 	}
 
-	return release.TagName, nil
+	return Release{Tag: release.TagName, Published: release.PublishedAt}, nil
 }
 
 // CachedResolver wraps a Resolver with a file-based cache.

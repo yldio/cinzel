@@ -362,8 +362,8 @@ cinzel github upgrade --parse    # and regenerate the YAML
 ```
 
 Both take `--dry-run`, `--check`, `--file`/`-f` and `--directory`/`-d` (default
-`cinzel`). `upgrade --parse` writes to `--output-directory` (default
-`.github/workflows`).
+`cinzel`). `upgrade` also takes `--cooldown-days`. `upgrade --parse` writes to
+`--output-directory` (default `.github/workflows`).
 
 Either command exits non-zero when it could not resolve an action. Each failure
 is named as it happens and the summary line counts them.
@@ -386,6 +386,43 @@ Pin summary: 1 not pinned, 15 already pinned, 0 failed
 `--dry-run` prints the same report and exits 0 whatever it finds, so it answers
 "what would this do" rather than "is this done". A step gating on an unpinned
 action wants `--check`.
+
+### Waiting before an upgrade
+
+`upgrade` takes whatever the newest release is, which means one published
+minutes ago reaches your pipeline before anyone else has run it. A cooldown
+leaves a release alone until it has been out for a while:
+
+```yaml
+# .cinzelrc.yaml
+github:
+  upgrade:
+    cooldown-days: 7 # an example, not a recommendation
+```
+
+Seven days is what the example uses because it is a round number, not because
+it is the right one. How long to wait is a judgement about the actions you
+depend on and how quickly you want their fixes, so pick your own.
+
+```
+would upgrade actions/upload-pages-artifact: 56afc609e742 → v5.0.0 (fc324d354710)
+held actions/deploy-pages: d6db90164ac5 → v5.0.1
+  published 2026-11-03, inside the 7d cooldown
+  upgrades on or after 2026-11-10
+
+Upgrade summary: 1 upgraded, 13 already current, 0 failed, 1 held in cooldown
+```
+
+A held release says when it becomes eligible, so a run that declines an
+upgrade says why rather than looking like one that found none.
+
+`--cooldown-days` overrides the file for one run, and `--cooldown-days 0` turns
+the policy off. Without either there is no cooldown, which is how `upgrade`
+behaved before this existed.
+
+A held release does not fail `--check`. The policy working is not a problem to
+go red over, and a check that failed on one would stay red for the length of
+every window.
 
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.

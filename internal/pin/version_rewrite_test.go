@@ -29,12 +29,12 @@ func (m *upgraderStub) ResolveTag(_ context.Context, owner, repo, tag string) (s
 	return "", fmt.Errorf("tag not found: %s/%s@%s", owner, repo, tag)
 }
 
-func (m *upgraderStub) LatestTag(_ context.Context, owner, repo string) (string, error) {
+func (m *upgraderStub) LatestRelease(_ context.Context, owner, repo string) (Release, error) {
 	if tag, ok := m.latest[owner+"/"+repo]; ok {
-		return tag, nil
+		return Release{Tag: tag}, nil
 	}
 
-	return "", fmt.Errorf("no releases for %s/%s", owner, repo)
+	return Release{}, fmt.Errorf("no releases for %s/%s", owner, repo)
 }
 
 func writeHCL(t *testing.T, content string) string {
@@ -148,7 +148,7 @@ step "b" {
 
 	var buf bytes.Buffer
 
-	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false); err != nil {
+	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,7 +186,7 @@ func TestUpgradingTwiceLeavesOneComment(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false); err != nil {
+	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{}); err != nil {
 		t.Fatal(err)
 	}
 

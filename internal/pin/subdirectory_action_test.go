@@ -89,7 +89,7 @@ func TestSubdirectoryActionIsUpgraded(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	results, err := UpgradeFile(context.Background(), path, resolver, &buf, false)
+	results, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{})
 	if err != nil {
 		t.Fatal(err)
 	}
