@@ -25,6 +25,10 @@ type upgradeCounts struct {
 	AlreadyCurrent int `json:"alreadyCurrent"`
 	Failed         int `json:"failed"`
 	Held           int `json:"held"`
+
+	// Skipped is what --only-action left alone. Counted so the numbers add
+	// up to the actions in the file rather than quietly omitting the rest.
+	Skipped int `json:"skipped"`
 }
 
 // pinAction is one action in the JSON report.
@@ -106,6 +110,8 @@ func countUpgrades(results []pin.UpgradeResult) upgradeCounts {
 
 	for _, r := range results {
 		switch {
+		case r.Skipped:
+			c.Skipped++
 		case r.WasCurrent:
 			c.AlreadyCurrent++
 		case r.Error != nil:
@@ -213,6 +219,8 @@ func (cmd *Cli) printUpgradeJSON(results []pin.UpgradeResult, dryRun, check bool
 		}
 
 		switch {
+		case r.Skipped:
+			action.Status = "skipped"
 		case r.WasCurrent:
 			action.Status = "current"
 		case r.Error != nil:

@@ -58,7 +58,7 @@ func TestAnUpgradeWarningDoesNotCarryAnEscapeSequence(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{}); err != nil {
+	if _, err := UpgradeFile(context.Background(), path, resolver, &buf, UpgradeOptions{}); err != nil {
 		t.Fatal(err)
 	}
 

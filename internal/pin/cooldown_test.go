@@ -46,7 +46,7 @@ func upgradeWithCooldown(t *testing.T, published time.Time, cooldown Cooldown) (
 
 	var buf bytes.Buffer
 
-	results, err := UpgradeFile(context.Background(), path, resolver, &buf, false, cooldown)
+	results, err := UpgradeFile(context.Background(), path, resolver, &buf, UpgradeOptions{Cooldown: cooldown})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestAnActionAlreadyOnTheLatestIsCurrentNotHeld(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	results, err := UpgradeFile(context.Background(), path, resolver, &buf, false, at(14*24*time.Hour, now))
+	results, err := UpgradeFile(context.Background(), path, resolver, &buf, UpgradeOptions{Cooldown: at(14*24*time.Hour, now)})
 	if err != nil {
 		t.Fatal(err)
 	}

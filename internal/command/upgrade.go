@@ -68,14 +68,24 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				progress = c.Root().ErrWriter
 			}
 
+			only := c.String("only-action")
+
+			opts := pin.UpgradeOptions{DryRun: dryRun, Cooldown: cooldown, Only: only}
+
 			if filePath != "" {
-				results, err = pin.UpgradeFile(ctx, filePath, resolver, progress, dryRun, cooldown)
+				results, err = pin.UpgradeFile(ctx, filePath, resolver, progress, opts)
 			} else {
-				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, progress, dryRun, cooldown)
+				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, progress, opts)
 			}
 
 			if err != nil {
 				return err
+			}
+
+			// Before the report, since the report of a run that looked at
+			// nothing is not worth reading.
+			if only != "" && !anyConsidered(results) {
+				return fmt.Errorf("%w: %s", errNoSuchAction, only)
 			}
 
 			var summaryErr error
@@ -164,6 +174,11 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				Value: false,
 				Usage: "Report the run as JSON on stdout, with progress on stderr",
 			},
+			&cli.StringFlag{
+				Name:  "only-action",
+				Value: "",
+				Usage: "Upgrade only this `ACTION`, such as actions/checkout, leaving the rest alone",
+			},
 			&cli.IntFlag{
 				Name:  "cooldown-days",
 				Value: 0,
@@ -201,6 +216,12 @@ func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult, check bool) err
 	// "0 held in cooldown" it has no cooldown to hold anything in.
 	if counts.Held > 0 {
 		_, _ = fmt.Fprintf(cmd.Writer, ", %d held in cooldown", counts.Held)
+	}
+
+	// Same rule as the cooldown count: only when there are some, so a run
+	// that targeted nothing does not carry a "0 skipped".
+	if counts.Skipped > 0 {
+		_, _ = fmt.Fprintf(cmd.Writer, ", %d not targeted", counts.Skipped)
 	}
 
 	_, _ = fmt.Fprintln(cmd.Writer)
@@ -241,4 +262,19 @@ func upgradeCooldown(c *cli.Command) (pin.Cooldown, error) {
 	}
 
 	return pin.Cooldown{For: time.Duration(days) * 24 * time.Hour}, nil
+}
+
+// anyConsidered reports whether the run looked at any action at all.
+//
+// A targeted run skips everything it was not pointed at, and a skip is
+// neither an upgrade nor a failure, so a name matching nothing produces a
+// summary of all zeros that reads as success.
+func anyConsidered(results []pin.UpgradeResult) bool {
+	for _, r := range results {
+		if !r.Skipped {
+			return true
+		}
+	}
+
+	return false
 }

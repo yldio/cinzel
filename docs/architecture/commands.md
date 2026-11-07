@@ -67,6 +67,17 @@ Upgrade reads its own configuration key rather than going through
 `loadProviderCommandConfig`, which validates against the parse and unparse
 schema and would warn "unknown key" on everything written under `upgrade`.
 
+`--only-action` narrows a run to one action. The match happens before
+anything is resolved, so a targeted run makes one request rather than one per
+action in the file. Every other action is still reported, as `skipped`, and
+counted: dropping them would make a targeted run over a large directory look
+like a one-action file.
+
+A target matching nothing ends the run with `errNoSuchAction`. Every result
+comes back skipped in that case, which is no upgrade and no failure and reads
+as a clean run, so a typo would report success having looked at nothing — the
+same shape as `fmt` reporting a clean check over a path holding no HCL.
+
 `--json` on either command reports the run as a document on stdout. The
 per-action lines and the report share one writer, so under the flag the
 progress is redirected to stderr — interleaved on stdout it would be

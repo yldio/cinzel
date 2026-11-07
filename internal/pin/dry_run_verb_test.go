@@ -60,7 +60,7 @@ func TestDryRunDoesNotReportAChangeItDidNotMake(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		if _, err := UpgradeFile(context.Background(), path, resolver, &buf, true, Cooldown{}); err != nil {
+		if _, err := UpgradeFile(context.Background(), path, resolver, &buf, UpgradeOptions{DryRun: true}); err != nil {
 			t.Fatal(err)
 		}
 

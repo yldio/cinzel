@@ -362,8 +362,9 @@ cinzel github upgrade --parse    # and regenerate the YAML
 ```
 
 Both take `--dry-run`, `--check`, `--file`/`-f` and `--directory`/`-d` (default
-`cinzel`) and `--json`. `upgrade` also takes `--cooldown-days`. `upgrade
---parse` writes to `--output-directory` (default `.github/workflows`).
+`cinzel`) and `--json`. `upgrade` also takes `--cooldown-days` and
+`--only-action`. `upgrade --parse` writes to `--output-directory` (default
+`.github/workflows`).
 
 Either command exits non-zero when it could not resolve an action. Each failure
 is named as it happens and the summary line counts them.
@@ -423,6 +424,24 @@ behaved before this existed.
 A held release does not fail `--check`. The policy working is not a problem to
 go red over, and a check that failed on one would stay red for the length of
 every window.
+
+### Upgrading one action
+
+`--only-action` moves the action you name and leaves the rest of the file
+alone, which is how a bump you are unsure about gets taken on its own:
+
+```sh
+cinzel github upgrade --only-action actions/deploy-pages
+```
+
+```
+would upgrade actions/deploy-pages: d6db90164ac5 → v5.0.1 (368f82528645)
+
+Upgrade summary: 1 upgraded, 0 already current, 0 failed, 14 not targeted
+```
+
+A name that matches nothing fails rather than reporting a clean run, so a
+typo does not look like a directory with nothing to do.
 
 ### Reading the result from a script
 

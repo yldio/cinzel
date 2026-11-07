@@ -248,3 +248,76 @@ func TestProgressStaysOutOfTheJSONOnStdout(t *testing.T) {
 		}
 	})
 }
+
+// A name that matches nothing must not report success. Every action comes
+// back skipped, which is no upgrade and no failure and so reads as a clean
+// run — the same trap "fmt" fell into when a wrong path reported a clean
+// check of no files.
+//
+// Driven through the real CLI, so what it asserts on is the error the process
+// exits with. A local action is used because it resolves offline: the run
+// never reaches it, since the name does not match, and the test needs no
+// network either way.
+func TestOnlyActionMatchingNothingFails(t *testing.T) {
+	withTempWorkingDir(t, func() {
+		writeActionDir(t, unresolvableAction)
+
+		err := runCommandLine(t, []string{
+			"cinzel", "github", "upgrade", "--directory", "actions",
+			"--dry-run", "--only-action", "actions/typo-here",
+		})
+
+		if !errors.Is(err, errNoSuchAction) {
+			t.Errorf("a target matching nothing = %v, want errNoSuchAction", err)
+		}
+
+		// The control: the name that is there is not an error, so the above
+		// is not passing because every targeted run fails.
+		err = runCommandLine(t, []string{
+			"cinzel", "github", "upgrade", "--directory", "actions",
+			"--dry-run", "--only-action", "./.github/actions/build",
+		})
+
+		if errors.Is(err, errNoSuchAction) {
+			t.Errorf("a target that matches reported that it matched nothing: %v", err)
+		}
+	})
+}
+
+// Skipped actions stay in the report and are counted, so the numbers add up
+// to what is in the file rather than quietly omitting the rest.
+func TestSkippedActionsAreCountedAndReported(t *testing.T) {
+	out := new(bytes.Buffer)
+	app := NewWithErrWriter(out, new(bytes.Buffer), "v.test")
+
+	results := []pin.UpgradeResult{
+		{Action: "actions/checkout", OldVersion: "v4", Skipped: true},
+		{Action: "actions/setup-go", OldVersion: "v4", NewTag: "v6", NewSHA: "abcdef1234567890abcdef1234567890abcdef12"},
+	}
+
+	if err := app.printUpgradeJSON(results, true, false); err != nil {
+		t.Fatal(err)
+	}
+
+	report := decodeReport(t, out)
+
+	summary, ok := report["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("no summary in %v", report)
+	}
+
+	if summary["skipped"] != float64(1) || summary["upgraded"] != float64(1) {
+		t.Errorf("summary = %v, want 1 skipped and 1 upgraded", summary)
+	}
+
+	actions, _ := report["actions"].([]any)
+
+	skipped, ok := actions[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first action is not an object: %v", actions[0])
+	}
+
+	if skipped["status"] != "skipped" {
+		t.Errorf("status = %v, want skipped", skipped["status"])
+	}
+}

@@ -110,6 +110,10 @@ type UpgradeResult struct {
 	// which is neither current nor failed.
 	HeldFor time.Duration
 
+	// Skipped marks an action a targeted run did not look at. It is neither
+	// current nor failed: the run has no opinion about it.
+	Skipped bool
+
 	// Published is when the release the run looked at was published, and
 	// EligibleAt when it leaves the cooldown. Both are carried rather than
 	// only the remaining duration: a duration is read against the clock at
@@ -119,10 +123,28 @@ type UpgradeResult struct {
 	EligibleAt time.Time
 }
 
+// UpgradeOptions is how a run is to be carried out.
+//
+// A struct rather than three more parameters: the signature was at six and
+// two of the new ones are strings sitting beside the path, where swapping a
+// pair still compiles and the mistake shows up as a file that was not found.
+type UpgradeOptions struct {
+	// DryRun reports what would change without writing it.
+	DryRun bool
+
+	// Cooldown holds a release back until it has been published a while.
+	Cooldown Cooldown
+
+	// Only, when set, is the one action to consider. Every other action in
+	// the file is left alone and reported as skipped, so a run that names an
+	// action nobody wrote can be told from one that found nothing to do.
+	Only string
+}
+
 // UpgradeFile reads an HCL file, checks each action for a newer release,
-// and updates both the version and comment. When dryRun is true, changes
+// and updates both the version and comment. When opts.DryRun is true, changes
 // are reported but the file is not modified.
-func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Writer, dryRun bool, cooldown Cooldown) ([]UpgradeResult, error) {
+func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Writer, opts UpgradeOptions) ([]UpgradeResult, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
@@ -142,6 +164,19 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 	var edits []versionEdit
 
 	for _, ref := range refs {
+		// Before anything is resolved, so a targeted run makes one request
+		// rather than one per action in the file.
+		if opts.Only != "" && ref.Action != opts.Only {
+			results = append(results, UpgradeResult{
+				Action:     ref.Action,
+				OldVersion: ref.Version,
+				OldTag:     ref.tagNote,
+				Skipped:    true,
+			})
+
+			continue
+		}
+
 		// Named as it happens, for the reason given in PinFile.
 		owner, repo, ok := splitAction(ref.Action)
 		if !ok {
@@ -214,7 +249,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		// "already current" so an action sitting on the newest tag is not
 		// reported as held for as long as the window lasts, which would read
 		// as an upgrade waiting that is not.
-		if held, left := cooldown.holds(latest); held {
+		if held, left := opts.Cooldown.holds(latest); held {
 			// Three numbers with no nouns on them — "published 65d ago, 24d
 			// left" — leave the reader working out what the window was and
 			// what the wait ends in, and the two floored figures do not add
@@ -223,8 +258,8 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			reportf(w, "held %s: %s → %s\n  published %s, inside the %s cooldown\n  upgrades on or after %s\n",
 				ref.Action, ref.Version, latestTag,
 				latest.Published.UTC().Format(time.DateOnly),
-				roundDuration(cooldown.For),
-				latest.Published.Add(cooldown.For).UTC().Format(time.DateOnly))
+				roundDuration(opts.Cooldown.For),
+				latest.Published.Add(opts.Cooldown.For).UTC().Format(time.DateOnly))
 
 			// The SHA is already resolved above, so carrying it costs
 			// nothing and every entry reports both ends of the move the
@@ -237,7 +272,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 				NewSHA:     sha,
 				HeldFor:    left,
 				Published:  latest.Published,
-				EligibleAt: latest.Published.Add(cooldown.For),
+				EligibleAt: latest.Published.Add(opts.Cooldown.For),
 			})
 
 			continue
@@ -253,7 +288,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			text:  versionLine(sha, latestTag, ref.note),
 		})
 
-		reportf(w, "%s %s: %s → %s (%s)\n", upgradedVerb(dryRun), ref.Action, ref.Version, latestTag, shortSHA(sha))
+		reportf(w, "%s %s: %s → %s (%s)\n", upgradedVerb(opts.DryRun), ref.Action, ref.Version, latestTag, shortSHA(sha))
 
 		results = append(results, UpgradeResult{
 			Action:     ref.Action,
@@ -266,7 +301,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 
 	updated := applyVersionEdits(string(content), edits)
 
-	if !dryRun && updated != string(content) {
+	if !opts.DryRun && updated != string(content) {
 		if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
 			return results, fmt.Errorf("failed to write %s: %w", path, err)
 		}
@@ -285,7 +320,7 @@ func upgradedVerb(dryRun bool) string {
 }
 
 // UpgradeDirectory upgrades all HCL files in a directory.
-func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.Writer, dryRun bool, cooldown Cooldown) ([]UpgradeResult, error) {
+func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.Writer, opts UpgradeOptions) ([]UpgradeResult, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory %s: %w", dir, err)
@@ -303,7 +338,7 @@ func UpgradeDirectory(ctx context.Context, dir string, resolver Upgrader, w io.W
 		found = true
 		path := filepath.Join(dir, entry.Name())
 
-		results, err := UpgradeFile(ctx, path, resolver, w, dryRun, cooldown)
+		results, err := UpgradeFile(ctx, path, resolver, w, opts)
 		if err != nil {
 			reportf(w, "warning: %s: %v\n", entry.Name(), err)
 
