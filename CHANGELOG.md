@@ -1,4 +1,12 @@
 cinzel
+## [1.6.0](https://github.com/yldio/cinzel/compare/v1.5.0..v1.6.0) - 2026-11-07
+
+### ⛰️  Features
+
+- *(upgrade)* JSON reporting, --only-action, and CI/CD docs (#118) - ([75cd970](https://github.com/yldio/cinzel/commit/75cd970a1ce6105e8c5aa93e25607e91481b964b))
+- *(upgrade)* Hold a release until it has been out a while (#117) - ([cf4e687](https://github.com/yldio/cinzel/commit/cf4e68793c63a895663a302142a74ca993705bc1))
+
+
 ## [1.5.0](https://github.com/yldio/cinzel/compare/v1.4.1..v1.5.0) - 2026-11-06
 
 ### ⛰️  Features
