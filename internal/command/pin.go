@@ -48,18 +48,33 @@ func (cmd *Cli) pinCommand() *cli.Command {
 
 			resolver := pin.NewCachedResolver(pin.NewGitHubResolver(""))
 
-			if filePath != "" {
-				results, err := pin.PinFile(ctx, filePath, resolver, cmd.Writer, dryRun)
-				if err != nil {
-					return err
-				}
+			asJSON := c.Bool("json")
 
-				return cmd.printPinSummary(results, check)
+			// The per-action lines and the report share one writer, so under
+			// --json the progress goes to stderr. Interleaved into stdout it
+			// would be a document no parser accepts, which is the one thing
+			// the flag exists to produce.
+			progress := cmd.Writer
+			if asJSON {
+				progress = c.Root().ErrWriter
 			}
 
-			results, err := pin.PinDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun)
+			var results []pin.PinResult
+
+			var err error
+
+			if filePath != "" {
+				results, err = pin.PinFile(ctx, filePath, resolver, progress, dryRun)
+			} else {
+				results, err = pin.PinDirectory(ctx, dirPath, resolver, progress, dryRun)
+			}
+
 			if err != nil {
 				return err
+			}
+
+			if asJSON {
+				return cmd.printPinJSON(results, dryRun, check)
 			}
 
 			return cmd.printPinSummary(results, check)
@@ -87,6 +102,11 @@ func (cmd *Cli) pinCommand() *cli.Command {
 				Value: false,
 				Usage: "Name the actions that are not pinned and exit non-zero, writing nothing",
 			},
+			&cli.BoolFlag{
+				Name:  "json",
+				Value: false,
+				Usage: "Report the run as JSON on stdout, with progress on stderr",
+			},
 		},
 	}
 }
@@ -104,32 +124,12 @@ func (cmd *Cli) pinCommand() *cli.Command {
 // question check asks is answered no. A failure still outranks it, because a
 // run that could not reach an action does not know whether it is pinned.
 func (cmd *Cli) printPinSummary(results []pin.PinResult, check bool) error {
-	pinned := 0
-	skipped := 0
-	failed := 0
+	counts := countPins(results)
 
-	for _, r := range results {
-		switch {
-		case r.WasAlready:
-			skipped++
-		case r.Error != nil:
-			failed++
-		default:
-			pinned++
-		}
-	}
+	_, _ = fmt.Fprintf(cmd.Writer, "\nPin summary: %d %s, %d already pinned, %d failed\n",
+		counts.Pinned, pinnedVerb(check), counts.AlreadyPinned, counts.Failed)
 
-	_, _ = fmt.Fprintf(cmd.Writer, "\nPin summary: %d %s, %d already pinned, %d failed\n", pinned, pinnedVerb(check), skipped, failed)
-
-	if failed > 0 {
-		return fmt.Errorf("%w: %d of %d", errPinFailed, failed, len(results))
-	}
-
-	if check && pinned > 0 {
-		return fmt.Errorf("%w: %d of %d", errActionsNotPinned, pinned, len(results))
-	}
-
-	return nil
+	return pinOutcome(counts, len(results), check)
 }
 
 // pinnedVerb keeps the summary honest under check, where nothing was written.

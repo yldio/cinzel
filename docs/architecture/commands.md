@@ -67,6 +67,23 @@ Upgrade reads its own configuration key rather than going through
 `loadProviderCommandConfig`, which validates against the parse and unparse
 schema and would warn "unknown key" on everything written under `upgrade`.
 
+`--json` on either command reports the run as a document on stdout. The
+per-action lines and the report share one writer, so under the flag the
+progress is redirected to stderr — interleaved on stdout it would be
+something no parser accepts, which is the one thing the flag exists to
+produce. `upgrade --parse` prints "Regenerating YAML..." and that goes the
+same way.
+
+Both formats call `countPins`/`countUpgrades` and `pinOutcome`/
+`upgradeOutcome`, so the summary and the exit code cannot disagree between
+them. A pipeline moving to `--json` changes how the run is reported, not
+whether it passes.
+
+A held release carries `published` and `eligibleAt` as dates rather than the
+remaining duration. A duration is read against the clock at the moment of the
+run, so a report written now and read tomorrow says something that is no
+longer true. `UpgradeResult` carries both for the same reason.
+
 Both report each action through `resolvedVerb`/`upgradedVerb`, which read
 "would pin" and "would upgrade" under a dry run. Those per-action lines are
 the whole of what a failed `--check` step shows, and in the past tense every

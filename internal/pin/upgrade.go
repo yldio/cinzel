@@ -102,6 +102,14 @@ type UpgradeResult struct {
 	// run reached it. Non-zero means the upgrade was available and declined,
 	// which is neither current nor failed.
 	HeldFor time.Duration
+
+	// Published is when the release the run looked at was published, and
+	// EligibleAt when it leaves the cooldown. Both are carried rather than
+	// only the remaining duration: a duration is read against the clock at
+	// the moment of the run, so a report written now and read tomorrow says
+	// something that is no longer true.
+	Published  time.Time
+	EligibleAt time.Time
 }
 
 // UpgradeFile reads an HCL file, checks each action for a newer release,
@@ -212,6 +220,8 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 				OldVersion: ref.Version,
 				NewTag:     latestTag,
 				HeldFor:    left,
+				Published:  latest.Published,
+				EligibleAt: latest.Published.Add(cooldown.For),
 			})
 
 			continue

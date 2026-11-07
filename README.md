@@ -362,8 +362,8 @@ cinzel github upgrade --parse    # and regenerate the YAML
 ```
 
 Both take `--dry-run`, `--check`, `--file`/`-f` and `--directory`/`-d` (default
-`cinzel`). `upgrade` also takes `--cooldown-days`. `upgrade --parse` writes to
-`--output-directory` (default `.github/workflows`).
+`cinzel`) and `--json`. `upgrade` also takes `--cooldown-days`. `upgrade
+--parse` writes to `--output-directory` (default `.github/workflows`).
 
 Either command exits non-zero when it could not resolve an action. Each failure
 is named as it happens and the summary line counts them.
@@ -423,6 +423,34 @@ behaved before this existed.
 A held release does not fail `--check`. The policy working is not a problem to
 go red over, and a check that failed on one would stay red for the length of
 every window.
+
+### Reading the result from a script
+
+`--json` on either command reports the run on stdout, with the per-action
+progress on stderr so stdout stays a document:
+
+```sh
+cinzel github upgrade --check --json | jq '.actions[] | select(.status == "held")'
+```
+
+```json
+{
+  "action": "actions/deploy-pages",
+  "status": "held",
+  "from": "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+  "to": "v5.0.1",
+  "published": "2026-09-01",
+  "eligibleAt": "2026-11-30"
+}
+```
+
+Each action carries a `status`: `pinned`, `already-pinned` or `failed` for
+pin, and `upgraded`, `current`, `held` or `failed` for upgrade. A failure
+carries its `error`, so a script that captured stdout does not have to read
+the human output as well to find out what went wrong.
+
+The exit code is the same either way — the flag changes how a run is reported,
+not what it concludes.
 
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.
