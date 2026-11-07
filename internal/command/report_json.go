@@ -34,18 +34,35 @@ type upgradeCounts struct {
 type pinAction struct {
 	Action string `json:"action"`
 	Status string `json:"status"`
-	Tag    string `json:"tag,omitempty"`
-	SHA    string `json:"sha,omitempty"`
-	Error  string `json:"error,omitempty"`
+
+	// The release and the commit it names, the way upgrade reports each end
+	// of a move. An already-pinned action has only the SHA, since the run
+	// read no tag for it.
+	Tag   string `json:"tag,omitempty"`
+	SHA   string `json:"sha,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 // upgradeAction is one action in the upgrade JSON report.
+//
+// A move has two ends and each is a version and a commit, so each end is two
+// fields. "from" and "to" are the release names and "fromSHA"/"toSHA" the
+// commits, rather than "to" holding a tag while the commit it names sits
+// under an unrelated "sha" — the same transition split across keys that do
+// not look related.
+//
+// "from" also stopped meaning two different things. It carried whatever the
+// line held, so it was a tag on an unpinned action and a 40-character SHA on
+// a pinned one, and a consumer reading it had to know which before it could
+// use it. The release a pinned line names lives only in its trailing comment,
+// which is where fromSHA's companion is read from.
 type upgradeAction struct {
 	Action     string `json:"action"`
 	Status     string `json:"status"`
 	From       string `json:"from,omitempty"`
+	FromSHA    string `json:"fromSHA,omitempty"`
 	To         string `json:"to,omitempty"`
-	SHA        string `json:"sha,omitempty"`
+	ToSHA      string `json:"toSHA,omitempty"`
 	Published  string `json:"published,omitempty"`
 	EligibleAt string `json:"eligibleAt,omitempty"`
 	Error      string `json:"error,omitempty"`
@@ -177,9 +194,18 @@ func (cmd *Cli) printUpgradeJSON(results []pin.UpgradeResult, dryRun, check bool
 	for _, r := range results {
 		action := upgradeAction{
 			Action: r.Action,
-			From:   r.OldVersion,
 			To:     r.NewTag,
-			SHA:    r.NewSHA,
+			ToSHA:  r.NewSHA,
+		}
+
+		// A pinned line holds the SHA and names its release in the comment;
+		// an unpinned one holds the tag and has no commit to report until
+		// the run resolves one.
+		if pin.IsCommitSHA(r.OldVersion) {
+			action.FromSHA = r.OldVersion
+			action.From = r.OldTag
+		} else {
+			action.From = r.OldVersion
 		}
 
 		if !r.Published.IsZero() {

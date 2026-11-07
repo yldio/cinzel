@@ -437,12 +437,18 @@ cinzel github upgrade --check --json | jq '.actions[] | select(.status == "held"
 {
   "action": "actions/deploy-pages",
   "status": "held",
-  "from": "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+  "from": "v4",
+  "fromSHA": "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
   "to": "v5.0.1",
+  "toSHA": "368f8285286458fd5d2cbd5c4e95a8a62aae3b53",
   "published": "2026-09-01",
   "eligibleAt": "2026-11-30"
 }
 ```
+
+Each end of a move is a release and the commit it names, so `from`/`fromSHA`
+and `to`/`toSHA` pair up. An action still on a tag has no `fromSHA` until the
+run resolves one.
 
 Each action carries a `status`: `pinned`, `already-pinned` or `failed` for
 pin, and `upgraded`, `current`, `held` or `failed` for upgrade. A failure

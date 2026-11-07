@@ -99,7 +99,8 @@ func TestUpgradeJSONReport(t *testing.T) {
 		{Action: "actions/setup-go", OldVersion: "v5", WasCurrent: true},
 		{
 			Action:     "actions/deploy-pages",
-			OldVersion: "v4",
+			OldVersion: "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+			OldTag:     "v4",
 			NewTag:     "v5.0.1",
 			HeldFor:    24 * 24 * time.Hour,
 			Published:  published,
@@ -136,6 +137,33 @@ func TestUpgradeJSONReport(t *testing.T) {
 	// says something that is no longer true.
 	if held["status"] != "held" || held["eligibleAt"] != "2026-11-30" || held["published"] != "2026-09-01" {
 		t.Errorf("the held action does not carry its dates: %v", held)
+	}
+
+	// Each end of the move is a release and a commit. "from" used to carry
+	// whatever the line held, so it was a tag on an unpinned action and a
+	// SHA on a pinned one, and a consumer had to know which before it could
+	// read it. A pinned line names its release only in the comment.
+	if held["from"] != "v4" || held["fromSHA"] != "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e" {
+		t.Errorf("the from end is not split into release and commit: %v", held)
+	}
+
+	upgraded, ok := actions[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first action is not an object: %v", actions[0])
+	}
+
+	if upgraded["to"] != "v5" || upgraded["toSHA"] != "abcdef1234567890abcdef1234567890abcdef12" {
+		t.Errorf("the to end is not split into release and commit: %v", upgraded)
+	}
+
+	// An unpinned action has no commit on the from end until one is resolved,
+	// so the field is absent rather than empty.
+	if _, present := upgraded["fromSHA"]; present {
+		t.Errorf("an action on a tag reported a fromSHA: %v", upgraded)
+	}
+
+	if upgraded["from"] != "v4" {
+		t.Errorf("from = %v, want the tag the line held", upgraded["from"])
 	}
 }
 

@@ -79,6 +79,13 @@ Both formats call `countPins`/`countUpgrades` and `pinOutcome`/
 them. A pipeline moving to `--json` changes how the run is reported, not
 whether it passes.
 
+Each end of a move is reported as a release and a commit — `from`/`fromSHA`
+and `to`/`toSHA`. `from` used to carry whatever the version line held, which
+made it a tag on an unpinned action and a 40-character SHA on a pinned one,
+so a consumer had to know which before it could read the field. A pinned line
+names its release only in the trailing comment, which `commentTag` reads
+before `keepNote` drops it.
+
 A held release carries `published` and `eligibleAt` as dates rather than the
 remaining duration. A duration is read against the clock at the moment of the
 run, so a report written now and read tomorrow says something that is no

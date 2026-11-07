@@ -75,12 +75,18 @@ func TestAReleaseInsideTheCooldownIsNotTaken(t *testing.T) {
 		t.Error("a release 3 days old under a 14 day cooldown was taken")
 	}
 
-	if results[0].NewSHA != "" {
-		t.Errorf("a held action carries a SHA to write: %q", results[0].NewSHA)
+	// The SHA is reported, since the run resolved it on the way to deciding.
+	// What makes this a hold is the file, not the absence of a value.
+	if results[0].NewSHA == "" {
+		t.Error("a held action does not report the commit it would move to")
 	}
 
 	if after != cooldownHCL {
 		t.Errorf("a held action was written to the file:\n%s", after)
+	}
+
+	if strings.Contains(after, results[0].NewSHA) {
+		t.Errorf("the held SHA reached the file:\n%s", after)
 	}
 
 	// The reason has to be on screen. A run that silently declines an upgrade

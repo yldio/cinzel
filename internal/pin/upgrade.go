@@ -91,8 +91,15 @@ func roundDuration(d time.Duration) string {
 
 // UpgradeResult holds the result of upgrading a single action.
 type UpgradeResult struct {
-	Action     string
+	Action string
+
+	// OldVersion is what the line held, and OldTag the release that was, when
+	// the line was pinned and its comment named one. A pinned line records
+	// the release nowhere else, so a report carrying only the SHA leaves the
+	// reader to look up what it was.
 	OldVersion string
+	OldTag     string
+
 	NewTag     string
 	NewSHA     string
 	Error      error
@@ -145,6 +152,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
 				OldVersion: ref.Version,
+				OldTag:     ref.tagNote,
 				Error:      err,
 			})
 
@@ -158,6 +166,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
 				OldVersion: ref.Version,
+				OldTag:     ref.tagNote,
 				Error:      err,
 			})
 
@@ -181,6 +190,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
 				OldVersion: ref.Version,
+				OldTag:     ref.tagNote,
 				NewTag:     latestTag,
 				Error:      err,
 			})
@@ -193,6 +203,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
 				OldVersion: ref.Version,
+				OldTag:     ref.tagNote,
 				WasCurrent: true,
 			})
 
@@ -215,10 +226,15 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 				roundDuration(cooldown.For),
 				latest.Published.Add(cooldown.For).UTC().Format(time.DateOnly))
 
+			// The SHA is already resolved above, so carrying it costs
+			// nothing and every entry reports both ends of the move the
+			// same way, held or not.
 			results = append(results, UpgradeResult{
 				Action:     ref.Action,
 				OldVersion: ref.Version,
+				OldTag:     ref.tagNote,
 				NewTag:     latestTag,
+				NewSHA:     sha,
 				HeldFor:    left,
 				Published:  latest.Published,
 				EligibleAt: latest.Published.Add(cooldown.For),
@@ -242,6 +258,7 @@ func UpgradeFile(ctx context.Context, path string, resolver Upgrader, w io.Write
 		results = append(results, UpgradeResult{
 			Action:     ref.Action,
 			OldVersion: ref.Version,
+			OldTag:     ref.tagNote,
 			NewTag:     latestTag,
 			NewSHA:     sha,
 		})
