@@ -480,6 +480,129 @@ not what it concludes.
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.
 
+## CI/CD integration
+
+### Failing a build on an unpinned or outdated action
+
+`--check` writes nothing and exits non-zero when it found something to do, so
+it works as a step on its own:
+
+```yaml
+- run: cinzel github pin --check          # fails if anything follows a tag
+- run: cinzel github upgrade --check      # fails if anything has a newer release
+```
+
+`--dry-run` exits 0 whatever it finds, so it answers "what would this do"
+rather than "is this done". A step meant to go red wants `--check`.
+
+### One pull request per action
+
+Upgrading everything in one commit means one review covering several
+unrelated bumps, and a revert that takes the good ones with the bad. Ask what
+is available, then move them one at a time:
+
+```sh
+cinzel github upgrade --dry-run --json |
+  jq -r '.actions[] | select(.status == "upgraded" or .status == "held") | .action'
+```
+
+```
+jdx/mise-action
+actions/upload-pages-artifact
+actions/deploy-pages
+```
+
+Each name goes back in as a target:
+
+```sh
+for action in $(cinzel github upgrade --dry-run --json |
+  jq -r '.actions[] | select(.status == "upgraded") | .action'); do
+
+  branch="upgrade/$(echo "$action" | tr / -)"
+
+  git switch -c "$branch" main
+  cinzel github upgrade --only-action "$action" --parse
+  git commit -am "chore(deps): upgrade $action"
+  gh pr create --fill
+  git switch main
+done
+```
+
+Three things that bite:
+
+`--parse` is not optional here. Without it the HCL moves and the generated
+YAML does not, and the two stay out of step until something regenerates them.
+
+Select `held` as well as `upgraded` if you have a cooldown. A release inside
+its window is reported as `held`, so filtering on `upgraded` alone silently
+skips exactly the upgrades the policy is holding for you.
+
+Each run is one API request per action, plus one for the survey. That is fine
+authenticated; the unauthenticated 60 an hour is reachable on a large
+directory.
+
+### Running it on a schedule
+
+The same loop on a schedule. One job surveys, a second opens a pull request
+per action it found:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    outputs:
+      actions: ${{ steps.find.outputs.actions }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: go install github.com/yldio/cinzel@latest
+      - id: find
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          actions=$(cinzel github upgrade --dry-run --json |
+            jq -c '[.actions[] | select(.status == "upgraded") | .action]')
+          echo "actions=$actions" >> "$GITHUB_OUTPUT"
+
+  upgrade:
+    needs: survey
+    if: needs.survey.outputs.actions != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        action: ${{ fromJSON(needs.survey.outputs.actions) }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: go install github.com/yldio/cinzel@latest
+      - env:
+          ACTION: ${{ matrix.action }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch="upgrade/${ACTION//\//-}"
+
+          git switch -c "$branch"
+          cinzel github upgrade --only-action "$ACTION" --parse
+          git commit -am "chore(deps): upgrade $ACTION"
+          git push -u origin "$branch"
+          gh pr create --fill
+```
+
+`fail-fast: false` so one action that will not resolve does not cancel the
+pull requests for the rest. The `if` is there because an empty matrix is a
+workflow error rather than a job that does nothing.
+
+Put the cooldown in `.cinzelrc.yaml` rather than in the workflow. A scheduled
+job that has to remember a flag is one edit away from silently not having it,
+and the file is read by the runs you do by hand too.
+
 ## Using it from an agent
 
 There is a skill for Claude Code, Codex, opencode and pi, so an agent knows
