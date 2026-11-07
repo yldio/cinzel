@@ -512,21 +512,53 @@ actions/upload-pages-artifact
 actions/deploy-pages
 ```
 
-Each name goes back in as a target:
+Each name goes back in as a target. The JSON already holds both ends of the
+move, so the commit message can say what changed rather than only what was
+touched:
 
 ```sh
-for action in $(cinzel github upgrade --dry-run --json |
-  jq -r '.actions[] | select(.status == "upgraded") | .action'); do
+cinzel github upgrade --dry-run --json |
+  jq -r '.actions[] | select(.status == "upgraded") |
+         [.action, .from, .to] | @tsv' |
+while IFS=$'\t' read -r action from to; do
 
   branch="upgrade/$(echo "$action" | tr / -)"
 
   git switch -c "$branch" main
   cinzel github upgrade --only-action "$action" --parse
-  git commit -am "chore(deps): upgrade $action"
+
+  git commit -am "chore(deps): upgrade ${action##*/}" \
+    -m "$action $from -> $to" \
+    -m "Pinned to the commit $to names. The YAML is regenerated from
+the HCL in the same commit, so the two stay in step."
+
   gh pr create --fill
   git switch main
 done
 ```
+
+For `actions/deploy-pages`, that gives:
+
+```
+branch   upgrade/actions-deploy-pages
+
+         chore(deps): upgrade deploy-pages
+
+         actions/deploy-pages v4 -> v5.0.1
+
+         Pinned to the commit v5.0.1 names. The YAML is regenerated
+         from the HCL in the same commit, so the two stay in step.
+```
+
+The version is in the body, not the header. Conventional-commit linters cap
+a header — this project at 50 characters — and both the owner and the
+version push past it on a real action:
+`chore(deps): upgrade upload-pages-artifact to v5.0.0` is 52, and with the
+owner it is 60. The body has no such limit, so the full name and both
+versions go there, where they are searchable and nothing truncates them.
+
+`--fill` then takes that commit as the pull request title and body, so the
+two agree without writing it twice.
 
 Three things that bite:
 
