@@ -19,7 +19,7 @@ first.
 HCL has references. A step is a block, and a job points at it by name:
 
 ```yaml
-# .github/workflows/ci.yaml
+# .github/workflows/ci.yaml — tags, not SHAs, to keep the example short
 name: CI
 on:
   push:
@@ -561,6 +561,7 @@ jobs:
     outputs:
       actions: ${{ steps.find.outputs.actions }}
     steps:
+      # Tags here for readability. Pin this workflow too — see below.
       - uses: actions/checkout@v5
       - run: go install github.com/yldio/cinzel@latest
       - id: find
@@ -598,6 +599,11 @@ jobs:
 `fail-fast: false` so one action that will not resolve does not cancel the
 pull requests for the rest. The `if` is there because an empty matrix is a
 workflow error rather than a job that does nothing.
+
+The `uses` lines above name tags, which is easier to read on a page and not
+what you want in the repository. This workflow has the same supply chain as
+any other, so pin it along with the rest — `cinzel github pin` rewrites the
+HCL it came from, and `pin --check` in CI keeps it that way.
 
 Put the cooldown in `.cinzelrc.yaml` rather than in the workflow. A scheduled
 job that has to remember a flag is one edit away from silently not having it,
