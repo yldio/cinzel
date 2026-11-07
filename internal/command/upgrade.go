@@ -59,17 +59,42 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 
 			var results []pin.UpgradeResult
 
+			asJSON := c.Bool("json")
+
+			// See pin: under --json the per-action lines go to stderr, or
+			// stdout is not a document.
+			progress := cmd.Writer
+			if asJSON {
+				progress = c.Root().ErrWriter
+			}
+
+			only := c.String("only-action")
+
+			opts := pin.UpgradeOptions{DryRun: dryRun, Cooldown: cooldown, Only: only}
+
 			if filePath != "" {
-				results, err = pin.UpgradeFile(ctx, filePath, resolver, cmd.Writer, dryRun, cooldown)
+				results, err = pin.UpgradeFile(ctx, filePath, resolver, progress, opts)
 			} else {
-				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, cmd.Writer, dryRun, cooldown)
+				results, err = pin.UpgradeDirectory(ctx, dirPath, resolver, progress, opts)
 			}
 
 			if err != nil {
 				return err
 			}
 
-			summaryErr := cmd.printUpgradeSummary(results, check)
+			// Before the report, since the report of a run that looked at
+			// nothing is not worth reading.
+			if only != "" && !anyConsidered(results) {
+				return fmt.Errorf("%w: %s", errNoSuchAction, only)
+			}
+
+			var summaryErr error
+
+			if asJSON {
+				summaryErr = cmd.printUpgradeJSON(results, dryRun, check)
+			} else {
+				summaryErr = cmd.printUpgradeSummary(results, check)
+			}
 
 			if !parse || dryRun {
 				return summaryErr
@@ -103,7 +128,9 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				}
 			}
 
-			_, _ = fmt.Fprintf(cmd.Writer, "\nRegenerating YAML...\n")
+			// Progress, so it follows the per-action lines rather than
+			// landing in the middle of the JSON document on stdout.
+			_, _ = fmt.Fprintf(progress, "\nRegenerating YAML...\n")
 
 			if err := p.Parse(provider.ProviderOps{
 				Directory:       parseDir,
@@ -142,6 +169,16 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 				Value: false,
 				Usage: "Name the actions that are not on their latest version and exit non-zero, writing nothing",
 			},
+			&cli.BoolFlag{
+				Name:  "json",
+				Value: false,
+				Usage: "Report the run as JSON on stdout, with progress on stderr",
+			},
+			&cli.StringFlag{
+				Name:  "only-action",
+				Value: "",
+				Usage: "Upgrade only this `ACTION`, such as actions/checkout, leaving the rest alone",
+			},
 			&cli.IntFlag{
 				Name:  "cooldown-days",
 				Value: 0,
@@ -170,43 +207,26 @@ func (cmd *Cli) upgradeCommand(p provider.Provider) *cli.Command {
 // Under check the upgraded count is the finding, for the reason given in
 // printPinSummary, and a failure still outranks it.
 func (cmd *Cli) printUpgradeSummary(results []pin.UpgradeResult, check bool) error {
-	upgraded := 0
-	current := 0
-	failed := 0
-	held := 0
+	counts := countUpgrades(results)
 
-	for _, r := range results {
-		switch {
-		case r.WasCurrent:
-			current++
-		case r.Error != nil:
-			failed++
-		case r.HeldFor > 0:
-			held++
-		default:
-			upgraded++
-		}
-	}
-
-	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d %s, %d already current, %d failed", upgraded, upgradedVerb(check), current, failed)
+	_, _ = fmt.Fprintf(cmd.Writer, "\nUpgrade summary: %d %s, %d already current, %d failed",
+		counts.Upgraded, upgradedVerb(check), counts.AlreadyCurrent, counts.Failed)
 
 	// Only when there are some. A run with no policy would otherwise carry a
 	// "0 held in cooldown" it has no cooldown to hold anything in.
-	if held > 0 {
-		_, _ = fmt.Fprintf(cmd.Writer, ", %d held in cooldown", held)
+	if counts.Held > 0 {
+		_, _ = fmt.Fprintf(cmd.Writer, ", %d held in cooldown", counts.Held)
+	}
+
+	// Same rule as the cooldown count: only when there are some, so a run
+	// that targeted nothing does not carry a "0 skipped".
+	if counts.Skipped > 0 {
+		_, _ = fmt.Fprintf(cmd.Writer, ", %d not targeted", counts.Skipped)
 	}
 
 	_, _ = fmt.Fprintln(cmd.Writer)
 
-	if failed > 0 {
-		return fmt.Errorf("%w: %d of %d", errUpgradeFailed, failed, len(results))
-	}
-
-	if check && upgraded > 0 {
-		return fmt.Errorf("%w: %d of %d", errActionsOutdated, upgraded, len(results))
-	}
-
-	return nil
+	return upgradeOutcome(counts, len(results), check)
 }
 
 // upgradedVerb keeps the summary honest under check, where nothing was written.
@@ -242,4 +262,19 @@ func upgradeCooldown(c *cli.Command) (pin.Cooldown, error) {
 	}
 
 	return pin.Cooldown{For: time.Duration(days) * 24 * time.Hour}, nil
+}
+
+// anyConsidered reports whether the run looked at any action at all.
+//
+// A targeted run skips everything it was not pointed at, and a skip is
+// neither an upgrade nor a failure, so a name matching nothing produces a
+// summary of all zeros that reads as success.
+func anyConsidered(results []pin.UpgradeResult) bool {
+	for _, r := range results {
+		if !r.Skipped {
+			return true
+		}
+	}
+
+	return false
 }

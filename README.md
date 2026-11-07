@@ -19,7 +19,7 @@ first.
 HCL has references. A step is a block, and a job points at it by name:
 
 ```yaml
-# .github/workflows/ci.yaml
+# .github/workflows/ci.yaml — tags, not SHAs, to keep the example short
 name: CI
 on:
   push:
@@ -362,8 +362,9 @@ cinzel github upgrade --parse    # and regenerate the YAML
 ```
 
 Both take `--dry-run`, `--check`, `--file`/`-f` and `--directory`/`-d` (default
-`cinzel`). `upgrade` also takes `--cooldown-days`. `upgrade --parse` writes to
-`--output-directory` (default `.github/workflows`).
+`cinzel`) and `--json`. `upgrade` also takes `--cooldown-days` and
+`--only-action`. `upgrade --parse` writes to `--output-directory` (default
+`.github/workflows`).
 
 Either command exits non-zero when it could not resolve an action. Each failure
 is named as it happens and the summary line counts them.
@@ -424,8 +425,221 @@ A held release does not fail `--check`. The policy working is not a problem to
 go red over, and a check that failed on one would stay red for the length of
 every window.
 
+### Upgrading one action
+
+`--only-action` moves the action you name and leaves the rest of the file
+alone, which is how a bump you are unsure about gets taken on its own:
+
+```sh
+cinzel github upgrade --only-action actions/deploy-pages
+```
+
+```
+would upgrade actions/deploy-pages: d6db90164ac5 → v5.0.1 (368f82528645)
+
+Upgrade summary: 1 upgraded, 0 already current, 0 failed, 14 not targeted
+```
+
+A name that matches nothing fails rather than reporting a clean run, so a
+typo does not look like a directory with nothing to do.
+
+### Reading the result from a script
+
+`--json` on either command reports the run on stdout, with the per-action
+progress on stderr so stdout stays a document:
+
+```sh
+cinzel github upgrade --check --json | jq '.actions[] | select(.status == "held")'
+```
+
+```json
+{
+  "action": "actions/deploy-pages",
+  "status": "held",
+  "from": "v4",
+  "fromSHA": "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+  "to": "v5.0.1",
+  "toSHA": "368f8285286458fd5d2cbd5c4e95a8a62aae3b53",
+  "published": "2026-09-01",
+  "eligibleAt": "2026-11-30"
+}
+```
+
+Each end of a move is a release and the commit it names, so `from`/`fromSHA`
+and `to`/`toSHA` pair up. An action still on a tag has no `fromSHA` until the
+run resolves one.
+
+Each action carries a `status`: `pinned`, `already-pinned` or `failed` for
+pin, and `upgraded`, `current`, `held` or `failed` for upgrade. A failure
+carries its `error`, so a script that captured stdout does not have to read
+the human output as well to find out what went wrong.
+
+The exit code is the same either way — the flag changes how a run is reported,
+not what it concludes.
+
 No token is needed for public actions. `GITHUB_TOKEN` raises the rate limit
 from 60 an hour to 5000.
+
+## CI/CD integration
+
+### Failing a build on an unpinned or outdated action
+
+`--check` writes nothing and exits non-zero when it found something to do, so
+it works as a step on its own:
+
+```yaml
+- run: cinzel github pin --check          # fails if anything follows a tag
+- run: cinzel github upgrade --check      # fails if anything has a newer release
+```
+
+`--dry-run` exits 0 whatever it finds, so it answers "what would this do"
+rather than "is this done". A step meant to go red wants `--check`.
+
+### One pull request per action
+
+Upgrading everything in one commit means one review covering several
+unrelated bumps, and a revert that takes the good ones with the bad. Ask what
+is available, then move them one at a time:
+
+```sh
+cinzel github upgrade --dry-run --json |
+  jq -r '.actions[] | select(.status == "upgraded" or .status == "held") | .action'
+```
+
+```
+jdx/mise-action
+actions/upload-pages-artifact
+actions/deploy-pages
+```
+
+Each name goes back in as a target. The JSON already holds both ends of the
+move, so the commit message can say what changed rather than only what was
+touched:
+
+```sh
+cinzel github upgrade --dry-run --json |
+  jq -r '.actions[] | select(.status == "upgraded") |
+         [.action, .from, .to] | @tsv' |
+while IFS=$'\t' read -r action from to; do
+
+  branch="upgrade/$(echo "$action" | tr / -)"
+
+  git switch -c "$branch" main
+  cinzel github upgrade --only-action "$action" --parse
+
+  git commit -am "chore(deps): upgrade ${action##*/}" \
+    -m "$action $from -> $to" \
+    -m "Pinned to the commit $to names. The YAML is regenerated from
+the HCL in the same commit, so the two stay in step."
+
+  gh pr create --fill
+  git switch main
+done
+```
+
+For `actions/deploy-pages`, that gives:
+
+```
+branch   upgrade/actions-deploy-pages
+
+         chore(deps): upgrade deploy-pages
+
+         actions/deploy-pages v4 -> v5.0.1
+
+         Pinned to the commit v5.0.1 names. The YAML is regenerated
+         from the HCL in the same commit, so the two stay in step.
+```
+
+The version is in the body, not the header. Conventional-commit linters cap
+a header — this project at 50 characters — and both the owner and the
+version push past it on a real action:
+`chore(deps): upgrade upload-pages-artifact to v5.0.0` is 52, and with the
+owner it is 60. The body has no such limit, so the full name and both
+versions go there, where they are searchable and nothing truncates them.
+
+`--fill` then takes that commit as the pull request title and body, so the
+two agree without writing it twice.
+
+Three things that bite:
+
+`--parse` is not optional here. Without it the HCL moves and the generated
+YAML does not, and the two stay out of step until something regenerates them.
+
+Select `held` as well as `upgraded` if you have a cooldown. A release inside
+its window is reported as `held`, so filtering on `upgraded` alone silently
+skips exactly the upgrades the policy is holding for you.
+
+Each run is one API request per action, plus one for the survey. That is fine
+authenticated; the unauthenticated 60 an hour is reachable on a large
+directory.
+
+### Running it on a schedule
+
+The same loop on a schedule. One job surveys, a second opens a pull request
+per action it found:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    outputs:
+      actions: ${{ steps.find.outputs.actions }}
+    steps:
+      # Tags here for readability. Pin this workflow too — see below.
+      - uses: actions/checkout@v5
+      - run: go install github.com/yldio/cinzel@latest
+      - id: find
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          actions=$(cinzel github upgrade --dry-run --json |
+            jq -c '[.actions[] | select(.status == "upgraded") | .action]')
+          echo "actions=$actions" >> "$GITHUB_OUTPUT"
+
+  upgrade:
+    needs: survey
+    if: needs.survey.outputs.actions != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        action: ${{ fromJSON(needs.survey.outputs.actions) }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: go install github.com/yldio/cinzel@latest
+      - env:
+          ACTION: ${{ matrix.action }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch="upgrade/${ACTION//\//-}"
+
+          git switch -c "$branch"
+          cinzel github upgrade --only-action "$ACTION" --parse
+          git commit -am "chore(deps): upgrade $ACTION"
+          git push -u origin "$branch"
+          gh pr create --fill
+```
+
+`fail-fast: false` so one action that will not resolve does not cancel the
+pull requests for the rest. The `if` is there because an empty matrix is a
+workflow error rather than a job that does nothing.
+
+The `uses` lines above name tags, which is easier to read on a page and not
+what you want in the repository. This workflow has the same supply chain as
+any other, so pin it along with the rest — `cinzel github pin` rewrites the
+HCL it came from, and `pin --check` in CI keeps it that way.
+
+Put the cooldown in `.cinzelrc.yaml` rather than in the workflow. A scheduled
+job that has to remember a flag is one edit away from silently not having it,
+and the file is read by the runs you do by hand too.
 
 ## Using it from an agent
 

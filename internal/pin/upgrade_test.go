@@ -102,7 +102,7 @@ func TestUpgradeFileDryRun(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	results, err := UpgradeFile(context.Background(), path, resolver, &buf, true, Cooldown{})
+	results, err := UpgradeFile(context.Background(), path, resolver, &buf, UpgradeOptions{DryRun: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestUpgradeDirectoryNoHCL(t *testing.T) {
 
 	resolver := &stubUpgrader{}
 
-	_, err := UpgradeDirectory(context.Background(), dir, resolver, &buf, false, Cooldown{})
+	_, err := UpgradeDirectory(context.Background(), dir, resolver, &buf, UpgradeOptions{})
 	if err == nil {
 		t.Error("expected error for directory with no HCL files")
 	}
@@ -194,7 +194,7 @@ func TestUpgradeInlineComment(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	_, err := UpgradeFile(context.Background(), path, resolver, &buf, false, Cooldown{})
+	_, err := UpgradeFile(context.Background(), path, resolver, &buf, UpgradeOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

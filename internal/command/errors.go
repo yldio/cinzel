@@ -28,6 +28,14 @@ var (
 	// release than the one in the file.
 	errActionsOutdated = cinzelerror.UserInput(errors.New("some actions are not on their latest version"))
 
+	// errNoSuchAction ends an "--only-action" run that matched nothing.
+	//
+	// Every action is skipped in that case, which counts as no upgrade and no
+	// failure and reads as a clean run — so a typo in the name would report
+	// success having checked nothing, the way "fmt" over a wrong path once
+	// reported a clean check of no files.
+	errNoSuchAction = cinzelerror.UserInput(errors.New("--only-action matched no action"))
+
 	// errNegativeCooldown refuses a cooldown below zero. A negative window is
 	// not "no cooldown", which is what 0 already says: it is a number whose
 	// author meant something the policy has no way to carry out.

@@ -256,6 +256,24 @@ default. There is no recommended value — how long to wait depends on the
 actions being depended on. A held release is printed with the date it becomes
 eligible, and does not fail `--check`.
 
+`--only-action` upgrades one action and leaves the rest alone:
+
+```sh
+cinzel github upgrade --only-action actions/deploy-pages
+```
+
+A name matching nothing fails rather than reporting a clean run.
+
+`--json` on either command reports the run on stdout, with progress on stderr:
+
+```sh
+cinzel github upgrade --check --json | jq '.actions[] | select(.status == "held")'
+```
+
+Each action has a `status` — `pinned`, `already-pinned`, `failed` for pin;
+`upgraded`, `current`, `held`, `failed` for upgrade — and a failure carries
+its `error`. The exit code is the same as the text form.
+
 Run `parse` after `pin` or the YAML still carries the old tags.
 
 ## Checking the two are in step

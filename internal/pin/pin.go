@@ -304,6 +304,12 @@ type ActionRef struct {
 
 	// What the author wrote in that comment, which the rewrite carries over.
 	note string
+
+	// tagNote is the version the trailing comment named, when the line holds
+	// a SHA: the "v4" in `version = "d6db90..." # v4`. A pinned line says
+	// what it is pinned to and nowhere else says which release that was, so
+	// a report naming only the SHA leaves the reader to look it up.
+	tagNote string
 }
 
 // versionEdit is one rewritten version assignment, held back until every
@@ -859,7 +865,29 @@ func usesRef(body *hclsyntax.Body, content string) (ActionRef, bool) {
 		start:   rng.Start.Byte,
 		end:     end,
 		note:    authorNote(content[rng.End.Byte:end], version),
+		tagNote: commentTag(content[rng.End.Byte:end], version),
 	}, true
+}
+
+// commentTag returns the release a pinned line's trailing comment names, or
+// "" when there is none to read.
+//
+// This is the word keepNote drops: on a SHA, a tag-shaped word in the comment
+// names the version that SHA is, which is the one place the file records it.
+func commentTag(trailing, version string) string {
+	if !isCommitSHA(version) {
+		return ""
+	}
+
+	for _, body := range commentBodies(trailing) {
+		for _, word := range strings.Fields(body.text) {
+			if tagPattern.MatchString(word) {
+				return word
+			}
+		}
+	}
+
+	return ""
 }
 
 // literalString reads a plain quoted string. An action built from a variable
@@ -896,4 +924,15 @@ func reportf(w io.Writer, format string, args ...any) {
 func drainAndClose(body io.ReadCloser) {
 	_, _ = io.Copy(io.Discard, body)
 	body.Close()
+}
+
+// IsCommitSHA reports whether a version string is a full commit SHA rather
+// than a release tag.
+//
+// Exported for the report, which shows a pinned line's commit and its release
+// in separate fields and has to know which of the two a version is. The rule
+// belongs here with the resolving that depends on it, rather than being
+// written out a second time next to the JSON.
+func IsCommitSHA(version string) bool {
+	return isCommitSHA(version)
 }
